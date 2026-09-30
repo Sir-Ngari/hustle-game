@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Build an empire from a street hustle to a billion.">
+<meta name="theme-color" content="#14261f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hustle">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314261f'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='%23e2ac48' font-family='Arial' font-weight='700'%3E%24%3C/text%3E%3C/svg%3E">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:#eef0e6}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -80,6 +88,17 @@ canvas#chart{width:100%;height:170px;display:block}
 .tdots i{height:4px;flex:1;border-radius:2px;background:var(--line)}
 .tdots i.on{background:var(--brass)}
 @media (prefers-reduced-motion:no-preference){.tspot,.tcard{transition:left .25s ease,top .25s ease,width .25s ease,height .25s ease}}
+.streak{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:4px 0 10px}
+.streak span{border:1px solid var(--line);border-radius:3px;padding:6px 2px;text-align:center;font-size:11px;line-height:1.3;color:var(--muted)}
+.streak span b{display:block;font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.streak span.done{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+.streak span.done b{color:var(--green)}
+.streak span.next{border:2px dashed var(--brass);color:var(--ink)}
+.dealcard{border:1px solid var(--brass);background:var(--brass-soft);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.dealcard .dtop{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.dealcard h3{margin:0;font-size:16px}
+.dealcard p{margin:0;font-size:13.5px}
+.dealcard .chips{margin-top:4px}
 .bar{position:sticky;top:max(env(safe-area-inset-top,0px),var(--qh,0px));transition:top .2s ease;z-index:5;background:var(--paper);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding-top:10px}
 .barrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-bottom:-1px}
@@ -138,6 +157,7 @@ table.lt.small{min-width:0;font-size:12.5px}
 .amsg{margin:0;padding:10px 12px;border-radius:3px;background:var(--brass-soft);color:var(--ink);font-size:13.5px}
 .aform input[type=password],.aform input[type=email]{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:15px;color:var(--ink)}
 .me{display:flex;align-items:center;gap:14px}
+.iossteps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:15px;line-height:1.5}
 .acctbrand{font-family:var(--display);font-weight:900;font-size:22px;letter-spacing:.06em;text-transform:uppercase;color:var(--brass)}
 .acctbox h2{font-family:var(--display);font-weight:900;font-size:40px;line-height:1;text-transform:uppercase;margin:0;text-wrap:balance}
 .acctbox h3{font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 0}
@@ -428,6 +448,11 @@ footer.foot{justify-content:center;padding-top:6px}
   <div id="main">
     <div class="tabpane" data-tab="overview" role="tabpanel" aria-labelledby="tab-overview">
       <div class="col">
+        <section class="panel today">
+          <h2>Today</h2>
+          <p class="sub">A bonus for every day you play, and a deal that disappears at midnight.</p>
+          <div id="today"></div>
+        </section>
         <section class="panel">
           <h2>Needs attention</h2>
           <p class="sub">Deadlines, penalties and opportunities this month.</p>
@@ -793,7 +818,51 @@ function genderEvent(){const next=()=>!S.inds.length&&!S.over&&!S.won?industryEv
  return{cat:'Your profile',title:'One quick question',text:'So your story gets the details right: are you a man or a woman?'+(S.spouse?' Your marriage records will be updated to match.':' Your future wife or husband will be chosen to match.'),
   choices:[{l:'I\'m a man',d:'You will marry a wife.',f(){setGender('m');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your wife.':'Profile updated.','',next()]}},
    {l:'I\'m a woman',d:'You will marry a husband.',f(){setGender('f');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your husband.':'Profile updated.','',next()]}}]};}
-function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else maybeTour();}
+function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else if(S.tourDone&&bonusDue())openEvent(bonusEvent());else maybeTour();}
+/* ================= Daily bonus & daily deal (real-world days) ================= */
+const dayKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const yesterdayKey=()=>{const d=new Date();d.setDate(d.getDate()-1);return dayKey(d);};
+const BONUS_X=[1,1.5,2,2.5,3,4,6];
+function dailyState(){return S.daily||(S.daily={last:'',streak:0});}
+function bonusDue(){return !S.over&&!S.won&&S.inds.length>0&&dailyState().last!==dayKey();}
+function nextStreak(){const d=dailyState();return d.last===yesterdayKey()?d.streak+1:1;}
+function bonusBase(){return Math.max(50,netWorth()*.003);}
+function bonusFor(streak){return bonusBase()*BONUS_X[(Math.min(streak,7))-1];}
+function bonusEvent(){const n=nextStreak(),amt=bonusFor(n),week=n>=7,d=dailyState(),broke=d.streak>1&&d.last!==yesterdayKey();
+ return{cat:'Daily bonus',title:!d.last?'Your first daily bonus':'Day '+n+(n>1?' in a row':'')+'. Welcome back!',text:(broke?'You missed a day, so your streak starts again. ':'')+
+  'Come back every day to grow your bonus. Day 7 pays the most, then the streak stays at the top as long as you keep coming back.'+
+  '<div class="streak" style="margin-top:12px">'+BONUS_X.map((x,i)=>'<span class="'+(i+1<Math.min(n,7)?'done':i+1===Math.min(n,7)?'next':'')+'"><b>×'+x+'</b>Day '+(i+1)+'</span>').join('')+'</div>',
+  choices:[{l:'Collect '+fmt(amt),d:week?'Plus +5 happiness and +3 reputation for a full week.':'Tomorrow: '+fmt(bonusFor(n+1))+'.',f(){const dd=dailyState();dd.streak=n;dd.last=dayKey();S.cash+=amt;if(week){addHappy(5);addRep(3);}
+   return['Daily bonus, day '+n+': +'+fmt(amt)+'.','gold']}}]};}
+function seeded(str){let h=2166136261;for(const c of str)h=Math.imul(h^c.charCodeAt(0),16777619);return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+function todaysDeal(){const day=dayKey();if(S.deal&&S.deal.day===day)return S.deal;
+ const r=seeded(day+'|'+((typeof ACC!=='undefined'&&ACC&&ACC.id)||'')+'|'+S.month),opts=[];
+ const mine=BIZ.filter(b=>owned(b.id)>0&&S.inds.includes(b.ind));if(mine.length)opts.push({type:'unit',id:mine[Math.floor(r()*mine.length)].id});
+ const tiers=BIZ.filter(b=>S.inds.includes(b.ind)&&!owned(b.id)&&unitCost(b,0)<=Math.max(2000,S.cash*1.4));if(tiers.length)opts.push({type:'unit',id:tiers[tiers.length-1].id});
+ opts.push({type:'tip',id:pick2(SECS_NAMES(),r)});
+ const lux=ASSETS.filter(a=>!a.stack&&!has(a.id)&&a.kind!=='Homes'&&assetPrice(a)<=Math.max(3000,S.cash*1.2)&&assetPrice(a)>=S.cash*.05);if(lux.length)opts.push({type:'bargain',id:lux[Math.floor(r()*lux.length)].id});
+ S.deal=Object.assign({day,taken:false},opts[Math.floor(r()*opts.length)]);return S.deal;}
+function pick2(a,r){return a[Math.floor(r()*a.length)];}
+function SECS_NAMES(){return['a Nairobi fintech','an East African telecom','a cement maker','a regional bank','a solar energy company','a logistics firm'];}
+function dealInfo(d){
+ if(d.type==='unit'){const b=BIZ.find(x=>x.id===d.id);if(!b)return null;const full=unitCost(b,owned(b.id)),c=full*.7;return{title:'30% off a new '+b.name,text:'A competitor is closing down and selling a ready-made '+b.name.lc()+'. It starts earning at once, like any outlet you open.',cost:c,was:full,btn:'Buy for '+fmt(c)};}
+ if(d.type==='tip'){const c=nwc(.012,300);return{title:'Hot tip: '+d.id,text:'A friend on the inside says '+d.id+' is about to announce record results. Put in '+fmt(c)+': 75% chance it pays back '+fmt(c*1.7)+' in 3 months. If the tip is wrong, you lose it all.',cost:c,btn:'Invest '+fmt(c)};}
+ if(d.type==='bargain'){const a=ASSETS.find(x=>x.id===d.id);if(!a)return null;const full=assetPrice(a),c=full*.75;return{title:'25% off: '+a.name,text:'A collector needs cash fast and is selling below market value.',cost:c,was:full,btn:'Buy for '+fmt(c)};}
+ return null;}
+function takeDeal(){const d=todaysDeal(),i=dealInfo(d);if(!i||d.taken||S.cash<i.cost||S.over)return;
+ if(d.type==='unit'){const disc=i.was-i.cost,before=owned(d.id);S.cash+=disc;buy(d.id);if(owned(d.id)===before){S.cash-=disc;return;}log('Daily deal: bought a '+BIZ.find(x=>x.id===d.id).name+' at 30% off.','gold');}
+ else if(d.type==='bargain'){const disc=i.was-i.cost,before=has(d.id);S.cash+=disc;buyAsset(d.id);if(has(d.id)===before){S.cash-=disc;return;}log('Daily deal: bought '+ASSETS.find(x=>x.id===d.id).name+' at 25% off.','gold');}
+ else{S.cash-=i.cost;S.pending.push({due:S.month+3,cash:i.cost*1.7,chance:.75,good:'The hot tip paid off! '+d.id.charAt(0).toUpperCase()+d.id.slice(1)+' returned '+fmt(i.cost*1.7)+'.',bad:'The hot tip was wrong. You lost your '+fmt(i.cost)+'.'});log('Daily deal: invested '+fmt(i.cost)+' on a hot tip about '+d.id+'.','gold');}
+ d.taken=true;afterChange();}
+function untilMidnight(){const n=new Date(),m=new Date(n);m.setHours(24,0,0,0);const mins=Math.max(1,Math.round((m-n)/60000));return mins>=60?Math.floor(mins/60)+'h '+(mins%60)+'m':mins+'m';}
+function renderToday(){const el=$('today');if(!el)return;if(!S.inds.length||S.over){el.innerHTML='<p class="seghint">Daily bonuses and deals start once your empire is running.</p>';return;}
+ const dd=dailyState(),got=dd.last===dayKey(),n=got?dd.streak:nextStreak(),shown=Math.min(n,7);
+ let h='<div class="streak" aria-label="Daily streak">'+BONUS_X.map((x,i)=>'<span class="'+(i+1<shown||(got&&i+1===shown)?'done':i+1===shown?'next':'')+'"><b>×'+x+'</b>Day '+(i+1)+'</span>').join('')+'</div>';
+ h+=got?'<p class="seghint">Bonus collected: '+n+' day'+(n>1?'s':'')+' in a row. Come back tomorrow for '+fmt(bonusFor(n+1))+'.</p>':'<div class="chips"><button class="btn primary small" data-a="bonus">Collect today\'s bonus · '+fmt(bonusFor(n))+'</button></div>';
+ const d=todaysDeal(),i=dealInfo(d);
+ if(i)h+='<div class="dealcard"><div class="dtop"><span class="eyebrow">Today\'s deal · ends in '+untilMidnight()+'</span>'+(d.taken?'<span class="pill good">Taken</span>':'')+'</div><h3>'+i.title+'</h3><p>'+i.text+'</p>'+
+  (d.taken?'<p class="seghint">A new deal arrives tomorrow.</p>':'<div class="chips"><button class="btn primary small" data-a="deal"'+(S.cash<i.cost?' disabled':'')+'>'+i.btn+'</button>'+(i.was?'<span class="seghint">Usually '+fmt(i.was)+'</span>':'')+(S.cash<i.cost?'<span class="seghint">Not enough cash yet</span>':'')+'</div>')+'</div>';
+ el.innerHTML=h;}
 /* ================= Guided tour ================= */
 let tourOn=false,tourI=0;
 const panelOf=id=>{const e=$(id);return e?(e.closest('.panel')||e.parentElement):null;};
@@ -804,6 +873,7 @@ const TOUR=[
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:'Your net worth over time, and your progress to $1B. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
  {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Each click of <b>Next month</b> collects profit, pays your bills, ages you a month and may bring a decision. <b>Auto-play</b> runs the months for you and pauses whenever a decision comes up. You can also press <b>N</b> on a keyboard.'},
  {el:()=>document.querySelector('.tabs'),t:'Nine sections',x:'The tabs hold everything you can do. Some are quiet at first and come alive as you get richer: sports teams, a foundation and political power. <b>News</b> keeps a record of every move you make.'},
+ {tab:'overview',el:()=>panelOf('today'),t:'Come back every day',x:'Every day you play, you collect a <b>daily bonus</b> that grows with your streak. Day 7 pays six times day 1. Miss a day and the streak starts again. There is also <b>one special deal</b> each day, such as a discounted outlet, a hot stock tip or a bargain, and it disappears at midnight.'},
  {tab:'overview',el:()=>panelOf('attention'),t:'Overview: what needs you',x:'<b>Needs attention</b> lists anything you must deal with, like staff the law now requires or a lifestyle you have outgrown. Check it often. Next to it, the <b>monthly statement</b> shows exactly where your money comes from and where it goes.'},
  {tab:'business',el:()=>panelOf('biz'),t:'Business: build your empire',x:'This is where you make money. Open outlets in your industry. Each extra outlet costs 12% more than the last, and owning all six tiers of an industry earns a 10% mastery bonus. Higher ranks let you enter more industries.'},
  {tab:'business',el:()=>panelOf('markets'),t:'Grow into new markets',x:'Each market you enter lifts profit across your whole empire: all of Kenya first, then East Africa, Pan-Africa and finally global.'},
@@ -817,7 +887,7 @@ const TOUR=[
 ];
 function maybeTour(){if(!tourOn&&!current&&!S.tourDone&&S.inds.length&&!S.over&&!S.won&&!acctView)startTour();}
 function startTour(){if(current)return;stopAuto();tourOn=true;tourI=0;paintTour();}
-function endTour(){if(!tourOn)return;tourOn=false;const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();}
+function endTour(){if(!tourOn)return;tourOn=false;const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(bonusDue()&&!current)openEvent(bonusEvent());}
 function tourGo(d){const n=tourI+d;if(n<0)return;if(n>=TOUR.length){endTour();return;}tourI=n;paintTour();}
 function tourScroll(el){if(!el){return;}if(el.closest('.note')){window.scrollTo(0,0);return;}
  const bar=document.querySelector('.bar'),q=$('quick'),hdr=(bar?bar.offsetHeight:0)+(q?q.offsetHeight:0)+14,r=el.getBoundingClientRect(),vh=innerHeight;
@@ -890,7 +960,7 @@ const GENDER_FS='<fieldset><legend>You are</legend><div class="gopts"><label cla
 function avatar(a,big){return'<span class="av'+(big?' big':'')+'" style="background:'+AVCOL[(a&&a.color)||0]+'">'+esc(initials(a&&a.name))+'</span>';}
 async function api(method,path,body){let r;
  try{r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
- catch(e){throw{status:0,message:'Could not reach the game server. Check your connection and try again.'};}
+ catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
  if(!r.ok)throw{status:r.status,message:d.error||'Something went wrong on the server. Try again in a moment.'};return d;}
 function startWith(user,save){ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
@@ -898,7 +968,7 @@ function startWith(user,save){ACC=user;S=save&&save.hist?Object.assign(fresh(),s
  signupGender='';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
- influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,health:Math.round(S.health||0),died:!!S.died,gender:S.g||'',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
+ influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,health:Math.round(S.health||0),died:!!S.died,streak:(S.daily&&S.daily.last)?S.daily.streak:0,gender:S.g||'',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
 function queueSync(now){if(!ACC)return;syncState='saving';paintChip();clearTimeout(syncTimer);syncTimer=setTimeout(doSync,now?0:900);}
 async function doSync(){if(!ACC)return;if(syncBusy){syncAgain=true;return;}syncBusy=true;
  const evs=S.log.filter(l=>l.n&&l.n>(S.logSent||0)).slice(0,60).reverse(),maxN=evs.reduce((m,l)=>Math.max(m,l.n),S.logSent||0);
@@ -926,8 +996,9 @@ function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}e
  else if(acctView==='down')h+='<h2>Can\'t connect</h2><p class="sub">'+esc(authMsg)+'</p><div class="chips"><button class="btn primary" data-a="retryboot">Try again</button></div>';
  else if(acctView==='auth')h+='<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm();
  else if(acctView==='menu')h+='<div class="me">'+avatar(ACC,true)+'<div><h2>'+esc(ACC.name)+'</h2><p class="sub">@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
-  '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button><button class="btn ghost" data-a="logout">Log out</button></div>'+
+  '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
   '<h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email');
+ else if(acctView==='installios')h+='<h2>Install the app</h2><p class="sub">Put the game on your home screen. It opens full-screen, like any other app.</p><ol class="iossteps"><li>At the bottom of Safari, tap the <b>Share</b> button (the square with an arrow pointing up).</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The game\'s icon appears on your home screen.</li></ol><div class="chips"><button class="btn primary" data-a="acctclose">Got it</button></div>';
  else if(acctView==='addemail')h+='<h2>Add your email</h2><p class="sub">If you ever forget your password, we\'ll send a reset link here. We don\'t use it for anything else.</p>'+emailForm('Save email',true);
  else if(acctView==='forgot')h+='<h2>Forgot your password?</h2>'+(forgotDone?'<p class="amsg">'+esc(forgotDone)+'</p><div class="chips"><button class="btn primary" data-a="backlogin">Back to log in</button></div>':
   '<p class="sub">Enter your username or the email on your account. We\'ll email you a link to choose a new password.</p><form id="forgotform" class="aform" novalidate><label for="fg-who">Username or email</label><input id="fg-who" maxlength="120" autocomplete="username" autocapitalize="none" spellcheck="false" required>'+
@@ -977,6 +1048,19 @@ function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('res
 async function logout(){stopAuto();if(ACC)try{await doSync();}catch(e){}try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
 async function openBoard(){acctView='board';lbData=null;renderAccts();try{lbData=(await api('GET','/api/leaderboard')).players;}catch(e){lbData=[];}renderAccts();}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
+
+/* ================= Install as an app ================= */
+let installEvt=null;
+const isStandalone=()=>(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const canInstall=()=>!isStandalone()&&(!!installEvt||isIOS);
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;paintInstall();});
+window.addEventListener('appinstalled',()=>{installEvt=null;paintInstall();});
+function paintInstall(){let b=$('installbtn');const show=canInstall();
+ if(!b&&show){const t=$('tourbtn');if(!t)return;b=document.createElement('button');b.className='btn ghost';b.id='installbtn';b.dataset.a='installapp';b.textContent='Install app';t.parentNode.insertBefore(b,t.nextSibling);}
+ if(b)b.hidden=!show;}
+async function installApp(){if(installEvt){const e=installEvt;e.prompt();try{await e.userChoice;}catch(x){}installEvt=null;paintInstall();}
+ else if(isIOS){stopAuto();acctView='installios';renderAccts();}}
 
 function save(){if(!ACC)return;S._uid=ACC.id;queueSync();}
 
@@ -1877,6 +1961,7 @@ function closeModal(){$('modal').hidden=true;$('modal').innerHTML='';}
 /* ================= Turn ================= */
 function nextMonth(){
  if(!ACC||acctView||S.over||current)return;
+ if(bonusDue()){openEvent(bonusEvent());return;}
  const f=flows(true);S.cash+=f.net;S.last=f;S.month++;
  ASSETS.forEach(a=>{if(has(a.id)||S.af[a.id]){S.af[a.id]=Math.max(.3,af(a.id)*(1+a.drift-.003*behind(a.id)+(rnd()-.5)*(a.vol||.004)));}});
  S.buffs.forEach(b=>b.months--);S.buffs=S.buffs.filter(b=>b.months>0);
@@ -2005,9 +2090,9 @@ function stopAuto(){if(timer){clearInterval(timer);timer=null}const a=$('auto');
 function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInterval(nextMonth,750);const a=$('auto');a.classList.add('on');a.setAttribute('aria-pressed','true');a.textContent='Pause';}
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
- ({care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),stoppay:stopPaying,
-  hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=null;renderAccts();},authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,leaderboard:openBoard,retryboot:bootAuth,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
+  hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=null;renderAccts();},authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:openBoard,retryboot:bootAuth,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
   askreset:()=>{$('reset').innerHTML='<span class="foot">Erase this life? <button class="btn small" data-a="reset">Yes, restart</button><button class="btn ghost small" data-a="noreset">Cancel</button></span>';},
   noreset:()=>{$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';},
@@ -2038,6 +2123,7 @@ function render(){
  $('heat').textContent=S.protection>0?'Paying '+Math.round(S.protection*100)+'%':S.mobMet?Math.round(S.heat):'None';$('heatm').style.width=(S.protection>0?0:clamp(S.heat,0,100))+'%';$('heat').className=S.heat>=50?'neg':'';
  $('hlth').textContent=Math.round(S.health);$('hlth').className=S.health<40?'neg':'';$('hlthm').style.width=clamp(S.health,0,100)+'%';$('hlthm').style.background=S.health<40?'var(--red)':S.health<60?'var(--brass)':'var(--green)';
  $('date').textContent=dateStr(S.month);
+ renderToday();
  paintQuick();
  $('next').disabled=S.over;
  const chips=[];
@@ -2375,6 +2461,8 @@ window.addEventListener('resize',drawChart);
 render();
 showTab(curTab);
 bootAuth();
+paintInstall();
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 </script>
 
 </body>

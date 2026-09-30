@@ -35,6 +35,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 BASE = os.path.dirname(os.path.abspath(__file__))
 PUBLIC = os.path.join(BASE, "public")
 HOST = os.environ.get("HUSTLE_HOST", "127.0.0.1")
@@ -688,7 +689,7 @@ class Handler(BaseHTTPRequestHandler):
         nw = num(summary.get("nw"))
         new_game = bool(summary.get("newGame"))
         detail_keys = ("industries", "units", "properties", "teams", "happiness", "reputation", "influence",
-                       "debt", "married", "kids", "age", "tab", "race", "foundation", "cities", "gender", "spouse", "health", "died")
+                       "debt", "married", "kids", "age", "tab", "race", "foundation", "cities", "gender", "spouse", "health", "died", "streak")
         detail = {k: summary.get(k) for k in detail_keys if isinstance(summary.get(k), (int, float, str, bool))}
         detail = {k: (clean_text(v, 40) if isinstance(v, str) else v) for k, v in detail.items()}
 
