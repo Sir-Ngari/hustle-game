@@ -67,7 +67,7 @@ canvas#chart{width:100%;height:170px;display:block}
 .q.big b{font-size:17px}
 .qgap{flex:1}
 @media (prefers-reduced-motion:no-preference){.q b.bump{animation:qb .7s ease}@keyframes qb{0%{background:var(--brass-soft)}100%{background:transparent}}}
-@media (max-width:640px){.qin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 10px;padding-block:6px}.qgap{display:none}.q b,.q.big b{font-size:13px}.q small{font-size:9.5px;letter-spacing:.08em}}
+@media (max-width:640px){.qin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));}.qin .q:last-child{display:none}.qin{gap:4px 10px;padding-block:6px}.qgap{display:none}.q b,.q.big b{font-size:13px}.q small{font-size:9.5px;letter-spacing:.08em}}
 .tour{position:fixed;inset:0;z-index:30}
 .tspot{position:fixed;border-radius:6px;box-shadow:0 0 0 9999px rgba(8,14,11,.66);outline:2px solid var(--brass);outline-offset:0;pointer-events:none}
 .tcard{position:fixed;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-top:4px solid var(--brass);border-radius:6px;padding:16px 18px 14px;box-shadow:0 18px 40px -12px rgba(0,0,0,.5)}
@@ -230,7 +230,7 @@ table.lt.small{min-width:0;font-size:12.5px}
 footer.foot{justify-content:center;padding-top:6px}
 .tabpane{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px;align-items:start}
 .tabpane.single{grid-template-columns:minmax(0,1fr)}
-.meters{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;border-top:1px solid var(--line);padding-top:14px;position:relative}
+.meters{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;border-top:1px solid var(--line);padding-top:14px;position:relative}
 .mlabel{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .mlabel b{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .meter i{transition:width .4s ease}
@@ -354,7 +354,7 @@ footer.foot{justify-content:center;padding-top:6px}
 .svc .top span{font-size:12.5px;color:var(--muted)}
 .svc .seghint {margin:0}
 .svc .btn{align-self:flex-start}
-@media (max-width:900px){.tabpane{grid-template-columns:1fr}.note{grid-template-columns:1fr}.meters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){.tabpane{grid-template-columns:1fr}.note{grid-template-columns:1fr}.meters{grid-template-columns:repeat(2,minmax(0,1fr))}.meters .meterbox:last-child{grid-column:1/-1}}
 @media (max-width:620px){.sec{grid-template-columns:minmax(0,1fr) 84px 76px}.sec .acts{grid-column:1/-1;justify-content:flex-start}.mkt-head{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:620px){
  .note{padding:18px;gap:16px}
@@ -374,7 +374,7 @@ footer.foot{justify-content:center;padding-top:6px}
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
   <span class="q big"><small>Net worth</small><b id="q-nw"></b></span><span class="q"><small>Cash</small><b id="q-cash"></b></span><span class="q"><small>Cash flow / mo</small><b id="q-flow"></b></span><span class="q"><small>Debt</small><b id="q-debt"></b></span>
   <span class="qgap"></span>
-  <span class="q"><small>Reputation</small><b id="q-rep"></b></span><span class="q"><small>Happiness</small><b id="q-hap"></b></span><span class="q"><small>Influence</small><b id="q-inf"></b></span><span class="q"><small>Mob heat</small><b id="q-heat"></b></span>
+  <span class="q"><small>Reputation</small><b id="q-rep"></b></span><span class="q"><small>Happiness</small><b id="q-hap"></b></span><span class="q"><small>Influence</small><b id="q-inf"></b></span><span class="q"><small>Mob heat</small><b id="q-heat"></b></span><span class="q"><small>Health</small><b id="q-hlth"></b></span>
 </div></div>
 <div class="wrap">
   <section class="note" aria-label="Your empire">
@@ -401,6 +401,7 @@ footer.foot{justify-content:center;padding-top:6px}
       <div class="meterbox"><div class="mlabel"><span class="eyebrow">Happiness</span><b id="hap">60</b></div><div class="meter"><i id="hapm" style="background:var(--plum)"></i></div></div>
       <div class="meterbox"><div class="mlabel"><span class="eyebrow">Influence</span><b id="inf">10</b></div><div class="meter"><i id="infm" style="background:var(--brass)"></i></div></div>
       <div class="meterbox"><div class="mlabel"><span class="eyebrow">Mob heat</span><b id="heat">0</b></div><div class="meter"><i id="heatm" style="background:var(--red)"></i></div></div>
+      <div class="meterbox"><div class="mlabel"><span class="eyebrow">Health</span><b id="hlth">90</b></div><div class="meter"><i id="hlthm" style="background:var(--green)"></i></div></div>
     </div>
   </section>
 
@@ -799,7 +800,7 @@ const panelOf=id=>{const e=$(id);return e?(e.closest('.panel')||e.parentElement)
 const TOUR=[
  {t:'Welcome to Hustle to a Billion',x:()=>'You are 24, with a small stake and a big idea. Your goal: grow it into a <b>$1 billion</b> empire. This short tour shows you where everything is. Use <b>Next</b> or your arrow keys.'},
  {el:()=>document.querySelector('.note .head-l'),t:'Your scoreboard',x:'<b>Net worth</b> is everything you own minus what you owe. Reach $1B to win.<ul><li><b>Cash</b>: money you can spend right now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li><li><b>Debt</b>: interest on it eats your profit.</li></ul>'},
- {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li></ul>'},
+ {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:'Your net worth over time, and your progress to $1B. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
  {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Each click of <b>Next month</b> collects profit, pays your bills, ages you a month and may bring a decision. <b>Auto-play</b> runs the months for you and pauses whenever a decision comes up. You can also press <b>N</b> on a keyboard.'},
  {el:()=>document.querySelector('.tabs'),t:'Nine sections',x:'The tabs hold everything you can do. Some are quiet at first and come alive as you get richer: sports teams, a foundation and political power. <b>News</b> keeps a record of every move you make.'},
@@ -846,7 +847,7 @@ const rnd=Math.random, pick=a=>a[Math.floor(rnd()*a.length)];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 /* ================= State ================= */
-function fresh(){return{month:0,cash:1000,debt:0,rep:50,s:1,owned:{},ups:{},market:0,perm:1,buffs:[],pending:[],hist:[1000],strikes:0,
+function fresh(){return{health:92,care:0,conds:{},month:0,cash:1000,debt:0,rep:50,s:1,owned:{},ups:{},market:0,perm:1,buffs:[],pending:[],hist:[1000],strikes:0,
  log:[{m:0,t:'You are 24, with $1,000 and a big idea. Open your first kiosk, then press Next month.',k:'gold'}],won:false,over:false,title:0,cool:3,
  happy:60,mode:'balanced',spouse:null,exes:0,kids:[],alimony:null,lastSplit:-99,
  assets:{},af:{},influence:10,heat:0,protection:0,mobMet:false,mobQuiet:0,policies:[],nextElection:36,
@@ -866,6 +867,7 @@ S.peak=Math.max(S.peak||0,S.title||0);
 if(S.assets&&S.assets.football){S.teams=S.teams||{};S.teams.football={strength:55,af:(S.af&&S.af.football)||1,tier:0,academy:false,last:'',titles:0};delete S.assets.football;}
 if(!S.pcOpen||!S.pcOpen.length){S.pcOpen=['nairobi'].concat([...new Set((S.props||[]).map(p=>p.city))].filter(x=>x!=='nairobi'));}
 if(S.tourDone===undefined)S.tourDone=S.month>0;
+if(typeof S.health!=='number'){S.health=clamp(92-Math.max(0,age()-30)*.7,35,95);S.care=S.care||0;S.conds=S.conds||{};}
 S.gen=S.gen||{};S.latest=S.latest||{};S.relAt=S.relAt||{};S.relPending=S.relPending||[];
 if(S.ups.books&&sv('book').lvl<0)sv('book').lvl=0;
 if(S.ups.brand&&sv('mkt').lvl<0)sv('mkt').lvl=0;
@@ -896,7 +898,7 @@ function startWith(user,save){ACC=user;S=save&&save.hist?Object.assign(fresh(),s
  signupGender='';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
- influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,gender:S.g||'',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
+ influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,health:Math.round(S.health||0),died:!!S.died,gender:S.g||'',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
 function queueSync(now){if(!ACC)return;syncState='saving';paintChip();clearTimeout(syncTimer);syncTimer=setTimeout(doSync,now?0:900);}
 async function doSync(){if(!ACC)return;if(syncBusy){syncAgain=true;return;}syncBusy=true;
  const evs=S.log.filter(l=>l.n&&l.n>(S.logSent||0)).slice(0,60).reverse(),maxN=evs.reduce((m,l)=>Math.max(m,l.n),S.logSent||0);
@@ -1075,7 +1077,7 @@ function flows(noisy){
  const E=svcEffects();
  let biz=0;
  BIZ.forEach(b=>{const n=owned(b.id);if(!n)return;const noise=noisy?1+b.vol*(rnd()*2-1):1;biz+=b.profit*n*policyMult(b)*noise*cyc(b)*indBuff(b.ind)*masteryMult(b.ind);});
- biz*=baseMult()*buffMult()*modeMult()*moodMult()*E.mult*lifeMult()*(1-S.float);
+ biz*=baseMult()*buffMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float);
  const rent=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.rent*has(a.id)*af(a.id),0)*policyMult('rent');
  const sport=sportsNet(),prop=propNet();
  const lux=custEffects().inc+ASSETS.reduce((t,a)=>t+(a.inc&&has(a.id)?a.price*af(a.id)*a.inc*(noisy&&a.incVol?1+(rnd()-.5)*2*a.incVol:1):0),0);
@@ -1087,9 +1089,9 @@ function flows(noisy){
  const school=S.kids.reduce((t,k)=>t+kidCost(k),0);
  const homeRent=S.rent>=0&&S.rent>ownedHomeTier()?HOMES[S.rent].rentFee:0, travel=travelCost();
  const mob=S.protection>0?Math.max(0,biz)*S.protection:0;
- const alimony=S.alimony?S.alimony.amt:0;
+ const alimony=S.alimony?S.alimony.amt:0,health=careFee();
  const giving=S.fdn?Math.max(0,biz)*S.fdn.giving:0;
- return{biz,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,E,net:biz+rent+lux+inv+sport+prop-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel};
+ return{biz,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,E,net:biz+rent+lux+inv+sport+prop-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health};
 }
 function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});S.log.length=Math.min(S.log.length,80);}
 function soften(f){return sv('exec').lvl>=0&&f<1?1-(1-f)*.6:f;}
@@ -1099,6 +1101,29 @@ const addRep=d=>S.rep=clamp(S.rep+d,0,100), addInf=d=>S.influence=clamp(S.influe
  addSH=d=>{if(S.spouse)S.spouse.happy=clamp(S.spouse.happy+d,0,100)};
 function addPolicy(id){const ex=S.policies.find(p=>p.id===id);if(ex)ex.left=POLICIES[id].months;else S.policies.push({id,left:POLICIES[id].months});}
 const age=()=>24+Math.floor(S.month/12);
+/* ---- age & health ---- */
+const STAGES=[[0,'Young and hungry',1.0,'Full of energy, still learning the ropes.'],[30,'Building years',1.06,'Experience is starting to pay.'],[40,'Peak years',1.1,'Experience and energy at their best.'],[50,'Seasoned',1.02,'Wise, but the pace is slowing.'],[60,'Slowing down',.9,'Long days take more out of you.'],[70,'Elder years',.78,'You lead from the boardroom, not the shop floor.'],[80,'Twilight years',.66,'Your name still opens doors.']];
+const stage=()=>{let r=STAGES[0];STAGES.forEach(x=>{if(age()>=x[0])r=x});return r;};
+const CARE=[{name:'No routine care',short:'None',fee:0,h:0,d:'You only see a doctor when something breaks.'},
+ {name:'Gym & yearly check-up',short:'Gym',fee:80,h:6,d:'A gym membership and an annual check-up.'},
+ {name:'Trainer & family doctor',short:'Trainer',fee:2500,h:11,d:'A personal trainer and a doctor on call.'},
+ {name:'Private medical team',short:'Private',fee:40000,h:16,d:'Your own doctors and nutritionist, with a clinic on standby.'}];
+const CONDS={bp:{name:'High blood pressure',hit:6,mhit:1,cost:40},diab:{name:'Type 2 diabetes',hit:8,mhit:2,cost:120},back:{name:'Chronic back pain',hit:4,mhit:1,cost:60},
+ heart:{name:'Heart disease',hit:12,mhit:4,cost:800},knee:{name:'Worn-out knees',hit:5,mhit:1,cost:100},mem:{name:'Memory decline',hit:7,mhit:3,cost:1500}};
+function careFee(){return CARE[S.care||0].fee+Object.keys(S.conds||{}).reduce((t,k)=>t+(S.conds[k].managed?CONDS[k].cost:0),0);}
+function healthTarget(){const a=age();let t=92-Math.max(0,a-30)*.75+CARE[S.care||0].h+({hustle:-10-Math.max(0,a-45)*.3,balanced:0,family:5})[S.mode]+(S.happy-55)/5-S.heat/12;
+ Object.keys(S.conds||{}).forEach(k=>{t-=S.conds[k].managed?CONDS[k].mhit:CONDS[k].hit;});return clamp(t,3,100);}
+function ageMult(){let f=stage()[2];if(f<1&&sv('exec').lvl>=0)f=1-(1-f)*.6;return f*Math.min(1,.8+.25*S.health/100);}
+function deathRisk(){return age()<55?0:.00012*Math.exp((age()-55)/7)*Math.pow(2-S.health/100,2);}
+function addHealth(d){S.health=clamp(S.health+d,0,100);}
+function addCond(id,managed){S.conds=S.conds||{};S.conds[id]={managed,since:S.month};}
+function outlook(){const r=deathRisk()*12;return age()<55?(S.health>=60?['Excellent','good']:['Fair','']):r<.01?['Good','good']:r<.03?['Fair','']:r<.08?['Worrying','bad']:['Grave','bad'];}
+function die(cause){S.over=true;S.died=true;S.deathDue=null;const a=age(),nw=netWorth(),kids=S.kids.filter(k=>!k.withEx).map(k=>k.name);
+ log('You passed away at '+a+'. '+cause,'bad');save();render();
+ showCard('You passed away at '+a,cause+' You leave behind an empire worth <b>'+fmt(nw)+'</b>, built over '+Math.floor(S.month/12)+' years from '+fmt(S.hist[0])+'. '+
+  (S.won?'You reached a billion. Your name will be remembered. ':'You never reached the billion. ')+(S.spouse?S.spouse.name+' and ':'')+(kids.length?'your children '+kids.join(', ')+' ':S.spouse?'your family ':'')+(S.spouse||kids.length?'mourn you. ':'')+(S.fdn?'The '+BR()+' Foundation carries on your work.':''),
+  '<button class="btn primary" data-a="reset">Start a new life</button>');}
+
 const dateStr=m=>'Year '+(Math.floor(m/12)+1)+' · '+MONTHS[m%12];
 function titleIdx(nw){let i=0;TITLES.forEach((t,j)=>{if(nw>=t[0])i=j});return i;}
 const totalUnits=()=>BIZ.reduce((t,b)=>t+owned(b.id),0);
@@ -1200,6 +1225,42 @@ const EVENTS=[
  {id:'gala',cat:'Social',w:.6,when:()=>netWorth()>1e6,title:'Invitation to a charity gala',text:()=>'The city\'s elite, ministers and ambassadors will all be there.',
   choices:()=>{const c=nwc(.008,5000);return[{l:'Attend and bid big',d:'Spend '+fmt(c)+'. +5 reputation, +8 influence.',f(){S.cash-=c;addRep(5);addInf(8);return['You made powerful friends at the gala.','good']}},
    {l:'Stay home',d:'Nothing lost.',f(){return['You skipped the gala.','']}}]}},
+ /* ---- Health ---- */
+ {id:'fitclub',cat:'Health',w:.5,when:()=>age()<45&&(S.care||0)<1&&S.month>6,title:'Friends invite you to a Sunday running club',text:()=>'Early mornings, a few kilometres, nyama choma after. They say it changed their lives.',
+  choices:()=>[{l:'Join them',d:'Spend $30. +8 health, +3 happiness.',f(){S.cash-=30;addHealth(8);addHappy(3);return['You joined the running club. You feel sharper already.','life']}},
+   {l:'No time for that',d:'Nothing happens.',f(){return['You skipped the running club.','']}}]},
+ {id:'back',cat:'Health',w:()=>.3+(S.mode==='hustle'?.3:0),when:()=>age()>=35&&!(S.conds||{}).back,title:'Your back gives out',text:()=>'Years of long days and bad chairs caught up with you. You can barely get out of bed.',
+  choices:()=>{const c=nwc(.002,150);return[{l:'Three months of physiotherapy',d:'Spend '+fmt(c)+'. Profit ×0.95 for 2 months. Managed: $60/mo.',f(){S.cash-=c;addBuff(.95,2,'Physio');addCond('back',true);return['Physio helped. Your back is manageable.','life']}},
+   {l:'Painkillers and push on',d:'Chronic back pain: −4 to your long-term health.',f(){addCond('back',false);addHealth(-4);return['You pushed through the pain. It never quite went away.','bad']}}]}},
+ {id:'bp',cat:'Health',w:()=>.25+(age()-40)*.02+(S.mode==='hustle'?.3:0)+(S.health<50?.3:0),when:()=>age()>=40&&!(S.conds||{}).bp,title:'Your blood pressure is dangerously high',text:()=>'A routine check reads 165 over 100. The doctor wants you on medication and off the stress.',
+  choices:()=>[{l:'Start treatment',d:'$40 a month from now on. Managed: −1 to long-term health.',f(){addCond('bp',true);return['You started blood pressure medication.','life']}},
+   {l:'Ignore it, you feel fine',d:'Untreated: −6 to your long-term health.',f(){addCond('bp',false);return['You ignored the doctor. Your blood pressure stays high.','bad']}}]},
+ {id:'diab',cat:'Health',w:()=>.2+(age()-45)*.015+(S.health<50?.3:0),when:()=>age()>=45&&!(S.conds||{}).diab,title:'Diagnosed with type 2 diabetes',text:()=>'Too many business lunches. You will need medication, a new diet and regular tests.',
+  choices:()=>[{l:'Take it seriously',d:'$120 a month from now on. Managed: −2 to long-term health. −3 happiness.',f(){addCond('diab',true);addHappy(-3);return['You changed your diet and started treatment.','life']}},
+   {l:'Carry on as usual',d:'Untreated: −8 to your long-term health.',f(){addCond('diab',false);return['You carried on as usual. The diabetes is getting worse.','bad']}}]},
+ {id:'heart',cat:'Health',w:()=>.08+(age()-50)*.015+(S.health<50?.4:0)+(S.mode==='hustle'?.25:0)+((S.conds||{}).bp&&!S.conds.bp.managed?.3:0),when:()=>age()>=50&&!(S.conds||{}).heart,
+  title:'Chest pains in the middle of a board meeting',text:()=>'Your arm went numb, then the room spun. Tests show blocked arteries.',
+  choices:()=>{const big=nwc(.02,15000),small=nwc(.006,3000);return[
+   {l:'Fly abroad for surgery',d:'Spend '+fmt(big)+'. Profit ×0.8 for 3 months. +8 health. Heart disease managed ($800/mo).',dis:!canPay(big),f(){S.cash-=big;addBuff(.8,3,'Heart surgery');addHealth(8);addCond('heart',true);return['The surgery abroad went well.','life']}},
+   {l:'Treatment at home',d:'Spend '+fmt(small)+'. Profit ×0.85 for 2 months. −4 health. Heart disease managed ($800/mo).',dis:!canPay(small),f(){S.cash-=small;addBuff(.85,2,'Heart treatment');addHealth(-4);addCond('heart',true);return['You recovered at home, slowly.','life']}},
+   {l:'Shake it off and get back to work',d:'Untreated heart disease: −12 to your long-term health, and a real chance it kills you.',f(){addCond('heart',false);addHealth(-12);if(rnd()<.15)S.deathDue='You ignored the warning signs. A second heart attack took you days later.';return['You went back to work the next morning.','bad']}}]}},
+ {id:'knee',cat:'Health',w:.3,when:()=>age()>=58&&!(S.conds||{}).knee,title:'Your knees are giving up',text:()=>'Every step hurts. The surgeon recommends replacing both knees.',
+  choices:()=>{const c=nwc(.004,4000);return[{l:'Replace them',d:'Spend '+fmt(c)+'. Profit ×0.9 for 2 months. Managed: $100/mo.',dis:!canPay(c),f(){S.cash-=c;addBuff(.9,2,'Knee surgery');addCond('knee',true);return['New knees. You are walking the golf course again.','life']}},
+   {l:'Live with it',d:'Worn-out knees: −5 to long-term health.',f(){addCond('knee',false);return['You live with the pain.','bad']}}]}},
+ {id:'scan',cat:'Health',w:()=>.1+(age()-50)*.01,when:()=>age()>=50&&!S.scanAt||S.month-(S.scanAt||0)>120&&age()>=50,title:'A worrying scan',text:()=>'Your doctor found a growth that needs attention.'+((S.care||0)>=2?' Your regular check-ups caught it early.':' It was found late, because you had no regular check-ups.'),
+  choices:()=>{const early=(S.care||0)>=2,c=nwc(early?.004:.012,early?2000:8000),abroad=nwc(.02,20000);S.scanAt=S.month;return[
+   {l:'Start treatment now',d:'Spend '+fmt(c)+'. Profit ×0.85 for 3 months. '+(early?'Good odds of a full recovery.':'Fair odds.'),dis:!canPay(c),f(){S.cash-=c;addBuff(.85,3,'Treatment');if(rnd()<(early?.9:.65)){addHealth(-4);return['The treatment worked. You are in the clear.','life']}addHealth(-20);return['The treatment was hard on you. You survived, but your health took a big hit.','bad']}},
+   {l:'The best specialists abroad',d:'Spend '+fmt(abroad)+'. Profit ×0.8 for 4 months. Excellent odds.',dis:!canPay(abroad),f(){S.cash-=abroad;addBuff(.8,4,'Treatment abroad');if(rnd()<.95){return['The specialists abroad cured you.','life']}addHealth(-15);return['A long, hard treatment abroad. You pulled through.','bad']}},
+   {l:'Wait and see',d:'Save the money. Risky.',f(){if(rnd()<.4){addHealth(-30);if(rnd()<.35)S.deathDue='The growth you chose to ignore spread too far to treat.';return['It grew. You are much sicker now.','bad']}return['It turned out to be harmless. Lucky.','good']}}]}},
+ {id:'stroke',cat:'Health',w:()=>.08+(age()-65)*.02+(S.health<45?.3:0),when:()=>age()>=65,title:'A mild stroke',text:()=>'Your speech slurred halfway through a speech. The doctors caught it in time, but recovery will take months.',
+  choices:()=>{const c=nwc(.005,5000);return[{l:'Full rehabilitation',d:'Spend '+fmt(c)+'. Profit ×0.8 for 6 months. −6 health.',dis:!canPay(c),f(){S.cash-=c;addBuff(.8,6,'Stroke recovery');addHealth(-6);return['Months of rehab. You are back, but slower.','life']}},
+   {l:'Hand day-to-day control to your executives for a year',d:'Profit ×0.85 for 12 months. +6 health.',f(){addBuff(.85,12,'Stepped back');addHealth(6);return['You stepped back to recover. The business carried on.','life']}},
+   {l:'Back to work next week',d:'−16 health.',f(){addHealth(-16);return['You went straight back to work.','bad']}}]}},
+ {id:'memory',cat:'Health',w:.3,when:()=>age()>=72&&!(S.conds||{}).mem,title:'You forgot a meeting with the President',text:()=>'Names slip away, and yesterday feels far away. The doctor mentions early memory decline.',
+  choices:()=>[{l:'Specialist care and a chief of staff',d:'$1,500 a month. Managed: −3 to long-term health.',f(){addCond('mem',true);return['You now have a chief of staff and specialist care.','life']}},
+   {l:'Keep it quiet',d:'−7 to long-term health. −4 reputation.',f(){addCond('mem',false);addRep(-4);return['People are starting to notice.','bad']}}]},
+ {id:'fitcheck',cat:'Health',w:.4,when:()=>age()>=45&&(S.care||0)>=2&&S.health>=65,title:'Your doctor has good news',text:()=>'Your yearly tests are the best they have been in a decade. "Whatever you are doing, keep doing it."',
+  choices:()=>[{l:'Celebrate with the family',d:'+4 health, +4 happiness.',f(){addHealth(4);addHappy(4);addSH(3);return['A clean bill of health.','good']}}]},
  /* ---- Family ---- */
  {id:'romance',cat:'Family',w:()=>age()>=30?3.5:1.2,when:()=>!S.spouse&&S.month>10&&age()<60&&S.month-S.lastSplit>18,
   setup(){this.name=pick(partnerPool());},title:'You met someone',text(){return'You met '+this.name+' at a friend\'s wedding. '+(S.g==='f'?'He':'She')+' made you laugh all night. A year later, the families are asking about dates.';},
@@ -1423,6 +1484,10 @@ function mobHitEvent(){const targets=BIZ.filter(b=>b.tier<=4&&owned(b.id)>0);con
   {l:'Endure and rebuild',d:'Heat drops by 10. They may try again.',f(){addHeat(-10);return['You rebuilt and carried on.','bad']}}];
  if(!S.ups.security&&S.cash>=150000)ch2.splice(1,0,{l:'Hire a private security firm',d:'Buy the security upgrade for $150K. Heat −25.',f(){S.cash-=150000;S.ups.security=1;addHeat(-25);return['Armed guards now patrol your sites.','good']}});
  return{cat:'Street',title:'The mob sends a message',text,choices:ch2,log:[text,'bad']};}
+function icuEvent(){const big=nwc(.03,20000),small=nwc(.004,1500);return{cat:'Health',title:'Rushed to intensive care',text:'Your body finally gave out. You collapsed at home and were rushed to hospital. The doctors are fighting for your life.',
+ choices:[{l:'Air-lift to the best hospital in the world',d:'Spend '+fmt(big)+'. Profit ×0.7 for 3 months. Very good odds.',dis:!canPay(big),f(){S.cash-=big;addBuff(.7,3,'Intensive care');if(rnd()<.9){addHealth(25);return['You pulled through. The doctors call it a miracle.','life']}S.deathDue='Even the best doctors in the world could not save you.';return['','bad']}},
+  {l:'The local hospital',d:'Spend '+fmt(small)+'. Profit ×0.8 for 2 months. It could go either way.',dis:!canPay(small),f(){S.cash-=small;addBuff(.8,2,'Hospital');if(rnd()<.65){addHealth(15);return['You survived. It was close.','life']}S.deathDue='You passed away in hospital.';return['','bad']}},
+  {l:'Go home',d:'Save the money. It is in God\'s hands.',f(){if(rnd()<.4){addHealth(10);return['Somehow, you recovered at home.','life']}S.deathDue='You passed away at home, surrounded by family.';return['','bad']}}]};}
 function burnoutEvent(){const c=nwc(.01,300);return{cat:'Life',title:'You are burning out',text:'Eighteen-hour days, no sleep, snapping at everyone. Your doctor says slow down.',
  choices:[{l:'Take a proper vacation',d:'Spend '+fmt(c)+'. Profit ×0.9 this month. +22 happiness.',f(){S.cash-=c;addBuff(.9,1,'Vacation');addHappy(22);addSH(8);return['Two weeks off. You came back a new person.','life']}},
   {l:'Push through',d:'−8 happiness.',f(){addHappy(-8);return['You pushed through. It is taking a toll.','bad']}}]};}
@@ -1441,7 +1506,7 @@ try{const h=(location.hash||'').slice(1);const t=TABS.includes(h)?h:localStorage
 function qset(id,txt,cls){const e=$(id);if(!e)return;if(e.textContent!==txt){if(e.textContent&&$('quick').classList.contains('on')){e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump');}e.textContent=txt;}e.classList.toggle('pos',cls==='pos');e.classList.toggle('neg',cls==='neg');}
 function paintQuick(){const nw=netWorth(),F=flows(false);
  qset('q-nw',$('nw').textContent);qset('q-cash',fmt(S.cash),S.cash<0?'neg':'');qset('q-flow',(F.net>=0?'+':'')+fmt(F.net),F.net>=0?'pos':'neg');qset('q-debt',fmt(S.debt),S.debt>0?'neg':'');
- qset('q-rep',String(Math.round(S.rep)));qset('q-hap',String(Math.round(S.happy)),S.happy<30?'neg':S.happy>70?'pos':'');qset('q-inf',String(Math.round(S.influence)));qset('q-heat',$('heat').textContent,S.heat>=50?'neg':'');}
+ qset('q-rep',String(Math.round(S.rep)));qset('q-hap',String(Math.round(S.happy)),S.happy<30?'neg':S.happy>70?'pos':'');qset('q-inf',String(Math.round(S.influence)));qset('q-heat',$('heat').textContent,S.heat>=50?'neg':'');qset('q-hlth',String(Math.round(S.health)),S.health<40?'neg':'');}
 function setQuick(on){const q=$('quick');if(!q||q.classList.contains('on')===on)return;q.classList.toggle('on',on);document.documentElement.style.setProperty('--qh',on?q.offsetHeight+'px':'0px');}
 if('IntersectionObserver' in window){const mt=document.querySelector('.meters');if(mt)new IntersectionObserver(es=>es.forEach(e=>setQuick(!e.isIntersecting&&e.boundingClientRect.top<0))).observe(mt);}
 window.addEventListener('resize',()=>{const q=$('quick');if(q&&q.classList.contains('on'))document.documentElement.style.setProperty('--qh',q.offsetHeight+'px');});
@@ -1456,6 +1521,8 @@ function showTab(t,scroll){if(!TABS.includes(t))return;curTab=t;
 function attention(F){const A=[],L=lifestyle();
  if(S.strikes)A.push(['bad','You have missed '+S.strikes+' of 3 payments. Borrow or sell something now, or you go bankrupt.','money','Go to bank']);
  if(F.net<0)A.push(['bad','You are losing '+fmt(-F.net)+' a month. Check the statement.',null,null]);
+ if(S.health<40)A.push(['bad','Your health is poor ('+Math.round(S.health)+'/100). Get better care or slow down, before it costs you your life.','life','Health']);
+ Object.keys(S.conds||{}).filter(k=>!S.conds[k].managed).forEach(k=>A.push(['warn','Untreated: '+CONDS[k].name.lc()+'. It is wearing down your health.','life','Treat']));
  SERVICES.forEach(d=>{const i=svcInfo(d);if(i.behind)A.push([i.late?'bad':'warn',(i.late?'Paying penalties: you need a ':'Hire within '+i.grace+' month'+(i.grace===1?'':'s')+': ')+d.levels[i.req][1].lc()+'.','power','Hire']);});
  if(L.steps>0)A.push([L.late?'bad':'warn',(L.late?'Living below your station. Upgrade your ':'Upgrade within '+L.grace+' month'+(L.grace===1?'':'s')+': ')+[L.short.car?'car':'',L.short.home?'home':'',L.short.travel?'travel class':''].filter(Boolean).join(', ')+'.','life','Upgrade']);
  if(L.absent)A.push(['warn','Nobody senior is visiting your foreign markets (profit ×0.92).','life','Travel']);
@@ -1801,7 +1868,7 @@ function triggerRandom(){const pool=EVENTS.filter(e=>!e.when||e.when());let tot=
  if(e.build){openEvent(e.build());return;}
  if(e.setup)e.setup();
  openEvent({cat:e.cat,title:typeof e.title==='function'?e.title(S):e.title,text:e.text(),choices:e.choices()});}
-function choose(i){const ev=current;const r=ev.choices[i].f();log(r[0],r[1]);current=null;closeModal();afterChange();if(r[2])openEvent(r[2]);else maybeTour();}
+function choose(i){const ev=current;const r=ev.choices[i].f();log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else maybeTour();}
 function showCard(title,body,btns){stopAuto();const m=$('modal');m.hidden=false;
  m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true"><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3>'+title+'</h3><p>'+body+'</p><div class="choices">'+btns+'</div></div></div>';
  m.querySelector('button').focus();}
@@ -1855,6 +1922,11 @@ function nextMonth(){
   if(a>=48&&a<216)k.best=Math.max(k.best,k.school);
   if(a===216)log(k.name+' finished school and is off to university.','life');
   if(a===264&&!k.grown){k.grown=true;if(k.best>=2&&!k.withEx){S.perm*=1.05;addRep(3);log(k.name+' graduated and joined the family business. +5% profit.','gold')}else log(k.name+' graduated and chose their own path.','life');}});
+ /* health */
+ S.health=clamp(S.health+(healthTarget()-S.health)*.07,0,100);
+ if(age()===55&&S.month%12===0)log('You turned 55. From here on, your health decides how long you have. Check Age & health in the Life tab.','life');
+ if(age()>=100){die('You lived to a hundred, and passed peacefully in your sleep.');return;}
+ if(rnd()<deathRisk()){die(pick(['Your heart gave out in your sleep.','You passed after a short illness.','You collapsed at your desk, working to the very end.']));return;}
  /* cash crisis */
  if(S.cash<0){const room=creditLimit()-S.debt;
   if(room>=-S.cash){S.debt+=-S.cash;log('The bank covered a '+fmt(-S.cash)+' shortfall. It was added to your debt.','bad');S.cash=0;S.strikes=0;}
@@ -1885,6 +1957,7 @@ function nextMonth(){
  if(S.spouse&&S.spouse.happy<20&&rnd()<.3){openEvent(divorceEvent());return;}
  if(S.heat>=50&&S.month>=S.mobQuiet&&rnd()<S.heat/220){const ev=mobHitEvent();log(ev.log[0],'bad');afterChange();openEvent(ev);return;}
  if(S.happy<25&&rnd()<.2){openEvent(burnoutEvent());return;}
+ if(S.health<15&&rnd()<.35){openEvent(icuEvent());return;}
  if(S.cool<=0&&S.month>=3&&rnd()<.34){S.cool=2;triggerRandom();}
 }
 function afterChange(){save();render();}
@@ -1932,7 +2005,7 @@ function stopAuto(){if(timer){clearInterval(timer);timer=null}const a=$('auto');
 function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInterval(nextMonth,750);const a=$('auto');a.classList.add('on');a.setAttribute('aria-pressed','true');a.textContent='Pause';}
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
- ({tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=null;renderAccts();},authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,leaderboard:openBoard,retryboot:bootAuth,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
@@ -1963,6 +2036,7 @@ function render(){
  $('hap').textContent=Math.round(S.happy);$('hapm').style.width=clamp(S.happy,0,100)+'%';$('hap').className=S.happy<30?'neg':S.happy>70?'pos':'';
  $('inf').textContent=Math.round(S.influence);$('infm').style.width=clamp(S.influence,0,100)+'%';
  $('heat').textContent=S.protection>0?'Paying '+Math.round(S.protection*100)+'%':S.mobMet?Math.round(S.heat):'None';$('heatm').style.width=(S.protection>0?0:clamp(S.heat,0,100))+'%';$('heat').className=S.heat>=50?'neg':'';
+ $('hlth').textContent=Math.round(S.health);$('hlth').className=S.health<40?'neg':'';$('hlthm').style.width=clamp(S.health,0,100)+'%';$('hlthm').style.background=S.health<40?'var(--red)':S.health<60?'var(--brass)':'var(--green)';
  $('date').textContent=dateStr(S.month);
  paintQuick();
  $('next').disabled=S.over;
@@ -2178,11 +2252,17 @@ function render(){
  const line=(l,v,sign)=>'<span>'+l+'</span><span class="'+(Math.abs(v)<.5?'zero':sign<0?'neg':'pos')+'">'+(Math.abs(v)<.5?'—':(sign<0?'−':'+')+fmt(v).replace('−',''))+'</span>';
  $('stmt').innerHTML=line('Business profit'+(S.float?' (80% yours)':''),F.biz,F.biz<0?-1:1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Dividends & bond interest',F.inv,1)+line('Loan interest',F.interest,-1)+
   line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
-  line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+
+  line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+line('Health care',F.health,-1)+
   '<span class="tot">Net cash flow</span><span class="tot '+(F.net<0?'neg':'pos')+'">'+(F.net<0?'−':'+')+fmt(Math.abs(F.net))+'</span>';
 
  /* life */
- let lh='<div class="kv"><span>Age</span><span>'+age()+'</span><span>Your happiness</span><span>'+Math.round(S.happy)+'</span></div>'+meter(S.happy,'--plum');
+ const st=stage(),am=ageMult(),ol=outlook(),cn=Object.keys(S.conds||{});
+ let lh='<div class="kv"><span>Age</span><span>'+age()+' · '+st[1]+'</span><span>Your happiness</span><span>'+Math.round(S.happy)+'</span></div>'+meter(S.happy,'--plum')+
+  '<h4>Age &amp; health</h4><div class="kv"><span>Health</span><span>'+Math.round(S.health)+' / 100 <span class="pill '+ol[1]+'">Outlook: '+ol[0]+'</span></span><span>Age effect on profit</span><span class="'+(am<1?'neg':am>1?'pos':'')+'">×'+am.toFixed(2)+'</span></div>'+meter(S.health,S.health<40?'--red':'--green')+
+  '<p class="seghint">'+st[3]+' '+(age()<55?'From 55, your health decides how long you live. Nobody lives past 100.':'Every year from here carries a real risk of death, lower when you stay healthy. Nobody lives past 100.')+(stage()[2]<1&&sv('exec').lvl<0?' An executive team would soften the slowdown.':'')+'</p>'+
+  (cn.length?'<div class="conds">'+cn.map(k=>{const c=CONDS[k],m=S.conds[k].managed;return'<div class="person"><div><b>'+c.name+'</b><br><span>'+(m?'Managed · '+fmt(c.cost)+'/mo':'Untreated · −'+c.hit+' to long-term health')+'</span></div>'+(m?'<span class="pill good">Treated</span>':'<button class="btn small" data-a="treat" data-v="'+k+'">Treat · '+fmt(c.cost)+'/mo</button>')+'</div>';}).join('')+'</div>':'')+
+  '<h4>Health care</h4><div class="seg" style="grid-template-columns:repeat(4,1fr)" role="group" aria-label="Health care">'+CARE.map((c,i)=>'<button data-a="care" data-v="'+i+'" aria-pressed="'+((S.care||0)===i)+'">'+c.short+'</button>').join('')+'</div>'+
+  '<p class="seghint"><b>'+CARE[S.care||0].name+'</b>: '+CARE[S.care||0].d+' '+(CARE[S.care||0].fee?fmt(CARE[S.care||0].fee)+' a month, +'+CARE[S.care||0].h+' to long-term health.':'Free, but your health declines faster as you age.')+'</p>';
  lh+='<h4>Work–life balance</h4><div class="seg" role="group" aria-label="Work-life balance">'+[['hustle','Hustle'],['balanced','Balanced'],['family','Family first']].map(m=>'<button data-a="mode" data-v="'+m[0]+'" aria-pressed="'+(S.mode===m[0])+'">'+m[1]+'</button>').join('')+'</div>'+
   '<p class="seghint">'+({hustle:'Profit ×1.12, but your '+(S.spouse?spW():'family')+' and your happiness pay for it.',balanced:'No bonus, no penalty. Relationships slowly cool.',family:'Profit ×0.90. Your '+(S.spouse?spW():'family')+' and your happiness recover.'})[S.mode]+'</p>';
  lh+='<h4>Relationship</h4>';

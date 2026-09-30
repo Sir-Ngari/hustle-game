@@ -218,7 +218,7 @@ function ago(ts){if(!ts)return'never';const s=Math.max(0,serverNow-ts);if(s<60)r
 const initials=n=>String(n||'').trim().split(/\s+/).slice(0,2).map(w=>w.charAt(0).toUpperCase()).join('')||'?';
 const avatar=(p,big)=>'<span class="av'+(big?' big':'')+'" style="background:'+AVCOL[p.color||0]+'" aria-hidden="true">'+esc(initials(p.name))+'</span>';
 function status(p){if(p.disabled)return['Disabled','bad'];const age=serverNow-p.last_seen;
- if(p.bankrupt)return['Bankrupt','bad'];if(p.billion_month!=null)return['Billionaire','gold'];
+ if(p.detail&&p.detail.died)return['Passed away','bad'];if(p.bankrupt)return['Bankrupt','bad'];if(p.billion_month!=null)return['Billionaire','gold'];
  if(age<300)return['Online now','good live'];if(age<86400)return['Active today','good'];if(age<7*86400)return['This week',''];return['Idle',''];}
 
 async function api(method,path,body){let r;
@@ -299,7 +299,7 @@ async function openPlayer(id,quiet){openId=id;if(!quiet){confirmAct=null;$('shee
  let h='<div class="shead">'+avatar(u,true)+'<div><h2 id="sheetName">'+esc(u.name)+'</h2><small>@'+esc(u.username)+' · '+esc(u.company)+' · '+esc(u.town)+' · '+esc(BGNAME[u.bg]||u.bg)+'</small><small style="display:block">'+(u.email?esc(u.email):'No email on file')+'</small></div><button class="btn ghost" id="closeSheet" aria-label="Close player details">Close</button></div>';
  h+='<div class="actions"><span class="pill '+cls+'">'+st+'</span><span style="font-size:13px;color:var(--muted)">Joined '+ago(u.created)+' · last active '+ago(u.last_seen)+' · '+u.logins+' log-in'+(u.logins===1?'':'s')+(s.games>1?' · game '+s.games:'')+'</span></div>';
  h+='<div class="facts">'+fact('Net worth',fmt(s.nw))+fact('Best',fmt(s.best))+fact('Cash',fmt(s.cash))+fact('In-game date',gameDate(s.month))+
-  fact('Rank',esc(s.rank||'—'))+fact('Age',det.age!=null?det.age:'—')+fact('Happiness',det.happiness!=null?det.happiness+' / 100':'—')+fact('Reputation',det.reputation!=null?det.reputation+' / 100':'—')+
+  fact('Rank',esc(s.rank||'—'))+fact('Age',det.age!=null?det.age:'—')+fact('Health',det.health!=null?det.health+' / 100':'—')+fact('Happiness',det.happiness!=null?det.happiness+' / 100':'—')+fact('Reputation',det.reputation!=null?det.reputation+' / 100':'—')+
   fact('Industries',det.industries!=null?det.industries:'—')+fact('Business units',det.units!=null?det.units:'—')+fact('Buildings',det.properties!=null?det.properties:'—')+fact('Sports teams',det.teams!=null?det.teams:'—')+
   fact('Gender',det.gender==='m'?'Man':det.gender==='f'?'Woman':'Not set')+fact('Family',det.married==null?'—':(det.married?'Married'+(det.spouse&&det.spouse!=='spouse'?' (a '+esc(det.spouse)+')':''):'Single')+(det.kids?' · '+det.kids+' kid'+(det.kids>1?'s':''):''))+fact('Motorsport',det.race||'None')+fact('Foundation',det.foundation?'Open':'None')+fact('Debt',fmt(det.debt||0))+'</div>';
  h+='<section class="panel"><h2>Net worth over time</h2><p class="sub">Current game, by in-game month (log scale).</p><div class="chart" id="nwChart"></div></section>';
