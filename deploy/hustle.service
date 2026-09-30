@@ -1,5 +1,5 @@
 [Unit]
-Description=Hustle to a Billion game server
+Description=Hustle to an Empire game server
 After=network.target
 
 [Service]

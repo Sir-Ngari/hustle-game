@@ -1,4 +1,4 @@
-# Hustle to a Billion
+# Hustle to an Empire
 
 A turn-based entrepreneur life sim: build an empire from a street hustle to $1B across business, property, sport, politics and philanthropy.
 
