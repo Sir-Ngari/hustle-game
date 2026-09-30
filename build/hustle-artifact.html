@@ -58,6 +58,18 @@ canvas#chart{width:100%;height:170px;display:block}
 .qgap{flex:1}
 @media (prefers-reduced-motion:no-preference){.q b.bump{animation:qb .7s ease}@keyframes qb{0%{background:var(--brass-soft)}100%{background:transparent}}}
 @media (max-width:640px){.qin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 10px;padding-block:6px}.qgap{display:none}.q b,.q.big b{font-size:13px}.q small{font-size:9.5px;letter-spacing:.08em}}
+.tour{position:fixed;inset:0;z-index:30}
+.tspot{position:fixed;border-radius:6px;box-shadow:0 0 0 9999px rgba(8,14,11,.66);outline:2px solid var(--brass);outline-offset:0;pointer-events:none}
+.tcard{position:fixed;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-top:4px solid var(--brass);border-radius:6px;padding:16px 18px 14px;box-shadow:0 18px 40px -12px rgba(0,0,0,.5)}
+.tcard h3{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.02em;text-transform:uppercase;margin:4px 0 6px;line-height:1.1}
+.tcard p{margin:0;font-size:14.5px;line-height:1.55}
+.tcard ul{margin:8px 0 0;padding-left:18px;font-size:14px;line-height:1.5}
+.tnav{display:flex;gap:8px;align-items:center;margin-top:14px}
+.tnav .tgap{flex:1}
+.tdots{display:flex;gap:4px;margin-top:12px}
+.tdots i{height:4px;flex:1;border-radius:2px;background:var(--line)}
+.tdots i.on{background:var(--brass)}
+@media (prefers-reduced-motion:no-preference){.tspot,.tcard{transition:left .25s ease,top .25s ease,width .25s ease,height .25s ease}}
 .bar{position:sticky;top:max(env(safe-area-inset-top,0px),var(--qh,0px));transition:top .2s ease;z-index:5;background:var(--paper);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding-top:10px}
 .barrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-bottom:-1px}
@@ -381,6 +393,7 @@ footer.foot{justify-content:center;padding-top:6px}
       <div class="date" id="date">Year 1 · January</div>
       <button class="btn primary" id="next">Next month</button>
       <button class="btn" id="auto" aria-pressed="false">Auto-play</button>
+      <button class="btn ghost" id="tourbtn" data-a="tour" aria-label="Take the game tour">Tour</button>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" id="tab-overview" data-a="tab" data-v="overview">Overview<span class="badge" id="badge" hidden></span></button>
@@ -569,6 +582,7 @@ footer.foot{justify-content:center;padding-top:6px}
   </div>
   <footer class="foot" id="reset"><button class="btn ghost small" data-a="askreset">New game</button></footer>
 </div>
+<div id="tour" class="tour" hidden></div>
 <div id="modal" hidden></div>
 <div id="acct" class="acct" hidden></div>
 
@@ -762,7 +776,52 @@ function genderEvent(){const next=()=>!S.inds.length&&!S.over&&!S.won?industryEv
  return{cat:'Your profile',title:'One quick question',text:'So your story gets the details right: are you a man or a woman?'+(S.spouse?' Your marriage records will be updated to match.':' Your future wife or husband will be chosen to match.'),
   choices:[{l:'I\'m a man',d:'You will marry a wife.',f(){setGender('m');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your wife.':'Profile updated.','',next()]}},
    {l:'I\'m a woman',d:'You will marry a husband.',f(){setGender('f');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your husband.':'Profile updated.','',next()]}}]};}
-function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));}
+function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else maybeTour();}
+/* ================= Guided tour ================= */
+let tourOn=false,tourI=0;
+const panelOf=id=>{const e=$(id);return e?(e.closest('.panel')||e.parentElement):null;};
+const TOUR=[
+ {t:'Welcome to Hustle to a Billion',x:()=>'You are 24, with a small stake and a big idea. Your goal: grow it into a <b>$1 billion</b> empire. This short tour shows you where everything is. Use <b>Next</b> or your arrow keys.'},
+ {el:()=>document.querySelector('.note .head-l'),t:'Your scoreboard',x:'<b>Net worth</b> is everything you own minus what you owe. Reach $1B to win.<ul><li><b>Cash</b>: money you can spend right now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li><li><b>Debt</b>: interest on it eats your profit.</li></ul>'},
+ {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li></ul>'},
+ {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:'Your net worth over time, and your progress to $1B. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
+ {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Each click of <b>Next month</b> collects profit, pays your bills, ages you a month and may bring a decision. <b>Auto-play</b> runs the months for you and pauses whenever a decision comes up. You can also press <b>N</b> on a keyboard.'},
+ {el:()=>document.querySelector('.tabs'),t:'Nine sections',x:'The tabs hold everything you can do. Some are quiet at first and come alive as you get richer: sports teams, a foundation and political power. <b>News</b> keeps a record of every move you make.'},
+ {tab:'overview',el:()=>panelOf('attention'),t:'Overview: what needs you',x:'<b>Needs attention</b> lists anything you must deal with, like staff the law now requires or a lifestyle you have outgrown. Check it often. Next to it, the <b>monthly statement</b> shows exactly where your money comes from and where it goes.'},
+ {tab:'business',el:()=>panelOf('biz'),t:'Business: build your empire',x:'This is where you make money. Open outlets in your industry. Each extra outlet costs 12% more than the last, and owning all six tiers of an industry earns a 10% mastery bonus. Higher ranks let you enter more industries.'},
+ {tab:'business',el:()=>panelOf('markets'),t:'Grow into new markets',x:'Each market you enter lifts profit across your whole empire: all of Kenya first, then East Africa, Pan-Africa and finally global.'},
+ {tab:'money',el:()=>document.querySelector('.tabpane[data-tab="money"]'),t:'Money: bank and stock exchange',x:'Borrow from the bank to grow faster, but keep an eye on repayments: debt you cannot service can bankrupt you. Park spare cash in <b>shares and bonds</b>, which rise and fall with the market and the central bank rate.'},
+ {tab:'property',el:()=>panelOf('propbuy'),t:'Property: towers and hotels',x:'Develop or buy apartments, office towers and hotels, starting in Nairobi. Own a finished building in a city to unlock the next one on the route, all the way to the world\'s biggest cities.'},
+ {tab:'life',el:()=>panelOf('assets'),t:'Life: live like your rank',x:'Every rank comes with a car, a home and a way of flying that people expect. After each promotion you have 6 months to catch up. Fall behind and your profit and happiness suffer.'},
+ {tab:'life',el:()=>panelOf('life'),t:'Family and balance',x:()=>'Marriage is mandatory by 35, children need schools, and your '+(S.g==='f'?'husband':S.g==='m'?'wife':'spouse')+'\'s happiness matters: an unhappy marriage can end in an expensive divorce. Choose your <b>work-life balance</b> here: Hustle earns more, Family first keeps everyone happy.'},
+ {tab:'power',el:()=>panelOf('svcs'),t:'Power: your professional team',x:'As you grow, the law requires a bookkeeper, an auditor, a marketing team and executives. Their fees rise with your size. Hire them when asked or pay penalties. <b>Politics &amp; street</b> is where you fund politicians and deal with the mob.'},
+ {t:'Decisions will find you',x:'Life throws events at you: politicians asking for money, family needs, deals and crises. Each choice shows what it costs and what it does. Choices you cannot afford are greyed out.'},
+ {el:()=>$('tourbtn'),t:'You\'re ready',x:'Start by clicking <b>Next month</b> and watch your first profit come in. You can take this tour again any time with the <b>Tour</b> button. Good luck, and build something big.'}
+];
+function maybeTour(){if(!tourOn&&!current&&!S.tourDone&&S.inds.length&&!S.over&&!S.won&&!acctView)startTour();}
+function startTour(){if(current)return;stopAuto();tourOn=true;tourI=0;paintTour();}
+function endTour(){if(!tourOn)return;tourOn=false;const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();}
+function tourGo(d){const n=tourI+d;if(n<0)return;if(n>=TOUR.length){endTour();return;}tourI=n;paintTour();}
+function tourScroll(el){if(!el){return;}if(el.closest('.note')){window.scrollTo(0,0);return;}
+ const bar=document.querySelector('.bar'),q=$('quick'),hdr=(bar?bar.offsetHeight:0)+(q?q.offsetHeight:0)+14,r=el.getBoundingClientRect(),vh=innerHeight;
+ const room=vh-hdr-200;window.scrollTo(0,Math.max(0,window.scrollY+r.top-(r.height>room?hdr:hdr+Math.max(0,(room-r.height)/2))));}
+function paintTour(){const st=TOUR[tourI];if(st.tab&&curTab!==st.tab)showTab(st.tab);
+ const o=$('tour'),el=st.el?st.el():null,last=tourI===TOUR.length-1;o.hidden=false;tourScroll(el);
+ o.innerHTML='<div class="tspot" id="tspot"></div><div class="tcard" role="dialog" aria-modal="true" aria-labelledby="tt" aria-describedby="tx"><span class="eyebrow">Tour · '+(tourI+1)+' of '+TOUR.length+'</span><h3 id="tt">'+st.t+'</h3><div id="tx"><p>'+(typeof st.x==='function'?st.x():st.x)+'</p></div>'+
+  '<div class="tdots" aria-hidden="true">'+TOUR.map((_,i)=>'<i'+(i<=tourI?' class="on"':'')+'></i>').join('')+'</div>'+
+  '<div class="tnav">'+(last?'':'<button class="btn ghost small" data-a="tourskip">Skip tour</button>')+'<span class="tgap"></span>'+(tourI?'<button class="btn small" data-a="tourback">Back</button>':'')+'<button class="btn primary small" data-a="tournext" id="tnext">'+(last?'Start playing':tourI?'Next':'Show me around')+'</button></div></div>';
+ placeTour();setTimeout(placeTour,260);$('tnext').focus({preventScroll:true});}
+function placeTour(){if(!tourOn)return;const st=TOUR[tourI],el=st.el?st.el():null,sp=$('tspot'),card=document.querySelector('.tcard');if(!sp||!card)return;
+ const vw=document.documentElement.clientWidth,vh=innerHeight,cw=Math.min(400,vw-32);card.style.width=cw+'px';const ch=card.offsetHeight;
+ if(!el||!el.getClientRects().length){sp.style.cssText='left:50%;top:50%;width:0;height:0';card.style.left=((vw-cw)/2)+'px';card.style.top=Math.max(16,(vh-ch)/2)+'px';return;}
+ const r=el.getBoundingClientRect(),pad=6;let top=Math.max(4,r.top-pad),bot=Math.min(vh-4,r.bottom+pad),y;
+ if(vh-bot-12>=ch+12)y=bot+12;else if(top-12>=ch+12)y=top-12-ch;else{y=vh-ch-12;bot=Math.max(top+40,Math.min(bot,y-10));}
+ sp.style.cssText='left:'+Math.max(4,r.left-pad)+'px;top:'+top+'px;width:'+Math.min(vw-8,r.width+pad*2)+'px;height:'+Math.max(0,bot-top)+'px';
+ card.style.left=Math.min(Math.max(16,r.left),vw-cw-16)+'px';card.style.top=Math.max(12,y)+'px';}
+window.addEventListener('resize',()=>{if(tourOn){tourScroll(TOUR[tourI].el&&TOUR[tourI].el());placeTour();}});
+window.addEventListener('scroll',()=>{if(tourOn)placeTour();},{passive:true});
+document.addEventListener('keydown',e=>{if(!tourOn)return;if(e.key==='Escape'){e.preventDefault();endTour();}else if(e.key==='ArrowRight'){e.preventDefault();tourGo(1);}else if(e.key==='ArrowLeft'){e.preventDefault();tourGo(-1);}
+ else if(e.key==='Tab'){const f=[...$('tour').querySelectorAll('button')];if(!f.length)return;const i=f.indexOf(document.activeElement);e.preventDefault();f[(i+(e.shiftKey?-1:1)+f.length)%f.length].focus();}});
 const KIDNAMES=['Jabari','Neema','Tumaini','Kofi','Ayana','Juma','Wambui','Chege','Nala','Sefu','Adhiambo','Tendai','Zuri','Mosi'];
 const SAVE='hustle-billion-v1';
 const $=id=>document.getElementById(id);
@@ -790,6 +849,7 @@ if(!S.inds||!S.inds.length){S.inds=[...new Set(BIZ.filter(b=>(S.owned[b.id]||0)>
 S.peak=Math.max(S.peak||0,S.title||0);
 if(S.assets&&S.assets.football){S.teams=S.teams||{};S.teams.football={strength:55,af:(S.af&&S.af.football)||1,tier:0,academy:false,last:'',titles:0};delete S.assets.football;}
 if(!S.pcOpen||!S.pcOpen.length){S.pcOpen=['nairobi'].concat([...new Set((S.props||[]).map(p=>p.city))].filter(x=>x!=='nairobi'));}
+if(S.tourDone===undefined)S.tourDone=S.month>0;
 S.gen=S.gen||{};S.latest=S.latest||{};S.relAt=S.relAt||{};S.relPending=S.relPending||[];
 if(S.ups.books&&sv('book').lvl<0)sv('book').lvl=0;
 if(S.ups.brand&&sv('mkt').lvl<0)sv('mkt').lvl=0;
@@ -1673,7 +1733,7 @@ function triggerRandom(){const pool=EVENTS.filter(e=>!e.when||e.when());let tot=
  if(e.build){openEvent(e.build());return;}
  if(e.setup)e.setup();
  openEvent({cat:e.cat,title:typeof e.title==='function'?e.title(S):e.title,text:e.text(),choices:e.choices()});}
-function choose(i){const ev=current;const r=ev.choices[i].f();log(r[0],r[1]);current=null;closeModal();afterChange();if(r[2])openEvent(r[2]);}
+function choose(i){const ev=current;const r=ev.choices[i].f();log(r[0],r[1]);current=null;closeModal();afterChange();if(r[2])openEvent(r[2]);else maybeTour();}
 function showCard(title,body,btns){stopAuto();const m=$('modal');m.hidden=false;
  m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true"><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3>'+title+'</h3><p>'+body+'</p><div class="choices">'+btns+'</div></div></div>';
  m.querySelector('button').focus();}
@@ -1804,20 +1864,20 @@ function stopAuto(){if(timer){clearInterval(timer);timer=null}const a=$('auto');
 function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInterval(nextMonth,750);const a=$('auto');a.classList.add('on');a.setAttribute('aria-pressed','true');a.textContent='Pause';}
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
- ({buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>showAccts('pick'),acctnew:()=>showAccts('create'),acctcancel:()=>showAccts('pick'),acctclose:()=>{acctView=null;renderAccts();},acctpick:()=>pickAccount(v),acctdel:()=>{acctDelAsk=v;renderAccts();},acctdelno:()=>{acctDelAsk=null;renderAccts();},acctdelyes:()=>deleteAccount(v),lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
   askreset:()=>{$('reset').innerHTML='<span class="foot">Erase this life? <button class="btn small" data-a="reset">Yes, restart</button><button class="btn ghost small" data-a="noreset">Cancel</button></span>';},
   noreset:()=>{$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';},
-  reset:()=>{stopAuto();closeModal();current=null;const g0=S.g;S=ACC?freshFor(ACC):fresh();if(!S.g&&g0)S.g=g0;$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
+  reset:()=>{stopAuto();closeModal();current=null;const g0=S.g,t0=S.tourDone;S=ACC?freshFor(ACC):fresh();if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
  }[a]||(()=>{}))();
 });
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset.sel==='engine'){raceEngine(t.value);return;}if(t.dataset.sel==='drivers'){raceDrivers(t.value);return;}if(t.dataset.kid!==undefined){const k=S.kids[+t.dataset.kid];k.school=+t.value;k.best=Math.max(k.best,k.school);
  log(k.name+' now attends '+SCHOOLS[k.school].name.lc()+'.','life');afterChange();}});
 $('next').addEventListener('click',nextMonth);
 $('auto').addEventListener('click',toggleAuto);
-document.addEventListener('keydown',e=>{if(e.key==='n'&&!e.metaKey&&!e.ctrlKey&&!['INPUT','SELECT'].includes(document.activeElement.tagName))nextMonth();});
+document.addEventListener('keydown',e=>{if(e.key==='n'&&!tourOn&&!e.metaKey&&!e.ctrlKey&&!['INPUT','SELECT'].includes(document.activeElement.tagName))nextMonth();});
 
 /* ================= Render ================= */
 function meter(v,col){return'<div class="meter"><i style="width:'+clamp(v,0,100)+'%;background:var('+col+')"></i></div>';}
