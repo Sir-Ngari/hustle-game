@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Hustle Admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314261f'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='%23e2ac48' font-family='Arial' font-weight='700'%3EA%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: sticky admin bar; KPI strip; activity chart + live feed side by side; full-width player table; player detail as a side sheet */
+:root{
+  --paper:#eef0e6; --panel:#f7f8f1; --ink:#14261f; --muted:#5d6b62; --line:#cfd5c6; --grid:#dfe3d6;
+  --green:#2c6a4c; --green-soft:#dcebe0; --brass:#a8711a; --brass-soft:#f3e6cc;
+  --red:#b23b2a; --red-soft:#f5dcd6; --plum:#6b3f73; --shade:rgba(20,38,31,.45);
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#0f1814; --panel:#15211c; --ink:#e3e8db; --muted:#94a298; --line:#2a3a32; --grid:#223029;
+  --green:#6cc295; --green-soft:#1b3326; --brass:#e2ac48; --brass-soft:#35290f;
+  --red:#ef7f6c; --red-soft:#3a1c17; --plum:#d3a2dc; --shade:rgba(0,0,0,.6); color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{background:var(--paper);color:var(--ink)}
+body{margin:0;font-family:var(--body);font-size:14px;line-height:1.5}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 48px;display:flex;flex-direction:column;gap:18px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--ink);background:transparent;padding:7px 14px;border-radius:3px;font-weight:700;font-size:13.5px}
+.btn:hover:not(:disabled){background:var(--ink);color:var(--paper)}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn.ghost{border-color:var(--line);color:var(--muted)}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn.danger:hover{background:var(--red);color:var(--panel)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;min-width:0}
+.panel h2{font-family:var(--display);font-weight:800;font-size:21px;letter-spacing:.05em;text-transform:uppercase;margin:0}
+.panel .sub{color:var(--muted);font-size:13px;margin:2px 0 12px}
+.pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 7px;border-radius:2px;background:var(--line);color:var(--ink);white-space:nowrap}
+.pill.good{background:var(--green-soft);color:var(--green)}.pill.bad{background:var(--red-soft);color:var(--red)}.pill.gold{background:var(--brass-soft);color:var(--brass)}
+.pill.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:1px}
+.av{width:30px;height:30px;border-radius:50%;display:inline-grid;place-items:center;color:var(--panel);font-weight:700;font-size:12px;flex:none}
+.av.big{width:46px;height:46px;font-size:17px}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:12px}
+.bar h1{font-family:var(--display);font-weight:900;font-size:22px;letter-spacing:.05em;text-transform:uppercase;margin:0 auto 0 0}
+.bar h1 span{color:var(--brass)}
+.updated{font-size:12.5px;color:var(--muted)}
+.toggle{display:flex;align-items:center;gap:6px;font-size:13px}
+
+/* login */
+.login{max-width:400px;margin:12vh auto 0;display:flex;flex-direction:column;gap:10px}
+.login h1{font-family:var(--display);font-weight:900;font-size:40px;line-height:1;text-transform:uppercase;margin:0}
+.login h1 span{color:var(--brass);display:block;font-size:20px;letter-spacing:.06em}
+.login input{width:100%;padding:11px 12px;border:1px solid var(--line);background:var(--panel);border-radius:3px;font-size:15px}
+.err{color:var(--red);font-weight:600;margin:0}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px 14px}
+.kpi b{display:block;font-size:26px;font-weight:700;letter-spacing:-.01em;margin-top:2px}
+.kpi small{display:block;font-size:12px;color:var(--muted)}
+.kpi.lead{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.kpi.lead .eyebrow,.kpi.lead small{color:color-mix(in srgb,var(--paper) 70%,transparent)}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:start}
+.chart{position:relative}
+.chart svg{display:block;width:100%;overflow:visible}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:12.5px;padding:6px 9px;border-radius:3px;white-space:nowrap;transform:translate(-50%,-100%);margin-top:-8px;z-index:3}
+.tip b{font-family:var(--mono)}
+.axis{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+
+/* feed */
+.feed{list-style:none;margin:0;padding:0;max-height:360px;overflow:auto}
+.feed li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.feed li:first-child{border-top:0}
+.feed .who{font-weight:700;font-size:13px}
+.feed .when{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+.feed .what{font-size:13px}
+.feed button{border:0;background:none;padding:0;font-weight:700;text-align:left}
+.feed button:hover{text-decoration:underline}
+
+/* players table */
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.tools input,.tools select{padding:8px 10px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:13.5px}
+.tools input{flex:1;min-width:180px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:980px}
+th{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:left;padding:6px 8px;border-bottom:2px solid var(--ink);white-space:nowrap}
+th.r,td.r{text-align:right}
+td{padding:8px;border-top:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--brass-soft)}
+.pcell{display:flex;align-items:center;gap:10px}
+.pcell b{display:block}.pcell small{display:block;color:var(--muted);font-size:12px}
+.empty{color:var(--muted);padding:18px 0;text-align:center}
+
+/* detail sheet */
+.shade{position:fixed;inset:0;background:var(--shade);z-index:20}
+.sheet{position:fixed;top:0;right:0;bottom:0;width:min(640px,100%);background:var(--paper);z-index:21;overflow:auto;border-left:1px solid var(--line);padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.shead{display:flex;align-items:center;gap:12px}
+.shead h2{font-family:var(--display);font-weight:900;font-size:30px;line-height:1;text-transform:uppercase;margin:0}
+.shead small{display:block;color:var(--muted);font-size:13px}
+.shead .btn{margin-left:auto}
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:8px 10px}
+.fact b{display:block;font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.events{list-style:none;margin:0;padding:0}
+.events li{padding:7px 0 7px 10px;border-left:3px solid var(--line);margin-bottom:4px;font-size:13px}
+.events li.good{border-color:var(--green)}.events li.bad{border-color:var(--red)}.events li.gold{border-color:var(--brass)}.events li.life{border-color:var(--plum)}.events li.admin,.events li.account,.events li.login,.events li.game{border-color:var(--ink)}
+.events small{display:block;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;background:var(--red-soft);color:var(--red);padding:8px 10px;border-radius:3px;font-weight:600}
+
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}.bar h1{font-size:18px}}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:slide .18s ease}@keyframes slide{from{transform:translateX(24px);opacity:.6}}}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="wrap" hidden>
+  <form class="login" id="loginForm" novalidate>
+    <h1><span>Hustle to a Billion</span>Admin</h1>
+    <p style="margin:0;color:var(--muted)">Enter the admin password set on the server.</p>
+    <label class="eyebrow" for="adminPass">Admin password</label>
+    <input id="adminPass" type="password" autocomplete="current-password" required>
+    <p class="err" id="loginErr" hidden></p>
+    <button class="btn primary" type="submit" id="loginBtn">Log in</button>
+  </form>
+</div>
+
+<div id="appView" hidden>
+  <div class="wrap">
+    <div class="bar">
+      <h1>Hustle <span>Admin</span></h1>
+      <span class="updated" id="updated">Loading…</span>
+      <label class="toggle"><input type="checkbox" id="autoRefresh" checked> Refresh every 30s</label>
+      <button class="btn" id="refreshBtn">Refresh</button>
+      <a class="btn ghost" href="/" target="_blank" rel="noopener" style="text-decoration:none">Open game</a>
+      <button class="btn ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid2">
+      <section class="panel">
+        <h2>Daily active players</h2>
+        <p class="sub">Players who opened or played the game each day, last 14 days (UTC).</p>
+        <div class="chart" id="dauChart"></div>
+      </section>
+      <section class="panel">
+        <h2>Live activity</h2>
+        <p class="sub">The latest moves across every player.</p>
+        <ul class="feed" id="feed"></ul>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2>Players</h2>
+      <p class="sub">Click a player to see their net worth over time, their recent moves and account actions.</p>
+      <div class="tools">
+        <input id="search" type="search" placeholder="Search name, username, company or town" aria-label="Search players">
+        <select id="sortBy" aria-label="Sort players">
+          <option value="last_seen">Last active</option>
+          <option value="nw">Net worth</option>
+          <option value="best">Best net worth</option>
+          <option value="month">Furthest in the game</option>
+          <option value="created">Newest</option>
+          <option value="months_played">Most months played</option>
+        </select>
+        <select id="filterBy" aria-label="Filter players">
+          <option value="all">All players</option>
+          <option value="online">Online now</option>
+          <option value="today">Active today</option>
+          <option value="billion">Billionaires</option>
+          <option value="bankrupt">Bankrupt</option>
+          <option value="disabled">Disabled</option>
+        </select>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Player</th><th>Company · town</th><th>Status</th><th>Rank</th><th class="r">Net worth</th><th class="r">Best</th><th>In-game date</th><th class="r">Months played</th><th class="r">Logins</th><th>Last active</th></tr></thead>
+          <tbody id="players"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="sheetShade" class="shade" hidden></div>
+<aside id="sheet" class="sheet" hidden aria-modal="true" role="dialog" aria-labelledby="sheetName"></aside>
+
+<script>
+const $=id=>document.getElementById(id);
+const AVCOL=['var(--green)','var(--brass)','var(--plum)','var(--red)','var(--ink)','var(--muted)'];
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const BGNAME={hustler:'Street hustler',grad:'University graduate',heir:'Family business heir'};
+let players=[],serverNow=0,timer=null,openId=null,confirmAct=null;
+
+function esc(x){return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmt(n){n=+n||0;const neg=n<0;n=Math.abs(n);let s;
+ if(n<1e4)s='$'+Math.round(n).toLocaleString('en-US');
+ else{const u=[[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']].find(x=>n>=x[0]);const v=n/u[0];s='$'+(v>=100?v.toFixed(0):v>=10?v.toFixed(1):v.toFixed(2))+u[1];}
+ return(neg?'−':'')+s;}
+const gameDate=m=>m==null?'—':'Year '+(Math.floor(m/12)+1)+' · '+MONTHS[m%12];
+function ago(ts){if(!ts)return'never';const s=Math.max(0,serverNow-ts);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';const d=Math.floor(s/86400);return d===1?'yesterday':d+' days ago';}
+const initials=n=>String(n||'').trim().split(/\s+/).slice(0,2).map(w=>w.charAt(0).toUpperCase()).join('')||'?';
+const avatar=(p,big)=>'<span class="av'+(big?' big':'')+'" style="background:'+AVCOL[p.color||0]+'" aria-hidden="true">'+esc(initials(p.name))+'</span>';
+function status(p){if(p.disabled)return['Disabled','bad'];const age=serverNow-p.last_seen;
+ if(p.bankrupt)return['Bankrupt','bad'];if(p.billion_month!=null)return['Billionaire','gold'];
+ if(age<300)return['Online now','good live'];if(age<86400)return['Active today','good'];if(age<7*86400)return['This week',''];return['Idle',''];}
+
+async function api(method,path,body){let r;
+ try{r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
+ catch(e){throw{status:0,message:'Could not reach the server.'};}
+ let d={};try{d=await r.json();}catch(e){}
+ if(!r.ok)throw{status:r.status,message:d.error||'Something went wrong.'};return d;}
+
+/* ---------- login ---------- */
+function showLogin(msg){$('appView').hidden=true;$('loginView').hidden=false;stopTimer();if(msg){$('loginErr').textContent=msg;$('loginErr').hidden=false;}$('adminPass').focus();}
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();const b=$('loginBtn');b.disabled=true;b.textContent='Logging in…';$('loginErr').hidden=true;
+ try{await api('POST','/api/admin/login',{password:$('adminPass').value});$('adminPass').value='';$('loginView').hidden=true;$('appView').hidden=false;await load();startTimer();}
+ catch(err){$('loginErr').textContent=err.message;$('loginErr').hidden=false;}
+ b.disabled=false;b.textContent='Log in';});
+$('logoutBtn').addEventListener('click',async()=>{try{await api('POST','/api/admin/logout',{});}catch(e){}showLogin();});
+
+/* ---------- data ---------- */
+async function load(){try{const [ov,pl]=await Promise.all([api('GET','/api/admin/overview'),api('GET','/api/admin/players')]);
+  serverNow=pl.now;players=pl.players;renderKpis(ov.kpis);renderDau(ov.days);renderFeed(ov.feed);renderPlayers();
+  $('updated').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(openId!=null&&!$('sheet').hidden)openPlayer(openId,true);}
+ catch(e){if(e.status===401)showLogin('Your admin session ended. Log in again.');else $('updated').textContent='Could not refresh: '+e.message;}}
+function startTimer(){stopTimer();if($('autoRefresh').checked)timer=setInterval(load,30000);}
+function stopTimer(){if(timer){clearInterval(timer);timer=null;}}
+$('autoRefresh').addEventListener('change',startTimer);
+$('refreshBtn').addEventListener('click',load);
+
+/* ---------- KPIs ---------- */
+function renderKpis(k){const tiles=[['Players',k.players,k.signups7d+' new this week','lead'],['Active today',k.active24h,'last 24 hours'],['Active this week',k.active7d,'last 7 days'],
+ ['New this week',k.signups7d,'sign-ups'],['Game months played',k.monthsPlayed,'across all players'],['Billionaires',k.billionaires,'reached $1B'],['Bankruptcies',k.bankrupt,'current games']];
+ $('kpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+Number(t[1]).toLocaleString('en-US')+'</b><small>'+t[2]+'</small></div>').join('');}
+
+/* ---------- daily active chart (single series, bars) ---------- */
+function niceMax(v){if(v<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return(n<=2?2:n<=5?5:10)*p;}
+function renderDau(days){const box=$('dauChart'),W=Math.max(280,box.clientWidth||600),H=220,pl=34,pr=8,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb;
+ const max=niceMax(Math.max(1,...days.map(d=>d.active))),band=iw/days.length,bw=Math.min(24,band*.62);
+ const y=v=>pt+ih-(v/max)*ih;let s='<svg viewBox="0 0 '+W+' '+H+'" height="'+H+'" role="img" aria-label="Daily active players over the last 14 days">';
+ for(let i=0;i<=4;i++){const v=max*i/4,yy=y(v);s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+yy+'" y2="'+yy+'" stroke="var(--grid)" stroke-width="1"/><text class="axis" x="'+(pl-6)+'" y="'+(yy+3.5)+'" text-anchor="end">'+Math.round(v)+'</text>';}
+ days.forEach((d,i)=>{const cx=pl+band*i+band/2,x0=cx-bw/2,h=Math.max(0,ih*(d.active/max)),top=pt+ih-h,r=Math.min(4,h);
+  if(h>0)s+='<path d="M'+x0+','+(pt+ih)+'V'+(top+r)+'Q'+x0+','+top+' '+(x0+r)+','+top+'H'+(x0+bw-r)+'Q'+(x0+bw)+','+top+' '+(x0+bw)+','+(top+r)+'V'+(pt+ih)+'Z" fill="'+(i===days.length-1?'var(--brass)':'var(--green)')+'"/>';
+  if((i%2===0&&i<days.length-2)||i===days.length-1){const dt=new Date(d.day+'T00:00:00Z');s+='<text class="axis" x="'+cx+'" y="'+(H-8)+'" text-anchor="middle">'+(i===days.length-1?'Today':dt.getUTCDate()+' '+MONTHS[dt.getUTCMonth()])+'</text>';}
+  s+='<rect class="hit" data-i="'+i+'" x="'+(pl+band*i)+'" y="'+pt+'" width="'+band+'" height="'+ih+'" fill="transparent"/>';});
+ s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+(pt+ih)+'" y2="'+(pt+ih)+'" stroke="var(--line)" stroke-width="1"/></svg><div class="tip" id="dauTip" hidden></div>';
+ box.innerHTML=s;const tip=$('dauTip');
+ box.querySelectorAll('.hit').forEach(r=>{const show=()=>{const i=+r.dataset.i,d=days[i],cx=pl+band*i+band/2;
+   tip.innerHTML=esc(i===days.length-1?'Today':new Date(d.day+'T00:00:00Z').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}))+'<br><b>'+d.active+'</b> active · <b>'+d.signups+'</b> new';
+   tip.style.left=(cx/W*100)+'%';tip.style.top=Math.max(12,y(d.active))+'px';tip.hidden=false;};
+  r.addEventListener('mouseenter',show);r.addEventListener('mouseleave',()=>tip.hidden=true);r.addEventListener('touchstart',show,{passive:true});});
+ box._days=days;}
+window.addEventListener('resize',()=>{const b=$('dauChart');if(b._days)renderDau(b._days);if(openId!=null&&$('nwChart')&&$('nwChart')._pts)drawNW($('nwChart')._pts);});
+
+/* ---------- feed ---------- */
+function renderFeed(feed){$('feed').innerHTML=feed.length?feed.map(f=>'<li>'+avatar(f)+'<div><div><button class="who" data-open="'+f.user_id+'">'+esc(f.name)+'</button> <span class="when">'+ago(f.ts)+(f.game_month!=null?' · '+gameDate(f.game_month):'')+'</span></div><div class="what">'+esc(f.text)+'</div></div></li>').join('')
+ :'<li class="empty" style="display:block">No activity yet. Share the game link and moves will appear here.</li>';}
+
+/* ---------- players table ---------- */
+function renderPlayers(){const term=$('search').value.trim().toLowerCase(),sort=$('sortBy').value,filter=$('filterBy').value;
+ let rows=players.filter(p=>!term||[p.name,p.username,p.company,p.town].some(x=>String(x||'').toLowerCase().includes(term)));
+ rows=rows.filter(p=>filter==='all'||(filter==='online'&&!p.disabled&&serverNow-p.last_seen<300)||(filter==='today'&&serverNow-p.last_seen<86400)||(filter==='billion'&&p.billion_month!=null)||(filter==='bankrupt'&&p.bankrupt)||(filter==='disabled'&&p.disabled));
+ rows.sort((a,b)=>(+b[sort]||0)-(+a[sort]||0));
+ $('players').innerHTML=rows.length?rows.map(p=>{const [st,cls]=status(p);
+  return'<tr data-open="'+p.id+'" tabindex="0"><td><div class="pcell">'+avatar(p)+'<div><b>'+esc(p.name)+'</b><small>@'+esc(p.username)+'</small></div></div></td><td>'+esc(p.company)+' · '+esc(p.town)+'<br><small style="color:var(--muted)">'+esc(BGNAME[p.bg]||p.bg)+'</small></td>'+
+   '<td><span class="pill '+cls+'">'+st+'</span></td><td>'+esc(p.rank||'—')+'</td><td class="r num">'+fmt(p.nw)+'</td><td class="r num">'+fmt(p.best)+'</td><td>'+gameDate(p.month)+(p.games>1?' <small style="color:var(--muted)">(game '+p.games+')</small>':'')+'</td>'+
+   '<td class="r num">'+(p.months_played||0)+'</td><td class="r num">'+(p.logins||0)+'</td><td>'+ago(p.last_seen)+'</td></tr>';}).join('')
+  :'<tr><td colspan="10" class="empty">'+(players.length?'No players match.':'No players yet. Share the game link to get your first sign-ups.')+'</td></tr>';}
+['search','sortBy','filterBy'].forEach(id=>$(id).addEventListener('input',renderPlayers));
+document.addEventListener('click',e=>{const t=e.target.closest('[data-open]');if(t)openPlayer(+t.dataset.open);});
+$('players').addEventListener('keydown',e=>{if(e.key==='Enter'){const t=e.target.closest('[data-open]');if(t)openPlayer(+t.dataset.open);}});
+
+/* ---------- player detail ---------- */
+function closeSheet(){$('sheet').hidden=true;$('sheetShade').hidden=true;openId=null;confirmAct=null;}
+$('sheetShade').addEventListener('click',closeSheet);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('sheet').hidden)closeSheet();});
+async function openPlayer(id,quiet){openId=id;if(!quiet){confirmAct=null;$('sheet').innerHTML='<p style="color:var(--muted)">Loading…</p>';$('sheet').hidden=false;$('sheetShade').hidden=false;}
+ let d;try{d=await api('GET','/api/admin/player/'+id);}catch(e){if(e.status===401)return showLogin('Your admin session ended. Log in again.');$('sheet').innerHTML='<p class="err">'+esc(e.message)+'</p><button class="btn" id="closeSheet">Close</button>';$('closeSheet').onclick=closeSheet;return;}
+ serverNow=d.now;const u=d.user,s=d.stats||{},det=s.detail||{},[st,cls]=status(Object.assign({},u,s));
+ const fact=(l,v)=>'<div class="fact"><span class="eyebrow">'+l+'</span><b>'+v+'</b></div>';
+ let h='<div class="shead">'+avatar(u,true)+'<div><h2 id="sheetName">'+esc(u.name)+'</h2><small>@'+esc(u.username)+' · '+esc(u.company)+' · '+esc(u.town)+' · '+esc(BGNAME[u.bg]||u.bg)+'</small></div><button class="btn ghost" id="closeSheet" aria-label="Close player details">Close</button></div>';
+ h+='<div class="actions"><span class="pill '+cls+'">'+st+'</span><span style="font-size:13px;color:var(--muted)">Joined '+ago(u.created)+' · last active '+ago(u.last_seen)+' · '+u.logins+' log-in'+(u.logins===1?'':'s')+(s.games>1?' · game '+s.games:'')+'</span></div>';
+ h+='<div class="facts">'+fact('Net worth',fmt(s.nw))+fact('Best',fmt(s.best))+fact('Cash',fmt(s.cash))+fact('In-game date',gameDate(s.month))+
+  fact('Rank',esc(s.rank||'—'))+fact('Age',det.age!=null?det.age:'—')+fact('Happiness',det.happiness!=null?det.happiness+' / 100':'—')+fact('Reputation',det.reputation!=null?det.reputation+' / 100':'—')+
+  fact('Industries',det.industries!=null?det.industries:'—')+fact('Business units',det.units!=null?det.units:'—')+fact('Buildings',det.properties!=null?det.properties:'—')+fact('Sports teams',det.teams!=null?det.teams:'—')+
+  fact('Gender',det.gender==='m'?'Man':det.gender==='f'?'Woman':'Not set')+fact('Family',det.married==null?'—':(det.married?'Married'+(det.spouse&&det.spouse!=='spouse'?' (a '+esc(det.spouse)+')':''):'Single')+(det.kids?' · '+det.kids+' kid'+(det.kids>1?'s':''):''))+fact('Motorsport',det.race||'None')+fact('Foundation',det.foundation?'Open':'None')+fact('Debt',fmt(det.debt||0))+'</div>';
+ h+='<section class="panel"><h2>Net worth over time</h2><p class="sub">Current game, by in-game month (log scale).</p><div class="chart" id="nwChart"></div></section>';
+ h+='<section class="panel"><h2>Recent moves</h2><p class="sub">Newest first. Game news comes straight from their play.</p><ul class="events">'+(d.events.length?d.events.map(e=>'<li class="'+esc(e.kind)+'"><small>'+ago(e.ts)+(e.game_month!=null?' · '+gameDate(e.game_month):'')+'</small>'+esc(e.text)+'</li>').join(''):'<li>No moves yet.</li>')+'</ul></section>';
+ h+='<section class="panel"><h2>Account actions</h2><p class="sub">Disabling logs the player out and blocks log-in until you enable them again.</p><div class="actions" id="acts"></div></section>';
+ $('sheet').innerHTML=h;$('closeSheet').onclick=closeSheet;if(!quiet)$('closeSheet').focus();
+ renderActs(u);drawNW(d.snapshots);}
+function renderActs(u){const A={reset:['Reset their game','Wipe '+u.name+'\'s current game? They keep their account and start again from month 1.'],delete:['Delete account','Permanently delete '+u.name+', their saved game and all their history? This cannot be undone.']};
+ let h='';if(confirmAct){h='<div class="confirm"><span>'+esc(A[confirmAct][1])+'</span><button class="btn danger" data-act="'+confirmAct+'" data-yes="1">'+A[confirmAct][0]+'</button><button class="btn ghost" data-act="cancel">Cancel</button></div>';}
+ else h=(u.disabled?'<button class="btn" data-act="enable">Enable account</button>':'<button class="btn" data-act="disable">Disable account</button>')+'<button class="btn" data-act="reset">Reset their game</button><button class="btn danger" data-act="delete">Delete account</button>';
+ $('acts').innerHTML=h;$('acts').querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(u,b.dataset.act,b.dataset.yes));}
+async function act(u,a,yes){if(a==='cancel'){confirmAct=null;return renderActs(u);}
+ if((a==='reset'||a==='delete')&&!yes){confirmAct=a;return renderActs(u);}
+ try{await api('POST','/api/admin/player/'+u.id+'/'+a,{confirm:true});}catch(e){alertBox(e.message);return;}
+ confirmAct=null;if(a==='delete'){closeSheet();}await load();}
+function alertBox(msg){const el=$('acts');if(el)el.insertAdjacentHTML('afterbegin','<p class="err" style="width:100%">'+esc(msg)+'</p>');}
+
+/* net worth line, log scale, single series with crosshair tooltip */
+function drawNW(pts){const box=$('nwChart');if(!box)return;box._pts=pts;
+ if(!pts||pts.length<2){box.innerHTML='<p style="color:var(--muted);margin:0">Not enough history yet. This fills in as they play.</p>';return;}
+ const W=Math.max(260,box.clientWidth||560),H=210,pl=52,pr=14,pt=12,pb=24,iw=W-pl-pr,ih=H-pt-pb;
+ const vals=pts.map(p=>Math.max(1,p.nw)),lo=Math.floor(Math.log10(Math.min(...vals))),hi=Math.max(lo+1,Math.ceil(Math.log10(Math.max(...vals))));
+ const m0=pts[0].month,m1=pts[pts.length-1].month||1,X=m=>pl+(m1===m0?0:(m-m0)/(m1-m0))*iw,Y=v=>pt+ih*(1-(Math.log10(Math.max(1,v))-lo)/(hi-lo));
+ let s='<svg viewBox="0 0 '+W+' '+H+'" height="'+H+'" role="img" aria-label="Net worth over time">';
+ for(let p=lo;p<=hi;p++){const yy=Y(Math.pow(10,p));s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+yy+'" y2="'+yy+'" stroke="var(--grid)" stroke-width="1"/><text class="axis" x="'+(pl-6)+'" y="'+(yy+3.5)+'" text-anchor="end">'+fmt(Math.pow(10,p))+'</text>';}
+ const years=Math.max(1,Math.ceil((m1-m0)/12/6));for(let m=Math.ceil(m0/12)*12;m<=m1;m+=12*years)s+='<text class="axis" x="'+X(m)+'" y="'+(H-6)+'" text-anchor="middle">Yr '+(m/12+1)+'</text>';
+ const line=pts.map((p,i)=>(i?'L':'M')+X(p.month).toFixed(1)+','+Y(p.nw).toFixed(1)).join('');
+ s+='<path d="'+line+'L'+X(m1)+','+(pt+ih)+'L'+X(m0)+','+(pt+ih)+'Z" fill="var(--green)" opacity=".1"/><path d="'+line+'" fill="none" stroke="var(--green)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+ const last=pts[pts.length-1];s+='<circle cx="'+X(last.month)+'" cy="'+Y(last.nw)+'" r="5" fill="var(--green)" stroke="var(--panel)" stroke-width="2"/>';
+ s+='<line id="nwX" x1="0" x2="0" y1="'+pt+'" y2="'+(pt+ih)+'" stroke="var(--muted)" stroke-width="1" visibility="hidden"/><circle id="nwDot" r="5" fill="var(--green)" stroke="var(--panel)" stroke-width="2" visibility="hidden"/>';
+ s+='<rect id="nwHit" x="'+pl+'" y="'+pt+'" width="'+iw+'" height="'+ih+'" fill="transparent"/></svg><div class="tip" id="nwTip" hidden></div>';
+ box.innerHTML=s;const svg=box.querySelector('svg'),tip=$('nwTip'),xl=$('nwX'),dot=$('nwDot');
+ const move=ev=>{const r=svg.getBoundingClientRect(),cx=((ev.touches?ev.touches[0].clientX:ev.clientX)-r.left)/r.width*W;
+  let best=pts[0];pts.forEach(p=>{if(Math.abs(X(p.month)-cx)<Math.abs(X(best.month)-cx))best=p;});
+  const x=X(best.month),yv=Y(best.nw);xl.setAttribute('x1',x);xl.setAttribute('x2',x);xl.setAttribute('visibility','visible');dot.setAttribute('cx',x);dot.setAttribute('cy',yv);dot.setAttribute('visibility','visible');
+  tip.innerHTML=gameDate(best.month)+'<br><b>'+fmt(best.nw)+'</b>';tip.style.left=(x/W*100)+'%';tip.style.top=yv+'px';tip.hidden=false;};
+ const leave=()=>{tip.hidden=true;xl.setAttribute('visibility','hidden');dot.setAttribute('visibility','hidden');};
+ $('nwHit').addEventListener('mousemove',move);$('nwHit').addEventListener('mouseleave',leave);$('nwHit').addEventListener('touchmove',move,{passive:true});}
+
+/* ---------- start ---------- */
+(async()=>{try{await api('GET','/api/admin/overview');$('appView').hidden=false;await load();startTimer();}
+ catch(e){showLogin(e.status===503?e.message:'');}})();
+</script>
+</body>
+</html>

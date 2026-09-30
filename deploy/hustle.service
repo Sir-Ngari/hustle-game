@@ -1,0 +1,23 @@
+[Unit]
+Description=Hustle to a Billion game server
+After=network.target
+
+[Service]
+User=hustle
+Group=hustle
+WorkingDirectory=/opt/hustle/app
+EnvironmentFile=/etc/hustle.env
+Environment=HUSTLE_DB=/opt/hustle/data/hustle.db
+ExecStart=/usr/bin/python3 /opt/hustle/app/server.py
+Restart=on-failure
+RestartSec=3
+
+# Lock the game server down: it can only write to its own data folder.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/hustle/data
+
+[Install]
+WantedBy=multi-user.target

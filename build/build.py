@@ -1,0 +1,46 @@
+"""Build public/index.html (the hosted game) from the artifact version of the game."""
+import sys,re
+src=sys.argv[1]; out=sys.argv[2]
+s=open(src).read()
+def rep(a,b,cnt=1):
+    global s
+    assert s.count(a)==cnt,(s.count(a),a[:90]); s=s.replace(a,b)
+# swap the device-account block for the server-account block
+i=s.index("/* ================= Accounts ================= */"); j=s.index("function save(){if(!ACC)return;",i)
+k=s.index("saveAccs();}",j)+len("saveAccs();}")
+s=s[:i]+open('accthosted.js').read()+"\nfunction save(){if(!ACC)return;S._uid=ACC.id;queueSync();}"+s[k:]
+# number every news entry so the server can store each one once
+rep("function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});","function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});")
+# click handlers for the account screens
+i=s.index("accts:()=>showAccts('pick'),"); j=s.index("acctdelyes:()=>deleteAccount(v),",i)+len("acctdelyes:()=>deleteAccount(v),")
+s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=null;renderAccts();},authmode:()=>{authMode=v;authMsg='';renderAccts();},logout,leaderboard:openBoard,retryboot:bootAuth,"+s[j:]
+# new game keeps the account and tells the server
+rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;")
+# start-up: ask the server who is playing
+i=s.index("{const a=ACCS.list.find(x=>x.id===ACCS.active);if(a)loadAccount(a);}"); j=s.index("else startEvents();",i)+len("else startEvents();")
+s=s[:i]+"render();\nshowTab(curTab);\nbootAuth();"+s[j:]
+# header chip shows sync status
+s=re.sub(r" \$\('acctchip'\)\.innerHTML=ACC\?avatar\(ACC\).*?;\n"," paintChip();\n",s,count=1)
+assert "paintChip();\n $('fdn-title')" in s
+# extra styles for the auth screens
+rep(".acctbrand{",""".authtabs{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ink);border-radius:3px;overflow:hidden}
+.authtabs button{border:0;background:transparent;padding:10px;font-weight:700;font-size:14px}
+.authtabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+.amsg{margin:0;padding:10px 12px;border-radius:3px;background:var(--brass-soft);color:var(--ink);font-size:13.5px}
+.aform input[type=password]{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:15px;color:var(--ink)}
+.me{display:flex;align-items:center;gap:14px}
+.acctbrand{""")
+assert 'localStorage.getItem(SAVE)' not in s and 'ACCS' not in s, 'device-account code left behind'
+head='''<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Build an empire from a street hustle to a billion.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314261f'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='%23e2ac48' font-family='Arial' font-weight='700'%3E%24%3C/text%3E%3C/svg%3E">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:#eef0e6}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+'''
+open(out,'w').write(head+s+'\n</body>\n</html>\n')
+print('built',out,len(head+s),'bytes')
