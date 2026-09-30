@@ -116,7 +116,7 @@ tbody tr:hover td{background:var(--brass-soft)}
 .fact b{display:block;font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .events{list-style:none;margin:0;padding:0}
 .events li{padding:7px 0 7px 10px;border-left:3px solid var(--line);margin-bottom:4px;font-size:13px}
-.events li.good{border-color:var(--green)}.events li.bad{border-color:var(--red)}.events li.gold{border-color:var(--brass)}.events li.life{border-color:var(--plum)}.events li.admin,.events li.account,.events li.login,.events li.game{border-color:var(--ink)}
+.events li.k-good{border-color:var(--green)}.events li.k-bad{border-color:var(--red)}.events li.k-gold{border-color:var(--brass)}.events li.k-life{border-color:var(--plum)}.events li.admin,.events li.account,.events li.login,.events li.game{border-color:var(--ink)}
 .events small{display:block;font-family:var(--mono);font-size:11px;color:var(--muted)}
 .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;background:var(--red-soft);color:var(--red);padding:8px 10px;border-radius:3px;font-weight:600}
@@ -170,7 +170,7 @@ tbody tr:hover td{background:var(--brass-soft)}
       <h2>Players</h2>
       <p class="sub">Click a player to see their net worth over time, their recent moves and account actions.</p>
       <div class="tools">
-        <input id="search" type="search" placeholder="Search name, username, company or town" aria-label="Search players">
+        <input id="search" type="search" placeholder="Search name, username, email, company or town" aria-label="Search players">
         <select id="sortBy" aria-label="Sort players">
           <option value="last_seen">Last active</option>
           <option value="nw">Net worth</option>
@@ -276,7 +276,7 @@ function renderFeed(feed){$('feed').innerHTML=feed.length?feed.map(f=>'<li>'+ava
 
 /* ---------- players table ---------- */
 function renderPlayers(){const term=$('search').value.trim().toLowerCase(),sort=$('sortBy').value,filter=$('filterBy').value;
- let rows=players.filter(p=>!term||[p.name,p.username,p.company,p.town].some(x=>String(x||'').toLowerCase().includes(term)));
+ let rows=players.filter(p=>!term||[p.name,p.username,p.email,p.company,p.town].some(x=>String(x||'').toLowerCase().includes(term)));
  rows=rows.filter(p=>filter==='all'||(filter==='online'&&!p.disabled&&serverNow-p.last_seen<300)||(filter==='today'&&serverNow-p.last_seen<86400)||(filter==='billion'&&p.billion_month!=null)||(filter==='bankrupt'&&p.bankrupt)||(filter==='disabled'&&p.disabled));
  rows.sort((a,b)=>(+b[sort]||0)-(+a[sort]||0));
  $('players').innerHTML=rows.length?rows.map(p=>{const [st,cls]=status(p);
@@ -296,23 +296,26 @@ async function openPlayer(id,quiet){openId=id;if(!quiet){confirmAct=null;$('shee
  let d;try{d=await api('GET','/api/admin/player/'+id);}catch(e){if(e.status===401)return showLogin('Your admin session ended. Log in again.');$('sheet').innerHTML='<p class="err">'+esc(e.message)+'</p><button class="btn" id="closeSheet">Close</button>';$('closeSheet').onclick=closeSheet;return;}
  serverNow=d.now;const u=d.user,s=d.stats||{},det=s.detail||{},[st,cls]=status(Object.assign({},u,s));
  const fact=(l,v)=>'<div class="fact"><span class="eyebrow">'+l+'</span><b>'+v+'</b></div>';
- let h='<div class="shead">'+avatar(u,true)+'<div><h2 id="sheetName">'+esc(u.name)+'</h2><small>@'+esc(u.username)+' · '+esc(u.company)+' · '+esc(u.town)+' · '+esc(BGNAME[u.bg]||u.bg)+'</small></div><button class="btn ghost" id="closeSheet" aria-label="Close player details">Close</button></div>';
+ let h='<div class="shead">'+avatar(u,true)+'<div><h2 id="sheetName">'+esc(u.name)+'</h2><small>@'+esc(u.username)+' · '+esc(u.company)+' · '+esc(u.town)+' · '+esc(BGNAME[u.bg]||u.bg)+'</small><small style="display:block">'+(u.email?esc(u.email):'No email on file')+'</small></div><button class="btn ghost" id="closeSheet" aria-label="Close player details">Close</button></div>';
  h+='<div class="actions"><span class="pill '+cls+'">'+st+'</span><span style="font-size:13px;color:var(--muted)">Joined '+ago(u.created)+' · last active '+ago(u.last_seen)+' · '+u.logins+' log-in'+(u.logins===1?'':'s')+(s.games>1?' · game '+s.games:'')+'</span></div>';
  h+='<div class="facts">'+fact('Net worth',fmt(s.nw))+fact('Best',fmt(s.best))+fact('Cash',fmt(s.cash))+fact('In-game date',gameDate(s.month))+
   fact('Rank',esc(s.rank||'—'))+fact('Age',det.age!=null?det.age:'—')+fact('Happiness',det.happiness!=null?det.happiness+' / 100':'—')+fact('Reputation',det.reputation!=null?det.reputation+' / 100':'—')+
   fact('Industries',det.industries!=null?det.industries:'—')+fact('Business units',det.units!=null?det.units:'—')+fact('Buildings',det.properties!=null?det.properties:'—')+fact('Sports teams',det.teams!=null?det.teams:'—')+
   fact('Gender',det.gender==='m'?'Man':det.gender==='f'?'Woman':'Not set')+fact('Family',det.married==null?'—':(det.married?'Married'+(det.spouse&&det.spouse!=='spouse'?' (a '+esc(det.spouse)+')':''):'Single')+(det.kids?' · '+det.kids+' kid'+(det.kids>1?'s':''):''))+fact('Motorsport',det.race||'None')+fact('Foundation',det.foundation?'Open':'None')+fact('Debt',fmt(det.debt||0))+'</div>';
  h+='<section class="panel"><h2>Net worth over time</h2><p class="sub">Current game, by in-game month (log scale).</p><div class="chart" id="nwChart"></div></section>';
- h+='<section class="panel"><h2>Recent moves</h2><p class="sub">Newest first. Game news comes straight from their play.</p><ul class="events">'+(d.events.length?d.events.map(e=>'<li class="'+esc(e.kind)+'"><small>'+ago(e.ts)+(e.game_month!=null?' · '+gameDate(e.game_month):'')+'</small>'+esc(e.text)+'</li>').join(''):'<li>No moves yet.</li>')+'</ul></section>';
+ h+='<section class="panel"><h2>Recent moves</h2><p class="sub">Newest first. Game news comes straight from their play.</p><ul class="events">'+(d.events.length?d.events.map(e=>'<li class="k-'+esc(e.kind)+'"><small>'+ago(e.ts)+(e.game_month!=null?' · '+gameDate(e.game_month):'')+'</small>'+esc(e.text)+'</li>').join(''):'<li>No moves yet.</li>')+'</ul></section>';
  h+='<section class="panel"><h2>Account actions</h2><p class="sub">Disabling logs the player out and blocks log-in until you enable them again.</p><div class="actions" id="acts"></div></section>';
  $('sheet').innerHTML=h;$('closeSheet').onclick=closeSheet;if(!quiet)$('closeSheet').focus();
  renderActs(u);drawNW(d.snapshots);}
 function renderActs(u){const A={reset:['Reset their game','Wipe '+u.name+'\'s current game? They keep their account and start again from month 1.'],delete:['Delete account','Permanently delete '+u.name+', their saved game and all their history? This cannot be undone.']};
- let h='';if(confirmAct){h='<div class="confirm"><span>'+esc(A[confirmAct][1])+'</span><button class="btn danger" data-act="'+confirmAct+'" data-yes="1">'+A[confirmAct][0]+'</button><button class="btn ghost" data-act="cancel">Cancel</button></div>';}
- else h=(u.disabled?'<button class="btn" data-act="enable">Enable account</button>':'<button class="btn" data-act="disable">Disable account</button>')+'<button class="btn" data-act="reset">Reset their game</button><button class="btn danger" data-act="delete">Delete account</button>';
- $('acts').innerHTML=h;$('acts').querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(u,b.dataset.act,b.dataset.yes));}
+ let h='';if(confirmAct==='password'){h='<form class="confirm" id="pwForm"><label for="newPw">New password for '+esc(u.name)+'</label><input id="newPw" type="text" minlength="8" maxlength="128" autocomplete="off" style="min-width:200px"><button class="btn" type="submit">Set password</button><button class="btn ghost" type="button" data-act="cancel">Cancel</button><span style="width:100%;font-size:13px;color:var(--muted)">At least 8 characters. They are logged out everywhere; send them the new password yourself.</span></form>';}
+ else if(confirmAct){h='<div class="confirm"><span>'+esc(A[confirmAct][1])+'</span><button class="btn danger" data-act="'+confirmAct+'" data-yes="1">'+A[confirmAct][0]+'</button><button class="btn ghost" data-act="cancel">Cancel</button></div>';}
+ else h=(u.disabled?'<button class="btn" data-act="enable">Enable account</button>':'<button class="btn" data-act="disable">Disable account</button>')+'<button class="btn" data-act="password">Set new password</button><button class="btn" data-act="reset">Reset their game</button><button class="btn danger" data-act="delete">Delete account</button>';
+ $('acts').innerHTML=h;$('acts').querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(u,b.dataset.act,b.dataset.yes));
+ const pf=$('pwForm');if(pf){$('newPw').focus();pf.onsubmit=async e=>{e.preventDefault();const pw=$('newPw').value;if(pw.length<8){alertBox('The new password needs at least 8 characters.');return;}
+  try{await api('POST','/api/admin/player/'+u.id+'/password',{password:pw});}catch(err){alertBox(err.message);return;}confirmAct=null;renderActs(u);$('acts').insertAdjacentHTML('afterbegin','<p style="width:100%;margin:0;color:var(--green);font-weight:600">Password changed. Send '+esc(u.name)+' the new password.</p>');};}}
 async function act(u,a,yes){if(a==='cancel'){confirmAct=null;return renderActs(u);}
- if((a==='reset'||a==='delete')&&!yes){confirmAct=a;return renderActs(u);}
+ if((a==='reset'||a==='delete'||a==='password')&&!yes){confirmAct=a;return renderActs(u);}
  try{await api('POST','/api/admin/player/'+u.id+'/'+a,{confirm:true});}catch(e){alertBox(e.message);return;}
  confirmAct=null;if(a==='delete'){closeSheet();}await load();}
 function alertBox(msg){const el=$('acts');if(el)el.insertAdjacentHTML('afterbegin','<p class="err" style="width:100%">'+esc(msg)+'</p>');}

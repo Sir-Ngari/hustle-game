@@ -11,6 +11,11 @@ Settings come from environment variables (see deploy/hustle.env.example):
   HUSTLE_DB               path of the SQLite database (default ./data/hustle.db)
   HUSTLE_SECURE_COOKIES   "1" (default) when served over HTTPS, "0" for local testing
   HUSTLE_TRUST_PROXY      "1" (default) to read the visitor IP from nginx's X-Real-IP header
+  HUSTLE_SITE_DOMAIN      the game's domain, used in password-reset links (e.g. shwariapps.com)
+  HUSTLE_MAIL_PROVIDER    how reset emails are sent: resend, brevo, smtp, or log (prints them); off when empty
+  HUSTLE_MAIL_KEY         API key for resend or brevo (or the SMTP password)
+  HUSTLE_MAIL_FROM        sender address (default no-reply@<HUSTLE_SITE_DOMAIN>)
+  HUSTLE_SMTP_HOST / HUSTLE_SMTP_PORT / HUSTLE_SMTP_USER   only for HUSTLE_MAIL_PROVIDER=smtp
 """
 import hashlib
 import hmac
@@ -20,8 +25,12 @@ import os
 import re
 import secrets
 import sqlite3
+import smtplib
+import ssl
 import threading
 import time
+import urllib.request
+from email.message import EmailMessage
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
@@ -34,6 +43,14 @@ DB_PATH = os.environ.get("HUSTLE_DB", os.path.join(BASE, "data", "hustle.db"))
 ADMIN_PASSWORD = os.environ.get("HUSTLE_ADMIN_PASSWORD", "")
 SECURE_COOKIES = os.environ.get("HUSTLE_SECURE_COOKIES", "1") == "1"
 TRUST_PROXY = os.environ.get("HUSTLE_TRUST_PROXY", "1") == "1"
+SITE_DOMAIN = os.environ.get("HUSTLE_SITE_DOMAIN", "").strip().strip("/")
+MAIL_PROVIDER = os.environ.get("HUSTLE_MAIL_PROVIDER", "").strip().lower()
+MAIL_KEY = os.environ.get("HUSTLE_MAIL_KEY", "").strip()
+MAIL_FROM = os.environ.get("HUSTLE_MAIL_FROM", "").strip() or ("no-reply@" + SITE_DOMAIN if SITE_DOMAIN else "")
+SMTP_HOST = os.environ.get("HUSTLE_SMTP_HOST", "").strip()
+SMTP_PORT = int(os.environ.get("HUSTLE_SMTP_PORT", "587") or 587)
+SMTP_USER = os.environ.get("HUSTLE_SMTP_USER", "").strip()
+RESET_SECONDS = 3600
 
 MAX_BODY = 3 * 1024 * 1024          # largest request body accepted
 MAX_STATE = int(2.5 * 1024 * 1024)  # largest saved game
@@ -42,6 +59,7 @@ ADMIN_SESSION_SECONDS = 12 * 3600
 PBKDF2_ROUNDS = 200_000
 
 USERNAME_RE = re.compile(r"^[a-z0-9_.]{3,20}$")
+EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[a-z0-9.-]+\.[a-z]{2,}$")
 BACKGROUNDS = {"hustler", "grad", "heir"}
 
 SCHEMA = """
@@ -106,6 +124,13 @@ CREATE TABLE IF NOT EXISTS snapshots(
   ts INTEGER NOT NULL,
   PRIMARY KEY(user_id, game, month)
 );
+CREATE TABLE IF NOT EXISTS resets(
+  token_hash TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  created INTEGER NOT NULL,
+  expires INTEGER NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS activity_days(
   user_id INTEGER NOT NULL,
   day TEXT NOT NULL,
@@ -119,6 +144,10 @@ _db.row_factory = sqlite3.Row
 _db.execute("PRAGMA journal_mode=WAL")
 _db.execute("PRAGMA foreign_keys=ON")
 _db.executescript(SCHEMA)
+# upgrade older databases: add the email column to accounts made before it existed
+if "email" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
+    _db.execute("ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''")
+_db.execute("CREATE INDEX IF NOT EXISTS users_email ON users(email)")
 _lock = threading.Lock()
 
 
@@ -189,7 +218,101 @@ def num(value, default=0.0):
 
 def user_public(u):
     return {"id": u["id"], "username": u["username"], "name": u["name"], "company": u["company"],
-            "town": u["town"], "bg": u["bg"], "color": u["color"]}
+            "town": u["town"], "bg": u["bg"], "color": u["color"], "email": u["email"]}
+
+
+def clean_email(value):
+    """Return a lower-cased email address, or '' when it doesn't look like one."""
+    e = clean_text(value, 120).lower()
+    return e if EMAIL_RE.match(e) else ""
+
+
+def mail_ready():
+    if MAIL_PROVIDER == "log":
+        return True
+    if not SITE_DOMAIN or not MAIL_FROM:
+        return False
+    if MAIL_PROVIDER in ("resend", "brevo"):
+        return bool(MAIL_KEY)
+    if MAIL_PROVIDER == "smtp":
+        return bool(SMTP_HOST and MAIL_KEY)
+    return False
+
+
+def send_mail(to, subject, text, html):
+    """Send one email with the configured provider. Returns True when it was accepted."""
+    sender_name = "Hustle to a Billion"
+    try:
+        if MAIL_PROVIDER == "log":
+            print("MAIL to %s | %s\n%s" % (to, subject, text), flush=True)
+            return True
+        if MAIL_PROVIDER in ("resend", "brevo"):
+            if MAIL_PROVIDER == "resend":
+                url = "https://api.resend.com/emails"
+                body = {"from": "%s <%s>" % (sender_name, MAIL_FROM), "to": [to], "subject": subject, "text": text, "html": html}
+                headers = {"Authorization": "Bearer " + MAIL_KEY}
+            else:
+                url = "https://api.brevo.com/v3/smtp/email"
+                body = {"sender": {"name": sender_name, "email": MAIL_FROM}, "to": [{"email": to}], "subject": subject,
+                        "textContent": text, "htmlContent": html}
+                headers = {"api-key": MAIL_KEY}
+            headers.update({"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "hustle-game"})
+            req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=20) as r:
+                ok = 200 <= r.status < 300
+            if not ok:
+                print("Mail provider refused the email to %s" % to, flush=True)
+            return ok
+        if MAIL_PROVIDER == "smtp":
+            msg = EmailMessage()
+            msg["From"] = "%s <%s>" % (sender_name, MAIL_FROM)
+            msg["To"] = to
+            msg["Subject"] = subject
+            msg.set_content(text)
+            msg.add_alternative(html, subtype="html")
+            ctx = ssl.create_default_context()
+            if SMTP_PORT == 465:
+                with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=20) as sm:
+                    sm.login(SMTP_USER or MAIL_FROM, MAIL_KEY)
+                    sm.send_message(msg)
+            else:
+                with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as sm:
+                    sm.starttls(context=ctx)
+                    sm.login(SMTP_USER or MAIL_FROM, MAIL_KEY)
+                    sm.send_message(msg)
+            return True
+    except Exception as e:  # never let a mail problem crash a request
+        detail = ""
+        if hasattr(e, "read"):
+            try:
+                detail = e.read().decode()[:300]
+            except Exception:
+                pass
+        print("Could not send email to %s: %s %s" % (to, e, detail), flush=True)
+    return False
+
+
+def html_escape(x):
+    return str(x).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def send_reset_emails(email, accounts):
+    """accounts: list of (username, name, link). One email lists every account on that address."""
+    lines = "\n".join("  %s (@%s): %s" % (n, u, link) for u, n, link in accounts)
+    text = ("Someone asked to reset the password for your Hustle to a Billion account%s.\n\n"
+            "Open this link to choose a new password:\n%s\n\n"
+            "The link works once and expires in 1 hour. If you didn't ask for this, ignore this email; "
+            "your password stays the same.\n" % ("s" if len(accounts) > 1 else "", lines))
+    buttons = "".join(
+        '<p style="margin:18px 0"><a href="%s" style="background:#14261f;color:#ffffff;padding:12px 20px;border-radius:4px;'
+        'text-decoration:none;font-weight:bold;display:inline-block">Reset password for @%s</a></p>' % (html_escape(link), html_escape(u))
+        for u, n, link in accounts)
+    html = ('<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#14261f;max-width:520px">'
+            '<h2 style="margin:0 0 12px">Reset your password</h2>'
+            '<p>Someone asked to reset the password for your <b>Hustle to a Billion</b> account%s.</p>%s'
+            '<p style="color:#5b6660;font-size:13px">The link works once and expires in 1 hour. If you didn\'t ask for this, '
+            'ignore this email; your password stays the same.</p></div>') % ("s" if len(accounts) > 1 else "", buttons)
+    send_mail(email, "Reset your Hustle to a Billion password", text, html)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -323,6 +446,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_me()
         if path == "/api/leaderboard":
             return self.api_leaderboard()
+        if path == "/api/config":
+            return self.send_json(200, {"mail": mail_ready()})
         if path.startswith("/api/admin/"):
             return self.api_admin_get(path)
         if path.startswith("/api/"):
@@ -332,10 +457,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlparse(self.path).path
         routes = {"/api/signup": self.api_signup, "/api/login": self.api_login, "/api/logout": self.api_logout,
+                  "/api/forgot": self.api_forgot, "/api/reset": self.api_reset, "/api/email": self.api_email,
                   "/api/admin/login": self.api_admin_login, "/api/admin/logout": self.api_admin_logout}
         if path in routes:
             return routes[path]()
-        m = re.match(r"^/api/admin/player/(\d+)/(disable|enable|reset|delete)$", path)
+        m = re.match(r"^/api/admin/player/(\d+)/(disable|enable|reset|delete|password)$", path)
         if m:
             return self.api_admin_action(int(m.group(1)), m.group(2))
         self.error(404, "Not found.")
@@ -358,6 +484,7 @@ class Handler(BaseHTTPRequestHandler):
         company = clean_text(d.get("company"), 16) or "Savanna"
         town = clean_text(d.get("town"), 20) or "Nairobi"
         bg = d.get("bg") if d.get("bg") in BACKGROUNDS else "hustler"
+        email = clean_email(d.get("email"))
         try:
             color = max(0, min(5, int(d.get("color", 0))))
         except (TypeError, ValueError):
@@ -368,6 +495,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(400, "Passwords need at least 8 characters.")
         if not name:
             return self.error(400, "Enter your name.")
+        if not email:
+            return self.error(400, "Enter a valid email address. It's how you reset your password.")
         if q("SELECT 1 FROM users WHERE username=?", (username,), one=True):
             return self.error(409, "That username is taken. Try another.")
         salt, digest = hash_password(password)
@@ -375,8 +504,8 @@ class Handler(BaseHTTPRequestHandler):
         token = secrets.token_urlsafe(32)
 
         def create(db):
-            cur = db.execute("INSERT INTO users(username,pw_salt,pw_hash,name,company,town,bg,color,created,last_seen,logins) "
-                             "VALUES(?,?,?,?,?,?,?,?,?,?,1)", (username, salt, digest, name, company, town, bg, color, t, t))
+            cur = db.execute("INSERT INTO users(username,pw_salt,pw_hash,name,company,town,bg,color,created,last_seen,logins,email) "
+                             "VALUES(?,?,?,?,?,?,?,?,?,?,1,?)", (username, salt, digest, name, company, town, bg, color, t, t, email))
             uid = cur.lastrowid
             db.execute("INSERT INTO stats(user_id, updated) VALUES(?,?)", (uid, t))
             db.execute("INSERT INTO sessions(token,user_id,is_admin,created,expires) VALUES(?,?,0,?,?)",
@@ -430,6 +559,101 @@ class Handler(BaseHTTPRequestHandler):
         if token:
             q("DELETE FROM sessions WHERE token=?", (token,))
         self.send_json(200, {"ok": True}, [self.make_cookie("hs", "", 0)])
+
+    def api_email(self):
+        """A logged-in player adds or changes their email. Needs their current password."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if rate_limited("email:%d" % user["id"], limit=10, window=3600):
+            return self.error(429, "Too many changes. Try again later.")
+        d = self.read_json()
+        if d is None:
+            return
+        email = clean_email(d.get("email"))
+        password = d.get("password") if isinstance(d.get("password"), str) else ""
+        if not email:
+            return self.error(400, "Enter a valid email address.")
+        _, digest = hash_password(password, user["pw_salt"])
+        if not hmac.compare_digest(digest, user["pw_hash"]):
+            return self.error(401, "That password isn't right.")
+        q("UPDATE users SET email=? WHERE id=?", (email, user["id"]))
+        q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
+          (user["id"], now(), self.current_game(user["id"]), "Updated their email" if user["email"] else "Added an email"))
+        user = q("SELECT * FROM users WHERE id=?", (user["id"],), one=True)
+        self.send_json(200, {"user": user_public(user)})
+
+    def api_forgot(self):
+        """Email a one-time reset link. Always answers the same way, so it never reveals who has an account."""
+        if not mail_ready():
+            return self.error(503, "Password reset by email isn't switched on yet. Ask the game's host to reset your password.")
+        if rate_limited("forgot:" + self.client_ip(), limit=5, window=3600):
+            return self.error(429, "Too many requests. Wait an hour and try again.")
+        d = self.read_json()
+        if d is None:
+            return
+        who = clean_text(d.get("who"), 120).lower()
+        done = {"ok": True, "message": "If an account matches, we've emailed a reset link to its address. It expires in 1 hour. "
+                                       "Check your spam folder too."}
+        if not who:
+            return self.error(400, "Enter your username or email.")
+        if "@" in who:
+            rows = q("SELECT * FROM users WHERE email=? AND disabled=0", (who,))
+        else:
+            rows = q("SELECT * FROM users WHERE username=? AND disabled=0 AND email<>''", (who,))
+        rows = [r for r in rows if not rate_limited("forgot-user:%d" % r["id"], limit=3, window=3600)]
+        if not rows:
+            return self.send_json(200, done)
+        t = now()
+        by_email = {}
+        for r in rows:
+            token = secrets.token_urlsafe(32)
+            q("INSERT INTO resets(token_hash,user_id,created,expires) VALUES(?,?,?,?)",
+              (hashlib.sha256(token.encode()).hexdigest(), r["id"], t, t + RESET_SECONDS))
+            q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account','Asked for a password reset email')",
+              (r["id"], t, self.current_game(r["id"])))
+            link = "https://%s/?reset=%s" % (SITE_DOMAIN or "localhost", token)
+            by_email.setdefault(r["email"], []).append((r["username"], r["name"], link))
+        q("DELETE FROM resets WHERE expires<?", (t - 86400,))
+        for email, accounts in by_email.items():
+            threading.Thread(target=send_reset_emails, args=(email, accounts), daemon=True).start()
+        self.send_json(200, done)
+
+    def api_reset(self):
+        """Set a new password with a token from a reset email, then log the player in."""
+        if rate_limited("reset:" + self.client_ip(), limit=10, window=3600):
+            return self.error(429, "Too many attempts. Wait an hour and try again.")
+        d = self.read_json()
+        if d is None:
+            return
+        token = d.get("token") if isinstance(d.get("token"), str) else ""
+        password = d.get("password") if isinstance(d.get("password"), str) else ""
+        if len(password) < 8 or len(password) > 128:
+            return self.error(400, "Passwords need at least 8 characters.")
+        t = now()
+        row = q("SELECT * FROM resets WHERE token_hash=?", (hashlib.sha256(token.encode()).hexdigest(),), one=True)
+        if not row or row["used"] or row["expires"] < t:
+            return self.error(400, "This reset link has expired or was already used. Ask for a new one.")
+        user = q("SELECT * FROM users WHERE id=?", (row["user_id"],), one=True)
+        if not user or user["disabled"]:
+            return self.error(403, "This account can't be reset. Contact the game's host.")
+        salt, digest = hash_password(password)
+        session = secrets.token_urlsafe(32)
+        game = self.current_game(user["id"])  # read before the transaction takes the lock
+
+        def apply(db):
+            db.execute("UPDATE users SET pw_salt=?, pw_hash=?, logins=logins+1 WHERE id=?", (salt, digest, user["id"]))
+            db.execute("UPDATE resets SET used=1 WHERE user_id=?", (user["id"],))
+            db.execute("DELETE FROM sessions WHERE user_id=?", (user["id"],))
+            db.execute("INSERT INTO sessions(token,user_id,is_admin,created,expires) VALUES(?,?,0,?,?)",
+                       (session, user["id"], t, t + PLAYER_SESSION_SECONDS))
+            db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account','Reset their password by email')",
+                       (user["id"], t, game))
+        tx(apply)
+        self.touch(user["id"])
+        save = q("SELECT state FROM saves WHERE user_id=?", (user["id"],), one=True)
+        self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None},
+                       [self.make_cookie("hs", session, PLAYER_SESSION_SECONDS)])
 
     def api_me(self):
         user = self.session_user()
@@ -550,7 +774,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/overview":
             return self.admin_overview()
         if path == "/api/admin/players":
-            rows = q("SELECT u.id,u.username,u.name,u.company,u.town,u.bg,u.color,u.created,u.last_seen,u.logins,u.disabled,"
+            rows = q("SELECT u.id,u.username,u.name,u.company,u.town,u.bg,u.color,u.created,u.last_seen,u.logins,u.disabled,u.email,"
                      "s.nw,s.best,s.cash,s.month,s.rank,s.billion_month,s.bankrupt,s.games,s.months_played,s.detail,"
                      "(SELECT COUNT(*) FROM activity_days a WHERE a.user_id=u.id) AS days_active "
                      "FROM users u LEFT JOIN stats s ON s.user_id=u.id ORDER BY u.last_seen DESC")
@@ -563,7 +787,7 @@ class Handler(BaseHTTPRequestHandler):
         m = re.match(r"^/api/admin/player/(\d+)$", path)
         if m:
             uid = int(m.group(1))
-            u = q("SELECT id,username,name,company,town,bg,color,created,last_seen,logins,disabled FROM users WHERE id=?", (uid,), one=True)
+            u = q("SELECT id,username,name,company,town,bg,color,created,last_seen,logins,disabled,email FROM users WHERE id=?", (uid,), one=True)
             if not u:
                 return self.error(404, "No such player.")
             st = q("SELECT * FROM stats WHERE user_id=?", (uid,), one=True)
@@ -607,9 +831,22 @@ class Handler(BaseHTTPRequestHandler):
         if not q("SELECT 1 FROM users WHERE id=?", (uid,), one=True):
             return self.error(404, "No such player.")
         # the admin page sends a JSON body so a cross-site form cannot trigger these
-        if self.read_json() is None:
+        body = self.read_json()
+        if body is None:
             return
         t = now()
+        if action == "password":
+            password = body.get("password") if isinstance(body.get("password"), str) else ""
+            if len(password) < 8 or len(password) > 128:
+                return self.error(400, "The new password needs at least 8 characters.")
+            salt, digest = hash_password(password)
+
+            def setpw(db):
+                db.execute("UPDATE users SET pw_salt=?, pw_hash=? WHERE id=?", (salt, digest, uid))
+                db.execute("DELETE FROM sessions WHERE user_id=?", (uid,))
+                db.execute("INSERT INTO events(user_id,ts,kind,text) VALUES(?,?,'admin','Password changed by the host')", (uid, t))
+            tx(setpw)
+            return self.send_json(200, {"ok": True})
         if action == "disable":
             q("UPDATE users SET disabled=1 WHERE id=?", (uid,))
             q("DELETE FROM sessions WHERE user_id=?", (uid,))
@@ -625,7 +862,7 @@ class Handler(BaseHTTPRequestHandler):
             tx(reset)
         elif action == "delete":
             def delete(db):
-                for table in ("sessions", "saves", "stats", "events", "snapshots", "activity_days"):
+                for table in ("sessions", "saves", "stats", "events", "snapshots", "activity_days", "resets"):
                     db.execute("DELETE FROM %s WHERE user_id=?" % table, (uid,))
                 db.execute("DELETE FROM users WHERE id=?", (uid,))
             tx(delete)
@@ -635,6 +872,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     if not ADMIN_PASSWORD or len(ADMIN_PASSWORD) < 10:
         print("Note: admin dashboard is off. Set HUSTLE_ADMIN_PASSWORD (10+ characters) to turn it on.", flush=True)
+    print("Password reset emails: %s" % ("on (%s, from %s)" % (MAIL_PROVIDER, MAIL_FROM or "log") if mail_ready() else "off"), flush=True)
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.daemon_threads = True
     print("Hustle to a Billion is running on http://%s:%d" % (HOST, PORT), flush=True)

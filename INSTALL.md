@@ -185,6 +185,15 @@ cd /opt/hustle/app && git pull && sudo systemctl restart hustle && sleep 2 && sy
 *What it does:* downloads the latest version from your GitHub repository and restarts the game. Players' accounts and saves are untouched; they live in `/opt/hustle/data`.
 *What you should see:* a list of changed files, then `active`.
 
+**Password reset emails.** Players give an email when they sign up (existing players are asked to add one), and "Forgot your password?" on the log-in screen emails them a one-time link that expires after an hour. The game sends these emails through Resend (resend.com) or Brevo (brevo.com), over their web API, because DigitalOcean blocks ordinary mail ports on new droplets.
+
+1. Create a free account with the service, add your domain there, and copy the DNS records it shows into your domain's DNS settings. Wait until the service shows the domain as verified.
+2. Create an API key in the service.
+3. Run `sudo nano /etc/hustle.env` and set `HUSTLE_MAIL_PROVIDER=resend` (or `brevo`) and `HUSTLE_MAIL_KEY=` followed by the key. Check that `HUSTLE_SITE_DOMAIN` is your game's domain.
+4. Run `sudo systemctl restart hustle && sudo journalctl -u hustle -n 3 --no-pager`. You should see `Password reset emails: on (resend, from no-reply@...)`.
+
+If a reset email doesn't arrive, `sudo journalctl -u hustle -n 30 --no-pager | grep -i mail` shows why. Until email is set up, you can still help a player from the admin dashboard: open them and click **Set new password**.
+
 **Back up the player database.**
 
 ```bash
