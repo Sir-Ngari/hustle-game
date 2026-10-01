@@ -83,6 +83,12 @@ canvas#chart{width:100%;height:170px;display:block}
 .sibs .sibr{grid-column:2;grid-row:1/4;align-self:center;font-size:12.5px;font-weight:600}
 .lawst{margin-top:8px;display:inline-block;padding:4px 10px;border-radius:3px;background:var(--red);color:var(--paper);font-size:13px;font-weight:700}
 .life-vanished{border-left-color:var(--ink)}
+.calban{margin:10px 0;padding:8px 12px;border-radius:3px;background:var(--brass-soft);font-size:13.5px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.wk{margin-top:14px;display:grid;gap:8px}.wktop{display:flex;justify-content:space-between;align-items:baseline}.wktop .seghint{margin:0}
+.wkrow{position:relative;display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:3px;padding:9px 12px 12px;overflow:hidden}
+.wkrow b{display:block;font-size:14px}.wkrow small{color:var(--muted);font-size:12px}.wkn{font-family:var(--mono);font-size:13px;white-space:nowrap}
+.wkrow i{position:absolute;left:0;bottom:0;height:3px;background:var(--brass)}.wkrow.wkdone{border-color:var(--green)}.wkrow.wkdone i{background:var(--green)}.wkrow.wkdone b{color:var(--green)}
+.seasonline{margin-top:12px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}.seasonline b{font-family:var(--mono)}.seasonline span.rk{font-size:13px;color:var(--muted)}
 .regionbox{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}.regionbox h3{margin:0 0 4px}.regionbox .sub{margin:0 0 10px}
 .ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted)}
 
@@ -409,6 +415,92 @@ footer.foot{justify-content:center;padding-top:6px}
 }
 @media (max-width:520px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.biz{grid-template-columns:34px minmax(0,1fr)}.biz .acts{grid-column:1/-1;flex-direction:row;min-width:0}.biz .acts .btn{flex:1}.row{flex-wrap:wrap}}
 @media (prefers-reduced-motion:no-preference){.nw.flash{animation:fl .5s ease}@keyframes fl{0%{color:var(--brass)}100%{color:inherit}}}
+/* ===== Game look (html.gm): a living skyline behind glossy game panels ===== */
+.lawst[hidden]{display:none}
+:root.gm:not(#_){--paper:#0b1a2c;--panel:#14284a;--ink:#f3f6ff;--muted:#a8b8d8;--line:rgba(190,210,255,.16);
+ --green:#3fd06b;--green-soft:rgba(63,208,107,.16);--brass:#ffc53d;--brass-soft:rgba(255,197,61,.15);--red:#ff6159;--red-soft:rgba(255,97,89,.16);
+ --plum:#c993ff;--plum-soft:rgba(201,147,255,.16);--shade:rgba(3,8,18,.72);--display:"Teko","Big Shoulders Display","Arial Narrow",Impact,sans-serif;color-scheme:dark}
+html.gm,html.gm body{background:#0b1a2c}
+html.gm body{background:transparent}
+#scene{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;display:none;pointer-events:none}
+html.gm #scene{display:block}
+html.gm .wrap{position:relative;padding-top:calc(var(--stage,260px) - 54px)}
+.stagehead{display:none}
+html.gm .stagehead{display:flex;position:absolute;left:16px;right:16px;top:14px;justify-content:space-between;align-items:flex-start;pointer-events:none;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.45)}
+html.gm .stagehead b{font-family:var(--display);font-size:clamp(36px,7vw,64px);line-height:.9;letter-spacing:.03em;text-transform:uppercase}
+html.gm .stagehead span{font-family:var(--display);font-size:20px;letter-spacing:.06em;text-transform:uppercase;opacity:.9;text-align:right}
+html.gm .note,html.gm .panel,html.gm .card,html.gm .acctbox{background:linear-gradient(180deg,rgba(38,68,118,.93),rgba(14,30,58,.94));border:1px solid rgba(190,215,255,.22);border-radius:14px;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -2px 0 rgba(0,0,0,.25),0 10px 28px rgba(0,0,0,.38);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+html.gm .note::before,html.gm .card::before{display:none}
+html.gm .note{background:linear-gradient(180deg,rgba(28,52,94,.80),rgba(10,24,48,.86))}
+html.gm .panel h2{margin:-16px -16px 12px;padding:10px 16px 6px;border-radius:13px 13px 0 0;background:linear-gradient(180deg,#3563b4,#1e3f7e);font-size:26px;letter-spacing:.04em;
+ text-shadow:0 2px 0 rgba(0,0,0,.35);border-bottom:1px solid rgba(255,255,255,.18)}
+html.gm h1,html.gm h2,html.gm h3{text-shadow:0 2px 0 rgba(0,0,0,.3)}
+html.gm .brand h1{font-size:30px;letter-spacing:.05em}
+html.gm .nw{font-size:clamp(58px,9vw,96px);color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.35),0 0 24px rgba(255,197,61,.25)}
+html.gm .rank{background:linear-gradient(180deg,#ffd862,#f2a51a);color:#3a2300;border-radius:8px;font-size:20px;padding:2px 12px 0;box-shadow:0 3px 0 #b86d00,inset 0 1px 0 rgba(255,255,255,.6);text-shadow:none}
+html.gm .eyebrow{color:#9fb6e3}
+html.gm .btn{font-family:var(--display);font-size:20px;letter-spacing:.04em;text-transform:uppercase;line-height:1;padding:9px 16px 6px;border-radius:10px;border:0;color:#fff;
+ background:linear-gradient(180deg,#4f86e8,#2b5cc0);box-shadow:0 4px 0 #1a3a80,inset 0 1px 0 rgba(255,255,255,.35);transition:transform .08s,box-shadow .08s,filter .15s}
+html.gm .btn.small{font-size:17px;padding:7px 12px 5px}
+html.gm .btn:hover:not(:disabled){filter:brightness(1.1);background:linear-gradient(180deg,#4f86e8,#2b5cc0);color:#fff}
+html.gm .btn:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #1a3a80,inset 0 1px 0 rgba(255,255,255,.35)}
+html.gm .btn.primary,html.gm .btn.primary:hover:not(:disabled){background:linear-gradient(180deg,#ffdf5c,#ff9d16);color:#3b2200;box-shadow:0 4px 0 #b55f00,inset 0 1px 0 rgba(255,255,255,.65);text-shadow:0 1px 0 rgba(255,255,255,.35)}
+html.gm .btn.primary:active:not(:disabled){box-shadow:0 1px 0 #b55f00,inset 0 1px 0 rgba(255,255,255,.65)}
+html.gm .btn.ghost,html.gm .btn.ghost:hover:not(:disabled){background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));color:#dfe8ff;box-shadow:0 3px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.2)}
+html.gm .btn.on{background:linear-gradient(180deg,#5be37f,#22a64a);box-shadow:0 4px 0 #136b2d,inset 0 1px 0 rgba(255,255,255,.4)}
+html.gm .btn:disabled{opacity:.45;filter:grayscale(.5)}
+html.gm #next{font-size:26px;padding:11px 26px 7px;position:relative;overflow:hidden}
+html.gm #next::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-18deg);animation:shine 3.2s ease-in-out infinite}
+@keyframes shine{0%,62%{left:-60%}100%{left:130%}}
+html.gm .bar{background:linear-gradient(180deg,rgba(9,22,44,.96),rgba(9,22,44,.9));border-bottom:1px solid rgba(190,215,255,.15);margin-inline:-16px;padding-inline:16px;border-radius:0 0 12px 12px}
+html.gm .date{font-family:var(--display);font-size:26px;letter-spacing:.04em;text-transform:uppercase}
+html.gm .tabs button{font-size:20px;color:#9fb2d8}
+html.gm .tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--brass)}
+html.gm .tabs svg{width:18px;height:18px;flex:0 0 auto}
+html.gm .quick{background:linear-gradient(180deg,rgba(12,30,60,.97),rgba(12,30,60,.92));border-bottom:1px solid rgba(190,215,255,.18)}
+html.gm .q b{font-family:var(--display);font-size:22px;line-height:1}
+html.gm #q-cash::before,html.gm #cash::before{content:"";display:inline-block;width:.8em;height:.8em;margin-right:.25em;vertical-align:-.05em;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c4,#ffcf3a 40%,#c98400);box-shadow:0 1px 0 #8a5a00}
+html.gm .stat b{font-family:var(--display);font-size:26px;line-height:1}
+html.gm .meter{background:rgba(255,255,255,.12);border-radius:6px;height:9px}
+html.gm .meter i{border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+html.gm .row{border-top-color:rgba(190,215,255,.12)}
+html.gm .choice{background:linear-gradient(180deg,#2f5aa5,#1d3d78);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.2);transition:transform .08s,filter .15s}
+html.gm .choice:hover:not(:disabled){filter:brightness(1.12);border-color:rgba(255,255,255,.35)}
+html.gm .choice:active:not(:disabled){transform:translateY(2px)}
+html.gm .choice span{color:#c9d7f5}
+html.gm .choices .choice:only-child{background:linear-gradient(180deg,#ffdf5c,#ff9d16);color:#3b2200;box-shadow:0 4px 0 #b55f00,inset 0 1px 0 rgba(255,255,255,.6)}html.gm .choices .choice:only-child span{color:#5a3a00}
+html.gm .card{animation:pop .32s cubic-bezier(.2,1.4,.4,1)}
+html.gm .card h3{font-size:38px;color:#fff}
+html.gm .card .cat{color:#ffd35c}
+@keyframes pop{0%{transform:scale(.82);opacity:0}100%{transform:scale(1);opacity:1}}
+html.gm .pill{border-radius:20px}
+html.gm .dealcard{background:linear-gradient(180deg,rgba(255,197,61,.20),rgba(255,140,30,.10));border:1px solid rgba(255,197,61,.45);border-radius:12px}
+html.gm .streak span{border-radius:10px}
+html.gm .wkrow,html.gm .life,html.gm .fam,html.gm .ach,html.gm .sibs li{background:rgba(255,255,255,.05);border-radius:10px}
+html.gm .ach.got,html.gm .fam,html.gm .life{background:rgba(255,255,255,.07)}
+html.gm select,html.gm input{background:rgba(255,255,255,.08)!important;color:var(--ink)!important;border-color:rgba(190,215,255,.25)!important}
+html.gm .acct{background:rgba(6,14,30,.82);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+/* phones: tabs become a bottom bar with icons */
+@media (max-width:760px){
+ html.gm .tabs{position:fixed;left:0;right:0;bottom:0;z-index:7;margin:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));gap:0;
+  background:linear-gradient(180deg,#1f8a3b,#13652a);border-top:2px solid #46c768;box-shadow:0 -6px 18px rgba(0,0,0,.35)}
+ html.gm .tabs button{flex:0 0 auto;min-width:68px;flex-direction:column;gap:2px;font-size:13px;padding:4px 8px;border-bottom:0;border-radius:8px;color:#d6f5de;position:relative}
+ html.gm .tabs button[aria-selected="true"]{background:rgba(0,0,0,.22);color:#fff;box-shadow:inset 0 2px 6px rgba(0,0,0,.35)}
+ html.gm .tabs svg{width:22px;height:22px}
+ html.gm .tabs .badge{position:absolute;top:0;right:8px}
+ html.gm .wrap{padding-bottom:96px}
+}
+/* motion pieces */
+.coinfx{position:fixed;z-index:40;width:18px;height:18px;border-radius:50%;pointer-events:none;background:radial-gradient(circle at 35% 30%,#fff6c4,#ffcf3a 40%,#c98400);box-shadow:0 1px 0 #8a5a00,0 0 8px rgba(255,200,60,.6)}
+.rankup{position:fixed;left:0;right:0;top:32%;z-index:45;display:grid;place-items:center;pointer-events:none}
+.rankup div{font-family:var(--display);font-weight:700;text-transform:uppercase;text-align:center;color:#3a2300;background:linear-gradient(180deg,#ffe170,#ff9d16);padding:10px 48px 4px;border-radius:12px;
+ box-shadow:0 6px 0 #b55f00,0 18px 40px rgba(0,0,0,.45);animation:ribbon 2.6s ease forwards;position:relative;overflow:hidden}
+.rankup small{display:block;font-size:20px;letter-spacing:.2em}.rankup b{display:block;font-size:56px;line-height:.9}
+.rankup div::after{content:"";position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-18deg);animation:shine 1.4s .3s ease-out}
+@keyframes ribbon{0%{transform:scale(.3) rotate(-6deg);opacity:0}12%{transform:scale(1.08) rotate(1deg);opacity:1}20%{transform:scale(1) rotate(0)}82%{opacity:1;transform:scale(1)}100%{opacity:0;transform:translateY(-30px) scale(.95)}}
+.confetti{position:fixed;top:-12px;z-index:44;width:9px;height:14px;pointer-events:none;border-radius:2px}
+@media (prefers-reduced-motion:reduce){html.gm #next::after{animation:none}html.gm .card{animation:none}}
 </style>
 
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
@@ -416,7 +508,7 @@ footer.foot{justify-content:center;padding-top:6px}
   <span class="qgap"></span>
   <span class="q"><small>Reputation</small><b id="q-rep"></b></span><span class="q"><small>Happiness</small><b id="q-hap"></b></span><span class="q"><small>Influence</small><b id="q-inf"></b></span><span class="q"><small>Mob heat</small><b id="q-heat"></b></span><span class="q"><small>Health</small><b id="q-hlth"></b></span>
 </div></div>
-<div class="wrap">
+<div class="wrap"><div class="stagehead" aria-hidden="true"><b id="ch-city"></b><span id="ch-date"></span></div>
   <section class="note" aria-label="Your empire">
     <div class="head-l">
       <div class="brand"><h1>Hustle to an Empire</h1><span class="rank" id="rank">Street Hustler</span></div>
@@ -651,6 +743,70 @@ footer.foot{justify-content:center;padding-top:6px}
 <div id="acct" class="acct" hidden></div>
 
 <script>
+/* ================= Game look: living skyline, count-ups, coins, rank ribbons ================= */
+const RM=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function skinGet(){try{return localStorage.getItem('hustle-skin')||'game';}catch(e){return'game';}}
+function setSkin(v){try{localStorage.setItem('hustle-skin',v);}catch(e){}document.documentElement.classList.toggle('gm',v==='game');if(typeof drawChart==='function')drawChart();scene.kick();if(typeof acctView!=='undefined'&&acctView)renderAccts();}
+const gm=()=>document.documentElement.classList.contains('gm');
+document.documentElement.classList.toggle('gm',skinGet()==='game');
+{const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&display=swap';document.head.appendChild(l);}
+const TAB_ICONS={overview:'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',business:'M4 7h16v13H4zM9 7V4h6v3M4 12h16',money:'M12 2v20M17 6.5c0-1.9-2.2-3.5-5-3.5S7 4.6 7 6.5 9.2 9.5 12 10s5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5',
+ property:'M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6',life:'M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z',sports:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 3v18M3 12h18',
+ giving:'M12 21V9M12 9c-2-4-7-4-7 0 0 3 7 3 7 0zm0 0c2-4 7-4 7 0 0 3-7 3-7 0zM5 13h14v4H5z',power:'M4 21h16M6 21V10h12v11M12 3l9 5H3zM9 14v4M15 14v4',news:'M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7M7 16h4'};
+document.querySelectorAll('.tabs button[data-v]').forEach(b=>{const d=TAB_ICONS[b.dataset.v];if(d)b.insertAdjacentHTML('afterbegin','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg>');});
+/* the skyline */
+const scene=(()=>{const c=document.createElement('canvas');c.id='scene';document.body.prepend(c);const x=c.getContext('2d');let W=0,H=0,dpr=1,last=0,t0=performance.now(),raf=0,city=null,cityKey='';
+ const clouds=Array.from({length:6},(_,i)=>({x:Math.random(),y:.08+Math.random()*.22,s:.6+Math.random()*.9,v:.004+Math.random()*.006}));
+ const cars=Array.from({length:7},()=>({x:Math.random(),v:(.025+Math.random()*.04)*(Math.random()<.5?1:-1),c:['#ff5a4e','#ffd43d','#4fa3ff','#ffffff','#3fd06b'][Math.floor(Math.random()*5)]}));
+ function size(){dpr=Math.min(1.5,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;x.setTransform(dpr,0,0,dpr,0,0);city=null;}
+ function rng(seed){let h=2166136261;for(const ch of String(seed))h=Math.imul(h^ch.charCodeAt(0),16777619);return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+ function build(){const units=typeof totalUnits==='function'&&S?totalUnits():0,props=S&&S.props?S.props.length:0,rk=S?Math.max(S.title||0,S.peak||0):0;
+  const key=W+'|'+H+'|'+Math.min(60,units)+'|'+props+'|'+rk+'|'+(ACC&&ACC.id);if(city&&key===cityKey)return;cityKey=key;
+  const r=rng((ACC&&ACC.id)||'x'),n=Math.round(Math.min(70,14+units*.6+props*2+rk*3)),base=Math.round(Math.min(H*.8,Math.max(210,Math.min(330,H*.36)))),bs=[];document.documentElement.style.setProperty('--stage',base+'px');
+  for(let i=0;i<n;i++){const w=Math.max(18,W/n*(0.9+r()*.9)),h=(30+r()*base*.22+rk*base*.035*r())*(1+(i%7===0?.5:0)),bx=r()*W;bs.push({x:bx-w/2,w,h:Math.min(h,base*.62),win:r(),col:Math.floor(r()*3)});}
+  bs.sort((a,b)=>b.h-a.h);const mine={x:W*.62,w:Math.max(40,W*.06),h:Math.min(base*.78,60+rk*base*.06),mine:true};
+  city={bs:bs.reverse(),mine,base};}
+ function sky(ph){const day=Math.max(0,Math.sin(ph*Math.PI*2)),dusk=Math.max(0,1-Math.abs(Math.sin(ph*Math.PI*2))*2.2);
+  const mix=(a,b,k)=>a.map((v,i)=>Math.round(v+(b[i]-v)*k));const top=mix([8,16,40],[40,110,210],day),mid=mix([18,30,70],[110,170,235],day),low=mix(mix([30,40,80],[180,215,240],day),[255,150,80],dusk*.8);
+  const g=x.createLinearGradient(0,0,0,city?city.base:H*.5);g.addColorStop(0,'rgb('+top+')');g.addColorStop(.55,'rgb('+mid+')');g.addColorStop(1,'rgb('+low+')');x.fillStyle=g;x.fillRect(0,0,W,H);return{day,dusk};}
+ function draw(now){const t=(now-t0)/1000,ph=((t/240)+.18)%1,L=sky(ph);build();
+  /* stars */ if(L.day<.3){x.fillStyle='rgba(255,255,255,'+(0.8*(1-L.day/.3))+')';const r=rng('stars');for(let i=0;i<70;i++){const sx=r()*W,sy=r()*H*.45,tw=.5+.5*Math.sin(t*2+i);x.globalAlpha=tw*(1-L.day/.3);x.fillRect(sx,sy,1.6,1.6);}x.globalAlpha=1;}
+  /* sun or moon */ {const cbz=city?city.base:H*.5,a=ph*Math.PI*2,sx=W*.5-Math.cos(a)*W*.42,sy=cbz*.95-Math.sin(a)*cbz*.8,isSun=Math.sin(a)>0;const px=isSun?sx:W-sx,py=isSun?sy:cbz*.95+Math.sin(a)*cbz*.8;
+   const gg=x.createRadialGradient(px,py,0,px,py,isSun?90:50);gg.addColorStop(0,isSun?'rgba(255,240,180,.95)':'rgba(230,240,255,.9)');gg.addColorStop(.25,isSun?'rgba(255,210,90,.55)':'rgba(200,220,255,.25)');gg.addColorStop(1,'rgba(255,200,80,0)');
+   x.fillStyle=gg;x.beginPath();x.arc(px,py,isSun?90:50,0,7);x.fill();x.fillStyle=isSun?'#fff4c8':'#eef3ff';x.beginPath();x.arc(px,py,isSun?22:16,0,7);x.fill();}
+  /* clouds */ clouds.forEach(cl=>{cl.x=(cl.x+cl.v*(RM?0:.016))%1.3;const cx=cl.x*W*1.3-W*.15,cy=cl.y*(city?city.base:H*.5)*1.6,s=cl.s*46;x.fillStyle='rgba(255,255,255,'+(0.18+.5*L.day)+')';
+   [[0,0,1],[.8,.1,.75],[-.8,.12,.7],[.35,-.35,.7]].forEach(p=>{x.beginPath();x.ellipse(cx+p[0]*s,cy+p[1]*s,s*p[2],s*p[2]*.62,0,0,7);x.fill();});});
+  /* hills */ {const b0=city.base;[[.80,'rgba(40,90,70,',.10],[.90,'rgba(28,70,52,',.07]].forEach((h,i)=>{x.fillStyle=h[1]+(0.55+.45*L.day)+')';x.beginPath();x.moveTo(0,H);for(let px=0;px<=W;px+=12)x.lineTo(px,b0*h[0]-Math.sin(px/W*6+i*2)*b0*h[2]-Math.sin(px/W*13+i)*b0*.02);x.lineTo(W,H);x.fill();});}
+  /* skyline */ const night=1-L.day,cb=city.base;
+  city.bs.forEach((b,i)=>{const sh=[[38,52,82],[46,62,96],[32,44,72]][b.col],k=.55+.45*L.day;x.fillStyle='rgb('+sh.map(v=>Math.round(v*k+(L.dusk*30)))+')';x.fillRect(b.x,cb-b.h,b.w,b.h);
+   if(night>.25){const r=rng('w'+i);for(let wy=cb-b.h+8;wy<cb-6;wy+=9)for(let wx=b.x+4;wx<b.x+b.w-4;wx+=8){if(r()<b.win*.6){x.fillStyle='rgba(255,214,120,'+(night*.85*(0.6+.4*Math.sin(t*.7+wx+wy)))+')';x.fillRect(wx,wy,3,4);}}}});
+  {const m=city.mine;const g=x.createLinearGradient(m.x,0,m.x+m.w,0);g.addColorStop(0,'#2d4f8a');g.addColorStop(.5,'#6d9be0');g.addColorStop(1,'#223d6e');x.fillStyle=g;x.fillRect(m.x,cb-m.h,m.w,m.h);
+   x.fillStyle='#ffc53d';x.fillRect(m.x+m.w/2-2,cb-m.h-22,4,22);const bl=.5+.5*Math.sin(t*3);x.fillStyle='rgba(255,90,70,'+(0.4+.6*bl)+')';x.beginPath();x.arc(m.x+m.w/2,cb-m.h-24,4,0,7);x.fill();
+   const brand=(typeof BR==='function'?BR():'').toUpperCase();if(brand&&(S&&(S.title||0)>=2)){x.font='600 '+Math.max(11,m.w*.18)+'px Teko, Impact, sans-serif';x.textAlign='center';x.fillStyle='rgba(255,230,150,'+(0.6+.4*night)+')';x.fillText(brand.slice(0,10),m.x+m.w/2,cb-m.h+16);}
+   if(night>.25){for(let wy=cb-m.h+26;wy<cb-6;wy+=10)for(let wx=m.x+5;wx<m.x+m.w-5;wx+=9){x.fillStyle='rgba(180,220,255,'+night*.7+')';x.fillRect(wx,wy,4,5);}}}
+  /* road and cars */ x.fillStyle='#1b2433';x.fillRect(0,cb,W,32);{const gr=x.createLinearGradient(0,cb+32,0,H);gr.addColorStop(0,'#13283a');gr.addColorStop(1,'#08121f');x.fillStyle=gr;x.fillRect(0,cb+32,W,H-cb-32);}x.fillStyle='rgba(255,255,255,.25)';for(let px=0;px<W;px+=40)x.fillRect(px+((t*30)%40),cb+16,18,2);
+  cars.forEach(cr=>{cr.x=(cr.x+cr.v*(RM?0:.016)+1.2)%1.2;const cx=cr.x*W*1.2-W*.1,cy=cb+(cr.v>0?8:22);x.fillStyle=cr.c;x.fillRect(cx,cy,16,6);x.fillStyle='rgba(0,0,0,.4)';x.fillRect(cx+3,cy-3,9,3);
+   if(night>.3){x.fillStyle='rgba(255,240,180,'+night*.8+')';x.fillRect(cr.v>0?cx+16:cx-6,cy+1,6,3);}});
+  /* gentle vignette so panels stay readable */ const v=x.createLinearGradient(0,0,0,H);v.addColorStop(0,'rgba(5,12,25,.0)');v.addColorStop(1,'rgba(5,12,25,.25)');x.fillStyle=v;x.fillRect(0,0,W,H);}
+ function loop(now){raf=0;if(!gm()||document.hidden)return;if(now-last>33){last=now;draw(now);}if(!RM)raf=requestAnimationFrame(loop);}
+ function kick(){if(!raf&&gm())raf=requestAnimationFrame(loop);}
+ size();addEventListener('resize',()=>{size();kick();});document.addEventListener('visibilitychange',kick);
+ return{kick,redraw:()=>{city=null;kick();}};})();
+/* numbers that count up */
+function countUp(el,to,f){if(!el)return;if(!gm()||RM||el._v==null||!isFinite(el._v)||Math.abs(to-el._v)<1e-9){el._v=to;el.textContent=f(to);return;}
+ const from=el._v,st=performance.now(),d=700;el._v=to;cancelAnimationFrame(el._r);const step=n=>{const k=Math.min(1,(n-st)/d),e=1-Math.pow(1-k,3);el.textContent=f(from+(to-from)*e);if(k<1)el._r=requestAnimationFrame(step);};el._r=requestAnimationFrame(step);}
+/* coins fly to your cash */
+function coinBurst(n){if(!gm()||RM)return;const tgt=document.querySelector('.quick.on #q-cash')||$('cash');if(!tgt)return;const tr=tgt.getBoundingClientRect(),sx=innerWidth/2,sy=innerHeight*.55;
+ for(let i=0;i<(n||14);i++){const c=document.createElement('i');c.className='coinfx';document.body.appendChild(c);const dx=(Math.random()-.5)*200,dy=(Math.random()-.5)*140;
+  c.animate([{transform:'translate('+sx+'px,'+sy+'px) scale(.4)',opacity:0},{transform:'translate('+(sx+dx)+'px,'+(sy+dy)+'px) scale(1.1)',opacity:1,offset:.35},{transform:'translate('+tr.left+'px,'+tr.top+'px) scale(.6)',opacity:.9}],{duration:900+i*35,easing:'cubic-bezier(.3,.1,.3,1)'}).onfinish=()=>c.remove();}
+ setTimeout(()=>{tgt.animate([{transform:'scale(1)'},{transform:'scale(1.25)'},{transform:'scale(1)'}],{duration:260});},900);}
+function rankUpFx(name){if(!gm())return;scene.redraw();if(RM)return;document.querySelectorAll('.rankup').forEach(e=>e.remove());const d=document.createElement('div');d.className='rankup';d.innerHTML='<div><small>New rank</small><b>'+esc(name)+'</b></div>';document.body.appendChild(d);setTimeout(()=>d.remove(),2700);coinBurst(10);}
+function confettiFx(){if(!gm()||RM)return;const cols=['#ffc53d','#3fd06b','#4f86e8','#ff6159','#c993ff','#fff'];for(let i=0;i<90;i++){const c=document.createElement('i');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];document.body.appendChild(c);
+ c.animate([{transform:'translateY(0) rotate(0)'},{transform:'translateY('+(innerHeight+40)+'px) rotate('+(Math.random()*720-360)+'deg) translateX('+(Math.random()*120-60)+'px)'}],{duration:2200+Math.random()*1800,delay:Math.random()*600,easing:'ease-in'}).onfinish=()=>c.remove();}}
+function skinMenuHTML(){const v=skinGet();return'<h3 style="margin-top:18px">Look</h3><div class="seg" role="group" aria-label="Game look" style="grid-template-columns:1fr 1fr"><button data-a="skin" data-v="game" aria-pressed="'+(v==='game')+'">Game</button><button data-a="skin" data-v="classic" aria-pressed="'+(v!=='game')+'">Classic</button></div><p class="hint">Game shows your city skyline growing behind the empire, with animations. Classic is the calm, paper-style look.</p>';}
+scene.kick();
+
+
 /* ================= Data ================= */
 const INDS=[
  {id:'retail',name:'Retail & Fashion',blurb:'Steady footfall. Import duties and hawker crackdowns bite.',vol:.15,vm:1,biz:[
@@ -854,7 +1010,7 @@ function bonusEvent(){const n=nextStreak(),amt=bonusFor(n),week=n>=7,d=dailyStat
  return{cat:'Daily bonus',title:!d.last?'Your first daily bonus':'Day '+n+(n>1?' in a row':'')+'. Welcome back!',text:(broke?'You missed a day, so your streak starts again. ':'')+
   'Come back every day to grow your bonus. Day 7 pays the most, then the streak stays at the top as long as you keep coming back.'+
   '<div class="streak" style="margin-top:12px">'+BONUS_X.map((x,i)=>'<span class="'+(i+1<Math.min(n,7)?'done':i+1===Math.min(n,7)?'next':'')+'"><b>×'+x+'</b>Day '+(i+1)+'</span>').join('')+'</div>',
-  choices:[{l:'Collect '+fmt(amt),d:week?'Plus +5 happiness and +3 reputation for a full week.':'Tomorrow: '+fmt(bonusFor(n+1))+'.',f(){const dd=dailyState();dd.streak=n;dd.last=dayKey();S.cash+=amt;if(week){addHappy(5);addRep(3);}
+  choices:[{l:'Collect '+fmt(amt),d:week?'Plus +5 happiness and +3 reputation for a full week.':'Tomorrow: '+fmt(bonusFor(n+1))+'.',f(){const dd=dailyState();dd.streak=n;dd.last=dayKey();S.cash+=amt;addPts(5);wkInc('bonus');setTimeout(()=>coinBurst(16),80);if(week){addHappy(5);addRep(3);}
    return['Daily bonus, day '+n+': +'+fmt(amt)+'.','gold']}}]};}
 function seeded(str){let h=2166136261;for(const c of str)h=Math.imul(h^c.charCodeAt(0),16777619);return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 function todaysDeal(){const day=dayKey();if(S.deal&&S.deal.day===day)return S.deal;
@@ -877,14 +1033,14 @@ function takeDeal(){const d=todaysDeal(),i=dealInfo(d);if(!i||d.taken||S.cash<i.
  else{S.cash-=i.cost;S.pending.push({due:S.month+3,cash:i.cost*1.7,chance:.75,good:'The hot tip paid off! '+d.id.charAt(0).toUpperCase()+d.id.slice(1)+' returned '+fmt(i.cost*1.7)+'.',bad:'The hot tip was wrong. You lost your '+fmt(i.cost)+'.'});log('Daily deal: invested '+fmt(i.cost)+' on a hot tip about '+d.id+'.','gold');}
  d.taken=true;afterChange();}
 function untilMidnight(){const n=new Date(),m=new Date(n);m.setHours(24,0,0,0);const mins=Math.max(1,Math.round((m-n)/60000));return mins>=60?Math.floor(mins/60)+'h '+(mins%60)+'m':mins+'m';}
-function renderToday(){const el=$('today');if(!el)return;if(!S.inds.length||S.over){el.innerHTML='<p class="seghint">Daily bonuses and deals start once your empire is running.</p>';return;}
+function renderToday(){const el=$('today');if(!el)return;if(!S.inds.length||S.over){el.innerHTML='<p class="seghint">Daily bonuses, deals and weekly challenges start once your empire is running.</p>';return;}
  const dd=dailyState(),got=dd.last===dayKey(),n=got?dd.streak:nextStreak(),shown=Math.min(n,7);
  let h='<div class="streak" aria-label="Daily streak">'+BONUS_X.map((x,i)=>'<span class="'+(i+1<shown||(got&&i+1===shown)?'done':i+1===shown?'next':'')+'"><b>×'+x+'</b>Day '+(i+1)+'</span>').join('')+'</div>';
  h+=got?'<p class="seghint">Bonus collected: '+n+' day'+(n>1?'s':'')+' in a row. Come back tomorrow for '+fmt(bonusFor(n+1))+'.</p>':'<div class="chips"><button class="btn primary small" data-a="bonus">Collect today\'s bonus · '+fmt(bonusFor(n))+'</button></div>';
  const d=todaysDeal(),i=dealInfo(d);
  if(i)h+='<div class="dealcard"><div class="dtop"><span class="eyebrow">Today\'s deal · ends in '+untilMidnight()+'</span>'+(d.taken?'<span class="pill good">Taken</span>':'')+'</div><h3>'+i.title+'</h3><p>'+i.text+'</p>'+
   (d.taken?'<p class="seghint">A new deal arrives tomorrow.</p>':'<div class="chips"><button class="btn primary small" data-a="deal"'+(S.cash<i.cost?' disabled':'')+'>'+i.btn+'</button>'+(i.was?'<span class="seghint">Usually '+fmt(i.was)+'</span>':'')+(S.cash<i.cost?'<span class="seghint">Not enough cash yet</span>':'')+'</div>')+'</div>';
- el.innerHTML=h;}
+ h+=comebackHTML();el.innerHTML=h;}
 /* ================= Guided tour ================= */
 let tourOn=false,tourI=0;
 const panelOf=id=>{const e=$(id);return e?(e.closest('.panel')||e.parentElement):null;};
@@ -971,7 +1127,7 @@ if(S.ups.team&&sv('exec').lvl<0)sv('exec').lvl=0;
 }
 function sv(id){return S.svc[id]||(S.svc[id]={lvl:-1,rate:1,seen:-1,since:0});}
 /* ================= Accounts (server) ================= */
-let ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,livesCache=null,signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='';
+let ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,livesCache=null,seasonCache=null,lbTab='season-country',signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='';
 const BR=()=>(ACC&&ACC.company)||'Savanna';
 const BGS=[{id:'hustler',name:'Street hustler',desc:'$1,000 and a big idea. The classic start.',cash:1000,debt:0,rep:50,happy:60},
  {id:'grad',name:'University graduate',desc:'$4,000 saved and a good name, but a $2,500 student loan to repay.',cash:4000,debt:2500,rep:58,happy:62},
@@ -992,13 +1148,13 @@ async function api(method,path,body){let r;
 function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
 async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
-async function showLives(){if(!ACC)return;stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save){livesCache=null;loadLives();ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
+function startWith(user,save){livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
  signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
- influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,health:Math.round(S.health||0),died:!!S.died,streak:(S.daily&&S.daily.last)?S.daily.streak:0,gender:S.g||'',gen:S.headstart?2:(S.gnum||1),region:S.region||'',currency:S.cur||'USD',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
+ influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,health:Math.round(S.health||0),died:!!S.died,streak:(S.daily&&S.daily.last)?S.daily.streak:0,gender:S.g||'',gen:S.headstart?2:(S.gnum||1),season:S.sea?{id:S.sea.id,pts:S.sea.pts}:null,region:S.region||'',currency:S.cur||'USD',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
 function queueSync(now){if(!ACC)return;syncState='saving';paintChip();clearTimeout(syncTimer);syncTimer=setTimeout(doSync,now?0:900);}
 async function doSync(){if(!ACC)return;if(syncBusy){syncAgain=true;return;}syncBusy=true;
  const evs=S.log.filter(l=>l.n&&l.n>(S.logSent||0)).slice(0,60).reverse(),maxN=evs.reduce((m,l)=>Math.max(m,l.n),S.logSent||0);
@@ -1037,10 +1193,12 @@ function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}e
   '<label for="rs-pass">New password</label><input id="rs-pass" type="password" maxlength="128" autocomplete="new-password" required><p class="hint">At least 8 characters.</p>'+
   '<label for="rs-pass2">Type it again</label><input id="rs-pass2" type="password" maxlength="128" autocomplete="new-password" required>'+
   '<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="rs-submit">Save new password</button><button type="button" class="btn ghost" data-a="forgotview">Get a new link</button></div></form>';
- else if(acctView==='lives'){h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire you have built.</p>'+(livesData===null?'<p class="sub">Loading…</p>':legacyHTML()+livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
- else if(acctView==='board'){h+='<h2>Leaderboard</h2><p class="sub">Every player on this server, fastest to a billion first.</p>';
+ else if(acctView==='lives'){h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire you have built.</p>'+(livesData===null?'<p class="sub">Loading…</p>':legacyHTML()+trophiesHTML()+livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
+ else if(acctView==='board'){const cn=(countryRow(S.region||'')||{name:'your country'}).name;
+  h+='<h2>Leaderboard</h2><div class="authtabs" role="tablist" style="grid-template-columns:1fr 1fr 1fr"><button role="tab" aria-selected="'+(lbTab==='season-country')+'" data-a="boardtab" data-v="season-country">'+esc(cn)+'</button><button role="tab" aria-selected="'+(lbTab==='season-world')+'" data-a="boardtab" data-v="season-world">World</button><button role="tab" aria-selected="'+(lbTab==='alltime')+'" data-a="boardtab" data-v="alltime">All time</button></div>'+
+   '<p class="sub">'+(lbTab==='alltime'?'Founders only, fastest to a billion first.':seasonName(seasonId())+'. Points come from daily bonuses, weekly challenges, new ranks, achievements and big milestones. The board resets on the 1st of every month.')+'</p>';
   if(!lbData)h+='<p class="sub">Loading…</p>';else if(!lbData.length)h+='<p class="sub">No one is on the board yet.</p>';
-  else h+='<ol class="hof">'+lbData.map((a,i)=>'<li><span class="hpos">'+(i+1)+'</span>'+avatar(a)+'<span class="ameta"><b>'+esc(a.name)+'</b><span>'+esc(a.company)+'</span></span><span class="hnum">'+(a.billion_month!=null?'$1B in '+Math.floor(a.billion_month/12)+'y '+(a.billion_month%12)+'m':'Best '+fmt(a.best))+'</span></li>').join('')+'</ol>';
+  else h+='<ol class="hof">'+lbData.map((a,i)=>'<li><span class="hpos">'+(i+1)+'</span>'+avatar(a)+'<span class="ameta"><b>'+esc(a.name)+'</b><span>'+esc(a.company)+(lbTab!=='alltime'&&a.region?' · '+esc((countryRow(a.region)||{name:a.region}).name):'')+'</span></span><span class="hnum">'+(lbTab!=='alltime'?Number(a.pts).toLocaleString('en-US')+' pts':a.billion_month!=null?fmt(1e9)+' in '+Math.floor(a.billion_month/12)+'y '+(a.billion_month%12)+'m':'Best '+fmt(a.best))+'</span></li>').join('')+'</ol>';
   h+='<div class="chips"><button class="btn ghost" data-a="acctclose">Back to my game</button></div>';}
  el.innerHTML=h+'</div>';
  const f=$('acctform');if(f){f.addEventListener('submit',e=>{e.preventDefault();submitAuth();});const u=$('acc-user');if(u)u.focus();wireRegionForm();}
@@ -1079,7 +1237,14 @@ function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('res
  if(resetToken){acctView='reset';authMsg='';renderAccts();return;}
  acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save)).catch(e=>{if(e.status===401){acctView='auth';authMode='signup';}else{acctView='down';authMsg=e.message;}renderAccts();});}
 async function logout(){stopAuto();if(ACC)try{await doSync();}catch(e){}try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
-async function openBoard(){acctView='board';lbData=null;renderAccts();try{lbData=(await api('GET','/api/leaderboard')).players;}catch(e){lbData=[];}renderAccts();}
+async function openBoard(tab){if(tab)lbTab=tab;stopAuto();closeModal();acctView='board';lbData=null;renderAccts();
+ try{if(lbTab==='alltime')lbData=(await api('GET','/api/leaderboard')).players;else{const d=await api('GET','/api/season?scope='+(lbTab==='season-world'?'world':'country')+'&region='+encodeURIComponent(S.region||''));seasonCache=d;lbData=d.top;}}catch(e){lbData=[];}renderAccts();}
+async function loadSeason(){try{seasonCache=await api('GET','/api/season?scope=country&region='+encodeURIComponent(S.region||''));render();}catch(e){}}
+function seasonRankLine(){const d=seasonCache,s=S.sea;if(!d||!s||d.season!==s.id||!d.me)return' <span class="rk">Play this month to get on the board</span> <button class="btn small ghost" data-a="leaderboard">Leaderboard</button>';
+ const c=countryRow(d.me.region)||{name:d.me.region};return' <span class="rk">#'+d.me.rankRegion+' of '+d.me.playersRegion+' in '+esc(c.name)+' · #'+d.me.rank+' of '+d.me.players+' worldwide</span> <button class="btn small ghost" data-a="leaderboard">Leaderboard</button>';}
+function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length)return'';
+ return'<h3 class="achh">Season trophies</h3><ul class="achs">'+d.history.map(h=>{const c=countryRow(h.region)||{name:h.region||'World'},top=h.rankRegion<=3?['🥇','🥈','🥉'][h.rankRegion-1]+' ':'';
+  return'<li class="ach got"><b>'+top+seasonName(h.season)+'</b><span>'+h.pts.toLocaleString('en-US')+' points · #'+h.rankRegion+' of '+h.playersRegion+' in '+esc(c.name)+' · #'+h.rank+' of '+h.players+' worldwide</span></li>';}).join('')+'</ul>';}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= Install as an app ================= */
@@ -1917,7 +2082,7 @@ function propNet(){return (S.props||[]).reduce((a,p)=>a+propIncome1(p),0);}
 function propName(t,c){const n=(S.props||[]).filter(p=>p.type===t.id&&p.city===c.id).length;return BR()+' '+t.short+' '+c.name+(n?' '+['II','III','IV','V','VI','VII','VIII','IX','X'][Math.min(n-1,8)]:'');}
 function buyProp(tid,cid,dev){const t=ptype(tid),c=pcity(cid),price=propPrice(t,c),cost=dev?price*.7:price;
  if(!cityOpen(c)||S.cash<cost||!cityTypes(c).includes(t))return;S.cash-=cost;S.props=S.props||[];const nm=propName(t,c);
- S.props.push({type:tid,city:cid,name:nm,af:dev?.7*(S.reIdx||1):(S.reIdx||1),left:dev?t.build:0,total:t.build,occ:.9,anchor:0});
+ wkInc('props');S.props.push({type:tid,city:cid,name:nm,af:dev?.7*(S.reIdx||1):(S.reIdx||1),left:dev?t.build:0,total:t.build,occ:.9,anchor:0});
  if(!dev&&t.rep){addRep(t.rep);}
  propUnlockCheck();
  log((dev?'Construction started on ':'You bought ')+nm+(dev?'. Ready in '+t.build+' months.':' ('+t.name.lc()+', '+c.name+') for '+fmt(cost)+'.'),'gold');afterChange();}
@@ -1991,7 +2156,7 @@ function triggerRandom(){const pool=EVENTS.filter(e=>!e.when||e.when());let tot=
  if(e.build){openEvent(e.build());return;}
  if(e.setup)e.setup();
  openEvent({cat:e.cat,title:typeof e.title==='function'?e.title(S):e.title,text:e.text(),choices:e.choices()});}
-function choose(i){const ev=current;const r=ev.choices[i].f();log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else maybeTour();}
+function choose(i){const ev=current;const r=ev.choices[i].f();if(!/Daily bonus/.test(ev.cat||''))wkInc('events');log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else maybeTour();}
 function showCard(title,body,btns){stopAuto();const m=$('modal');m.hidden=false;
  m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true"><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3>'+title+'</h3><p>'+body+'</p><div class="choices">'+btns+'</div></div></div>';
  m.querySelector('button').focus();}
@@ -2001,6 +2166,7 @@ function closeModal(){$('modal').hidden=true;$('modal').innerHTML='';}
 function nextMonth(){
  if(!ACC||acctView||S.over||current)return;
  if(bonusDue()){openEvent(bonusEvent());return;}
+ if(openCal())return;
  const f=flows(true);S.cash+=f.net;S.last=f;S.month++;
  ASSETS.forEach(a=>{if(has(a.id)||S.af[a.id]){S.af[a.id]=Math.max(.3,af(a.id)*(1+a.drift-.003*behind(a.id)+(rnd()-.5)*(a.vol||.004)));}});
  S.buffs.forEach(b=>b.months--);S.buffs=S.buffs.filter(b=>b.months>0);
@@ -2059,15 +2225,16 @@ function nextMonth(){
     showCard('Bankrupt','At '+age()+', creditors have seized the empire. Every tycoon has a failure story. This is yours.','<button class="btn primary" data-a="reset">Start a new empire</button><button class="btn" data-a="lives">Past lives</button>');return;}}
  } else S.strikes=0;
  const nw=netWorth();S.hist.push(Math.max(1,nw));
- const ti=titleIdx(nw);if(ti>S.title){S.title=ti;S.lifeSince=S.month;S.lifePending=true;log('New rank: '+TITLES[ti][1]+'.','gold');flash();}
+ const ti=titleIdx(nw);if(ti>S.title){addPts(5*(ti-S.title)*ti);wkInc('ranks',ti-S.title);S.title=ti;rankUpFx(TITLES[ti][1]);S.lifeSince=S.month;S.lifePending=true;log('New rank: '+TITLES[ti][1]+'.','gold');flash();}
  if(ti<S.title)S.title=ti;
  if(ti>S.peak){const before=SLOTS[S.peak];S.peak=ti;if(SLOTS[ti]>before)S.indPending=true;}
- if(nw>=1e9&&!S.won){S.won=true;checkAch();save();render();
+ if(nw>=1e9&&!S.won){S.won=true;setTimeout(confettiFx,200);addPts(S.gnum>1||S.headstart?50:100);checkAch();save();render();
   const y=Math.floor(S.month/12),mo=S.month%12;
   const fam=S.spouse?'Married to '+S.spouse.name+' (your '+spW()+')':S.exes?'Divorced '+(S.exes>1?S.exes+' times':'once'):'Single';
   showCard('You are a billionaire','You built a '+fmt(nw)+' empire in '+y+' years and '+mo+' months, from '+(S.gnum>1?'an inheritance of '+fmt(S.hist[0]):fmt(S.hist[0]||1000)+' and a '+(R?R.biz.kiosk[0].lc():'street kiosk'))+'. You are '+age()+'. '+fam+', '+S.kids.length+' child'+(S.kids.length===1?'':'ren')+', happiness '+Math.round(S.happy)+' out of 100. Keep going, or start again and beat your time.',
    '<button class="btn primary" data-a="close">Keep building</button><button class="btn" data-a="reset">New game</button>');return;}
  S.cool--;
+ wkInc('months');if(S.happy>75)wkInc('happy');if(S.month%12===0)addPts(3);
  lawTick();
  checkAch();
  afterChange();
@@ -2090,7 +2257,7 @@ function afterChange(){save();render();}
 function flash(){const e=$('nw');e.classList.remove('flash');void e.offsetWidth;e.classList.add('flash');}
 
 /* ================= Actions ================= */
-function buy(id){const b=BIZ.find(x=>x.id===id),c=unitCost(b,owned(id));if(S.cash<c||S.over||!S.inds.includes(b.ind))return;S.cash-=c;S.owned[id]=owned(id)+1;if(owned(id)===1)log('Opened your first '+b.name+'.','good');afterChange();}
+function buy(id){const b=BIZ.find(x=>x.id===id),c=unitCost(b,owned(id));if(S.cash<c||S.over||!S.inds.includes(b.ind))return;S.cash-=c;S.owned[id]=owned(id)+1;if(owned(id)===1)log('Opened your first '+b.name+'.','good');wkInc('units');afterChange();}
 function sell(id){const b=BIZ.find(x=>x.id===id),n=owned(id);if(!n)return;const v=unitCost(b,n-1)*.7;S.cash+=v;S.owned[id]=n-1;log('Sold one '+b.name+' for '+fmt(v)+'.','');afterChange();}
 function buyAsset(id){const a=ASSETS.find(x=>x.id===id),c=assetPrice(a);if(S.cash<c||S.over||(!a.stack&&has(id)))return;S.cash-=c;S.assets[id]=has(id)+1;if(MODELS[id]){S.gen=S.gen||{};S.gen[id]=latestGen(id);S.af[id]=genMult(id);}if(!S.af[id])S.af[id]=1;
  if(a.lux&&a.rep)addRep(a.rep);
@@ -2132,9 +2299,9 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInter
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
- ({scheme:()=>toggleScheme(v),vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({skin:()=>setSkin(v),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),stoppay:stopPaying,
-  hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=null;renderAccts();},authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:openBoard,retryboot:bootAuth,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
+  hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=null;renderAccts();},authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
   askreset:()=>{$('reset').innerHTML='<span class="foot">Erase this life? <button class="btn small" data-a="reset">Yes, restart</button><button class="btn ghost small" data-a="noreset">Cancel</button></span>';},
   noreset:()=>{$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';},
@@ -2153,10 +2320,10 @@ function render(){
  const nw=netWorth(),F=flows(false);
  paintChip();
  $('fdn-title').textContent='The '+BR()+' Foundation';
- $('nw').textContent=(curLocal()?nw*R.rate<1e7:nw<1e6)?fmtFull(nw):fmt(nw);
+ countUp($('nw'),nw,v=>(curLocal()?v*R.rate<1e7:v<1e6)?fmtFull(v):fmt(v));
  {const tk=document.querySelector('.ticks');if(tk)tk.innerHTML='<span>'+fmt(1e3)+'</span><span>'+fmt(1e6)+'</span><span>'+fmt(1e9)+' goal</span>';}
  $('rank').textContent=TITLES[titleIdx(nw)][1];
- $('cash').textContent=fmt(S.cash);$('cash').className=S.cash<0?'neg':'';
+ countUp($('cash'),S.cash,fmt);$('cash').className=S.cash<0?'neg':'';
  $('profit').textContent=(F.net>=0?'+':'')+fmt(F.net);$('profit').className=F.net>=0?'pos':'neg';
  $('debt').textContent=fmt(S.debt);$('debt').className=S.debt>0?'neg':'';
  $('age').textContent=age();
@@ -2169,6 +2336,7 @@ function render(){
  renderToday();
  paintQuick();
  $('next').disabled=S.over;
+ {const a=$('ch-city'),b=$('ch-date');if(a&&R)a.textContent=R.city;if(b)b.textContent=dateStr(S.month);}
  {const ls=$('lawst');if(ls){const t=statusLine();ls.hidden=!t;ls.textContent=t;}}
  {const d=$('dyn');if(d){d.hidden=!(S.gnum>1);if(S.gnum>1)d.textContent='Generation '+S.gnum+' of the '+familyName()+' family · playing as '+S.who;}
   const r=$('reset');if(r&&S.over&&S.died&&S.kids.length&&!r.querySelector('[data-a=heirpick]'))r.insertAdjacentHTML('afterbegin','<button class="btn primary small" data-a="heirpick">Choose your heir</button> ');}
@@ -2512,6 +2680,65 @@ window.addEventListener('resize',drawChart);
 
 
 
+
+/* ================= Coming back: seasons, weekly challenges, calendar events ================= */
+const seasonId=()=>dayKey().slice(0,7);
+const SEASON_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const seasonName=id=>SEASON_NAMES[+id.slice(5,7)-1]+' '+id.slice(0,4)+' season';
+function sea(){const id=seasonId();if(!S.sea||S.sea.id!==id)S.sea={id,pts:0};return S.sea;}
+function addPts(n){if(n>0)sea().pts+=Math.round(n);}
+function weekId(d=new Date()){const m=new Date(d);m.setHours(0,0,0,0);m.setDate(m.getDate()-((m.getDay()+6)%7));return dayKey(m);}
+function daysLeftInWeek(){const d=new Date();return 7-((d.getDay()+6)%7);}
+const WK_POOL=[
+ {id:'units',n:[5,8,12],t:n=>'Open '+n+' new outlets',p:w=>w.c.units||0},
+ {id:'months',n:[24,36,48],t:n=>'Play '+n+' months',p:w=>w.c.months||0},
+ {id:'grow',n:[2,3,5],t:n=>'Grow your net worth ×'+n+' this week',p:w=>Math.floor(Math.max(0,netWorth())/Math.max(1,w.base)*10)/10},
+ {id:'ranks',n:[1,2,3],t:n=>'Climb '+n+' rank'+(n>1?'s':''),p:w=>w.c.ranks||0},
+ {id:'bonus',n:[3,4,5],t:n=>'Collect the daily bonus on '+n+' days',p:w=>w.c.bonus||0},
+ {id:'props',n:[1,2,3],t:n=>'Buy or build '+n+' propert'+(n>1?'ies':'y'),p:w=>w.c.props||0},
+ {id:'events',n:[10,15,20],t:n=>'Make '+n+' big decisions',p:w=>w.c.events||0},
+ {id:'happy',n:[2,4,6],t:n=>'End '+n+' months with happiness above 75',p:w=>w.c.happy||0}];
+const WK_REWARD=[[2,20],[4,40],[8,80]];
+function week(){const id=weekId();if(!S.wk||S.wk.id!==id){const r=seeded('week|'+id),pool=WK_POOL.slice(),pickd=[];
+  while(pickd.length<3){const i=Math.floor(r()*pool.length);pickd.push(pool.splice(i,1)[0].id);}
+  S.wk={id,list:pickd,c:{},done:[],base:Math.max(1000,netWorth())};}return S.wk;}
+function wkInc(k,n){if(!S||!S.inds||!S.inds.length)return;const w=week();w.c[k]=(w.c[k]||0)+(n||1);checkWeek();}
+function checkWeek(){const w=week();w.list.forEach((id,i)=>{if(w.done.includes(id))return;const c=WK_POOL.find(x=>x.id===id),n=c.n[i];if(c.p(w)>=n){w.done.push(id);const cash=bonusBase()*WK_REWARD[i][0];S.cash+=cash;setTimeout(()=>coinBurst(12),80);addPts(WK_REWARD[i][1]);
+  log('Weekly challenge done: '+c.t(n)+'. +'+fmt(cash)+' and '+WK_REWARD[i][1]+' season points.','gold');}});}
+const CAL=[
+ {id:'holidays',name:'Holiday season',on:d=>(d.getMonth()===11&&d.getDate()>=15)||(d.getMonth()===0&&d.getDate()<=2),until:'2 January',
+  ev:()=>{const c=nwc(.01,500),g=nwc(.004,300);return{cat:'Holiday season',title:'The holiday rush is here',text:'Shoppers are out in force and every business in '+R.city+' is busy. How do you play it?',
+   choices:[{l:'Stock up and stay open late',d:'Spend '+fmt(c)+'. Profit ×1.3 for 2 months.',dis:!canPay(c),f(){S.cash-=c;addBuff(1.3,2,'Holiday rush');addPts(20);return['The shelves emptied as fast as you filled them.','good']}},
+    {l:'Give staff a holiday bonus',d:'Spend '+fmt(g)+'. Happiness +5, reputation +3.',dis:!canPay(g),f(){S.cash-=g;addHappy(5);addRep(3);addPts(20);return['Your staff will remember this one.','good']}},
+    {l:'Take a family break',d:'Happiness +8, but profit ×0.9 for a month.',f(){addHappy(8);addSH(8);addBuff(.9,1,'Holiday break');addPts(20);return['You switched off for once.','life']}}]};}},
+ {id:'newyear',name:'New year',on:d=>d.getMonth()===0&&d.getDate()>=3&&d.getDate()<=10,until:'10 January',
+  ev:()=>({cat:'New year',title:'New year, new goals',text:'Everyone is making resolutions. What is yours?',
+   choices:[{l:'Get healthy',d:'Health +8.',f(){if(typeof S.health==='number')S.health=clamp(S.health+8,0,100);addPts(20);return['Gym at 6 a.m. For now.','good']}},
+    {l:'More time with family',d:'Happiness +6.',f(){addHappy(6);addSH(6);addPts(20);return['You blocked out Sunday afternoons for family.','life']}},
+    {l:'Work even harder',d:'Profit ×1.15 for 3 months, happiness −4.',f(){addBuff(1.15,3,'New year hustle');addHappy(-4);addPts(20);return['You came back from the break sprinting.','']}}]})},
+ {id:'valentine',name:'Valentine\'s week',on:d=>d.getMonth()===1&&d.getDate()>=7&&d.getDate()<=14,until:'14 February',
+  ev:()=>{const c=nwc(.003,200);return{cat:'Valentine\'s week',title:'Valentine\'s week',text:S.spouse?S.spouse.name+' has been dropping hints all week.':'Flower sellers and restaurants are booked solid. Business is good for anyone selling romance.',
+   choices:S.spouse?[{l:'Plan something special',d:'Spend '+fmt(c)+'. Your '+spW()+' is delighted.',dis:!canPay(c),f(){S.cash-=c;addSH(12);addHappy(4);addPts(20);return['A night to remember.','life']}},{l:'Forget it, again',d:'Your '+spW()+' will not forget.',f(){addSH(-12);addPts(5);return['Frosty silence for a week.','bad']}}]
+    :[{l:'Run a Valentine\'s promotion',d:'Profit ×1.15 for a month.',f(){addBuff(1.15,1,'Valentine\'s promotion');addPts(20);return['Couples flocked in.','good']}},{l:'Ignore it',d:'Business as usual.',f(){addPts(5);return['Just another week.','']}}]};}},
+ {id:'midyear',name:'Mid-year sales',on:d=>(d.getMonth()===5&&d.getDate()>=20)||(d.getMonth()===6&&d.getDate()<=5),until:'5 July',
+  ev:()=>({cat:'Mid-year sales',title:'Mid-year sale season',text:'Competitors are slashing prices to clear stock before the second half.',
+   choices:[{l:'Join the price war',d:'Profit ×1.2 for 2 months, reputation −1.',f(){addBuff(1.2,2,'Mid-year sale');addRep(-1);addPts(20);return['Volumes surged.','good']}},{l:'Hold your prices',d:'Reputation +2 for staying premium.',f(){addRep(2);addPts(20);return['Your customers noticed you did not cheapen the brand.','']}}]})},
+ {id:'blackfriday',name:'Black Friday',on:d=>d.getMonth()===10&&d.getDate()>=20,until:'30 November',
+  ev:()=>{const c=nwc(.008,400);return{cat:'Black Friday',title:'Black Friday is coming',text:'Customers have been waiting all year for this weekend.',
+   choices:[{l:'Go all in on discounts',d:'Spend '+fmt(c)+' on stock and ads. Profit ×1.35 for a month.',dis:!canPay(c),f(){S.cash-=c;addBuff(1.35,1,'Black Friday');addPts(20);return['Queues around the block before dawn.','good']}},
+    {l:'A modest sale',d:'Profit ×1.1 for a month.',f(){addBuff(1.1,1,'Black Friday');addPts(20);return['A good weekend, nothing wild.','']}}]};}}];
+function calNow(){const d=new Date();return CAL.find(c=>c.on(d));}
+function calKey(c){const d=new Date();return c.id+'|'+(c.id==='holidays'&&d.getMonth()===0?d.getFullYear()-1:d.getFullYear());}
+function calDue(){const c=calNow();return c&&!S.over&&S.inds.length&&!(S.calSeen||[]).includes(calKey(c))?c:null;}
+function openCal(){const c=calDue();if(!c)return false;S.calSeen=(S.calSeen||[]).concat(calKey(c)).slice(-20);openEvent(c.ev());return true;}
+function seasonRankText(){return typeof seasonRankLine==='function'?seasonRankLine():'';}
+function comebackHTML(){const w=week(),c=calNow(),s=sea();let h='';
+ if(c)h+='<div class="calban"><b>'+c.name+'</b> · until '+c.until+(calDue()?' · <button class="btn small" data-a="calopen">See what\'s on</button>':'')+'</div>';
+ h+='<div class="wk"><div class="wktop"><span class="eyebrow">This week\'s challenges</span><span class="seghint">'+daysLeftInWeek()+' day'+(daysLeftInWeek()>1?'s':'')+' left</span></div>'+
+  w.list.map((id,i)=>{const x=WK_POOL.find(y=>y.id===id),n=x.n[i],done=w.done.includes(id),v=Math.min(n,x.p(w));
+   return'<div class="wkrow'+(done?' wkdone':'')+'"><div><b>'+(done?'✓ ':'')+x.t(n)+'</b><small>'+(done?'Done':'Reward: '+fmt(bonusBase()*WK_REWARD[i][0])+' · '+WK_REWARD[i][1]+' season points')+'</small></div><span class="wkn">'+(id==='grow'?'×'+v:Math.floor(v))+' / '+(id==='grow'?'×':'')+n+'</span><i style="width:'+Math.round(100*v/n)+'%"></i></div>';}).join('')+'</div>';
+ h+='<div class="seasonline"><span class="eyebrow">'+seasonName(s.id)+'</span><b>'+s.pts.toLocaleString('en-US')+' points</b>'+seasonRankText()+'</div>';
+ return h;}
 /* ================= Under the table: crime, jail, hiding, hospital, new lives ================= */
 const SCHEMES=[
  {id:'evasion',name:'Hide income from the taxman',d:'Keep 15% more of your business profit.',att:.6,min:0},
@@ -2770,7 +2997,7 @@ function applyHeir(h){S.gnum=h.gen;S.who=h.name;S.age0=h.age;S.g='';S.cash=h.cas
  if(h.ind&&IND[h.ind]){S.inds=[h.ind];const b=BIZ.filter(x=>x.ind===h.ind).sort((a,c)=>a.tier-c.tier)[0];if(b)S.owned[b.id]=1;}
  S.health=clamp(95-Math.max(0,h.age-30)*.7,40,95);S.parent=h.parent;S.sibs=makeSibs(h.sibs||[]);
  S.log=[{m:0,t:'You are '+h.name+', '+h.age+'. '+h.parent+' passed away at '+h.parentAge+' and left you '+fmt(h.cash)+(h.ind?' and the family business':'')+'. Generation '+h.gen+' of the '+familyName()+' family begins.',k:'gold'}];applyPlan(h);}
-function newLife(hi){stopAuto();closeModal();current=null;if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur;if(S.month>0)recordLife(lifeSummary());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();newGameFlag=true;if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;useRegion(S.region);S.pcOpen=[PCITIES[0].id];if(heir)applyHeir(heir);if(pendingVanish){applyVanish(pendingVanish);pendingVanish=null;}$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
+function newLife(hi){stopAuto();closeModal();current=null;if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur,keep={daily:S.daily,sea:S.sea,wk:S.wk,calSeen:S.calSeen};if(S.month>0)recordLife(lifeSummary());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();newGameFlag=true;if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;Object.assign(S,JSON.parse(JSON.stringify(keep)));if(S.wk)S.wk.base=Math.max(1000,S.cash);useRegion(S.region);S.pcOpen=[PCITIES[0].id];if(heir)applyHeir(heir);if(pendingVanish){applyVanish(pendingVanish);pendingVanish=null;}$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
 
 /* ================= Legacy: families and achievements ================= */
 const ACH=[
@@ -2804,7 +3031,7 @@ function legacyCtx(withCurrent){const lives=legacyLives(withCurrent);return{live
 function earned(ctx){const e={};ACH.forEach(a=>{try{if(a[3](ctx))e[a[0]]=1;}catch(err){}});return e;}
 function checkAch(){if(!S||!ACC||(typeof pastLives==='function'&&pastLives()===null))return;S.ach=S.ach||[];
  const before=earned(legacyCtx(false)),now=earned(legacyCtx(true));
- ACH.forEach(a=>{if(now[a[0]]&&!before[a[0]]&&!S.ach.includes(a[0])){S.ach.push(a[0]);log('Achievement unlocked: '+a[1]+'. '+dollars(a[2]),'gold');}});}
+ ACH.forEach(a=>{if(now[a[0]]&&!before[a[0]]&&!S.ach.includes(a[0])){S.ach.push(a[0]);addPts(50);log('Achievement unlocked: '+a[1]+'. '+dollars(a[2]),'gold');}});}
 function legacyHTML(){const ctx=legacyCtx(true),e=earned(ctx),got=ACH.filter(a=>e[a[0]]).length,f=ctx.fams[ctx.fams.length-1];let h='';
  if(f){const best=ctx.fams.reduce((m,x)=>x.gens>m.gens?x:m,ctx.fams[0]);
   h+='<section class="fam"><span class="eyebrow">Your family</span><h3>The '+esc(familyName())+' family'+(ctx.fams.length>1?' · family '+ctx.fams.length:'')+'</h3>'+
@@ -2904,7 +3131,7 @@ function regionFormHTML(sel,cur){return'<label for="acc-region">Where are you pl
 function wireRegionForm(){const r=$('acc-region');if(r)r.addEventListener('change',()=>{const l=$('acc-curlocal');if(l)l.textContent=curLabel(r.value);const t=$('acc-town'),c=countryRow(r.value);if(t&&c)t.innerHTML=c.towns.map(x=>'<option>'+esc(x)+'</option>').join('');});}
 function regionMenuHTML(){if(!S||!R)return'';const c=countryRow(S.region||R.code)||countryRow('KE');
  return'<h3>Region &amp; money</h3><p class="sub">You are playing in <b>'+c.name+'</b>, starting from '+c.city+'.</p><div class="seg" role="group" aria-label="Show money in" style="grid-template-columns:1fr 1fr"><button data-a="curset" data-v="USD" aria-pressed="'+(S.cur!=='LOCAL')+'">US dollars ($)</button><button data-a="curset" data-v="LOCAL" aria-pressed="'+(S.cur==='LOCAL')+'"'+(c.cur==='USD'?' disabled':'')+'>'+(c.cur==='USD'?'Local currency':curText(c)+' ('+c.sym+')')+'</button></div>'+
-  '<label for="menu-region" style="display:block;margin-top:12px;font-weight:700;font-size:13px">Region for your next new game</label><select id="menu-region" style="width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:15px;color:var(--ink)">'+regionOptions(S.nextRegion||S.region||R.code)+'</select><p class="hint" id="menu-region-note">Your current empire stays where it is. The new region applies when you start a new game.</p>';}
+  '<label for="menu-region" style="display:block;margin-top:12px;font-weight:700;font-size:13px">Region for your next new game</label><select id="menu-region" style="width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:15px;color:var(--ink)">'+regionOptions(S.nextRegion||S.region||R.code)+'</select><p class="hint" id="menu-region-note">Your current empire stays where it is. The new region applies when you start a new game.</p>'+skinMenuHTML();}
 function wireRegionMenu(){const m=$('menu-region');if(m)m.addEventListener('change',()=>{S.nextRegion=m.value;save();const h=$('menu-region-note');if(h)h.textContent='Saved. Your next new game starts in '+countryRow(m.value).name+'.';});}
 useRegion();
 render();

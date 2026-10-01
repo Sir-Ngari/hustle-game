@@ -65,7 +65,7 @@ button{cursor:pointer}
 .err{color:var(--red);font-weight:600;margin:0}
 
 /* KPIs */
-.kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .kpi{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px 14px}
 .kpi b{display:block;font-size:26px;font-weight:700;letter-spacing:-.01em;margin-top:2px}
 .kpi small{display:block;font-size:12px;color:var(--muted)}
@@ -249,7 +249,9 @@ $('refreshBtn').addEventListener('click',load);
 /* ---------- KPIs ---------- */
 function renderKpis(k){const tiles=[['Players',k.players,k.signups7d+' new this week','lead'],['Active today',k.active24h,'last 24 hours'],['Active this week',k.active7d,'last 7 days'],
  ['New this week',k.signups7d,'sign-ups'],['Game months played',k.monthsPlayed,'across all players'],['Billionaires',k.billionaires,'reached $1B'],['Bankruptcies',k.bankrupt,'current games']];
- $('kpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+Number(t[1]).toLocaleString('en-US')+'</b><small>'+t[2]+'</small></div>').join('');}
+ const R=k.retention||{},rt=(n,l)=>{const x=R['d'+n]||{};return[l,x.pct==null?'—':x.pct+'%',x.players?x.back+' of '+x.players+' players came back after '+n+' day'+(n>1?'s':''):'not enough players yet','ret'];};
+ tiles.push(rt(1,'Came back next day'),rt(7,'Came back after a week'),rt(30,'Came back after a month'));
+ $('kpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?Number(t[1]).toLocaleString('en-US'):t[1])+'</b><small>'+t[2]+'</small></div>').join('');}
 
 /* ---------- daily active chart (single series, bars) ---------- */
 function niceMax(v){if(v<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return(n<=2?2:n<=5?5:10)*p;}

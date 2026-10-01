@@ -140,6 +140,15 @@ CREATE TABLE IF NOT EXISTS lives(
   data TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS lives_game ON lives(user_id, game);
+CREATE TABLE IF NOT EXISTS season_scores(
+  user_id INTEGER NOT NULL,
+  season TEXT NOT NULL,
+  pts INTEGER NOT NULL DEFAULT 0,
+  region TEXT NOT NULL DEFAULT '',
+  updated INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(user_id, season)
+);
+CREATE INDEX IF NOT EXISTS season_rank ON season_scores(season, pts);
 CREATE TABLE IF NOT EXISTS activity_days(
   user_id INTEGER NOT NULL,
   day TEXT NOT NULL,
@@ -187,6 +196,16 @@ def now():
 
 def today():
     return time.strftime("%Y-%m-%d", time.gmtime())
+
+
+def season_now(offset_days=0):
+    """The current monthly season, e.g. 2026-10 (UTC)."""
+    return time.strftime("%Y-%m", time.gmtime(time.time() + offset_days * 86400))
+
+
+def season_ok(sid):
+    """Accept this month's season, and the neighbouring one around midnight on the 1st (time zones)."""
+    return isinstance(sid, str) and sid in (season_now(), season_now(-2), season_now(2))
 
 
 def hash_password(password, salt=None):
@@ -266,6 +285,26 @@ def life_from_records(db, uid, game, st=None):
                            (uid, game)).fetchone()
         life["end"] = "bankrupt" if broke or (st is not None and st["bankrupt"]) else "restarted"
     return life
+
+
+def retention(t):
+    """Of players who signed up in the last 90 days, the share who came back N or more days later."""
+    users = q("SELECT id, created FROM users WHERE created>?", (t - 90 * 86400,))
+    days = {}
+    for r in q("SELECT a.user_id, a.day FROM activity_days a JOIN users u ON u.id=a.user_id WHERE u.created>?",
+               (t - 90 * 86400,)):
+        days.setdefault(r["user_id"], []).append(r["day"])
+    out = {}
+    for n in (1, 7, 30):
+        eligible = [u for u in users if u["created"] <= t - n * 86400]
+        back = 0
+        for u in eligible:
+            cut = time.strftime("%Y-%m-%d", time.gmtime(u["created"] + n * 86400))
+            if any(d >= cut for d in days.get(u["id"], [])):
+                back += 1
+        out["d%d" % n] = {"players": len(eligible), "back": back,
+                          "pct": round(100 * back / len(eligible)) if eligible else None}
+    return out
 
 
 def backfill_lives():
@@ -532,6 +571,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_leaderboard()
         if path == "/api/lives":
             return self.api_lives()
+        if path == "/api/season":
+            return self.api_season()
         if path == "/api/config":
             return self.send_json(200, {"mail": mail_ready()})
         if path.startswith("/api/admin/"):
@@ -823,6 +864,13 @@ class Handler(BaseHTTPRequestHandler):
                     continue
                 db.execute("INSERT OR IGNORE INTO events(user_id,ts,game,seq,game_month,kind,text) VALUES(?,?,?,?,?,?,?)",
                            (uid, t, game, seq, gm, clean_text(e.get("k"), 12), text))
+            sea = summary.get("season")
+            if isinstance(sea, dict) and season_ok(sea.get("id")):
+                pts = int(max(0, min(1e7, num(sea.get("pts")))))
+                region = clean_text(summary.get("region"), 3).upper()
+                db.execute("INSERT INTO season_scores(user_id,season,pts,region,updated) VALUES(?,?,?,?,?) "
+                           "ON CONFLICT(user_id,season) DO UPDATE SET pts=MAX(season_scores.pts,excluded.pts), "
+                           "region=excluded.region, updated=excluded.updated", (uid, sea["id"], pts, region, t))
             return game
 
         game = tx(write)
@@ -844,6 +892,35 @@ class Handler(BaseHTTPRequestHandler):
             d.setdefault("ts", r["ended"] * 1000)
             out.append(d)
         self.send_json(200, {"lives": out})
+
+    def api_season(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in to see the season.")
+        uid = user["id"]
+        qs = parse_qs(urlparse(self.path).query)
+        sid = season_now()
+        mine = q("SELECT pts, region FROM season_scores WHERE user_id=? AND season=?", (uid, sid), one=True)
+        region = (qs.get("region", [""])[0] or (mine["region"] if mine else "")).upper()[:3]
+        scope = qs.get("scope", ["world"])[0]
+        where, args = ("s.season=? AND s.region=?", (sid, region)) if scope == "country" and region else ("s.season=?", (sid,))
+        top = q("SELECT u.name,u.company,u.color,s.pts,s.region FROM season_scores s JOIN users u ON u.id=s.user_id "
+                "WHERE u.disabled=0 AND s.pts>0 AND " + where + " ORDER BY s.pts DESC, s.updated LIMIT 25", args)
+
+        def ranks(season, pts, reg):
+            w = q("SELECT COUNT(*) c FROM season_scores WHERE season=? AND pts>?", (season, pts), one=True)["c"] + 1
+            wn = q("SELECT COUNT(*) c FROM season_scores WHERE season=? AND pts>0", (season,), one=True)["c"]
+            r = q("SELECT COUNT(*) c FROM season_scores WHERE season=? AND region=? AND pts>?", (season, reg, pts), one=True)["c"] + 1
+            rn = q("SELECT COUNT(*) c FROM season_scores WHERE season=? AND region=? AND pts>0", (season, reg), one=True)["c"]
+            return {"rank": w, "players": wn, "rankRegion": r, "playersRegion": rn}
+
+        me = dict(pts=mine["pts"], region=mine["region"], **ranks(sid, mine["pts"], mine["region"])) if mine and mine["pts"] > 0 else None
+        hist = []
+        for h in q("SELECT season, pts, region FROM season_scores WHERE user_id=? AND season<>? AND pts>0 "
+                   "ORDER BY season DESC LIMIT 24", (uid, sid)):
+            hist.append(dict(season=h["season"], pts=h["pts"], region=h["region"], **ranks(h["season"], h["pts"], h["region"])))
+        self.send_json(200, {"season": sid, "scope": scope, "region": region, "top": [dict(r) for r in top],
+                             "me": me, "history": hist})
 
     def api_leaderboard(self):
         rows = q("SELECT u.name,u.company,u.color,s.best,s.nw,s.month,s.billion_month,s.bankrupt FROM users u "
@@ -919,6 +996,7 @@ class Handler(BaseHTTPRequestHandler):
             "billionaires": q("SELECT COUNT(*) c FROM stats WHERE billion_month IS NOT NULL", one=True)["c"],
             "bankrupt": q("SELECT COUNT(*) c FROM stats WHERE bankrupt=1", one=True)["c"],
         }
+        k["retention"] = retention(t)
         days = []
         for i in range(13, -1, -1):
             day = time.strftime("%Y-%m-%d", time.gmtime(t - i * 86400))
