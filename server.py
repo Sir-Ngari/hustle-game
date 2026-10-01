@@ -81,6 +81,10 @@ TRIAL_HOURS = env_int("HUSTLE_TRIAL_HOURS", 24)   # free trial from sign-up (or 
 GIFT_DAYS = env_int("HUSTLE_GIFT_DAYS", 2)        # extra free days offered to a player who leaves the payment screen
 GIFTS = env_int("HUSTLE_GIFTS", 2)                # how many times that offer is made
 BLOCK_DAYS = env_int("HUSTLE_BLOCK_DAYS", 7)      # after this many days, no more free time: pay to play
+REF_TRIAL_DAYS = env_int("HUSTLE_REF_TRIAL_DAYS", 3)    # free days for a player who joins with a friend's link
+REF_ACTIVE_DAYS = env_int("HUSTLE_REF_ACTIVE_DAYS", 3)  # pass days the inviter earns when that friend comes back on a 2nd day
+REF_PAID_DAYS = env_int("HUSTLE_REF_PAID_DAYS", 7)      # pass days the inviter earns when that friend first buys a pass
+REF_MONTHLY_CAP = env_int("HUSTLE_REF_MONTHLY_CAP", 10) # most "came back" rewards one inviter can earn in 30 days
 PLANS = {
     "week": {"name": "Weekly pass", "days": 7, "kes": env_int("HUSTLE_PRICE_WEEK", 70)},
     "month": {"name": "Monthly pass", "days": 30, "kes": env_int("HUSTLE_PRICE_MONTH", 250)},
@@ -220,6 +224,15 @@ CREATE TABLE IF NOT EXISTS payments(
 );
 CREATE INDEX IF NOT EXISTS payments_user ON payments(user_id);
 CREATE INDEX IF NOT EXISTS payments_status ON payments(status, created);
+CREATE TABLE IF NOT EXISTS referrals(
+  user_id INTEGER PRIMARY KEY,
+  inviter_id INTEGER NOT NULL,
+  created INTEGER NOT NULL,
+  active_at INTEGER NOT NULL DEFAULT 0,
+  paid_at INTEGER NOT NULL DEFAULT 0,
+  days_given INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS referrals_inviter ON referrals(inviter_id);
 """
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -232,6 +245,9 @@ _db.executescript(SCHEMA)
 if "email" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
     _db.execute("ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''")
 _db.execute("CREATE INDEX IF NOT EXISTS users_email ON users(email)")
+if "ref_code" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
+    _db.execute("ALTER TABLE users ADD COLUMN ref_code TEXT NOT NULL DEFAULT ''")
+_db.execute("CREATE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)")
 _lock = threading.Lock()
 
 
@@ -545,9 +561,10 @@ def bill_status(user, mark_paywall=False):
     gifts = s["gifts"] if s else 0
     gift_until = s["gift_until"] if s else 0
     base = max(user["created"], billing_start())
-    trial_end = base + TRIAL_HOURS * 3600
-    hard = base + BLOCK_DAYS * 86400
-    out = {"on": True, "plans": plans_public(), "payReady": pesapal_ready(), "giftDays": GIFT_DAYS,
+    referred = q("SELECT 1 FROM referrals WHERE user_id=?", (user["id"],), one=True) is not None
+    trial_end = base + (REF_TRIAL_DAYS * 86400 if referred and REF_TRIAL_DAYS * 86400 > TRIAL_HOURS * 3600 else TRIAL_HOURS * 3600)
+    hard = max(base + BLOCK_DAYS * 86400, trial_end)
+    out = {"on": True, "invited": referred, "refActiveDays": REF_ACTIVE_DAYS, "refPaidDays": REF_PAID_DAYS, "plans": plans_public(), "payReady": pesapal_ready(), "giftDays": GIFT_DAYS,
            "now": t, "plan": s["plan"] if s else "", "everPaid": paid_until > 0}
     if paid_until > t:
         out.update(state="paid", until=paid_until)
@@ -651,8 +668,14 @@ def credit_payment(ref, method, code):
                    (p["user_id"], t, st["games"] if st else 1, "Bought the %s (KSh %s%s)" % (
                        PLANS.get(p["plan"], {}).get("name", p["plan"]).lower(), "{:,.0f}".format(p["amount"]),
                        " via " + method if method else "")))
-        return True
-    return tx(run)
+        return p["user_id"]
+    uid = tx(run)
+    if uid:
+        try:
+            referral_paid(uid)
+        except Exception as e:
+            print("Invite reward after payment failed: %s" % e, flush=True)
+    return bool(uid)
 
 
 def reverse_payment(ref):
@@ -754,6 +777,82 @@ def billing_overview(t):
              byPlan={r["plan"]: r["c"] for r in q("SELECT plan, COUNT(*) c FROM payments WHERE status='paid' AND updated>? GROUP BY plan", (t - 30 * 86400,))},
              trialHours=TRIAL_HOURS, giftDays=GIFT_DAYS, gifts=GIFTS, blockDays=BLOCK_DAYS, plans=plans_public())
     return k
+
+
+# ---- invite a friend --------------------------------------------------------
+REF_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def ref_code_for(uid):
+    """Each player's invite code, made the first time they ask for it."""
+    r = q("SELECT ref_code FROM users WHERE id=?", (uid,), one=True)
+    if r and r["ref_code"]:
+        return r["ref_code"]
+    for _ in range(20):
+        code = "".join(secrets.choice(REF_ALPHABET) for _ in range(6))
+        if not q("SELECT 1 FROM users WHERE ref_code=?", (code,), one=True):
+            q("UPDATE users SET ref_code=? WHERE id=? AND ref_code=''", (code, uid))
+            break
+    return q("SELECT ref_code FROM users WHERE id=?", (uid,), one=True)["ref_code"]
+
+
+def inviter_by_code(code):
+    code = clean_text(code, 12).upper()
+    if not re.match(r"^[A-Z0-9]{4,12}$", code or ""):
+        return None
+    return q("SELECT id, name, company, disabled FROM users WHERE ref_code=? AND disabled=0", (code,), one=True)
+
+
+def give_days(uid, days, why):
+    """Add free pass days to a player (stacks on top of any pass they have)."""
+    t = now()
+    s = q("SELECT paid_until, plan FROM subs WHERE user_id=?", (uid,), one=True)
+    start = max(t, s["paid_until"] if s else 0)
+    plan = s["plan"] if s and s["paid_until"] > t and s["plan"] else "invite"
+    q("INSERT INTO subs(user_id,paid_until,plan,updated) VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET "
+      "paid_until=excluded.paid_until, plan=excluded.plan, updated=excluded.updated", (uid, start + days * 86400, plan, t))
+    st = q("SELECT games FROM stats WHERE user_id=?", (uid,), one=True)
+    q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)", (uid, t, st["games"] if st else 1, why))
+
+
+def referral_progress(uid):
+    """Called as a referred player plays: reward their inviter once the friend comes back on a second day."""
+    r = q("SELECT inviter_id, active_at FROM referrals WHERE user_id=?", (uid,), one=True)
+    if not r or r["active_at"]:
+        return
+    if q("SELECT COUNT(*) c FROM activity_days WHERE user_id=?", (uid,), one=True)["c"] < 2:
+        return
+    t = now()
+
+    def claim(db):
+        if db.execute("UPDATE referrals SET active_at=? WHERE user_id=? AND active_at=0", (t, uid)).rowcount != 1:
+            return 0
+        recent = db.execute("SELECT COUNT(*) c FROM referrals WHERE inviter_id=? AND active_at>? AND user_id<>? AND days_given>0",
+                            (r["inviter_id"], t - 30 * 86400, uid)).fetchone()["c"]
+        if recent >= REF_MONTHLY_CAP or REF_ACTIVE_DAYS <= 0:
+            return 0
+        db.execute("UPDATE referrals SET days_given=days_given+? WHERE user_id=?", (REF_ACTIVE_DAYS, uid))
+        return REF_ACTIVE_DAYS
+    days = tx(claim)
+    if days:
+        friend = q("SELECT name FROM users WHERE id=?", (uid,), one=True)
+        give_days(r["inviter_id"], days, "Earned %d free pass days: %s, who you invited, came back to play" % (
+            days, friend["name"] if friend else "a friend"))
+
+
+def referral_paid(uid):
+    if REF_PAID_DAYS <= 0:
+        return
+    r = q("SELECT inviter_id FROM referrals WHERE user_id=?", (uid,), one=True)
+    if not r:
+        return
+    t = now()
+    ok = tx(lambda db: db.execute("UPDATE referrals SET paid_at=?, days_given=days_given+? WHERE user_id=? AND paid_at=0",
+                                  (t, REF_PAID_DAYS, uid)).rowcount == 1)
+    if ok:
+        friend = q("SELECT name FROM users WHERE id=?", (uid,), one=True)
+        give_days(r["inviter_id"], REF_PAID_DAYS, "Earned %d free pass days: %s, who you invited, bought a pass" % (
+            REF_PAID_DAYS, friend["name"] if friend else "a friend"))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -910,6 +1009,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, {"mail": mail_ready()})
         if path == "/api/billing":
             return self.api_billing()
+        if path == "/api/invite":
+            return self.api_invite()
+        if path == "/api/invite/check":
+            return self.api_invite_check()
         if path == "/api/pesapal/ipn":
             return self.api_pesapal_ipn()
         if path.startswith("/api/admin/"):
@@ -951,6 +1054,7 @@ class Handler(BaseHTTPRequestHandler):
         town = clean_text(d.get("town"), 20) or "Nairobi"
         bg = d.get("bg") if d.get("bg") in BACKGROUNDS else "hustler"
         email = clean_email(d.get("email"))
+        inviter = inviter_by_code(d.get("ref")) if d.get("ref") else None
         try:
             color = max(0, min(5, int(d.get("color", 0))))
         except (TypeError, ValueError):
@@ -979,6 +1083,13 @@ class Handler(BaseHTTPRequestHandler):
             db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,1,'account',?)",
                        (uid, t, "Created an account (%s)" % {"hustler": "street hustler", "grad": "university graduate", "heir": "family business heir"}[bg]))
             db.execute("INSERT OR IGNORE INTO activity_days(user_id, day) VALUES(?,?)", (uid, today()))
+            if inviter:
+                db.execute("INSERT OR IGNORE INTO referrals(user_id,inviter_id,created) VALUES(?,?,?)", (uid, inviter["id"], t))
+                db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,1,'account',?)",
+                           (uid, t, "Joined with an invite from %s" % inviter["name"]))
+                ig = db.execute("SELECT games FROM stats WHERE user_id=?", (inviter["id"],)).fetchone()
+                db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
+                           (inviter["id"], t, ig["games"] if ig else 1, "%s joined with your invite" % name))
             return uid
 
         try:
@@ -1128,6 +1239,7 @@ class Handler(BaseHTTPRequestHandler):
         if not user:
             return self.error(401, "Not logged in.")
         self.touch(user["id"])
+        referral_progress(user["id"])
         save = q("SELECT state FROM saves WHERE user_id=?", (user["id"],), one=True)
         self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None,
                              "bill": bill_status(user, True)})
@@ -1220,7 +1332,34 @@ class Handler(BaseHTTPRequestHandler):
 
         game = tx(write)
         self.touch(uid)
+        referral_progress(uid)
         self.send_json(200, {"ok": True, "game": game})
+
+    # ---------- invite a friend ----------
+    def api_invite(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        code = ref_code_for(user["id"])
+        rows = q("SELECT u.name, u.company, u.color, r.created, r.active_at, r.paid_at, r.days_given FROM referrals r "
+                 "JOIN users u ON u.id=r.user_id WHERE r.inviter_id=? ORDER BY r.created DESC LIMIT 100", (user["id"],))
+        friends = [{"name": r["name"], "company": r["company"], "color": r["color"], "joined": r["created"],
+                    "active": bool(r["active_at"]), "paid": bool(r["paid_at"]), "days": r["days_given"]} for r in rows]
+        self.send_json(200, {"code": code, "link": "https://%s/?ref=%s" % (SITE_DOMAIN or "hustlempires.com", code),
+                             "friends": friends, "daysEarned": sum(f["days"] for f in friends),
+                             "trialDays": REF_TRIAL_DAYS, "activeDays": REF_ACTIVE_DAYS, "paidDays": REF_PAID_DAYS,
+                             "cap": REF_MONTHLY_CAP, "billing": BILLING_ON})
+
+    def api_invite_check(self):
+        """Who invited me? Shown on the sign-up screen. Only the first name and company."""
+        if rate_limited("refcheck:" + self.client_ip(), limit=60, window=600):
+            return self.error(429, "Too many requests.")
+        code = (parse_qs(urlparse(self.path).query).get("code") or [""])[0]
+        inv = inviter_by_code(code)
+        if not inv:
+            return self.send_json(200, {"ok": False})
+        self.send_json(200, {"ok": True, "name": (inv["name"] or "").split()[0][:24], "company": inv["company"],
+                             "trialDays": REF_TRIAL_DAYS if BILLING_ON else 0})
 
     # ---------- Hustle Pass ----------
     def api_billing(self):
@@ -1459,10 +1598,13 @@ class Handler(BaseHTTPRequestHandler):
                 stats["detail"] = json.loads(stats.get("detail") or "{}")
             b = bill_status(q("SELECT * FROM users WHERE id=?", (uid,), one=True))
             pays = q("SELECT ref,plan,amount,status,method,created FROM payments WHERE user_id=? ORDER BY id DESC LIMIT 20", (uid,))
+            invby = q("SELECT u.id, u.name FROM referrals r JOIN users u ON u.id=r.inviter_id WHERE r.user_id=?", (uid,), one=True)
+            invn = q("SELECT COUNT(*) c FROM referrals WHERE inviter_id=?", (uid,), one=True)["c"]
             return self.send_json(200, {"user": dict(u), "stats": stats, "snapshots": [dict(s) for s in snaps],
                                         "events": [dict(e) for e in evs], "now": now(),
                                         "pass": {"state": b["state"], "until": b.get("until", 0), "plan": b.get("plan", "")},
-                                        "payments": [dict(p) for p in pays]})
+                                        "payments": [dict(p) for p in pays],
+                                        "invitedBy": dict(invby) if invby else None, "invited": invn})
         self.error(404, "Not found.")
 
     def admin_overview(self):
@@ -1478,6 +1620,13 @@ class Handler(BaseHTTPRequestHandler):
         }
         k["retention"] = retention(t)
         k["billing"] = billing_overview(t)
+        k["invites"] = {"joined": q("SELECT COUNT(*) c FROM referrals", one=True)["c"],
+                        "joined7d": q("SELECT COUNT(*) c FROM referrals WHERE created>?", (t - 7 * 86400,), one=True)["c"],
+                        "active": q("SELECT COUNT(*) c FROM referrals WHERE active_at>0", one=True)["c"],
+                        "paid": q("SELECT COUNT(*) c FROM referrals WHERE paid_at>0", one=True)["c"],
+                        "inviters": q("SELECT COUNT(DISTINCT inviter_id) c FROM referrals", one=True)["c"],
+                        "top": [dict(r) for r in q("SELECT u.id AS user_id, u.name, u.company, u.color, COUNT(*) n, SUM(r.active_at>0) active, SUM(r.paid_at>0) paid "
+                                                    "FROM referrals r JOIN users u ON u.id=r.inviter_id GROUP BY r.inviter_id ORDER BY n DESC LIMIT 10")]}
         days = []
         for i in range(13, -1, -1):
             day = time.strftime("%Y-%m-%d", time.gmtime(t - i * 86400))
@@ -1542,7 +1691,7 @@ class Handler(BaseHTTPRequestHandler):
             tx(reset)
         elif action == "delete":
             def delete(db):
-                for table in ("sessions", "saves", "stats", "events", "snapshots", "activity_days", "resets", "subs", "lives", "season_scores"):
+                for table in ("sessions", "saves", "stats", "events", "snapshots", "activity_days", "resets", "subs", "lives", "season_scores", "referrals"):
                     db.execute("DELETE FROM %s WHERE user_id=?" % table, (uid,))
                 db.execute("DELETE FROM users WHERE id=?", (uid,))
             tx(delete)

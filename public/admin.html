@@ -177,6 +177,8 @@ tbody tr:hover td{background:var(--brass-soft)}
       <div class="kpis" id="billKpis"></div>
       <h3 class="eyebrow" style="margin:16px 0 6px">Trial funnel: where players drop off</h3>
       <div class="funnel" id="funnel"></div>
+      <h3 class="eyebrow" style="margin:16px 0 6px">Invite a friend</h3>
+      <div id="invites"></div>
       <h3 class="eyebrow" style="margin:16px 0 6px">Latest payments</h3>
       <div class="tablewrap"><table style="min-width:720px"><thead><tr><th>When</th><th>Player</th><th>Pass</th><th class="r">Amount</th><th>Status</th><th>Paid with</th><th>Reference</th></tr></thead><tbody id="payRows"></tbody></table></div>
     </section>
@@ -255,7 +257,7 @@ $('logoutBtn').addEventListener('click',async()=>{try{await api('POST','/api/adm
 
 /* ---------- data ---------- */
 async function load(){try{const [ov,pl,pay]=await Promise.all([api('GET','/api/admin/overview'),api('GET','/api/admin/players'),api('GET','/api/admin/payments')]);
-  serverNow=pl.now;players=pl.players;payments=pay.payments;renderKpis(ov.kpis);renderBilling(ov.kpis.billing);renderDau(ov.days);renderFeed(ov.feed);renderPlayers();
+  serverNow=pl.now;players=pl.players;payments=pay.payments;renderKpis(ov.kpis);renderBilling(ov.kpis.billing);renderInvites(ov.kpis.invites);renderDau(ov.days);renderFeed(ov.feed);renderPlayers();
   $('updated').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   if(openId!=null&&!$('sheet').hidden)openPlayer(openId,true);}
  catch(e){if(e.status===401)showLogin('Your admin session ended. Log in again.');else $('updated').textContent='Could not refresh: '+e.message;}}
@@ -290,6 +292,10 @@ function renderBilling(b){billing=b;const pnl=$('billPanel');pnl.hidden=false;
  const ST={paid:['Paid','good'],pending:['Not finished',''],failed:['Failed','bad'],reversed:['Reversed','bad'],error:['Could not start','bad'],mismatch:['Check: amount differs','bad']};
  $('payRows').innerHTML=payments.length?payments.slice(0,50).map(p=>{const st=ST[p.status]||[p.status,''];return'<tr data-open="'+p.user_id+'"><td>'+ago(p.created)+'</td><td>'+esc(p.name||'(deleted)')+' <small style="color:var(--muted)">@'+esc(p.username||'')+'</small></td><td>'+(PASSNAME[p.plan]||esc(p.plan))+'</td><td class="r num">'+KES(p.amount)+'</td><td><span class="pill '+st[1]+'">'+st[0]+'</span></td><td>'+esc(p.method||'—')+'</td><td class="num" style="font-size:12px">'+esc(p.ref)+'</td></tr>';}).join('')
   :'<tr><td colspan="7" class="empty">No payments yet.</td></tr>';}
+
+function renderInvites(v){const el=$('invites');if(!v){el.innerHTML='';return;}
+ el.innerHTML='<p class="sub" style="margin:0 0 8px"><b>'+v.joined+'</b> players joined with a friend\'s link ('+v.joined7d+' this week), from <b>'+v.inviters+'</b> inviters. <b>'+v.active+'</b> came back on a second day and <b>'+v.paid+'</b> bought a pass.</p>'+
+  (v.top.length?'<div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Top inviters</th><th class="r">Friends joined</th><th class="r">Came back</th><th class="r">Bought a pass</th></tr></thead><tbody>'+v.top.map(r=>'<tr data-open="'+r.user_id+'"><td><div class="pcell">'+avatar(r)+'<div><b>'+esc(r.name)+'</b><small>'+esc(r.company)+'</small></div></div></td><td class="r num">'+r.n+'</td><td class="r num">'+r.active+'</td><td class="r num">'+r.paid+'</td></tr>').join('')+'</tbody></table></div>':'');}
 
 /* ---------- daily active chart (single series, bars) ---------- */
 function niceMax(v){if(v<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return(n<=2?2:n<=5?5:10)*p;}
@@ -344,7 +350,7 @@ async function openPlayer(id,quiet){openId=id;if(!quiet){confirmAct=null;$('shee
   fact('Generation',det.gen>1?'Heir · generation '+det.gen:'Founder')+fact('Region',det.region?esc(det.region)+(det.currency==='LOCAL'?' · local money':' · dollars'):'—')+fact('Gender',det.gender==='m'?'Man':det.gender==='f'?'Woman':'Not set')+fact('Family',det.married==null?'—':(det.married?'Married'+(det.spouse&&det.spouse!=='spouse'?' (a '+esc(det.spouse)+')':''):'Single')+(det.kids?' · '+det.kids+' kid'+(det.kids>1?'s':''):''))+fact('Motorsport',det.race||'None')+fact('Foundation',det.foundation?'Open':'None')+fact('Debt',fmt(det.debt||0))+'</div>';
  h+='<section class="panel"><h2>Net worth over time</h2><p class="sub">Current game, by in-game month (log scale).</p><div class="chart" id="nwChart"></div></section>';
  h+='<section class="panel"><h2>Recent moves</h2><p class="sub">Newest first. Game news comes straight from their play.</p><ul class="events">'+(d.events.length?d.events.map(e=>'<li class="k-'+esc(e.kind)+'"><small>'+ago(e.ts)+(e.game_month!=null?' · '+gameDate(e.game_month):'')+'</small>'+esc(e.text)+'</li>').join(''):'<li>No moves yet.</li>')+'</ul></section>';
- h+='<section class="panel"><h2>Hustle Pass</h2><p class="sub">'+(d.pass&&d.pass.state!=='off'?'Now: '+passPill(d.pass)+(d.pass.until&&d.pass.state==='paid'?' until '+new Date(d.pass.until*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):''):'The pass is switched off.')+'</p>'+
+ h+='<section class="panel"><h2>Hustle Pass</h2><p class="sub">'+(d.invitedBy?'Invited by <button class="who" style="border:0;background:none;padding:0;font-weight:700;text-decoration:underline" data-open="'+d.invitedBy.id+'">'+esc(d.invitedBy.name)+'</button>. ':'')+(d.invited?'Has invited '+d.invited+' friend'+(d.invited===1?'':'s')+'. ':'')+(d.pass&&d.pass.state!=='off'?'Now: '+passPill(d.pass)+(d.pass.until&&d.pass.state==='paid'?' until '+new Date(d.pass.until*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):''):'The pass is switched off.')+'</p>'+
   (d.payments&&d.payments.length?'<ul class="events">'+d.payments.map(p=>'<li class="'+(p.status==='paid'?'k-good':'k-bad')+'"><small>'+ago(p.created)+' · '+esc(p.ref)+'</small>'+(PASSNAME[p.plan]||esc(p.plan))+' pass · '+KES(p.amount)+' · '+esc(p.status)+(p.method?' · '+esc(p.method):'')+'</li>').join('')+'</ul>':'<p class="sub">No payments yet.</p>')+
   '<form class="actions" id="giftForm"><label for="giftDays" style="font-size:13px">Give free pass days</label><input id="giftDays" type="number" min="1" max="3660" value="30" style="width:90px;padding:6px 8px;border:1px solid var(--line);background:var(--paper);border-radius:3px"><button class="btn" type="submit">Give days</button><span style="font-size:12.5px;color:var(--muted)">For testers, prizes, or a payment that didn\'t come through.</span></form></section>';
  h+='<section class="panel"><h2>Account actions</h2><p class="sub">Disabling logs the player out and blocks log-in until you enable them again.</p><div class="actions" id="acts"></div></section>';

@@ -13,7 +13,7 @@ s=s[:i]+open('accthosted.js').read()+"\nfunction save(){if(!ACC)return;S._uid=AC
 rep("function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});","function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});")
 # click handlers for the account screens
 i=s.index("accts:()=>showAccts('pick'),"); j=s.index("acctdelyes:()=>deleteAccount(v),",i)+len("acctdelyes:()=>deleteAccount(v),")
-s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),paylater:payLater,paygift:payGift,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,"+s[j:]
+s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,"+s[j:]
 # new game keeps the account and tells the server
 rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;")
 # start-up: ask the server who is playing
@@ -40,6 +40,14 @@ rep(".acctbrand{",""".authtabs{display:grid;grid-template-columns:1fr 1fr;border
 .plan em{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--brass);color:#fff;border-radius:10px;padding:1px 8px;white-space:nowrap}
 .plan b{font-size:13.5px}.plan .pr{font-family:var(--display);font-size:24px;line-height:1.15;font-weight:700}.plan small{font-size:11.5px;color:var(--muted)}
 .perks{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.invbanner{display:flex;gap:10px;align-items:center;margin:0;padding:10px 12px;border-radius:10px;background:var(--brass-soft);color:var(--ink);font-size:14px;border:1px solid var(--brass)}
+.invbanner span:first-child{font-size:22px}
+.invcta{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px dashed var(--brass);border-radius:10px;font-size:13.5px}.invcta .btn{align-self:flex-start}
+.invlink{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:6px;font-size:14px;color:var(--ink)}
+.invstats{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.invstats b{color:var(--ink);font-size:18px;margin-right:3px}
+.invlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}.invlist li{display:flex;align-items:center;gap:10px}
+.invlist .ameta{flex:1;min-width:0;display:flex;flex-direction:column}.invlist .ameta span{font-size:12.5px;color:var(--muted)}
+a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .paidbox{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:10px 0}
 .paidicon{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-size:30px;font-weight:700}
 @media (max-width:420px){.plans{grid-template-columns:1fr}.plan{flex-direction:row;flex-wrap:wrap;justify-content:space-between;text-align:left;padding:14px}.plan small{width:100%}.plan em{left:auto;right:10px;transform:none}}
