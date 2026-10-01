@@ -312,7 +312,7 @@ def rate_limited(key, limit=10, window=600):
 
 # ---- past lives: one row per finished game ---------------------------------
 LIFE_TEXT = {"region": 3, "end": 10, "cause": 160, "rank": 30, "spouse": 40, "who": 40}
-LIFE_NUM = ("months", "age", "nw", "best", "start", "kids", "inds", "props", "teams", "ts", "gen")
+LIFE_NUM = ("months", "age", "nw", "best", "start", "kids", "inds", "props", "teams", "ts", "gen", "bcw")
 
 
 def clean_life(d):

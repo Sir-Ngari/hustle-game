@@ -554,6 +554,7 @@ html.gm .stagehead small.boom{color:#ffd36b}html.gm .stagehead small.bust{color:
 .obit-btns{margin-top:6px}
 .obit h2{font-size:36px;line-height:1.1;margin:0;text-align:center;font-family:Georgia,"Times New Roman",serif;text-transform:none;letter-spacing:0;color:#14110c}
 .obit-years{text-align:center;font-style:italic;margin:6px 0 4px;font-size:15px}
+.bc-name{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.bc-name b{font-size:17px}.bc-name span{font-size:13px;color:var(--muted);white-space:nowrap}
 .obit-dek{text-align:center;font-weight:700;font-size:19px;line-height:1.35;margin:10px 0 2px}
 .obit-role{text-align:center;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#8a5a12;font-family:var(--display);margin:4px 0 8px}
 .obit-cause{text-align:center;font-style:italic;color:#5b5146;margin:0 0 10px;font-size:14px}
@@ -650,6 +651,10 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
   <div id="main">
     <div class="tabpane" data-tab="overview" role="tabpanel" aria-labelledby="tab-overview">
       <div class="col">
+        <section class="panel bcpanel" id="bcpanel" hidden>
+          <h2>Billionaire challenge</h2>
+          <div id="bc"></div>
+        </section>
         <section class="panel today">
           <h2>Today</h2>
           <p class="sub">A bonus for every day you play, and a deal that disappears at midnight.</p>
@@ -2429,6 +2434,7 @@ function nextMonth(){
  wkInc('months');if(S.happy>75)wkInc('happy');if(S.month%12===0)addPts(3);
  lawTick();
  checkAch();
+ {const be=bcTick();if(be&&!current){S.cool=Math.max(S.cool,2);afterChange();openEvent(be);return;}}
  afterChange();
  /* forced events first */
  if(S.resultQ&&S.resultQ.length){openEvent(resultEvent(S.resultQ.shift()));return;}
@@ -2509,7 +2515,7 @@ document.addEventListener('keydown',e=>{if(e.key==='n'&&!tourOn&&!e.metaKey&&!e.
 
 /* ================= Render ================= */
 function meter(v,col){return'<div class="meter"><i style="width:'+clamp(v,0,100)+'%;background:var('+col+')"></i></div>';}
-function render(){
+function render(){try{paintBC();}catch(e){}
  const nw=netWorth(),F=flows(false);
  paintChip();
  $('fdn-title').textContent='The '+BR()+' Foundation';
@@ -2941,6 +2947,84 @@ function crisisHTML(){const c=crisisOf();if(!c)return'';const d=crisisDef(c),lef
  return'<div class="crisis"><span class="eyebrow">'+(c.kind==='disaster'?'Disaster':'World crisis')+' · '+left+' month'+(left>1?'s':'')+' to go</span><b>'+d.name+'</b><div class="cfxs">'+fxLine(c)+'</div></div>';}
 function crisisLine(){const c=crisisOf();return c?crisisDef(c).name:'';}
 
+/* ================= Billionaire challenges: the game after the first billion ================= */
+const bcNW=()=>Math.max(1,netWorth()),bcFlow=()=>(S.last&&S.last.net)||0,bcTeams=()=>Object.keys(S.teams||{}).length+(S.race?1:0);
+function bcTake(amt,why){amt=Math.max(0,amt);const fromCash=Math.min(Math.max(0,S.cash),amt);S.cash-=fromCash;S.debt+=amt-fromCash;log(why,'bad');}
+const BC=[
+ {id:'forbes',name:'The rich list',ask:()=>'The rich list has named you one of '+(R?R.adj:'the country\'s')+' newest billionaires. Editors want to know: one-hit wonder, or the real thing? Commit to doubling your fortune.',
+  goal:c=>'Grow your net worth to '+fmt(c.t)+' within '+c.len+' months',months:60,init:c=>{c.t=bcNW()*2;},prog:c=>bcNW()/c.t,
+  win:c=>{const b=bcNW()*.02;S.cash+=b;addRep(10);addInf(10);return'You doubled your fortune. The rich list puts you on the cover and sponsors line up: +'+fmt(b)+', +10 reputation, +10 influence.';},
+  lose:c=>{addRep(-15);addHappy(-10);return'The deadline passed and the rich list calls you a one-hit wonder. −15 reputation.';}},
+ {id:'takeover',forced:true,name:'Hostile takeover',ask:()=>'A rival conglomerate has been quietly buying your shares and wants control of '+BR()+'. To beat them off you need a war chest: keep cash of at least 8% of your net worth every month for a year.',
+  goal:c=>'Keep at least 8% of your net worth in cash every month for '+c.len+' months',months:12,init:c=>{},prog:c=>(S.month-c.start)/c.len,
+  breach:c=>S.cash<bcNW()*.08,survive:true,
+  win:c=>{addRep(8);addInf(12);return'The raiders gave up and sold their stake back at a loss. The market loves a fighter: +8 reputation, +12 influence.';},
+  lose:c=>{const l=bcNW()*.15;bcTake(l,'The raiders won seats on your board and stripped assets.');addRep(-10);return'Your cash dipped below the line and the raiders took seats on the board. They stripped '+fmt(l)+' out of the empire before you bought them out. −10 reputation.';},
+  alt:{l:'Pay a white knight',d:c=>'A friendly investor buys the shares first. Costs '+fmt(bcNW()*.05)+'. The fight is over.',f:()=>{const p=bcNW()*.05;bcTake(p,'You paid a white knight to end the takeover.');return'The white knight bought the shares. '+BR()+' is safe, for '+fmt(p)+'.';}}},
+ {id:'ipo',name:'Go public',ask:()=>'Bankers are queuing up to list '+BR()+' on the stock exchange. You get a huge payday now, but shareholders expect growth: monthly cash flow must rise by 40% within three years.',
+  goal:c=>'Raise monthly cash flow to '+fmt(c.t)+' and hold it past month 24 of '+c.len,months:36,min:24,init:c=>{const p=bcNW()*.06;S.cash+=p;c.t=Math.max(bcFlow(),bcNW()*.002)*1.4;log('You listed '+BR()+' on the stock exchange and raised '+fmt(p)+'.','gold');},prog:c=>bcFlow()/c.t,
+  win:c=>{addRep(10);addBuff(1.1,24,'Hot stock');return'Earnings beat every forecast and the share price soared. +10 reputation and a 2-year profit boost.';},
+  lose:c=>{const l=bcNW()*.12;bcTake(l,'Your share price crashed after missed targets.');addRep(-10);return'You missed the growth target. The share price crashed and you had to prop it up with '+fmt(l)+'. −10 reputation.';},
+  dec:'Stay private'},
+ {id:'expand',name:'Go regional',ask:()=>'Investors say '+BR()+' is too dependent on one city. Open your property business in two more cities to prove you can build anywhere.',
+  goal:c=>'Open property in '+c.t+' cities within '+c.len+' months',months:48,init:c=>{c.t=(S.pcOpen||[]).length+2;},prog:c=>(S.pcOpen||[]).length/c.t,ok:()=>PCITIES.length>=(S.pcOpen||[]).length+2,
+  win:c=>{addInf(15);addBuff(1.08,24,'Regional brand');return'Your name is on skylines across the region. +15 influence and a 2-year profit boost.';},
+  lose:c=>{addRep(-8);return'You never made the move and investors noticed. −8 reputation.';}},
+ {id:'debtfree',name:'Debt-free billionaire',ask:()=>'A business magazine asks why a billionaire still owes '+fmt(S.debt)+'. Clear every shilling of debt within two years and they will run your story.',
+  goal:c=>'Pay off all your debt within '+c.len+' months',months:24,init:c=>{},prog:c=>S.debt<=0?1:Math.max(0,1-S.debt/Math.max(1,c.d0)),ok:()=>S.debt>bcNW()*.01,pre:c=>{c.d0=S.debt;},
+  win:c=>{addRep(8);addHappy(10);return'Not a shilling owed. The magazine calls you the most disciplined billionaire in the country. +8 reputation, +10 happiness.';},
+  lose:c=>{addRep(-5);return'You still owed money at the deadline. The story never ran. −5 reputation.';}},
+ {id:'pledge',name:'The giving pledge',ask:()=>'Billionaires across the continent are pledging their fortunes to good causes. Join them: run a foundation and reach a reputation of 85 within three years.',
+  goal:c=>'Have a foundation and reach 85 reputation within '+c.len+' months',months:36,init:c=>{},prog:c=>(S.fdn?.5:0)+Math.min(1,S.rep/85)*.5,done:()=>!!S.fdn&&S.rep>=85,
+  win:c=>{addHappy(15);addInf(10);return'You signed the pledge in front of the cameras. +15 happiness, +10 influence.';},
+  lose:c=>{addRep(-10);return'You made the promise and did not keep it. The papers noticed. −10 reputation.';}},
+ {id:'conglo',name:'Conglomerate',ask:()=>'Analysts say '+BR()+' is a one-trick pony. Prove them wrong: add another industry to your empire within three years.',
+  goal:c=>'Run '+c.t+' industries within '+c.len+' months',months:36,init:c=>{c.t=S.inds.length+1;},prog:c=>S.inds.length/c.t,ok:()=>S.inds.length<SLOTS[SLOTS.length-1],
+  win:c=>{addBuff(1.1,24,'Diversified');addRep(5);return'Your new industry is up and running. A 2-year profit boost and +5 reputation.';},
+  lose:c=>{addRep(-5);return'Still the same old business at the deadline. −5 reputation.';}},
+ {id:'trophy',name:'Trophy asset',ask:()=>'Every great billionaire owns a team. Fans want to know when you will buy one. Own '+(bcTeams()?'one more':'a')+' sports or racing team within four years.',
+  goal:c=>'Own '+c.t+' team'+(c.t>1?'s':'')+' within '+c.len+' months',months:48,init:c=>{c.t=bcTeams()+1;},prog:c=>bcTeams()/c.t,
+  win:c=>{addHappy(12);addInf(10);return'The stadium chants your name. +12 happiness, +10 influence.';},
+  lose:c=>{addHappy(-5);return'The fans gave up waiting. −5 happiness.';}},
+ {id:'audit',forced:true,instant:true,name:'Wealth audit',ask:()=>'The revenue authority has opened a full audit of your empire, going back ten years. Your lawyers can settle quietly, or fight it in court.',
+  choices:()=>[{l:'Settle quietly',d:'Pay '+fmt(bcNW()*.03)+' and it all goes away.',f(){const p=bcNW()*.03;bcTake(p,'You settled the wealth audit.');return['You settled the audit for '+fmt(p)+'. Quietly.','']}},
+   {l:'Fight it in court',d:'Win and pay nothing. Lose and pay more, in public.',f(){if(rnd()<.55){addRep(5);return['The court threw the case out. +5 reputation.','good'];}const p=bcNW()*.07;bcTake(p,'You lost the wealth audit case.');addRep(-10);return['You lost in court and paid '+fmt(p)+', with the cameras rolling. −10 reputation.','bad'];}}]},
+ {id:'threat',forced:true,instant:true,name:'Security threat',ask:()=>'Police have picked up chatter about a plot to kidnap a billionaire, and your name came up. Your head of security wants a bigger team.',
+  choices:()=>[{l:'Hire the security team',d:'Costs '+fmt(bcNW()*.01)+'. Your family sleeps easy.',f(){const p=bcNW()*.01;bcTake(p,'You hired a private security team.');addHappy(3);return['The security team is in place. Nothing happened, which is the point.','good'];}},
+   {l:'Ignore it',d:'Probably nothing.',f(){if(rnd()<.35){const p=bcNW()*.04;bcTake(p,'You paid a ransom to get a family member back.');addHappy(-20);addSH(-15);return['It was not nothing. You paid a '+fmt(p)+' ransom to bring your family home safely. −20 happiness.','bad'];}return['Nothing happened. This time.',''];}}]}];
+function bcOf(){S.bc=S.bc||{next:null,active:null,done:[],failed:[],recent:[]};return S.bc;}
+const bcDef=id=>BC.find(x=>x.id===id);
+function bcOffer(d,first){const b=bcOf(),intro=first?'<p><b>The billion was the easy part.</b> From now on, billionaire challenges test whether you can keep it.</p>':'';
+ b.recent=[d.id].concat(b.recent).slice(0,4);
+ if(d.instant)return{cat:'Billionaire challenge',title:d.name,text:intro+d.ask(),choices:d.choices().map(ch=>({l:ch.l,d:ch.d,f(){const r=ch.f();b.next=S.month+12+Math.floor(rnd()*7);return r;}}))};
+ const len=d.months,start=()=>{const c={id:d.id,start:S.month,len,end:S.month+len};if(d.pre)d.pre(c);d.init(c);b.active=c;log('Billionaire challenge accepted: '+d.name+'. '+d.goal(c)+'.','gold');return c;};
+ const ch=[{l:d.forced?'Fight it':'Accept the challenge',d:'Goal: '+(()=>{const c={len,start:S.month};if(d.pre)d.pre(c);const save=JSON.stringify({cash:S.cash,log:S.log.length});if(d.id==='ipo')return'raise monthly cash flow by 40% within '+len+' months. You get '+fmt(bcNW()*.06)+' now.';d.init(c);return d.goal(c);})()+'.',f(){start();return['Challenge on. Track it at the top of your Overview.','gold'];}}];
+ if(d.alt)ch.push({l:d.alt.l,d:d.alt.d(),f(){const r=d.alt.f();b.next=S.month+12+Math.floor(rnd()*7);return[r,''];}});
+ if(!d.forced)ch.push({l:d.dec||'Not now',d:'No reward, no risk. Another challenge comes along later.',f(){b.next=S.month+12;return['You passed on it, for now.',''];}});
+ return{cat:'Billionaire challenge',title:d.name,text:intro+d.ask(),choices:ch};}
+function bcResolve(c,won){const b=bcOf(),d=bcDef(c.id);b.active=null;b.next=S.month+10+Math.floor(rnd()*9);
+ const msg=won?d.win(c):d.lose(c);(won?b.done:b.failed).push(c.id);if(won)addPts(150);
+ log((won?'Billionaire challenge won: ':'Billionaire challenge failed: ')+d.name+'.',won?'gold':'bad');
+ return{cat:'Billionaire challenge',title:won?d.name+': challenge won':d.name+': challenge failed',text:'<div class="result '+(won?'good':'bad')+'"><b>'+(won?'WON':'FAILED')+'</b></div>'+msg,choices:[{l:'OK',d:'',f(){return['','']}}]};}
+function bcTick(){if(!S||S.over)return null;const b=bcOf();
+ if(b.active){const c=b.active,d=bcDef(c.id);if(!d){b.active=null;return null;}
+  if(d.breach&&d.breach(c))return bcResolve(c,false);
+  const done=(S.month-c.start>=(d.min||0))&&(d.done?d.done(c):d.survive?false:d.prog(c)>=1);
+  if(done)return bcResolve(c,true);
+  if(S.month>=c.end)return bcResolve(c,!!d.survive);
+  return null;}
+ if(netWorth()<1e9&&!S.won)return null;
+ if(b.next==null){b.next=S.month+2;return null;}
+ if(S.month<b.next)return null;
+ const pool=BC.filter(d=>(!d.ok||d.ok())&&!b.recent.includes(d.id));const list=pool.length?pool:BC.filter(d=>!d.ok||d.ok());
+ const d=list[Math.floor(rnd()*list.length)];const first=!b.done.length&&!b.failed.length&&!b.recent.length;b.next=S.month+6;return bcOffer(d,first);}
+function paintBC(){const p=$('bcpanel');if(!p)return;const b=S&&S.bc,c=b&&b.active,d=c&&bcDef(c.id);
+ const total=b?(b.done||[]).length:0,lost=b?(b.failed||[]).length:0;
+ if(!d){p.hidden=!(b&&(total||lost));if(!p.hidden)$('bc').innerHTML='<p class="sub" style="margin:0">Challenges won: <b>'+total+'</b>'+(lost?' · failed: <b>'+lost+'</b>':'')+'. The next one is on its way.</p>';return;}
+ const pr=Math.max(0,Math.min(1,d.survive?(S.month-c.start)/c.len:d.prog(c))),left=Math.max(0,c.end-S.month),warn=d.breach&&S.cash<bcNW()*.1;
+ p.hidden=false;$('bc').innerHTML='<div class="bc-name"><b>'+esc(d.name)+'</b><span>'+left+' month'+(left===1?'':'s')+' left</span></div><p class="sub" style="margin:4px 0 8px">'+esc(d.goal(c))+'.</p><div class="meter"><i style="width:'+Math.round(pr*100)+'%;background:'+(warn?'var(--red)':'var(--brass)')+'"></i></div>'+
+  (warn?'<p class="sub" style="color:var(--red);margin:6px 0 0">Your cash is close to the line. Fall below '+fmt(bcNW()*.08)+' and the raiders win.</p>':'')+(total||lost?'<p class="sub" style="margin:8px 0 0">Challenges won: '+total+(lost?' · failed: '+lost:'')+'</p>':'');}
+
 /* ================= Results: tell the player how a bet turned out ================= */
 function dealCard(title,ok,small,big,line,msg,cat){return{cat:cat||'Deal result',title,text:'<div class="result '+(ok?'good':'bad')+'"><small>'+small+'</small><b>'+big+'</b><span>'+line+'</span></div>'+(msg||''),choices:[{l:'OK',d:'',f(){return['','']}}]};}
 function resultEvent(r){const profit=r.ret-r.inv,mult=r.inv>0?r.ret/r.inv:0,ago=r.months>0?' '+r.months+' month'+(r.months>1?'s':'')+' ago':'';
@@ -3324,7 +3408,9 @@ const ACH=[
  ['clean','Clean hands','Reach $1B without a single shady deal or bribe.',x=>x.lives.some(l=>l.billionAge&&!l.dirty&&!l.bribed)],
  ['untouchable','Untouchable','Reach $1B with shady money and never get convicted.',x=>x.lives.some(l=>l.billionAge&&l.dirty&&!l.jailed)],
  ['jailbird','Jailbird','Serve time in prison.',x=>x.lives.some(l=>l.jailed)],
- ['ghost','Ghost','Buy a new life and vanish.',x=>x.lives.some(l=>l.end==='vanished')]];
+ ['ghost','Ghost','Buy a new life and vanish.',x=>x.lives.some(l=>l.end==='vanished')],
+ ['bc1','Billionaire class','Win a billionaire challenge.',x=>x.lives.some(l=>(l.bcw||0)>=1)],
+ ['bc5','Titan','Win 5 billionaire challenges in one life.',x=>x.lives.some(l=>(l.bcw||0)>=5)]];
 function legacyLives(withCurrent){const L=((typeof pastLives==='function'&&pastLives())||[]).slice().sort((a,b)=>(a.n||0)-(b.n||0));
  if(withCurrent&&S&&S.month>0)L.push(Object.assign(lifeSummary(),{current:true,n:(L.length?(L[L.length-1].n||L.length):0)+1}));return L;}
 function families(L){const F=[];L.forEach(l=>{if((l.gen||1)<=1||!F.length)F.push({lives:[],gens:0,billionaires:0,years:0,best:0,founder:l.who||'',region:l.region||'KE'});const f=F[F.length-1];
@@ -3346,7 +3432,7 @@ function legacyHTML(){const ctx=legacyCtx(true),e=earned(ctx),got=ACH.filter(a=>
 function lifeSummary(){const nw=netWorth(),H=S.hist||[],bm=H.findIndex(v=>v>=1e9);
  return {ts:Date.now(),region:S.region||'KE',months:S.month,age:age(),nw:Math.round(nw),best:Math.round(Math.max(nw,...H)),start:Math.round(H[0]||1000),
   end:S.vanished?'vanished':S.died?'died':S.over?'bankrupt':'restarted',dirty:!!(S.law&&S.law.dirty),bribed:!!(S.law&&S.law.bribed),jailed:!!(S.law&&S.law.convictions),cause:S.died?String(S.deathCause||'').slice(0,160):'',billionAge:bm>=0?(S.age0||24)+Math.floor(bm/12):null,gen:S.gnum||1,who:S.who||(ACC&&ACC.name)||'',
-  rank:(TITLES[S.peak||0]||TITLES[0])[1],spouse:S.spouse?S.spouse.name:'',kids:S.kids.length,inds:S.inds.length,props:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,fdn:!!S.fdn};}
+  bcw:(S.bc&&S.bc.done||[]).length,rank:(TITLES[S.peak||0]||TITLES[0])[1],spouse:S.spouse?S.spouse.name:'',kids:S.kids.length,inds:S.inds.length,props:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,fdn:!!S.fdn};}
 /* ================= Obituary: a shareable front page for a life that ended ================= */
 function obitData(){const L=lifeSummary(),name=(S.who||(ACC&&ACC.name)||'The founder').trim(),first=name.split(/\s+/)[0],brand=BR(),a=L.age,a0=S.age0||24;
  const achNames=(S.ach||[]).map(id=>(ACH.find(x=>x[0]===id)||[])[1]).filter(Boolean);
@@ -3354,6 +3440,7 @@ function obitData(){const L=lifeSummary(),name=(S.who||(ACC&&ACC.name)||'The fou
  if(S.fdn)high.push('Founded the '+brand+' Foundation');if(S.race)high.push('Owned '+brand+' Racing');
  if(L.teams)high.push('Owned '+L.teams+' sports team'+(L.teams>1?'s':''));if(L.props)high.push('Built a portfolio of '+L.props+' propert'+(L.props>1?'ies':'y'));
  if(L.inds>1)high.push('Ran businesses in '+L.inds+' industries');if(S.law&&S.law.convictions)high.push('Served time in prison');
+ {const w=(S.bc&&S.bc.done||[]).map(id=>(bcDef(id)||{}).name).filter(Boolean);if(w.length)high.unshift('Won '+w.length+' billionaire challenge'+(w.length>1?'s':'')+': '+w.slice(0,3).join(', ').toLowerCase());}
  const kids=(S.kids||[]).filter(k=>!k.withEx).map(k=>k.name),sp=S.spouse?S.spouse.name:'';
  const role=(S.gnum||1)>1?'heir to the '+familyName()+' family empire, generation '+S.gnum:'founder of '+brand;
  const town=(ACC&&ACC.town)||(typeof R!=='undefined'&&R&&R.city)||'';
