@@ -494,7 +494,7 @@ html.gm .acct{background:rgba(6,14,30,.82);backdrop-filter:blur(3px);-webkit-bac
 }
 /* motion pieces */
 .coinfx{position:fixed;z-index:40;width:18px;height:18px;border-radius:50%;pointer-events:none;background:radial-gradient(circle at 35% 30%,#fff6c4,#ffcf3a 40%,#c98400);box-shadow:0 1px 0 #8a5a00,0 0 8px rgba(255,200,60,.6)}
-.rankup{position:fixed;left:0;right:0;top:32%;z-index:45;display:grid;place-items:center;pointer-events:none}
+.rankup{position:fixed;left:0;right:0;top:32%;z-index:19;display:grid;place-items:center;pointer-events:none}
 .rankup div{font-family:var(--display);font-weight:700;text-transform:uppercase;text-align:center;color:#3a2300;background:linear-gradient(180deg,#ffe170,#ff9d16);padding:10px 48px 4px;border-radius:12px;
  box-shadow:0 6px 0 #b55f00,0 18px 40px rgba(0,0,0,.45);animation:ribbon 2.6s ease forwards;position:relative;overflow:hidden}
 .rankup small{display:block;font-size:16px;letter-spacing:.2em}.rankup b{display:block;font-size:44px;line-height:1.05}
@@ -1882,20 +1882,22 @@ const cap=x=>x.charAt(0).toUpperCase()+x.slice(1);
 function acqDeal(b){const v=bizValue(b),offer=v*(1.3+rnd()*.5);return{b,buyer:pick(BUYERS),v,offer,max:offer*(1.05+rnd()*.45)*(1+S.rep/1000)};}
 function acqEvent(D,round){const b=D.b,v=D.v,cur=D.offer,units=owned(b.id),who=cap(D.buyer);
  const est=sv('exec').lvl>=0?' Your executive team thinks they would pay up to about '+fmt(D.max*(.9+rnd()*.2))+'.':'';
- const sell=p=>{S.cash+=p;S.owned[b.id]=0;addRep(2);return['You sold the '+b.name+' division to '+D.buyer+' for '+fmt(p)+' ('+(p/v).toFixed(2)+'× its value).','gold'];};
+ const sell=(p,how)=>{S.cash+=p;S.owned[b.id]=0;addRep(2);const first=D.first||cur,m='You sold the '+b.name+' division to '+D.buyer+' for '+fmt(p)+' ('+(p/v).toFixed(2)+'× its value).';
+  return[m,'gold',dealCard(how==='counter'?who+' accepted your counter-offer':'Deal done: you sold to '+D.buyer,true,how==='counter'?'Counter-offer accepted':'Sold',fmt(p),
+   (p/v).toFixed(2)+'× what the division was worth'+(p>first?' · '+fmt(p-first)+' more than their first offer':''),'All '+units+' '+b.name+' unit'+(units>1?'s are':' is')+' now theirs. +2 reputation.')];};
  const counter=pct=>{const ask=cur*(1+pct);return{l:'Counter at '+fmt(ask)+' (+'+Math.round(pct*100)+'%)',
   d:round===1?(pct>=.6?'Bold. There is a real chance they walk away.':'They may accept, meet you partway, or walk away.'):'Your final word. They either accept or walk away.',
-  f(){if(ask<=D.max)return sell(ask);
-   if(round===1&&rnd()<(pct>=.6?.35:.7)){D.offer=Math.min(D.max,(cur+ask)/2)*(.97+rnd()*.03);return['You countered '+D.buyer+' at '+fmt(ask)+'.','',acqEvent(D,2)];}
-   let msg=who+' walked away from the deal.';
-   if(rnd()<.3){addBuff(.9,6,'Spurned buyer',b.ind);msg+=' Stung, they backed a competitor in '+IND[b.ind].name+'.';}
-   return[msg,'bad'];}};};
- const ch=[{l:'Accept '+fmt(cur),d:'Sell all '+units+' '+b.name+' unit'+(units>1?'s':'')+' at '+(cur/v).toFixed(2)+'× their value.',f(){return sell(cur)}}];
+  f(){D.first=D.first||cur;if(ask<=D.max)return sell(ask,'counter');
+   if(round===1&&rnd()<(pct>=.6?.35:.7)){D.offer=Math.min(D.max,(cur+ask)/2)*(.97+rnd()*.03);D.asked=ask;return['You countered '+D.buyer+' at '+fmt(ask)+'. They said no, but came back with '+fmt(D.offer)+'.','',acqEvent(D,2)];}
+   let msg=who+' rejected your counter-offer of '+fmt(ask)+' and walked away from the deal.',extra='You keep the '+b.name+' division.';
+   if(rnd()<.3){addBuff(.9,6,'Spurned buyer',b.ind);msg+=' Stung, they backed a competitor in '+IND[b.ind].name+'.';extra+=' Stung, they backed a competitor: '+IND[b.ind].name+' profit ×0.9 for 6 months.';}
+   return[msg,'bad',dealCard(who+' rejected your counter-offer',false,'Counter-offer rejected','Deal off','You asked '+fmt(ask)+'. Their last offer was '+fmt(cur)+'.',extra)];}};};
+ const ch=[{l:'Accept '+fmt(cur),d:'Sell all '+units+' '+b.name+' unit'+(units>1?'s':'')+' at '+(cur/v).toFixed(2)+'× their value.',f(){return sell(cur,'accept')}}];
  if(round===1)ch.push(counter(.2),counter(.4),counter(.75));else ch.push(counter(.15));
  ch.push({l:round===1?'Decline':'Walk away',d:'Keep the division and keep building.',f(){return['You turned down '+D.buyer+'.','']}});
  return{cat:'Business',title:round===1?'An acquisition offer':who+' comes back to the table',
   text:(round===1?who+' wants to buy your entire '+b.name+' division ('+units+' unit'+(units>1?'s':'')+', worth '+fmt(v)+'). They open at '+fmt(cur)+', '+(cur/v).toFixed(2)+'× its value.'
-   :'They turned down your price but raised their offer to '+fmt(cur)+' ('+(cur/v).toFixed(2)+'× value). They say this is their final round.')+est,choices:ch};}
+   :'<div class="result bad"><small>Counter-offer</small><b>Not accepted</b><span>You asked '+fmt(D.asked||cur)+'. They came back with '+fmt(cur)+'.</span></div>'+who+' turned down your price but raised their offer to '+fmt(cur)+' ('+(cur/v).toFixed(2)+'× value). They say this is their final round.')+est,choices:ch};}
 function seasonResult(ch){if(rnd()<ch){S.af.football=af('football')*1.4;addRep(4);addHappy(5);return['Promotion! Your football club is now worth '+fmt(ASSETS.find(x=>x.id==='football').price*af('football'))+'.','gold'];}
  S.af.football=af('football')*.7;addHappy(-5);return['Relegation. Your football club lost 30% of its value.','bad'];}
 /* ================= Sports ================= */
@@ -2807,6 +2809,7 @@ function crisisHTML(){const c=crisisOf();if(!c)return'';const d=crisisDef(c),lef
 function crisisLine(){const c=crisisOf();return c?crisisDef(c).name:'';}
 
 /* ================= Results: tell the player how a bet turned out ================= */
+function dealCard(title,ok,small,big,line,msg){return{cat:'Deal result',title,text:'<div class="result '+(ok?'good':'bad')+'"><small>'+small+'</small><b>'+big+'</b><span>'+line+'</span></div>'+(msg||''),choices:[{l:'OK',d:'',f(){return['','']}}]};}
 function resultEvent(r){const profit=r.ret-r.inv,mult=r.inv>0?r.ret/r.inv:0,ago=r.months>0?' '+r.months+' month'+(r.months>1?'s':'')+' ago':'';
  if(r.pol)return{cat:'Election result',title:r.ok?r.label+': you backed the winner':r.label+': your candidate lost',
   text:'<div class="result '+(r.ok?'good':'bad')+'"><b>'+(r.ok?'WON':'LOST')+'</b></div>'+r.msg+(r.extra?' '+r.extra:''),choices:[{l:'OK',d:'',f(){return['','']}}]};
