@@ -874,6 +874,7 @@ def main():
     if not ADMIN_PASSWORD or len(ADMIN_PASSWORD) < 10:
         print("Note: admin dashboard is off. Set HUSTLE_ADMIN_PASSWORD (10+ characters) to turn it on.", flush=True)
     print("Password reset emails: %s" % ("on (%s, from %s)" % (MAIL_PROVIDER, MAIL_FROM or "log") if mail_ready() else "off"), flush=True)
+    ThreadingHTTPServer.request_queue_size = 512
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.daemon_threads = True
     print("Hustle to an Empire is running on http://%s:%d" % (HOST, PORT), flush=True)
