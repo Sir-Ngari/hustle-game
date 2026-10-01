@@ -555,6 +555,11 @@ html.gm .stagehead small.boom{color:#ffd36b}html.gm .stagehead small.bust{color:
 .obit h2{font-size:36px;line-height:1.1;margin:0;text-align:center;font-family:Georgia,"Times New Roman",serif;text-transform:none;letter-spacing:0;color:#14110c}
 .obit-years{text-align:center;font-style:italic;margin:6px 0 4px;font-size:15px}
 .bc-name{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.bc-name b{font-size:17px}.bc-name span{font-size:13px;color:var(--muted);white-space:nowrap}
+.gifts{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin:6px 0 4px}
+.gift{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;cursor:pointer;font:inherit}
+.gift b{font-size:14px}.gift span{font-size:12.5px;color:var(--muted)}
+.gift:hover:not(:disabled){border-color:var(--brass)}.gift:disabled{opacity:.45;cursor:not-allowed}
+.kidseg{flex-wrap:wrap}
 .obit-dek{text-align:center;font-weight:700;font-size:19px;line-height:1.35;margin:10px 0 2px}
 .obit-role{text-align:center;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#8a5a12;font-family:var(--display);margin:4px 0 8px}
 .obit-cause{text-align:center;font-style:italic;color:#5b5146;margin:0 0 10px;font-size:14px}
@@ -1001,6 +1006,14 @@ const ASSETS=[
  {id:'h4',kind:'Homes',name:'Mansion in Karen',price:2.5e6,rentFee:14000,tier:4,upkeep:.003,drift:.0035},
  {id:'h5',kind:'Homes',name:'Gated estate in Runda',price:1.5e7,rentFee:75000,tier:5,upkeep:.003,drift:.0035},
  {id:'h6',kind:'Homes',name:'Estate in the South of France',price:6e7,rentFee:300000,tier:6,upkeep:.003,drift:.003},
+ {id:'salon',kind:'Luxury',lux:1,g:'f',name:'Hair and beauty: weekly salon, wigs and nails',price:300,upkeep:.5,drift:-.05,hap:2,rep:1,blurb:'Fresh braids, frontal wigs and nails every week at a top Kilimani salon.'},
+ {id:'shoes',kind:'Luxury',lux:1,g:'f',name:'Designer shoe collection',price:6000,upkeep:.004,drift:-.01,hap:2,rep:1,blurb:'Louboutin red soles, Jimmy Choo and Manolo Blahnik, one for every outfit.'},
+ {id:'spa',kind:'Luxury',lux:1,g:'f',name:'Spa and wellness retreats',price:15000,upkeep:.05,drift:-.02,hap:3,blurb:'A monthly escape, from Lamu to Bali.'},
+ {id:'bags',kind:'Luxury',lux:1,g:'f',name:'Designer handbag collection',price:20000,upkeep:.002,drift:-.004,hap:3,rep:2,blurb:'Louis Vuitton, Dior and Gucci for every occasion.'},
+ {id:'glam',kind:'Luxury',lux:1,g:'f',name:'Personal stylist and glam team',price:30000,upkeep:.12,drift:-.02,hap:2,rep:3,inf:.3,blurb:'Hair, make-up and a stylist before every event and every photo.'},
+ {id:'wardrobe',kind:'Luxury',lux:1,g:'f',name:'Couture wardrobe',price:80000,upkeep:.015,drift:-.01,hap:3,rep:2,inf:.2,blurb:'Front row at Paris Fashion Week, and Kenyan designers on speed dial.'},
+ {id:'birkin',kind:'Luxury',lux:1,g:'f',name:'Hermès Birkin collection',price:250000,upkeep:.001,drift:.006,hap:4,rep:3,blurb:'Five Birkins and a Kelly. They gain value faster than most shares.'},
+ {id:'jewels',kind:'Luxury',lux:1,g:'f',name:'Fine jewellery: diamonds and tanzanite',price:600000,upkeep:.002,drift:.004,vol:.02,hap:3,rep:3,blurb:'Cartier, Bvlgari and the rarest tanzanite from Arusha.'},
  {id:'watch',kind:'Luxury',lux:1,name:'Swiss luxury watch',price:15000,upkeep:.001,drift:.004,hap:2,rep:1,blurb:'Something to glance at in board meetings.'},
  {id:'golfmember',kind:'Luxury',lux:1,name:'Golf & country club membership',price:60000,upkeep:.025,drift:-.01,hap:3,inf:.6,blurb:'Where ministers and CEOs close deals on the back nine.'},
  {id:'horses',kind:'Luxury',lux:1,name:'Racehorse stable',price:400000,upkeep:.012,inc:.006,incVol:1,drift:-.002,hap:4,rep:2,blurb:'Three thoroughbreds and a trainer. Prize money comes and goes.'},
@@ -1745,7 +1758,7 @@ const EVENTS=[
    {l:'Simple wedding',d:'Spend '+fmt(small)+'.',dis:!canPay(small),f(){S.cash-=small;addHappy(12);S.spouse={name:n,g:spG(),happy:70,prenup:false,since:S.month};return['You married '+n+'.','life']}},
    {l:'Simple wedding, with a prenup',dis:!canPay(small),d:'Spend '+fmt(small)+'. Protects your wealth in a divorce, but '+n+' is hurt you asked.',f(){S.cash-=small;addHappy(8);S.spouse={name:n,g:spG(),happy:52,prenup:true,since:S.month};return['You married '+n+'. The prenup was an awkward conversation.','life']}},
    {l:'Stay focused on business',d:'−6 happiness.',f(){addHappy(-6);S.lastSplit=S.month;return['You chose the business over '+n+'.','life']}}]}},
- {id:'baby',cat:'Family',w:1.6,when:()=>S.spouse&&S.kids.filter(k=>!k.withEx).length<4&&S.month-S.spouse.since>9&&age()<55&&S.kids.every(k=>kidAge(k)>18),
+ {id:'baby',cat:'Family',w:()=>S.kidsWant!=null&&S.kids.filter(k=>!k.withEx).length<S.kidsWant?3.5:1.6,when:()=>S.spouse&&S.kids.filter(k=>!k.withEx).length<(S.kidsWant!=null?S.kidsWant:4)&&S.month-S.spouse.since>9&&age()<55&&S.kids.every(k=>kidAge(k)>18),
   title:'A baby is on the way',text:()=>(S.g==='f'?'You are pregnant, and '+S.spouse.name+' is over the moon.':S.spouse.name+' is pregnant.')+' Childcare costs start at '+fmt(60)+' a month, and school fees follow in four years.',
   choices:()=>[{l:'Throw a big baby shower',d:'Spend '+fmt(nwc(.003,200))+'. +10 spouse happiness.',f(){S.cash-=nwc(.003,200);const n=newKid();addSH(10);addHappy(10);return['Welcome to the world, '+n+'!','life']}},
    {l:'Keep it simple',d:'+5 spouse happiness.',f(){const n=newKid();addSH(5);addHappy(8);return['Welcome to the world, '+n+'!','life']}}]},
@@ -2548,7 +2561,7 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInter
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
  ({guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
-  choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),stoppay:stopPaying,
+  choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
   askreset:()=>{$('reset').innerHTML='<span class="foot">Erase this life? <button class="btn small" data-a="reset">Yes, restart</button><button class="btn ghost small" data-a="noreset">Cancel</button></span>';},
@@ -2681,7 +2694,7 @@ function render(){try{paintBC();}catch(e){}
 
  $('assets').innerHTML=ah;
  /* luxury */
- {const LX=ASSETS.filter(a=>a.lux),X=luxEffects();let lh2='';
+ {const LX=ASSETS.filter(a=>a.lux&&(!a.g||a.g===S.g||has(a.id))),X=luxEffects();let lh2='';
   lh2+='<div class="mbtot" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div><span class="eyebrow">Happiness</span><b>+'+Math.round(X.hap)+(X.hapRaw>15?' (max)':'')+'</b></div><div><span class="eyebrow">Influence / mo</span><b>+'+X.inf.toFixed(1)+'</b></div><div><span class="eyebrow">Collection worth</span><b>'+fmt(X.worth)+'</b></div></div>';
   let hidden=0;
   LX.forEach(a=>{const n=has(a.id),p=assetPrice(a),val=a.price*af(a.id);
@@ -2818,6 +2831,7 @@ function render(){try{paintBC();}catch(e){}
  lh+='<h4>Relationship</h4>';
  if(S.spouse){const sp=S.spouse;lh+='<div class="person" style="border-top:0"><div><b>'+sp.name+'</b> <span>· your '+spW()+'</span><br><span>Married '+Math.floor((S.month-sp.since)/12)+' yrs · '+(sp.prenup?'prenup signed':'no prenup')+'</span></div><span class="pill '+(sp.happy<30?'bad':sp.happy>65?'good':'')+'">'+(sp.happy<20?'Wants out':sp.happy<35?'Unhappy':sp.happy>65?'Happy':'Okay')+'</span></div>'+meter(sp.happy,sp.happy<30?'--red':'--plum');}
  else lh+='<p class="seghint" style="margin-top:4px">'+(S.exes?'Divorced'+(S.exes>1?' ('+S.exes+'×)':'')+'. ':'Single. ')+(age()<35?'Marriage is mandatory by 35: <b>'+(35-age())+' year'+(35-age()===1?'':'s')+' left</b>.':'The family expects you to remarry within <b>'+Math.max(0,12-(S.month-S.divorcedAt))+' months</b>.')+'</p>';
+ lh+=giftsHTML();
  if(S.alimony)lh+='<p class="seghint">Paying '+S.alimony.to+' '+fmt(S.alimony.amt)+'/mo alimony · '+S.alimony.left+' months left.</p>';
  if(S.kids.length){lh+='<h4>Children</h4>';const expS=schoolExpect();
   S.kids.forEach((k,i)=>{const a=kidAge(k),y=Math.floor(a/12);let right,sub;
@@ -2827,7 +2841,7 @@ function render(){try{paintBC();}catch(e){}
    else if(a<264){sub='Age '+y+' · university · '+fmt(UNI[k.best])+'/mo';right='<span class="pill">University</span>';}
    else{sub='Age '+y;right='<span class="pill good">Grown up</span>';}
    lh+='<div class="person"><div><b>'+k.name+'</b><br><span>'+sub+'</span></div>'+right+'</div>';});}
- lh+=planHTML()+sibsHTML();$('life').innerHTML=lh;
+ lh+=kidsHTML()+planHTML()+sibsHTML();$('life').innerHTML=lh;
 
  /* politics & street */
  let ph='<div class="kv"><span>Influence</span><span>'+Math.round(S.influence)+' / 100</span><span>Next general election</span><span>'+(S.nextElection-S.month>0?(S.nextElection-S.month)+' months':'This month')+'</span></div>'+meter(S.influence,'--brass');
@@ -3073,6 +3087,31 @@ function paintBC(){const p=$('bcpanel');if(!p)return;const b=S&&S.bc,c=b&&b.acti
  const pr=Math.max(0,Math.min(1,d.survive?(S.month-c.start)/c.len:d.prog(c))),left=Math.max(0,c.end-S.month),warn=d.breach&&S.cash<bcNW()*.1;
  p.hidden=false;$('bc').innerHTML='<div class="bc-name"><b>'+esc(d.name)+'</b><span>'+left+' month'+(left===1?'':'s')+' left</span></div><p class="sub" style="margin:4px 0 8px">'+esc(d.goal(c))+'.</p><div class="meter"><i style="width:'+Math.round(pr*100)+'%;background:'+(warn?'var(--red)':'var(--brass)')+'"></i></div>'+
   (warn?'<p class="sub" style="color:var(--red);margin:6px 0 0">Your cash is close to the line. Fall below '+fmt(bcNW()*.08)+' and the raiders win.</p>':'')+(total||lost?'<p class="sub" style="margin:8px 0 0">Challenges won: '+total+(lost?' · failed: '+lost:'')+'</p>':'');}
+
+
+/* ================= Spoil your spouse: gifts and treats ================= */
+function giftList(){const wife=S.spouse&&S.spouse.g!=='m',get=(R&&R.getaway)||'the coast';
+ return[['dinner','Flowers and a dinner date',120,4,'A table for two and a big bouquet.'],
+  ['getaway','A weekend away in '+get,1500,8,'Two nights, no phones.'],
+  wife?['handbag','A designer handbag',3000,10,'The Louis Vuitton she keeps showing you on Instagram.']:['watch','A luxury watch',5000,10,'The one he keeps stopping to look at.'],
+  wife?['salonday','A full day at the spa and salon',800,6,'Hair, nails, massage, the works.']:['suits','Bespoke suits from a top tailor',3000,8,'Three suits cut just for him.'],
+  ['party','A surprise birthday party',10000,12,'Friends, family, a live band and a cake taller than you.'],
+  wife?['shopping','A shopping spree in Dubai',50000,15,'Business class, the Dubai Mall and an open budget.']:['golftrip','A golf trip to Scotland',40000,14,'St Andrews with his friends.'],
+  wife?['diamonds','A diamond necklace',25000,14,'Something she will wear to every gala.']:['bike','A superbike',30000,12,'The one he has wanted since he was twenty.'],
+  ['honeymoon','A second honeymoon in the Maldives',60000,18,'Two weeks in a villa over the water.'],
+  ['car','A new car in '+(wife?'her':'his')+' name',150000,18,'A Range Rover with a big bow on the bonnet.'],
+  ['house','A home in '+(wife?'her':'his')+' name',1500000,25,'A house that is theirs, whatever happens.']];}
+function giftsHTML(){if(!S.spouse)return'';const nw=Math.max(0,netWorth()),G=S.gifts||{},list=giftList().filter(g=>g[2]<=Math.max(5000,nw*.6));
+ return'<h4>Spoil your '+spW()+'</h4><p class="seghint">Gifts make '+esc(S.spouse.name)+' happier. The same gift twice in 6 months means half as much, and anything cheap for your wealth gets a polite smile.</p><div class="gifts">'+
+  list.map(g=>{const c=g[2],cool=G[g[0]]!=null&&S.month-G[g[0]]<6;return'<button class="gift" data-a="gift" data-v="'+g[0]+'"'+(S.cash<c||S.over?' disabled':'')+'><b>'+esc(g[1])+'</b><span>'+fmt(c)+' · +'+(cool||c<nw*.0002?Math.ceil(g[3]/2):g[3])+' '+spW()+' happiness'+(cool?' (given recently)':'')+'</span></button>';}).join('')+'</div>';}
+function giveGift(id){const g=giftList().find(x=>x[0]===id);if(!g||!S.spouse||S.cash<g[2]||S.over)return;S.gifts=S.gifts||{};
+ const nw=Math.max(0,netWorth()),cool=S.gifts[id]!=null&&S.month-S.gifts[id]<6,cheap=g[2]<nw*.0002,gain=cool||cheap?Math.ceil(g[3]/2):g[3];
+ S.cash-=g[2];S.gifts[id]=S.month;addSH(gain);addHappy(Math.ceil(gain/4));
+ if(id==='house'){S.assets=S.assets||{};}
+ log('You gave '+S.spouse.name+' '+g[1].charAt(0).toLowerCase()+g[1].slice(1)+'. '+(cool?S.spouse.name+' liked it, but you gave the same thing recently.':cheap?S.spouse.name+' smiled politely. They know you can afford more.':S.spouse.name+' loved it.')+' +'+gain+' '+spW()+' happiness.',cool||cheap?'':'good');afterChange();}
+function kidsHTML(){const opts=[[null,'Let it happen'],[0,'None'],[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6']],n=S.kids.filter(k=>!k.withEx).length,w=S.kidsWant;
+ return'<h4>How many children do you want?</h4><div class="seg kidseg" role="group" aria-label="How many children you want">'+opts.map(o=>'<button data-a="kidswant" data-v="'+(o[0]==null?'any':o[0])+'" aria-pressed="'+(w===o[0]||(w==null&&o[0]==null))+'">'+o[1]+'</button>').join('')+'</div>'+
+  '<p class="seghint">'+(w==null?'Babies come when they come, up to 4.':w===0?'No children planned. Without children, your empire cannot pass to an heir.':n>=w?'Your family is complete: '+n+' child'+(n===1?'':'ren')+'.':(S.spouse?'Trying for '+(w-n)+' more. Babies come sooner while you are trying.':'You need to be married first. Then you can start a family.'))+'</p>';}
 
 /* ================= Results: tell the player how a bet turned out ================= */
 function dealCard(title,ok,small,big,line,msg,cat){return{cat:cat||'Deal result',title,text:'<div class="result '+(ok?'good':'bad')+'"><small>'+small+'</small><b>'+big+'</b><span>'+line+'</span></div>'+(msg||''),choices:[{l:'OK',d:'',f(){return['','']}}]};}
