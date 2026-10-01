@@ -1,5 +1,5 @@
 /* ================= Accounts (server) ================= */
-let ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='';
+let ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,livesCache=null,signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='';
 const BR=()=>(ACC&&ACC.company)||'Savanna';
 const BGS=[{id:'hustler',name:'Street hustler',desc:'$1,000 and a big idea. The classic start.',cash:1000,debt:0,rep:50,happy:60},
  {id:'grad',name:'University graduate',desc:'$4,000 saved and a good name, but a $2,500 student loan to repay.',cash:4000,debt:2500,rep:58,happy:62},
@@ -17,9 +17,11 @@ async function api(method,path,body){let r;
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
  if(!r.ok)throw{status:r.status,message:d.error||'Something went wrong on the server. Try again in a moment.'};return d;}
-function recordLife(l){pendingLife=l||null;}
-async function showLives(){if(!ACC)return;stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save){ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+function pastLives(){return livesCache;}
+function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
+async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
+async function showLives(){if(!ACC)return;stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
+function startWith(user,save){livesCache=null;loadLives();ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
  signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
@@ -63,7 +65,7 @@ function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}e
   '<label for="rs-pass">New password</label><input id="rs-pass" type="password" maxlength="128" autocomplete="new-password" required><p class="hint">At least 8 characters.</p>'+
   '<label for="rs-pass2">Type it again</label><input id="rs-pass2" type="password" maxlength="128" autocomplete="new-password" required>'+
   '<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="rs-submit">Save new password</button><button type="button" class="btn ghost" data-a="forgotview">Get a new link</button></div></form>';
- else if(acctView==='lives'){h+='<h2>Past lives</h2><p class="sub">Every empire you have built, newest first.</p>'+(livesData===null?'<p class="sub">Loading…</p>':livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
+ else if(acctView==='lives'){h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire you have built.</p>'+(livesData===null?'<p class="sub">Loading…</p>':legacyHTML()+livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
  else if(acctView==='board'){h+='<h2>Leaderboard</h2><p class="sub">Every player on this server, fastest to a billion first.</p>';
   if(!lbData)h+='<p class="sub">Loading…</p>';else if(!lbData.length)h+='<p class="sub">No one is on the board yet.</p>';
   else h+='<ol class="hof">'+lbData.map((a,i)=>'<li><span class="hpos">'+(i+1)+'</span>'+avatar(a)+'<span class="ameta"><b>'+esc(a.name)+'</b><span>'+esc(a.company)+'</span></span><span class="hnum">'+(a.billion_month!=null?'$1B in '+Math.floor(a.billion_month/12)+'y '+(a.billion_month%12)+'m':'Best '+fmt(a.best))+'</span></li>').join('')+'</ol>';

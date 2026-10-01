@@ -72,6 +72,11 @@ canvas#chart{width:100%;height:170px;display:block}
 .life-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:4px 0 0}.life-nums dt{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.life-nums dd{margin:0;font-family:var(--mono);font-weight:600}
 @media (max-width:520px){.life-nums{grid-template-columns:1fr 1fr}}
 .dyn{margin-top:8px;font-size:13px;color:var(--brass);font-weight:600}
+.fam{border:1px solid var(--line);border-radius:3px;padding:14px;background:var(--paper);display:grid;gap:6px;margin-bottom:6px}.fam h3{margin:0}
+.achh{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 8px}.achh span{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.achs{list-style:none;margin:0 0 6px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.ach{border:1px dashed var(--line);border-radius:3px;padding:10px 12px;display:grid;gap:2px;align-content:start;color:var(--muted)}.ach b{font-size:14px}.ach span{font-size:12.5px}
+.ach.got{border-style:solid;border-color:var(--green);color:var(--ink);background:var(--paper)}.ach.got b{color:var(--green)}
 .regionbox{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}.regionbox h3{margin:0 0 4px}.regionbox .sub{margin:0 0 10px}
 .ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted)}
 
@@ -958,7 +963,7 @@ if(S.ups.team&&sv('exec').lvl<0)sv('exec').lvl=0;
 }
 function sv(id){return S.svc[id]||(S.svc[id]={lvl:-1,rate:1,seen:-1,since:0});}
 /* ================= Accounts (server) ================= */
-let ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='';
+let ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,livesCache=null,signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='';
 const BR=()=>(ACC&&ACC.company)||'Savanna';
 const BGS=[{id:'hustler',name:'Street hustler',desc:'$1,000 and a big idea. The classic start.',cash:1000,debt:0,rep:50,happy:60},
  {id:'grad',name:'University graduate',desc:'$4,000 saved and a good name, but a $2,500 student loan to repay.',cash:4000,debt:2500,rep:58,happy:62},
@@ -976,9 +981,11 @@ async function api(method,path,body){let r;
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
  if(!r.ok)throw{status:r.status,message:d.error||'Something went wrong on the server. Try again in a moment.'};return d;}
-function recordLife(l){pendingLife=l||null;}
-async function showLives(){if(!ACC)return;stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save){ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+function pastLives(){return livesCache;}
+function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
+async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
+async function showLives(){if(!ACC)return;stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
+function startWith(user,save){livesCache=null;loadLives();ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
  signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
@@ -1022,7 +1029,7 @@ function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}e
   '<label for="rs-pass">New password</label><input id="rs-pass" type="password" maxlength="128" autocomplete="new-password" required><p class="hint">At least 8 characters.</p>'+
   '<label for="rs-pass2">Type it again</label><input id="rs-pass2" type="password" maxlength="128" autocomplete="new-password" required>'+
   '<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="rs-submit">Save new password</button><button type="button" class="btn ghost" data-a="forgotview">Get a new link</button></div></form>';
- else if(acctView==='lives'){h+='<h2>Past lives</h2><p class="sub">Every empire you have built, newest first.</p>'+(livesData===null?'<p class="sub">Loading…</p>':livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
+ else if(acctView==='lives'){h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire you have built.</p>'+(livesData===null?'<p class="sub">Loading…</p>':legacyHTML()+livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
  else if(acctView==='board'){h+='<h2>Leaderboard</h2><p class="sub">Every player on this server, fastest to a billion first.</p>';
   if(!lbData)h+='<p class="sub">Loading…</p>';else if(!lbData.length)h+='<p class="sub">No one is on the board yet.</p>';
   else h+='<ol class="hof">'+lbData.map((a,i)=>'<li><span class="hpos">'+(i+1)+'</span>'+avatar(a)+'<span class="ameta"><b>'+esc(a.name)+'</b><span>'+esc(a.company)+'</span></span><span class="hnum">'+(a.billion_month!=null?'$1B in '+Math.floor(a.billion_month/12)+'y '+(a.billion_month%12)+'m':'Best '+fmt(a.best))+'</span></li>').join('')+'</ol>';
@@ -1090,7 +1097,7 @@ function fmt(n){const neg=n<0;n=Math.abs(n);let s;if(curLocal())n*=R.rate;const 
  else{const u=[[1e15,'Q'],[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']].find(x=>n>=x[0]);const v=n/u[0];s=sym+(v>=100?v.toFixed(0):v>=10?v.toFixed(1):v.toFixed(2))+u[1];}
  return (neg?'−':'')+s;}
 function fmtFull(n){const v=curLocal()?n*R.rate:n;return v<1e7?curSym()+Math.round(v).toLocaleString('en-US'):fmt(n);}
-const dollars=t=>String(t).replace(/\$([\d,]+)/g,(m,x)=>fmt(+x.replace(/,/g,'')));
+const dollars=t=>String(t).replace(/\$(\d[\d,]*(?:\.\d+)?)([KMBT]?)/g,(m,x,u)=>fmt(+x.replace(/,/g,'')*({'':1,K:1e3,M:1e6,B:1e9,T:1e12}[u])));
 const owned=id=>S.owned[id]||0, has=id=>S.assets[id]||0, af=id=>S.af[id]||1;
 const unitCost=(b,n)=>b.cost*Math.pow(1.12,n);
 const marketMult=()=>MARKETS.slice(0,S.market+1).reduce((a,m)=>a*m.mult,1);
@@ -1224,7 +1231,7 @@ function deathRisk(){return age()<55?0:.00012*Math.exp((age()-55)/7)*Math.pow(2-
 function addHealth(d){S.health=clamp(S.health+d,0,100);}
 function addCond(id,managed){S.conds=S.conds||{};S.conds[id]={managed,since:S.month};}
 function outlook(){const r=deathRisk()*12;return age()<55?(S.health>=60?['Excellent','good']:['Fair','']):r<.01?['Good','good']:r<.03?['Fair','']:r<.08?['Worrying','bad']:['Grave','bad'];}
-function die(cause){S.over=true;S.died=true;S.deathDue=null;S.deathCause=cause;const a=age(),nw=netWorth(),kids=S.kids.filter(k=>!k.withEx).map(k=>k.name);
+function die(cause){S.over=true;S.died=true;S.deathDue=null;S.deathCause=cause;checkAch();const a=age(),nw=netWorth(),kids=S.kids.filter(k=>!k.withEx).map(k=>k.name);
  log('You passed away at '+a+'. '+cause,'bad');save();render();
  showCard('You passed away at '+a,cause+' You leave behind an empire worth <b>'+fmt(nw)+'</b>, built over '+Math.floor(S.month/12)+' years from '+fmt(S.hist[0])+'. '+
   (S.won?'You reached a billion. Your name will be remembered. ':'You never reached the billion. ')+(S.spouse?S.spouse.name+' and ':'')+(kids.length?'your children '+kids.join(', ')+' ':S.spouse?'your family ':'')+(S.spouse||kids.length?'mourn you. ':'')+(S.fdn?'The '+BR()+' Foundation carries on your work.':'')+
@@ -2046,12 +2053,13 @@ function nextMonth(){
  const ti=titleIdx(nw);if(ti>S.title){S.title=ti;S.lifeSince=S.month;S.lifePending=true;log('New rank: '+TITLES[ti][1]+'.','gold');flash();}
  if(ti<S.title)S.title=ti;
  if(ti>S.peak){const before=SLOTS[S.peak];S.peak=ti;if(SLOTS[ti]>before)S.indPending=true;}
- if(nw>=1e9&&!S.won){S.won=true;save();render();
+ if(nw>=1e9&&!S.won){S.won=true;checkAch();save();render();
   const y=Math.floor(S.month/12),mo=S.month%12;
   const fam=S.spouse?'Married to '+S.spouse.name+' (your '+spW()+')':S.exes?'Divorced '+(S.exes>1?S.exes+' times':'once'):'Single';
   showCard('You are a billionaire','You built a '+fmt(nw)+' empire in '+y+' years and '+mo+' months, from '+(S.gnum>1?'an inheritance of '+fmt(S.hist[0]):fmt(S.hist[0]||1000)+' and a '+(R?R.biz.kiosk[0].lc():'street kiosk'))+'. You are '+age()+'. '+fam+', '+S.kids.length+' child'+(S.kids.length===1?'':'ren')+', happiness '+Math.round(S.happy)+' out of 100. Keep going, or start again and beat your time.',
    '<button class="btn primary" data-a="close">Keep building</button><button class="btn" data-a="reset">New game</button>');return;}
  S.cool--;
+ checkAch();
  afterChange();
  /* forced events first */
  if(!S.g){openEvent(genderEvent());return;}
@@ -2510,6 +2518,44 @@ function applyHeir(h){S.gnum=h.gen;S.who=h.name;S.age0=h.age;S.g='';S.cash=h.cas
  S.health=clamp(95-Math.max(0,h.age-30)*.7,40,95);
  S.log=[{m:0,t:'You are '+h.name+', '+h.age+'. '+h.parent+' passed away at '+h.parentAge+' and left you '+fmt(h.cash)+(h.ind?' and the family business':'')+'. Generation '+h.gen+' of the '+familyName()+' family begins.',k:'gold'}];}
 function newLife(hi){stopAuto();closeModal();current=null;if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur;if(S.month>0)recordLife(lifeSummary());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();newGameFlag=true;if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;useRegion(S.region);S.pcOpen=[PCITIES[0].id];if(heir)applyHeir(heir);$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
+
+/* ================= Legacy: families and achievements ================= */
+const ACH=[
+ ['first_billion','Billionaire','Reach $1B in any life.',x=>x.lives.some(l=>l.billionAge)],
+ ['self_made_40','Self-made by 40','As a founder, reach $1B before you turn 40.',x=>x.lives.some(l=>(l.gen||1)<=1&&l.billionAge&&l.billionAge<40)],
+ ['deca','Ten-billion club','Reach a peak worth of $10B.',x=>x.lives.some(l=>(l.best||0)>=1e10)],
+ ['hundred','Hundred-billion club','Reach a peak worth of $100B.',x=>x.lives.some(l=>(l.best||0)>=1e11)],
+ ['centenarian','Centenarian','Live to 100.',x=>x.lives.some(l=>(l.age||0)>=100)],
+ ['full_house','Full house','Raise 5 children in one life.',x=>x.lives.some(l=>(l.kids||0)>=5)],
+ ['baron','Property baron','Own 10 properties in one life.',x=>x.lives.some(l=>(l.props||0)>=10)],
+ ['sports','Sports mogul','Own 3 sports teams in one life.',x=>x.lives.some(l=>(l.teams||0)>=3)],
+ ['giver','Philanthropist','Open a foundation.',x=>x.lives.some(l=>l.fdn)],
+ ['conglomerate','Conglomerate','Run 6 industries at once.',x=>x.lives.some(l=>(l.inds||0)>=6)],
+ ['world','Citizen of the world','Play lives in 3 different countries.',x=>new Set(x.lives.map(l=>l.region||'KE')).size>=3],
+ ['comeback','Back from the brink','Reach $1B in a life after going bankrupt in an earlier one.',x=>x.lives.some((l,i)=>l.billionAge&&x.lives.slice(0,i).some(e=>e.end==='bankrupt'))],
+ ['ten_lives','Nine lives and counting','Finish 10 lives.',x=>x.lives.filter(l=>!l.current).length>=10],
+ ['gen3','Three generations','Pass your empire down to a grandchild.',x=>x.fams.some(f=>f.gens>=3)],
+ ['gen5','Five generations','Keep one family going for 5 generations.',x=>x.fams.some(f=>f.gens>=5)],
+ ['old_money','Old money','Two billionaires in one family.',x=>x.fams.some(f=>f.billionaires>=2)],
+ ['dynasty','Billionaire dynasty','Three billionaires in one family.',x=>x.fams.some(f=>f.billionaires>=3)],
+ ['century','A century of the name','Keep one family going for 100 years.',x=>x.fams.some(f=>f.years>=100)]];
+function legacyLives(withCurrent){const L=((typeof pastLives==='function'&&pastLives())||[]).slice().sort((a,b)=>(a.n||0)-(b.n||0));
+ if(withCurrent&&S&&S.month>0)L.push(Object.assign(lifeSummary(),{current:true,n:(L.length?(L[L.length-1].n||L.length):0)+1}));return L;}
+function families(L){const F=[];L.forEach(l=>{if((l.gen||1)<=1||!F.length)F.push({lives:[],gens:0,billionaires:0,years:0,best:0,founder:l.who||'',region:l.region||'KE'});const f=F[F.length-1];
+ f.lives.push(l);f.gens=Math.max(f.gens,l.gen||1);if(l.billionAge)f.billionaires++;f.years+=(l.months||0)/12;f.best=Math.max(f.best,l.best||0);});return F;}
+function legacyCtx(withCurrent){const lives=legacyLives(withCurrent);return{lives,fams:families(lives)};}
+function earned(ctx){const e={};ACH.forEach(a=>{try{if(a[3](ctx))e[a[0]]=1;}catch(err){}});return e;}
+function checkAch(){if(!S||!ACC||(typeof pastLives==='function'&&pastLives()===null))return;S.ach=S.ach||[];
+ const before=earned(legacyCtx(false)),now=earned(legacyCtx(true));
+ ACH.forEach(a=>{if(now[a[0]]&&!before[a[0]]&&!S.ach.includes(a[0])){S.ach.push(a[0]);log('Achievement unlocked: '+a[1]+'. '+dollars(a[2]),'gold');}});}
+function legacyHTML(){const ctx=legacyCtx(true),e=earned(ctx),got=ACH.filter(a=>e[a[0]]).length,f=ctx.fams[ctx.fams.length-1];let h='';
+ if(f){const best=ctx.fams.reduce((m,x)=>x.gens>m.gens?x:m,ctx.fams[0]);
+  h+='<section class="fam"><span class="eyebrow">Your family</span><h3>The '+esc(familyName())+' family'+(ctx.fams.length>1?' · family '+ctx.fams.length:'')+'</h3>'+
+  '<dl class="life-nums"><div><dt>Generations</dt><dd>'+f.gens+'</dd></div><div><dt>Billionaires</dt><dd>'+f.billionaires+'</dd></div><div><dt>Years</dt><dd>'+Math.floor(f.years)+'</dd></div><div><dt>Peak worth</dt><dd>'+fmt(f.best)+'</dd></div></dl>'+
+  '<p class="life-fam">'+f.lives.map(l=>esc(l.who||'You')+(l.current?' (now)':'')).join(' → ')+'</p>'+
+  (best!==f&&best.gens>1?'<p class="life-fam">Longest family so far: '+best.gens+' generations, founded by '+esc(best.founder||'you')+'.</p>':'')+'</section>';}
+ h+='<h3 class="achh">Achievements <span>'+got+' of '+ACH.length+'</span></h3><ul class="achs">'+ACH.map(a=>'<li class="ach'+(e[a[0]]?' got':'')+'"><b>'+(e[a[0]]?'✓ ':'')+a[1]+'</b><span>'+dollars(a[2])+'</span></li>').join('')+'</ul><h3 class="achh">Lives</h3>';
+ return h;}
 /* ================= Past lives ================= */
 function lifeSummary(){const nw=netWorth(),H=S.hist||[],bm=H.findIndex(v=>v>=1e9);
  return {ts:Date.now(),region:S.region||'KE',months:S.month,age:age(),nw:Math.round(nw),best:Math.round(Math.max(nw,...H)),start:Math.round(H[0]||1000),
