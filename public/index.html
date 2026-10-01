@@ -71,6 +71,7 @@ canvas#chart{width:100%;height:170px;display:block}
 .life-head{font-size:17px}.life-win{color:var(--green)}.life-cause,.life-fam{margin:0;font-size:13.5px;color:var(--muted)}
 .life-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:4px 0 0}.life-nums dt{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.life-nums dd{margin:0;font-family:var(--mono);font-weight:600}
 @media (max-width:520px){.life-nums{grid-template-columns:1fr 1fr}}
+.dyn{margin-top:8px;font-size:13px;color:var(--brass);font-weight:600}
 .regionbox{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}.regionbox h3{margin:0 0 4px}.regionbox .sub{margin:0 0 10px}
 .ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted)}
 
@@ -409,6 +410,7 @@ footer.foot{justify-content:center;padding-top:6px}
     <div class="head-l">
       <div class="brand"><h1>Hustle to an Empire</h1><span class="rank" id="rank">Street Hustler</span></div>
       <button class="acctchip" id="acctchip" data-a="accts" aria-label="Switch account"></button>
+      <div class="dyn" id="dyn" hidden></div>
       <div class="eyebrow" style="margin-top:12px">Net worth</div>
       <div class="nw" id="nw">$1,000</div>
       <div class="stats">
@@ -981,7 +983,7 @@ function startWith(user,save){ACC=user;S=save&&save.hist?Object.assign(fresh(),s
  signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
- influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,health:Math.round(S.health||0),died:!!S.died,streak:(S.daily&&S.daily.last)?S.daily.streak:0,gender:S.g||'',region:S.region||'',currency:S.cur||'USD',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
+ influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,health:Math.round(S.health||0),died:!!S.died,streak:(S.daily&&S.daily.last)?S.daily.streak:0,gender:S.g||'',gen:S.gnum||1,region:S.region||'',currency:S.cur||'USD',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
 function queueSync(now){if(!ACC)return;syncState='saving';paintChip();clearTimeout(syncTimer);syncTimer=setTimeout(doSync,now?0:900);}
 async function doSync(){if(!ACC)return;if(syncBusy){syncAgain=true;return;}syncBusy=true;
  const evs=S.log.filter(l=>l.n&&l.n>(S.logSent||0)).slice(0,60).reverse(),maxN=evs.reduce((m,l)=>Math.max(m,l.n),S.logSent||0);
@@ -1020,7 +1022,7 @@ function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}e
   '<label for="rs-pass">New password</label><input id="rs-pass" type="password" maxlength="128" autocomplete="new-password" required><p class="hint">At least 8 characters.</p>'+
   '<label for="rs-pass2">Type it again</label><input id="rs-pass2" type="password" maxlength="128" autocomplete="new-password" required>'+
   '<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="rs-submit">Save new password</button><button type="button" class="btn ghost" data-a="forgotview">Get a new link</button></div></form>';
- else if(acctView==='lives'){h+='<h2>Past lives</h2><p class="sub">Every empire you have built, newest first.</p>'+(livesData===null?'<p class="sub">Loading…</p>':livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
+ else if(acctView==='lives'){h+='<h2>Past lives</h2><p class="sub">Every empire you have built, newest first.</p>'+(livesData===null?'<p class="sub">Loading…</p>':livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
  else if(acctView==='board'){h+='<h2>Leaderboard</h2><p class="sub">Every player on this server, fastest to a billion first.</p>';
   if(!lbData)h+='<p class="sub">Loading…</p>';else if(!lbData.length)h+='<p class="sub">No one is on the board yet.</p>';
   else h+='<ol class="hof">'+lbData.map((a,i)=>'<li><span class="hpos">'+(i+1)+'</span>'+avatar(a)+'<span class="ameta"><b>'+esc(a.name)+'</b><span>'+esc(a.company)+'</span></span><span class="hnum">'+(a.billion_month!=null?'$1B in '+Math.floor(a.billion_month/12)+'y '+(a.billion_month%12)+'m':'Best '+fmt(a.best))+'</span></li>').join('')+'</ol>';
@@ -1204,7 +1206,7 @@ const addRep=d=>S.rep=clamp(S.rep+d,0,100), addInf=d=>S.influence=clamp(S.influe
  addHappy=d=>S.happy=clamp(S.happy+d,0,100), addHeat=d=>S.heat=clamp(S.heat+d,0,100),
  addSH=d=>{if(S.spouse)S.spouse.happy=clamp(S.spouse.happy+d,0,100)};
 function addPolicy(id){const ex=S.policies.find(p=>p.id===id);if(ex)ex.left=POLICIES[id].months;else S.policies.push({id,left:POLICIES[id].months});}
-const age=()=>24+Math.floor(S.month/12);
+const age=()=>(S.age0||24)+Math.floor(S.month/12);
 /* ---- age & health ---- */
 const STAGES=[[0,'Young and hungry',1.0,'Full of energy, still learning the ropes.'],[30,'Building years',1.06,'Experience is starting to pay.'],[40,'Peak years',1.1,'Experience and energy at their best.'],[50,'Seasoned',1.02,'Wise, but the pace is slowing.'],[60,'Slowing down',.9,'Long days take more out of you.'],[70,'Elder years',.78,'You lead from the boardroom, not the shop floor.'],[80,'Twilight years',.66,'Your name still opens doors.']];
 const stage=()=>{let r=STAGES[0];STAGES.forEach(x=>{if(age()>=x[0])r=x});return r;};
@@ -1225,8 +1227,9 @@ function outlook(){const r=deathRisk()*12;return age()<55?(S.health>=60?['Excell
 function die(cause){S.over=true;S.died=true;S.deathDue=null;S.deathCause=cause;const a=age(),nw=netWorth(),kids=S.kids.filter(k=>!k.withEx).map(k=>k.name);
  log('You passed away at '+a+'. '+cause,'bad');save();render();
  showCard('You passed away at '+a,cause+' You leave behind an empire worth <b>'+fmt(nw)+'</b>, built over '+Math.floor(S.month/12)+' years from '+fmt(S.hist[0])+'. '+
-  (S.won?'You reached a billion. Your name will be remembered. ':'You never reached the billion. ')+(S.spouse?S.spouse.name+' and ':'')+(kids.length?'your children '+kids.join(', ')+' ':S.spouse?'your family ':'')+(S.spouse||kids.length?'mourn you. ':'')+(S.fdn?'The '+BR()+' Foundation carries on your work.':''),
-  '<button class="btn primary" data-a="reset">Start a new life</button><button class="btn" data-a="lives">Past lives</button>');}
+  (S.won?'You reached a billion. Your name will be remembered. ':'You never reached the billion. ')+(S.spouse?S.spouse.name+' and ':'')+(kids.length?'your children '+kids.join(', ')+' ':S.spouse?'your family ':'')+(S.spouse||kids.length?'mourn you. ':'')+(S.fdn?'The '+BR()+' Foundation carries on your work.':'')+
+  (S.kids.length?'<br><br>Your empire can pass to one of your children.':'<br><br>With no children, the '+familyName()+' line ends here. Have children in your next life to pass your empire on.'),
+  (S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button><button class="btn" data-a="reset">Start a new family</button>':'<button class="btn primary" data-a="reset">Start a new life</button>')+'<button class="btn" data-a="lives">Past lives</button>');}
 
 const dateStr=m=>'Year '+(Math.floor(m/12)+1)+' · '+MONTHS[m%12];
 function titleIdx(nw){let i=0;TITLES.forEach((t,j)=>{if(nw>=t[0])i=j});return i;}
@@ -2046,7 +2049,7 @@ function nextMonth(){
  if(nw>=1e9&&!S.won){S.won=true;save();render();
   const y=Math.floor(S.month/12),mo=S.month%12;
   const fam=S.spouse?'Married to '+S.spouse.name+' (your '+spW()+')':S.exes?'Divorced '+(S.exes>1?S.exes+' times':'once'):'Single';
-  showCard('You are a billionaire','You built a '+fmt(nw)+' empire in '+y+' years and '+mo+' months, from '+fmt(S.hist[0]||1000)+' and a '+(R?R.biz.kiosk[0].lc():'street kiosk')+'. You are '+age()+'. '+fam+', '+S.kids.length+' child'+(S.kids.length===1?'':'ren')+', happiness '+Math.round(S.happy)+' out of 100. Keep going, or start again and beat your time.',
+  showCard('You are a billionaire','You built a '+fmt(nw)+' empire in '+y+' years and '+mo+' months, from '+(S.gnum>1?'an inheritance of '+fmt(S.hist[0]):fmt(S.hist[0]||1000)+' and a '+(R?R.biz.kiosk[0].lc():'street kiosk'))+'. You are '+age()+'. '+fam+', '+S.kids.length+' child'+(S.kids.length===1?'':'ren')+', happiness '+Math.round(S.happy)+' out of 100. Keep going, or start again and beat your time.',
    '<button class="btn primary" data-a="close">Keep building</button><button class="btn" data-a="reset">New game</button>');return;}
  S.cool--;
  afterChange();
@@ -2116,7 +2119,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
   askreset:()=>{$('reset').innerHTML='<span class="foot">Erase this life? <button class="btn small" data-a="reset">Yes, restart</button><button class="btn ghost small" data-a="noreset">Cancel</button></span>';},
   noreset:()=>{$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';},
-  reset:()=>{stopAuto();closeModal();current=null;if(acctView){acctView=null;renderAccts();}const g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur;if(S.month>0)recordLife(lifeSummary());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();newGameFlag=true;if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;useRegion(S.region);S.pcOpen=[PCITIES[0].id];$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
+  reset:()=>newLife(null),heirpick:()=>heirCard(),heir:()=>newLife(+v),
  }[a]||(()=>{}))();
 });
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset.sel==='engine'){raceEngine(t.value);return;}if(t.dataset.sel==='drivers'){raceDrivers(t.value);return;}if(t.dataset.kid!==undefined){const k=S.kids[+t.dataset.kid];k.school=+t.value;k.best=Math.max(k.best,k.school);
@@ -2147,6 +2150,8 @@ function render(){
  renderToday();
  paintQuick();
  $('next').disabled=S.over;
+ {const d=$('dyn');if(d){d.hidden=!(S.gnum>1);if(S.gnum>1)d.textContent='Generation '+S.gnum+' of the '+familyName()+' family · playing as '+S.who;}
+  const r=$('reset');if(r&&S.over&&S.died&&S.kids.length&&!r.querySelector('[data-a=heirpick]'))r.insertAdjacentHTML('afterbegin','<button class="btn primary small" data-a="heirpick">Choose your heir</button> ');}
  const chips=[];
  if(S.s>1.1)chips.push(['Economy: booming','']);else if(S.s<.9)chips.push(['Economy: recession','down']);
  if(S.mode!=='balanced')chips.push([S.mode==='hustle'?'Hustle mode ×1.12':'Family first ×0.90','life']);
@@ -2483,16 +2488,38 @@ function drawChart(){
 window.addEventListener('resize',drawChart);
 
 
+
+/* ================= Dynasty ================= */
+const HEIR_CAP=1e7;
+function familyName(){const n=String((ACC&&ACC.name)||'').trim().split(/\s+/);return n.length>1?n[n.length-1]:BR();}
+function estate(){const nw=Math.max(0,netWorth()),sib=Math.max(0,S.kids.length-1),tax=nw*.25,spouse=S.spouse?(nw-tax)/3:0,share=(nw-tax-spouse)/(1+.5*sib);
+ return{nw,tax,spouse,share,cash:Math.max(1000,Math.min(HEIR_CAP,share)),trust:Math.max(0,share-HEIR_CAP)};}
+function familyInd(){let best=null,v=-1;(S.inds||[]).forEach(id=>{const t=BIZ.filter(b=>b.ind===id).reduce((a,b)=>a+bizValue(b),0);if(t>v){v=t;best=id;}});return best;}
+function heirAge(k){return Math.max(18,Math.floor(kidAge(k)/12));}
+function heirCard(){if(!S.kids.length)return;const e=estate(),fi=familyInd(),ind=fi&&IND[fi];
+ const body='Your estate is worth <b>'+fmt(e.nw)+'</b>. Estate duty and legal fees take '+fmt(e.tax)+(e.spouse?', '+esc(S.spouse.name)+' keeps '+fmt(e.spouse):'')+(S.kids.length>1?', and your other children take their shares':'')+'. '+
+  'Your heir inherits <b>'+fmt(e.cash)+'</b>'+(e.trust>0?' to run the business (another '+fmt(e.trust)+' stays locked in the family trust)':'')+', the '+esc(BR())+' name'+(ind?', the family '+ind.name.lc()+' business':'')+(S.fdn?' and the '+esc(BR())+' Foundation':'')+'. Who takes over?';
+ showCard('Choose your heir',body,S.kids.map((k,i)=>{const a=Math.floor(kidAge(k)/12),sc=SCHOOLS[k.best||0]||SCHOOLS[0];
+  return'<button class="choice" data-a="heir" data-v="'+i+'"><b>'+esc(k.name)+', '+a+'</b><span>'+sc.name+' education'+(k.best?' · reputation +'+(k.best*5):'')+(a<18?' · a guardian runs the trust until they turn 18':'')+(k.withEx?' · grew up with your ex':'')+'</span></button>';}).join('')+
+  '<button class="btn ghost" data-a="reset">Start a new family instead</button>');}
+function heirData(i){const k=S.kids[i],e=estate(),fi=familyInd();
+ return{name:k.name,age:heirAge(k),best:k.best||0,cash:Math.round(e.cash),trust:Math.round(e.trust),rep:S.rep,ind:fi,fdn:S.fdn?Object.assign({},S.fdn,{cool:{}}):null,gen:(S.gnum||1)+1,parent:S.who||(ACC&&ACC.name)||'your parent',parentAge:age()};}
+function applyHeir(h){S.gnum=h.gen;S.who=h.name;S.age0=h.age;S.g='';S.cash=h.cash;S.debt=0;S.hist=[Math.max(1,h.cash)];S.trust=h.trust;
+ S.rep=clamp(50+(h.rep-50)*.5+h.best*5,30,95);S.tourDone=true;if(h.fdn)S.fdn=h.fdn;
+ if(h.ind&&IND[h.ind]){S.inds=[h.ind];const b=BIZ.filter(x=>x.ind===h.ind).sort((a,c)=>a.tier-c.tier)[0];if(b)S.owned[b.id]=1;}
+ S.health=clamp(95-Math.max(0,h.age-30)*.7,40,95);
+ S.log=[{m:0,t:'You are '+h.name+', '+h.age+'. '+h.parent+' passed away at '+h.parentAge+' and left you '+fmt(h.cash)+(h.ind?' and the family business':'')+'. Generation '+h.gen+' of the '+familyName()+' family begins.',k:'gold'}];}
+function newLife(hi){stopAuto();closeModal();current=null;if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur;if(S.month>0)recordLife(lifeSummary());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();newGameFlag=true;if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;useRegion(S.region);S.pcOpen=[PCITIES[0].id];if(heir)applyHeir(heir);$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
 /* ================= Past lives ================= */
 function lifeSummary(){const nw=netWorth(),H=S.hist||[],bm=H.findIndex(v=>v>=1e9);
  return {ts:Date.now(),region:S.region||'KE',months:S.month,age:age(),nw:Math.round(nw),best:Math.round(Math.max(nw,...H)),start:Math.round(H[0]||1000),
-  end:S.died?'died':S.over?'bankrupt':'restarted',cause:S.died?String(S.deathCause||'').slice(0,160):'',billionAge:bm>=0?24+Math.floor(bm/12):null,
+  end:S.died?'died':S.over?'bankrupt':'restarted',cause:S.died?String(S.deathCause||'').slice(0,160):'',billionAge:bm>=0?(S.age0||24)+Math.floor(bm/12):null,gen:S.gnum||1,who:S.who||(ACC&&ACC.name)||'',
   rank:(TITLES[S.peak||0]||TITLES[0])[1],spouse:S.spouse?S.spouse.name:'',kids:S.kids.length,inds:S.inds.length,props:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,fdn:!!S.fdn};}
 function lifeCard(l,label){const c=countryRow(l.region)||{name:'Kenya'},y=Math.floor((l.months||0)/12),mo=(l.months||0)%12;
  const head=l.end==='died'?'Died at '+l.age:l.end==='bankrupt'?'Bankrupt at '+l.age:'Started over at '+l.age;
  const fam=[l.spouse?'Married to '+esc(l.spouse):'',l.kids?l.kids+' child'+(l.kids>1?'ren':''):'',l.inds?l.inds+' industr'+(l.inds>1?'ies':'y'):'',l.props?l.props+' propert'+(l.props>1?'ies':'y'):'',l.teams?l.teams+' sports team'+(l.teams>1?'s':''):'',l.fdn?'a foundation':''].filter(Boolean).join(' · ');
  const when=l.ts?new Date(l.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
- return'<li class="life life-'+esc(l.end||'restarted')+'"><div class="life-top"><span class="life-n">'+esc(label)+'</span><span class="life-where">'+esc(c.name)+(when?' · '+when:'')+'</span></div>'+
+ return'<li class="life life-'+esc(l.end||'restarted')+'"><div class="life-top"><span class="life-n">'+esc(label)+(l.gen>1?' · Gen '+l.gen:'')+(l.who?' · '+esc(l.who):'')+'</span><span class="life-where">'+esc(c.name)+(when?' · '+when:'')+'</span></div>'+
   '<b class="life-head">'+head+(l.billionAge?' · <span class="life-win">billionaire at '+l.billionAge+'</span>':'')+'</b>'+(l.cause?'<p class="life-cause">'+esc(l.cause)+'</p>':'')+
   '<dl class="life-nums"><div><dt>Peak worth</dt><dd>'+fmt(l.best||0)+'</dd></div><div><dt>Final worth</dt><dd>'+fmt(l.nw||0)+'</dd></div><div><dt>Years built</dt><dd>'+y+'y '+mo+'m</dd></div><div><dt>Top rank</dt><dd>'+esc(l.rank||'—')+'</dd></div></dl>'+
   (fam?'<p class="life-fam">'+fam+'</p>':'')+(l.partial?'<p class="life-fam">Recorded before life histories began, so some details are missing.</p>':'')+'</li>';}

@@ -210,8 +210,8 @@ def rate_limited(key, limit=10, window=600):
 
 
 # ---- past lives: one row per finished game ---------------------------------
-LIFE_TEXT = {"region": 3, "end": 10, "cause": 160, "rank": 30, "spouse": 40}
-LIFE_NUM = ("months", "age", "nw", "best", "start", "kids", "inds", "props", "teams", "ts")
+LIFE_TEXT = {"region": 3, "end": 10, "cause": 160, "rank": 30, "spouse": 40, "who": 40}
+LIFE_NUM = ("months", "age", "nw", "best", "start", "kids", "inds", "props", "teams", "ts", "gen")
 
 
 def clean_life(d):
@@ -773,7 +773,7 @@ class Handler(BaseHTTPRequestHandler):
         nw = num(summary.get("nw"))
         new_game = bool(summary.get("newGame"))
         detail_keys = ("industries", "units", "properties", "teams", "happiness", "reputation", "influence",
-                       "debt", "married", "kids", "age", "tab", "race", "foundation", "cities", "gender", "spouse", "health", "died", "streak", "region", "currency")
+                       "debt", "married", "kids", "age", "tab", "race", "foundation", "cities", "gender", "spouse", "health", "died", "streak", "region", "currency", "gen")
         detail = {k: summary.get(k) for k in detail_keys if isinstance(summary.get(k), (int, float, str, bool))}
         detail = {k: (clean_text(v, 40) if isinstance(v, str) else v) for k, v in detail.items()}
 
@@ -794,7 +794,7 @@ class Handler(BaseHTTPRequestHandler):
             played = max(0, month - prev_month) if not new_game else month
             best = max(st["best"] if st and not new_game else 0, nw)
             billion = st["billion_month"] if st and not new_game else None
-            if billion is None and summary.get("won"):
+            if billion is None and summary.get("won") and num(summary.get("gen"), 1) <= 1:
                 billion = month
             db.execute("INSERT INTO saves(user_id,state,updated) VALUES(?,?,?) "
                        "ON CONFLICT(user_id) DO UPDATE SET state=excluded.state, updated=excluded.updated",
