@@ -689,7 +689,7 @@ class Handler(BaseHTTPRequestHandler):
         nw = num(summary.get("nw"))
         new_game = bool(summary.get("newGame"))
         detail_keys = ("industries", "units", "properties", "teams", "happiness", "reputation", "influence",
-                       "debt", "married", "kids", "age", "tab", "race", "foundation", "cities", "gender", "spouse", "health", "died", "streak")
+                       "debt", "married", "kids", "age", "tab", "race", "foundation", "cities", "gender", "spouse", "health", "died", "streak", "region", "currency")
         detail = {k: summary.get(k) for k in detail_keys if isinstance(summary.get(k), (int, float, str, bool))}
         detail = {k: (clean_text(v, 40) if isinstance(v, str) else v) for k, v in detail.items()}
 

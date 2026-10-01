@@ -1,6 +1,6 @@
 /* Hustle to an Empire service worker: keeps the game's screens on the phone so the app opens instantly
    and shows a friendly message when offline. Game data (/api/) always goes to the server. */
-const CACHE = 'hustle-v2';
+const CACHE = 'hustle-v3';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/icons/favicon-48.png'];
 
 self.addEventListener('install', e => {
