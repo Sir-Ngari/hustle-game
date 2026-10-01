@@ -1,5 +1,5 @@
 /* ================= Accounts (server) ================= */
-let ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,livesCache=null,seasonCache=null,lbTab='season-country',signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='';
+let ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,livesCache=null,seasonCache=null,lbTab='season-country',signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='',BILL=null,billSkew=0,payMsg='',payBusy=false,payRef='',payCancelled=false,payTries=0,payDone=null;
 const BR=()=>(ACC&&ACC.company)||'Savanna';
 const BGS=[{id:'hustler',name:'Street hustler',desc:'$1,000 and a big idea. The classic start.',cash:1000,debt:0,rep:50,happy:60},
  {id:'grad',name:'University graduate',desc:'$4,000 saved and a good name, but a $2,500 student loan to repay.',cash:4000,debt:2500,rep:58,happy:62},
@@ -16,14 +16,15 @@ async function api(method,path,body){let r;
  try{r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
- if(!r.ok)throw{status:r.status,message:d.error||'Something went wrong on the server. Try again in a moment.'};return d;}
+ if(!r.ok)throw{status:r.status,message:d.error||'Something went wrong on the server. Try again in a moment.',data:d};return d;}
 function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
 async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save){livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+function startWith(user,save,bill){setBill(bill);livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
- signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();}
+ signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();
+ paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
  influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,health:Math.round(S.health||0),died:!!S.died,streak:(S.daily&&S.daily.last)?S.daily.streak:0,gender:S.g||'',gen:S.headstart?2:(S.gnum||1),season:S.sea?{id:S.sea.id,pts:S.sea.pts}:null,region:S.region||'',currency:S.cur||'USD',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
@@ -31,10 +32,11 @@ function queueSync(now){if(!ACC)return;syncState='saving';paintChip();clearTimeo
 async function doSync(){if(!ACC)return;if(syncBusy){syncAgain=true;return;}syncBusy=true;
  const evs=S.log.filter(l=>l.n&&l.n>(S.logSent||0)).slice(0,60).reverse(),maxN=evs.reduce((m,l)=>Math.max(m,l.n),S.logSent||0);
  try{await api('PUT','/api/save',{state:S,summary:summary(),events:evs});S.logSent=maxN;if(newGameFlag)pendingLife=null;newGameFlag=false;syncState='saved';}
- catch(e){if(e.status===401){ACC=null;stopAuto();acctView='auth';authMode='login';authMsg='Your session ended. Log in again to keep playing. Your last moves are safe on this screen until you do.';renderAccts();}
+ catch(e){if(e.status===402){setBill(e.data&&e.data.bill);syncState='locked';stopAuto();openPay();}
+  else if(e.status===401){ACC=null;stopAuto();acctView='auth';authMode='login';authMsg='Your session ended. Log in again to keep playing. Your last moves are safe on this screen until you do.';renderAccts();}
   else{syncState='offline';clearTimeout(syncTimer);syncTimer=setTimeout(doSync,8000);}}
  syncBusy=false;paintChip();if(syncAgain){syncAgain=false;queueSync();}}
-function paintChip(){const c=$('acctchip');if(!c)return;c.innerHTML=ACC?avatar(ACC)+'<span><b>'+esc(ACC.name)+'</b><small>'+esc(ACC.company)+' · '+({saved:'saved',saving:'saving…',offline:'offline, retrying'})[syncState]+'</small></span>':'<span><b>Not logged in</b><small>Log in to play</small></span>';}
+function paintChip(){const c=$('acctchip');if(!c)return;c.innerHTML=ACC?avatar(ACC)+'<span><b>'+esc(ACC.name)+'</b><small>'+esc(ACC.company)+' · '+({saved:'saved',saving:'saving…',offline:'offline, retrying',locked:'needs the Hustle Pass'})[syncState]+'</small></span>':'<span><b>Not logged in</b><small>Log in to play</small></span>';}
 function authForm(){const su=authMode==='signup';
  let h='<div class="authtabs" role="tablist"><button role="tab" aria-selected="'+su+'" data-a="authmode" data-v="signup">Create account</button><button role="tab" aria-selected="'+(!su)+'" data-a="authmode" data-v="login">Log in</button></div>';
  if(authMsg)h+='<p class="amsg">'+esc(authMsg)+'</p>';
@@ -55,7 +57,7 @@ function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}e
  else if(acctView==='auth')h+='<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm();
  else if(acctView==='menu')h+='<div class="me">'+avatar(ACC,true)+'<div><h2>'+esc(ACC.name)+'</h2><p class="sub">@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
   '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
-  '<h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+'<div class="regionbox">'+regionMenuHTML()+'</div>';
+  passMenuHTML()+'<h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+'<div class="regionbox">'+regionMenuHTML()+'</div>';
  else if(acctView==='installios')h+='<h2>Install the app</h2><p class="sub">Put the game on your home screen. It opens full-screen, like any other app.</p><ol class="iossteps"><li>At the bottom of Safari, tap the <b>Share</b> button (the square with an arrow pointing up).</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The game\'s icon appears on your home screen.</li></ol><div class="chips"><button class="btn primary" data-a="acctclose">Got it</button></div>';
  else if(acctView==='addemail')h+='<h2>Add your email</h2><p class="sub">If you ever forget your password, we\'ll send a reset link here. We don\'t use it for anything else.</p>'+emailForm('Save email',true);
  else if(acctView==='forgot')h+='<h2>Forgot your password?</h2>'+(forgotDone?'<p class="amsg">'+esc(forgotDone)+'</p><div class="chips"><button class="btn primary" data-a="backlogin">Back to log in</button></div>':
@@ -65,6 +67,7 @@ function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}e
   '<label for="rs-pass">New password</label><input id="rs-pass" type="password" maxlength="128" autocomplete="new-password" required><p class="hint">At least 8 characters.</p>'+
   '<label for="rs-pass2">Type it again</label><input id="rs-pass2" type="password" maxlength="128" autocomplete="new-password" required>'+
   '<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="rs-submit">Save new password</button><button type="button" class="btn ghost" data-a="forgotview">Get a new link</button></div></form>';
+ else if(acctView==='pay'||acctView==='gift'||acctView==='payleft'||acctView==='paid')h+=payViewHTML();
  else if(acctView==='lives'){h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire you have built.</p>'+(livesData===null?'<p class="sub">Loading…</p>':legacyHTML()+trophiesHTML()+livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
  else if(acctView==='board'){const cn=(countryRow(S.region||'')||{name:'your country'}).name;
   h+='<h2>Leaderboard</h2><div class="authtabs" role="tablist" style="grid-template-columns:1fr 1fr 1fr"><button role="tab" aria-selected="'+(lbTab==='season-country')+'" data-a="boardtab" data-v="season-country">'+esc(cn)+'</button><button role="tab" aria-selected="'+(lbTab==='season-world')+'" data-a="boardtab" data-v="season-world">World</button><button role="tab" aria-selected="'+(lbTab==='alltime')+'" data-a="boardtab" data-v="alltime">All time</button></div>'+
@@ -90,7 +93,7 @@ async function submitForgot(){const who=$('fg-who').value.trim(),btn=$('fg-submi
  catch(e){btn.disabled=false;btn.textContent='Email me a reset link';showErr(e.message);}}
 async function submitReset(){const a=$('rs-pass').value,b=$('rs-pass2').value,btn=$('rs-submit');
  if(a.length<8)return showErr('Passwords need at least 8 characters.');if(a!==b)return showErr('The two passwords don\'t match.');
- btn.disabled=true;btn.textContent='Saving…';try{const d=await api('POST','/api/reset',{token:resetToken,password:a});resetToken='';startWith(d.user,d.save);}
+ btn.disabled=true;btn.textContent='Saving…';try{const d=await api('POST','/api/reset',{token:resetToken,password:a});resetToken='';startWith(d.user,d.save,d.bill);}
  catch(e){btn.disabled=false;btn.textContent='Save new password';showErr(e.message);}}
 function showErr(msg){const e=$('acc-err');if(e){e.textContent=msg;e.hidden=false;}}
 async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').value.trim().toLowerCase(),password=$('acc-pass').value;
@@ -103,12 +106,14 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
   body=Object.assign(body,{email,name,company:$('acc-company').value.trim()||'Savanna',town:$('acc-town').value,bg:(document.querySelector('input[name="acc-bg"]:checked')||{}).value||'hustler',color:+((document.querySelector('input[name="acc-col"]:checked')||{}).value||0)});}
  btn.disabled=true;btn.textContent=authMode==='signup'?'Creating your account…':'Logging in…';
  try{const d=await api('POST',authMode==='signup'?'/api/signup':'/api/login',body);
-  if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S);}else startWith(d.user,d.save);}
+  if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S,d.bill);}else startWith(d.user,d.save,d.bill);}
  catch(e){btn.disabled=false;btn.textContent=authMode==='signup'?'Create account and start':'Log in';showErr(e.message);}}
-function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('reset');if(t){resetToken=t;u.searchParams.delete('reset');history.replaceState(null,'',u.pathname+u.search+u.hash);}}catch(e){}
+function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('reset'),pr=u.searchParams.get('paid');if(t){resetToken=t;u.searchParams.delete('reset');}
+ if(pr){payRef=pr.slice(0,60);payCancelled=u.searchParams.get('cancelled')==='1';payTries=0;['paid','cancelled','OrderTrackingId','OrderMerchantReference','OrderNotificationType'].forEach(k=>u.searchParams.delete(k));}
+ if(t||pr)history.replaceState(null,'',u.pathname+u.search+u.hash);}catch(e){}
  if(resetToken){acctView='reset';authMsg='';renderAccts();return;}
- acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save)).catch(e=>{if(e.status===401){acctView='auth';authMode='signup';}else{acctView='down';authMsg=e.message;}renderAccts();});}
-async function logout(){stopAuto();if(ACC)try{await doSync();}catch(e){}try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
+ acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save,d.bill)).catch(e=>{if(e.status===401){acctView='auth';authMode='signup';}else{acctView='down';authMsg=e.message;}renderAccts();});}
+async function logout(){stopAuto();BILL=null;paintPass();if(ACC)try{await doSync();}catch(e){}try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
 async function openBoard(tab){if(tab)lbTab=tab;stopAuto();closeModal();acctView='board';lbData=null;renderAccts();
  try{if(lbTab==='alltime')lbData=(await api('GET','/api/leaderboard')).players;else{const d=await api('GET','/api/season?scope='+(lbTab==='season-world'?'world':'country')+'&region='+encodeURIComponent(S.region||''));seasonCache=d;lbData=d.top;}}catch(e){lbData=[];}renderAccts();}
 async function loadSeason(){try{seasonCache=await api('GET','/api/season?scope=country&region='+encodeURIComponent(S.region||''));render();}catch(e){}}
@@ -131,3 +136,61 @@ function paintInstall(){let b=$('installbtn');const show=canInstall();
  if(b)b.hidden=!show;}
 async function installApp(){if(installEvt){const e=installEvt;e.prompt();try{await e.userChoice;}catch(x){}installEvt=null;paintInstall();}
  else if(isIOS){stopAuto();acctView='installios';renderAccts();}}
+
+/* ================= Hustle Pass (free trial, then pay through Pesapal) ================= */
+function setBill(b){BILL=b&&b.on?b:null;if(BILL&&BILL.now)billSkew=BILL.now-Date.now()/1000;paintPass();}
+const nowS=()=>Date.now()/1000+billSkew;
+const passLocked=()=>!!(BILL&&BILL.state==='locked');
+function leftText(sec){sec=Math.max(0,sec);const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.max(1,Math.ceil(sec%3600/60));
+ return d?d+' day'+(d>1?'s':'')+(h?' '+h+' h':''):h?h+' h'+(h<6&&m<60?' '+(m%60)+' min':''):m+' min';}
+const dateText=ts=>new Date(ts*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+function kesText(k){return'KSh '+Number(k).toLocaleString('en-US');}
+function kesLocal(k){const ke=countryRow('KE');if(!ke||typeof R==='undefined'||!R||R.cur==='KES')return'';const usd=k/ke.rate;
+ if(R.cur==='USD'||!R.rate)return'about $'+(usd<10?usd.toFixed(2):Math.round(usd));const v=usd*R.rate;return'about '+R.sym+(/[A-Za-z.]$/.test(R.sym)?' ':'')+(v<100?v.toFixed(v<10?2:0):Math.round(v).toLocaleString('en-US'));}
+function paintPass(){let b=$('passbar');const st=BILL&&BILL.state,left=BILL&&BILL.until?BILL.until-nowS():0;
+ const show=ACC&&BILL&&(st==='trial'||st==='bonus'||st==='locked'||(st==='paid'&&left<3*86400));
+ if(!b&&show){const c=$('acctchip');if(!c)return;b=document.createElement('button');b.id='passbar';b.className='passbar';b.dataset.a='passopen';c.parentNode.insertBefore(b,c.nextSibling);}
+ if(!b)return;b.hidden=!show;if(!show)return;b.classList.toggle('warn',st==='locked'||left<6*3600);
+ b.innerHTML=st==='trial'?'<span>Free trial · <b>'+leftText(left)+' left</b></span><i>Get the Pass</i>':st==='bonus'?'<span>Bonus days · <b>'+leftText(left)+' left</b></span><i>Get the Pass</i>':
+  st==='paid'?'<span>Hustle Pass ends in <b>'+leftText(left)+'</b></span><i>Renew</i>':'<span><b>Your free time is up</b></span><i>Get the Pass</i>';}
+function passMenuHTML(){if(!BILL)return'';const st=BILL.state,left=BILL.until?BILL.until-nowS():0;
+ const line=st==='paid'?'Your <b>'+esc(planName(BILL.plan))+'</b> is active until <b>'+dateText(BILL.until)+'</b>.':st==='trial'?'You\'re on your free trial: <b>'+leftText(left)+'</b> left.':st==='bonus'?'You\'re on bonus days: <b>'+leftText(left)+'</b> left.':'You need the pass to keep playing.';
+ return'<h3>Hustle Pass</h3><p class="sub">'+line+'</p><div class="chips"><button class="btn" data-a="passopen">'+(st==='paid'?'Add more time':'Get the Hustle Pass')+'</button></div>';}
+function planName(id){const p=BILL&&BILL.plans&&BILL.plans.find(x=>x.id===id);return id==='gift'?'gifted pass':p?p.name.toLowerCase():'Hustle Pass';}
+function openPay(msg){stopAuto();closeModal();payMsg=msg||'';payBusy=false;acctView='pay';renderAccts();window.scrollTo(0,0);}
+const PERKS=['Keep building past your first day, all the way to a billion','Dynasties: hand your empire to your heirs, generation after generation','Monthly seasons, trophies and the country leaderboard','Every new event, crisis and feature we add'];
+function payViewHTML(){const b=BILL||{plans:[]},st=b.state,co=esc(BR());let h='';
+ if(acctView==='paid'){const p=payDone||{};return'<div class="paidbox"><span class="paidicon" aria-hidden="true">✓</span><h2>Payment received</h2><p class="sub">Thank you! Your <b>'+esc(planName(p.plan))+'</b> is active'+(b.until?' until <b>'+dateText(b.until)+'</b>':'')+'. '+co+' is waiting for you.</p></div><div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button></div>';}
+ if(acctView==='gift'){const d=b.giftDays||2;return'<h2>Before you go: '+d+' more days on us</h2><p class="sub">'+co+' is just getting going. Keep building free for '+d+' more days. After that, the Hustle Pass starts at just '+kesText(Math.min.apply(null,b.plans.map(p=>p.kes)))+' a week.</p>'+
+  '<div class="chips"><button class="btn primary" data-a="paygift">Claim '+d+' free days</button><button class="btn" data-a="passopen">See the passes</button></div>';}
+ if(acctView==='payleft')return'<h2>Your empire is safe</h2><p class="sub">'+co+' is saved exactly as you left it. Get the Hustle Pass whenever you\'re ready and pick up where you left off.</p><div class="chips"><button class="btn primary" data-a="passopen">See the passes</button><button class="btn" data-a="leaderboard">Leaderboard</button><button class="btn ghost" data-a="logout">Log out</button></div>';
+ const locked=st==='locked',left=b.until?b.until-nowS():0;
+ h+=locked?(b.everPaid?'<h2>Your Hustle Pass has ended</h2><p class="sub">Renew to carry on. '+co+' is saved exactly as you left it.</p>':
+   '<h2>'+(b.giftsUsed?'Your bonus days are up':'Your free day is up')+'</h2><p class="sub">'+co+' is just getting started. Get the Hustle Pass to keep building your empire.</p>'):
+  '<h2>Hustle Pass</h2><p class="sub">'+(st==='paid'?'Active until <b>'+dateText(b.until)+'</b>. Buying again adds the days on top.':(st==='trial'?'Free trial: ':'Bonus days: ')+'<b>'+leftText(left)+' left</b>. Get the pass now and keep going without a break.')+'</p>';
+ if(payMsg)h+='<p class="amsg" role="status">'+payMsg+'</p>';
+ const best=b.plans.length>1?b.plans.reduce((m,p)=>p.kes/p.days<m.kes/m.days?p:m,b.plans[0]).id:'';
+ h+='<div class="plans">'+b.plans.map(p=>{const loc=kesLocal(p.kes);return'<button class="plan'+(p.id==='month'?' pick':'')+'" data-a="buyplan" data-v="'+p.id+'"'+(payBusy||!b.payReady?' disabled':'')+'>'+
+   (p.id==='month'?'<em>Most popular</em>':p.id===best?'<em>Best value</em>':'')+'<b>'+esc(p.name)+'</b><span class="pr">'+kesText(p.kes)+'</span><small>'+p.days+' days'+(loc?' · '+loc:'')+'</small></button>';}).join('')+'</div>';
+ h+=b.payReady?'<p class="hint">Pay with M-Pesa, Airtel Money, card or bank through Pesapal. You come straight back here after paying. The pass doesn\'t renew by itself; we remind you before it ends.</p>':'<p class="aerr">Payments are being set up. Please check back soon.</p>';
+ h+='<ul class="perks">'+PERKS.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+ h+='<div class="chips">'+(locked?'<button class="btn ghost" data-a="paylater"'+(payBusy?' disabled':'')+'>Not now</button><button class="btn ghost" data-a="logout">Log out</button>':'<button class="btn ghost" data-a="acctclose">Back to my game</button>')+'</div>';
+ return h;}
+async function buyPlan(id){if(payBusy)return;payBusy=true;payMsg='Opening the payment page…';renderAccts();
+ if(!passLocked())try{await doSync();}catch(e){}
+ try{const d=await api('POST','/api/billing/checkout',{plan:id});location.href=d.url;}
+ catch(e){payBusy=false;payMsg=esc(e.message);renderAccts();}}
+async function payLater(){payBusy=true;renderAccts();let b=BILL;try{b=(await api('POST','/api/billing/later',{})).bill;}catch(e){}setBill(b);payBusy=false;acctView=BILL&&BILL.gift?'gift':'payleft';renderAccts();}
+async function payGift(){try{setBill((await api('POST','/api/billing/gift',{})).bill);acctView=null;renderAccts();if(syncState==='locked'){syncState='saving';queueSync(true);}
+  log('You have '+((BILL&&BILL.giftDays)||2)+' more free days. Make them count.','gold');render();}
+ catch(e){if(e.data&&e.data.bill)setBill(e.data.bill);acctView='payleft';renderAccts();}}
+async function confirmPay(){if(!payRef)return;stopAuto();closeModal();acctView='pay';payBusy=true;payMsg=payCancelled?'You left the payment page. Checking…':'Checking your payment…';renderAccts();
+ let d=null;try{d=await api('POST','/api/billing/confirm',{ref:payRef});}catch(e){}
+ if(d){setBill(d.bill);const ps=d.payment&&d.payment.status;
+  if(ps==='paid'){payDone=d.payment;payRef='';payMsg='';payBusy=false;acctView='paid';renderAccts();if(syncState==='locked'||syncState==='offline'){syncState='saving';}queueSync(true);if(typeof confettiFx==='function')try{confettiFx();}catch(e){}return;}
+  if(ps==='pending'&&!payCancelled&&++payTries<13){payMsg='Waiting for the payment to come through. If you paid by M-Pesa, approve the prompt on your phone.';renderAccts();setTimeout(confirmPay,5000);return;}
+  payMsg=ps==='pending'&&!payCancelled?'We haven\'t had confirmation yet. If you paid, your pass switches on within a few minutes; we keep checking. You can also pick a pass again below.':'The payment didn\'t go through, so you weren\'t charged. You can try again below.';}
+ else payMsg='We couldn\'t check your payment just now. If you paid, your pass switches on within a few minutes.';
+ payRef='';payBusy=false;if(passLocked()||acctView==='pay'){acctView='pay';renderAccts();}}
+setInterval(()=>{if(!ACC||!BILL)return;paintPass();if(BILL.state!=='locked'&&BILL.until&&nowS()>=BILL.until){
+ api('GET','/api/billing').then(d=>{setBill(d.bill);if(passLocked()&&acctView!=='pay'&&acctView!=='gift'&&acctView!=='payleft')openPay();}).catch(()=>{});}},30000);

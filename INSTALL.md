@@ -230,3 +230,15 @@ The page refreshes itself every 30 seconds.
 - The admin area has its own password, set only on the server.
 - The game server listens only inside the droplet, so everything reaches it through nginx and HTTPS.
 - It runs as its own locked-down user that can write to nothing except its data folder.
+
+
+## Hustle Pass (subscriptions through Pesapal)
+
+Players get a 24-hour free trial. When it ends they see the payment screen with three passes (weekly KSh 70, monthly KSh 250, yearly KSh 2,000). A player who leaves without paying is offered 2 more free days; this happens at most twice, and after 7 days from sign-up there is no more free play. Payment happens on Pesapal's page (M-Pesa, Airtel Money, cards, bank) and the player comes straight back to the game. Passes don't renew by themselves; the game reminds players in the last 3 days.
+
+1. In Pesapal, copy your **consumer key** and **consumer secret**.
+2. `sudo nano /etc/hustle.env` and set `HUSTLE_PESAPAL_KEY=`, `HUSTLE_PESAPAL_SECRET=`, `HUSTLE_PESAPAL_ENV=live` and check `HUSTLE_SITE_DOMAIN=shwariapps.com`.
+3. Set `HUSTLE_BILLING=1` and run `sudo systemctl restart hustle`. Players who joined earlier get their 24 hours from this moment.
+4. The admin page shows paying players, revenue, the trial funnel and every payment. To give a player free days (testers, prizes, or a payment that didn't show up), open the player and use **Give free pass days**.
+
+Pesapal tells the game about payments at `https://<your domain>/api/pesapal/ipn`. The game registers this address with Pesapal by itself on the first payment, and also re-checks unfinished payments every 5 minutes. To switch the pass off again, set `HUSTLE_BILLING=0` and restart: everyone plays free, and paid days are kept.

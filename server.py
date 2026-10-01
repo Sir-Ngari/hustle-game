@@ -16,6 +16,11 @@ Settings come from environment variables (see deploy/hustle.env.example):
   HUSTLE_MAIL_KEY         API key for resend or brevo (or the SMTP password)
   HUSTLE_MAIL_FROM        sender address (default no-reply@<HUSTLE_SITE_DOMAIN>)
   HUSTLE_SMTP_HOST / HUSTLE_SMTP_PORT / HUSTLE_SMTP_USER   only for HUSTLE_MAIL_PROVIDER=smtp
+  HUSTLE_BILLING          "1" turns the Hustle Pass (free trial, then pay) on; off when empty or "0"
+  HUSTLE_PESAPAL_KEY / HUSTLE_PESAPAL_SECRET   the consumer key and secret from your Pesapal account
+  HUSTLE_PESAPAL_ENV      "live" (default) or "sandbox" for Pesapal's test system
+  HUSTLE_TRIAL_HOURS / HUSTLE_GIFT_DAYS / HUSTLE_GIFTS / HUSTLE_BLOCK_DAYS   trial length and the "more free days" offers
+  HUSTLE_PRICE_WEEK / HUSTLE_PRICE_MONTH / HUSTLE_PRICE_YEAR   pass prices in Kenya shillings (70 / 250 / 2000)
 """
 import hashlib
 import hmac
@@ -29,6 +34,8 @@ import smtplib
 import ssl
 import threading
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 from email.message import EmailMessage
 from http.cookies import SimpleCookie
@@ -52,6 +59,31 @@ SMTP_HOST = os.environ.get("HUSTLE_SMTP_HOST", "").strip()
 SMTP_PORT = int(os.environ.get("HUSTLE_SMTP_PORT", "587") or 587)
 SMTP_USER = os.environ.get("HUSTLE_SMTP_USER", "").strip()
 RESET_SECONDS = 3600
+
+
+def env_int(name, default):
+    try:
+        return int(os.environ.get(name, "") or default)
+    except ValueError:
+        return default
+
+
+# ---- Hustle Pass (subscription) settings ----
+BILLING_ON = os.environ.get("HUSTLE_BILLING", "").strip() == "1"
+PESAPAL_KEY = os.environ.get("HUSTLE_PESAPAL_KEY", "").strip()
+PESAPAL_SECRET = os.environ.get("HUSTLE_PESAPAL_SECRET", "").strip()
+PESAPAL_ENV = "sandbox" if os.environ.get("HUSTLE_PESAPAL_ENV", "").strip().lower() == "sandbox" else "live"
+PESAPAL_URL = (os.environ.get("HUSTLE_PESAPAL_URL", "").strip().rstrip("/") or
+               ("https://cybqa.pesapal.com/pesapalv3" if PESAPAL_ENV == "sandbox" else "https://pay.pesapal.com/v3"))
+TRIAL_HOURS = env_int("HUSTLE_TRIAL_HOURS", 24)   # free trial from sign-up (or from the day billing was switched on)
+GIFT_DAYS = env_int("HUSTLE_GIFT_DAYS", 2)        # extra free days offered to a player who leaves the payment screen
+GIFTS = env_int("HUSTLE_GIFTS", 2)                # how many times that offer is made
+BLOCK_DAYS = env_int("HUSTLE_BLOCK_DAYS", 7)      # after this many days, no more free time: pay to play
+PLANS = {
+    "week": {"name": "Weekly pass", "days": 7, "kes": env_int("HUSTLE_PRICE_WEEK", 70)},
+    "month": {"name": "Monthly pass", "days": 30, "kes": env_int("HUSTLE_PRICE_MONTH", 250)},
+    "year": {"name": "Yearly pass", "days": 365, "kes": env_int("HUSTLE_PRICE_YEAR", 2000)},
+}
 
 MAX_BODY = 3 * 1024 * 1024          # largest request body accepted
 MAX_STATE = int(2.5 * 1024 * 1024)  # largest saved game
@@ -154,6 +186,38 @@ CREATE TABLE IF NOT EXISTS activity_days(
   day TEXT NOT NULL,
   PRIMARY KEY(user_id, day)
 );
+CREATE TABLE IF NOT EXISTS meta(
+  k TEXT PRIMARY KEY,
+  v TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS subs(
+  user_id INTEGER PRIMARY KEY,
+  paid_until INTEGER NOT NULL DEFAULT 0,
+  plan TEXT NOT NULL DEFAULT '',
+  gifts INTEGER NOT NULL DEFAULT 0,
+  gift_until INTEGER NOT NULL DEFAULT 0,
+  paywall_at INTEGER NOT NULL DEFAULT 0,
+  later INTEGER NOT NULL DEFAULT 0,
+  checkouts INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS payments(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ref TEXT UNIQUE NOT NULL,
+  user_id INTEGER NOT NULL,
+  plan TEXT NOT NULL,
+  days INTEGER NOT NULL,
+  amount REAL NOT NULL,
+  currency TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  tracking TEXT NOT NULL DEFAULT '',
+  method TEXT NOT NULL DEFAULT '',
+  code TEXT NOT NULL DEFAULT '',
+  created INTEGER NOT NULL,
+  updated INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS payments_user ON payments(user_id);
+CREATE INDEX IF NOT EXISTS payments_status ON payments(status, created);
 """
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -438,6 +502,258 @@ def send_reset_emails(email, accounts):
     send_mail(email, "Reset your Hustle to an Empire password", text, html)
 
 
+# ---- Hustle Pass: who may play, and Pesapal payments -------------------------
+def meta_get(k):
+    r = q("SELECT v FROM meta WHERE k=?", (k,), one=True)
+    return r["v"] if r else None
+
+
+def meta_set(k, v):
+    q("INSERT INTO meta(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v", (k, str(v)))
+
+
+def billing_start():
+    """When billing was first switched on. Players who joined earlier get their trial from this moment."""
+    v = meta_get("billing_start")
+    if v is None:
+        v = str(now())
+        meta_set("billing_start", v)
+    return int(v)
+
+
+def pesapal_ready():
+    return bool(PESAPAL_KEY and PESAPAL_SECRET and SITE_DOMAIN)
+
+
+def plans_public():
+    return [{"id": k, "name": p["name"], "days": p["days"], "kes": p["kes"]} for k, p in PLANS.items()]
+
+
+def sub_row(uid):
+    return q("SELECT * FROM subs WHERE user_id=?", (uid,), one=True)
+
+
+def bill_status(user, mark_paywall=False):
+    """The player's pass: off, trial, bonus (gift days), paid, or locked (must pay; maybe offered gift days)."""
+    if not BILLING_ON:
+        return {"on": False, "state": "off"}
+    t = now()
+    s = sub_row(user["id"])
+    paid_until = s["paid_until"] if s else 0
+    gifts = s["gifts"] if s else 0
+    gift_until = s["gift_until"] if s else 0
+    base = max(user["created"], billing_start())
+    trial_end = base + TRIAL_HOURS * 3600
+    hard = base + BLOCK_DAYS * 86400
+    out = {"on": True, "plans": plans_public(), "payReady": pesapal_ready(), "giftDays": GIFT_DAYS,
+           "now": t, "plan": s["plan"] if s else "", "everPaid": paid_until > 0}
+    if paid_until > t:
+        out.update(state="paid", until=paid_until)
+    elif t < trial_end:
+        out.update(state="trial", until=trial_end)
+    elif gift_until > t:
+        out.update(state="bonus", until=gift_until, giftsUsed=gifts)
+    else:
+        out.update(state="locked", until=0, ended=max(paid_until, gift_until, trial_end),
+                   gift=paid_until == 0 and gifts < GIFTS and t < hard - 3600, giftsUsed=gifts)
+        if mark_paywall and not (s and s["paywall_at"]):
+            q("INSERT INTO subs(user_id,paywall_at,updated) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET "
+              "paywall_at=CASE WHEN subs.paywall_at=0 THEN excluded.paywall_at ELSE subs.paywall_at END, updated=excluded.updated",
+              (user["id"], t, t))
+    return out
+
+
+def can_play(user):
+    return bill_status(user)["state"] != "locked"
+
+
+_pp = {"token": None, "exp": 0}
+_pp_lock = threading.Lock()
+
+
+class PesapalError(Exception):
+    pass
+
+
+def pp_request(method, path, body=None, token=None):
+    headers = {"Accept": "application/json", "Content-Type": "application/json", "User-Agent": "hustle-game"}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(PESAPAL_URL + path, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            d = json.loads(r.read().decode() or "{}")
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode()[:300]
+        except Exception:
+            pass
+        raise PesapalError("Pesapal answered %s %s" % (e.code, detail))
+    except Exception as e:
+        raise PesapalError("Could not reach Pesapal: %s" % e)
+    err = d.get("error") if isinstance(d, dict) else None
+    if isinstance(err, dict) and (err.get("code") or err.get("message")):
+        raise PesapalError("Pesapal error: %s %s" % (err.get("code") or "", err.get("message") or ""))
+    return d
+
+
+def pp_token():
+    with _pp_lock:
+        if _pp["token"] and _pp["exp"] > time.time() + 20:
+            return _pp["token"]
+    d = pp_request("POST", "/api/Auth/RequestToken", {"consumer_key": PESAPAL_KEY, "consumer_secret": PESAPAL_SECRET})
+    tok = d.get("token")
+    if not tok:
+        raise PesapalError("Pesapal did not give a token. Check the consumer key and secret. %s" % (d.get("message") or ""))
+    with _pp_lock:
+        _pp["token"], _pp["exp"] = tok, time.time() + 240  # tokens last 5 minutes
+    return tok
+
+
+def ipn_url():
+    return "https://%s/api/pesapal/ipn" % SITE_DOMAIN
+
+
+def pp_ipn_id():
+    """Register our notification address with Pesapal once, and remember its id."""
+    key = "pesapal_ipn:%s:%s" % (PESAPAL_ENV, ipn_url())
+    v = meta_get(key)
+    if v:
+        return v
+    d = pp_request("POST", "/api/URLSetup/RegisterIPN", {"url": ipn_url(), "ipn_notification_type": "GET"}, pp_token())
+    v = d.get("ipn_id")
+    if not v:
+        raise PesapalError("Pesapal did not register the notification address. %s" % (d.get("message") or ""))
+    meta_set(key, v)
+    return v
+
+
+def credit_payment(ref, method, code):
+    """Mark a payment paid (once) and add its days to the player's pass. Returns True the first time."""
+    t = now()
+
+    def run(db):
+        p = db.execute("SELECT * FROM payments WHERE ref=?", (ref,)).fetchone()
+        if not p or p["status"] == "paid":
+            return False
+        db.execute("UPDATE payments SET status='paid', method=?, code=?, updated=? WHERE ref=?", (method[:40], code[:60], t, ref))
+        s = db.execute("SELECT paid_until FROM subs WHERE user_id=?", (p["user_id"],)).fetchone()
+        start = max(t, s["paid_until"] if s else 0)
+        db.execute("INSERT INTO subs(user_id,paid_until,plan,updated) VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET "
+                   "paid_until=excluded.paid_until, plan=excluded.plan, updated=excluded.updated",
+                   (p["user_id"], start + p["days"] * 86400, p["plan"], t))
+        st = db.execute("SELECT games FROM stats WHERE user_id=?", (p["user_id"],)).fetchone()
+        db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
+                   (p["user_id"], t, st["games"] if st else 1, "Bought the %s (KSh %s%s)" % (
+                       PLANS.get(p["plan"], {}).get("name", p["plan"]).lower(), "{:,.0f}".format(p["amount"]),
+                       " via " + method if method else "")))
+        return True
+    return tx(run)
+
+
+def reverse_payment(ref):
+    t = now()
+
+    def run(db):
+        p = db.execute("SELECT * FROM payments WHERE ref=?", (ref,)).fetchone()
+        if not p or p["status"] != "paid":
+            return
+        db.execute("UPDATE payments SET status='reversed', updated=? WHERE ref=?", (t, ref))
+        db.execute("UPDATE subs SET paid_until=MAX(0, paid_until-?), updated=? WHERE user_id=?", (p["days"] * 86400, t, p["user_id"]))
+        db.execute("INSERT INTO events(user_id,ts,kind,text) VALUES(?,?,'account',?)", (p["user_id"], t, "A pass payment was reversed"))
+    tx(run)
+
+
+def check_payment(ref):
+    """Ask Pesapal how a payment went and record the answer. Returns the payment's status."""
+    p = q("SELECT * FROM payments WHERE ref=?", (ref,), one=True)
+    if not p:
+        return None
+    if p["status"] == "paid" or not p["tracking"] or not pesapal_ready():
+        return p["status"]
+    d = pp_request("GET", "/api/Transactions/GetTransactionStatus?orderTrackingId=" + urllib.parse.quote(p["tracking"]), None, pp_token())
+    code = d.get("status_code")
+    try:
+        code = int(code)
+    except (TypeError, ValueError):
+        code = 0
+    if code == 1:
+        if (str(d.get("merchant_reference") or "") != ref or str(d.get("currency") or "").upper() != p["currency"]
+                or abs(num(d.get("amount")) - p["amount"]) > 0.5):
+            print("Payment %s does not match what was ordered: %s" % (ref, json.dumps(d)[:300]), flush=True)
+            q("UPDATE payments SET status='mismatch', updated=? WHERE ref=?", (now(), ref))
+            return "mismatch"
+        credit_payment(ref, clean_text(d.get("payment_method"), 40), clean_text(d.get("confirmation_code"), 60))
+        return "paid"
+    if code == 3:
+        reverse_payment(ref)
+        return "reversed"
+    if code == 2:
+        q("UPDATE payments SET status='failed', updated=? WHERE ref=? AND status='pending'", (now(), ref))
+        return "failed"
+    return p["status"]
+
+
+def payment_sweeper():
+    """Every few minutes, re-check recent unpaid orders, in case a notification from Pesapal went missing."""
+    while True:
+        time.sleep(300)
+        if not (BILLING_ON and pesapal_ready()):
+            continue
+        t = now()
+        for r in q("SELECT ref FROM payments WHERE status IN ('pending','failed') AND tracking<>'' AND created>? AND created<? "
+                   "ORDER BY id DESC LIMIT 30", (t - 2 * 86400, t - 60)):
+            try:
+                check_payment(r["ref"])
+            except Exception as e:
+                print("Payment check for %s failed: %s" % (r["ref"], e), flush=True)
+
+
+def billing_overview(t):
+    if not BILLING_ON:
+        return {"on": False, "ready": pesapal_ready(), "env": PESAPAL_ENV}
+    bs = billing_start()
+    users = q("SELECT u.id,u.created,s.paid_until,s.gifts,s.gift_until,s.paywall_at,s.later,s.checkouts FROM users u "
+              "LEFT JOIN subs s ON s.user_id=u.id WHERE u.disabled=0")
+    k = {"trial": 0, "bonus": 0, "paid": 0, "locked": 0, "lapsed": 0, "reachedPaywall": 0, "tappedLater": 0,
+         "startedCheckout": 0, "gift1": 0, "gift2": 0, "everPaid": 0, "hardBlocked": 0}
+    for u in users:
+        base = max(u["created"], bs)
+        pu = u["paid_until"] or 0
+        if pu > t:
+            k["paid"] += 1
+        elif t < base + TRIAL_HOURS * 3600:
+            k["trial"] += 1
+        elif (u["gift_until"] or 0) > t:
+            k["bonus"] += 1
+        else:
+            k["locked"] += 1
+            if pu:
+                k["lapsed"] += 1
+            elif t >= base + BLOCK_DAYS * 86400 or (u["gifts"] or 0) >= GIFTS:
+                k["hardBlocked"] += 1
+        if u["paywall_at"]:
+            k["reachedPaywall"] += 1
+        if u["later"]:
+            k["tappedLater"] += 1
+        if u["checkouts"]:
+            k["startedCheckout"] += 1
+        if (u["gifts"] or 0) >= 1:
+            k["gift1"] += 1
+        if (u["gifts"] or 0) >= 2:
+            k["gift2"] += 1
+        if pu:
+            k["everPaid"] += 1
+    rev = lambda since: q("SELECT COALESCE(SUM(amount),0) a, COUNT(*) c FROM payments WHERE status='paid' AND updated>?", (since,), one=True)
+    r30, rall = rev(t - 30 * 86400), rev(0)
+    k.update(on=True, ready=pesapal_ready(), env=PESAPAL_ENV, since=bs, rev30=r30["a"], pay30=r30["c"], revAll=rall["a"], payAll=rall["c"],
+             byPlan={r["plan"]: r["c"] for r in q("SELECT plan, COUNT(*) c FROM payments WHERE status='paid' AND updated>? GROUP BY plan", (t - 30 * 86400,))},
+             trialHours=TRIAL_HOURS, giftDays=GIFT_DAYS, gifts=GIFTS, blockDays=BLOCK_DAYS, plans=plans_public())
+    return k
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "Hustle/1.0"
     sys_version = ""
@@ -575,6 +891,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_season()
         if path == "/api/config":
             return self.send_json(200, {"mail": mail_ready()})
+        if path == "/api/billing":
+            return self.api_billing()
+        if path == "/api/pesapal/ipn":
+            return self.api_pesapal_ipn()
         if path.startswith("/api/admin/"):
             return self.api_admin_get(path)
         if path.startswith("/api/"):
@@ -585,10 +905,12 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         routes = {"/api/signup": self.api_signup, "/api/login": self.api_login, "/api/logout": self.api_logout,
                   "/api/forgot": self.api_forgot, "/api/reset": self.api_reset, "/api/email": self.api_email,
-                  "/api/admin/login": self.api_admin_login, "/api/admin/logout": self.api_admin_logout}
+                  "/api/admin/login": self.api_admin_login, "/api/admin/logout": self.api_admin_logout,
+                  "/api/billing/checkout": self.api_checkout, "/api/billing/confirm": self.api_confirm,
+                  "/api/billing/later": self.api_later, "/api/billing/gift": self.api_gift}
         if path in routes:
             return routes[path]()
-        m = re.match(r"^/api/admin/player/(\d+)/(disable|enable|reset|delete|password)$", path)
+        m = re.match(r"^/api/admin/player/(\d+)/(disable|enable|reset|delete|password|gift)$", path)
         if m:
             return self.api_admin_action(int(m.group(1)), m.group(2))
         self.error(404, "Not found.")
@@ -647,7 +969,7 @@ class Handler(BaseHTTPRequestHandler):
         except sqlite3.IntegrityError:
             return self.error(409, "That username is taken. Try another.")
         user = q("SELECT * FROM users WHERE id=?", (uid,), one=True)
-        self.send_json(201, {"user": user_public(user), "save": None},
+        self.send_json(201, {"user": user_public(user), "save": None, "bill": bill_status(user)},
                        [self.make_cookie("hs", token, PLAYER_SESSION_SECONDS)])
 
     def api_login(self):
@@ -678,7 +1000,8 @@ class Handler(BaseHTTPRequestHandler):
           (user["id"], t, self.current_game(user["id"])))
         self.touch(user["id"])
         save = q("SELECT state FROM saves WHERE user_id=?", (user["id"],), one=True)
-        self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None},
+        self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None,
+                             "bill": bill_status(user, True)},
                        [self.make_cookie("hs", token, PLAYER_SESSION_SECONDS)])
 
     def api_logout(self):
@@ -779,7 +1102,8 @@ class Handler(BaseHTTPRequestHandler):
         tx(apply)
         self.touch(user["id"])
         save = q("SELECT state FROM saves WHERE user_id=?", (user["id"],), one=True)
-        self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None},
+        self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None,
+                             "bill": bill_status(user, True)},
                        [self.make_cookie("hs", session, PLAYER_SESSION_SECONDS)])
 
     def api_me(self):
@@ -788,7 +1112,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(401, "Not logged in.")
         self.touch(user["id"])
         save = q("SELECT state FROM saves WHERE user_id=?", (user["id"],), one=True)
-        self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None})
+        self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None,
+                             "bill": bill_status(user, True)})
 
     def current_game(self, uid):
         row = q("SELECT games FROM stats WHERE user_id=?", (uid,), one=True)
@@ -806,6 +1131,9 @@ class Handler(BaseHTTPRequestHandler):
         events = d.get("events") if isinstance(d.get("events"), list) else []
         if not isinstance(state, dict):
             return self.error(400, "Missing game state.")
+        if BILLING_ON and not can_play(user):
+            return self.send_json(402, {"error": "Your free time is up. Get the Hustle Pass to keep building your empire.",
+                                        "bill": bill_status(user, True)})
         state_text = json.dumps(state, separators=(",", ":"))
         if len(state_text) > MAX_STATE:
             return self.error(413, "This saved game is too large.")
@@ -876,6 +1204,131 @@ class Handler(BaseHTTPRequestHandler):
         game = tx(write)
         self.touch(uid)
         self.send_json(200, {"ok": True, "game": game})
+
+    # ---------- Hustle Pass ----------
+    def api_billing(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        self.send_json(200, {"bill": bill_status(user, True)})
+
+    def api_later(self):
+        """The player closed the payment screen without paying. Counted, so the admin can see who drops off."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if self.read_json() is None:
+            return
+        t = now()
+        q("INSERT INTO subs(user_id,later,updated) VALUES(?,1,?) ON CONFLICT(user_id) DO UPDATE SET later=subs.later+1, updated=excluded.updated",
+          (user["id"], t))
+        self.send_json(200, {"bill": bill_status(user, True)})
+
+    def api_gift(self):
+        """A player who left the payment screen takes the offer of a few more free days."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if self.read_json() is None:
+            return
+        b = bill_status(user)
+        if b["state"] != "locked" or not b.get("gift"):
+            return self.send_json(409, {"error": "That offer isn't available any more.", "bill": b})
+        t = now()
+        base = max(user["created"], billing_start())
+        until = min(t + GIFT_DAYS * 86400, base + BLOCK_DAYS * 86400)
+        q("INSERT INTO subs(user_id,gifts,gift_until,updated) VALUES(?,1,?,?) ON CONFLICT(user_id) DO UPDATE SET "
+          "gifts=subs.gifts+1, gift_until=excluded.gift_until, updated=excluded.updated", (user["id"], until, t))
+        q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
+          (user["id"], t, self.current_game(user["id"]), "Took %d more free days (offer %d of %d)" % (GIFT_DAYS, b.get("giftsUsed", 0) + 1, GIFTS)))
+        self.send_json(200, {"bill": bill_status(user)})
+
+    def api_checkout(self):
+        """Start a Pesapal payment for a pass. Returns the Pesapal page to send the player to."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if not BILLING_ON or not pesapal_ready():
+            return self.error(503, "Payments aren't switched on yet. Please try again later.")
+        if rate_limited("checkout:%d" % user["id"], limit=12, window=3600):
+            return self.error(429, "Too many payment attempts. Wait a few minutes and try again.")
+        d = self.read_json()
+        if d is None:
+            return
+        plan = d.get("plan") if d.get("plan") in PLANS else None
+        if not plan:
+            return self.error(400, "Choose a pass.")
+        if not user["email"]:
+            return self.error(400, "Add your email first (in your account menu). Pesapal sends your receipt there.")
+        p = PLANS[plan]
+        t = now()
+        ref = "HS%d-%s" % (user["id"], secrets.token_hex(4).upper())
+        q("INSERT INTO payments(ref,user_id,plan,days,amount,currency,created,updated) VALUES(?,?,?,?,?,?,?,?)",
+          (ref, user["id"], plan, p["days"], float(p["kes"]), "KES", t, t))
+        q("INSERT INTO subs(user_id,checkouts,updated) VALUES(?,1,?) ON CONFLICT(user_id) DO UPDATE SET checkouts=subs.checkouts+1, updated=excluded.updated",
+          (user["id"], t))
+        names = (user["name"] or "Player").split()
+        body = {"id": ref, "currency": "KES", "amount": float(p["kes"]),
+                "description": "Hustle to an Empire - %s" % p["name"],
+                "callback_url": "https://%s/?paid=%s" % (SITE_DOMAIN, ref),
+                "cancellation_url": "https://%s/?paid=%s&cancelled=1" % (SITE_DOMAIN, ref),
+                "notification_id": "", "redirect_mode": "TOP_WINDOW",
+                "billing_address": {"email_address": user["email"], "first_name": names[0][:50],
+                                    "last_name": " ".join(names[1:])[:50]}}
+        try:
+            body["notification_id"] = pp_ipn_id()
+            r = pp_request("POST", "/api/Transactions/SubmitOrderRequest", body, pp_token())
+        except PesapalError as e:
+            print("Checkout for %s failed: %s" % (ref, e), flush=True)
+            q("UPDATE payments SET status='error', updated=? WHERE ref=?", (now(), ref))
+            return self.error(502, "We couldn't open the payment page just now. Please try again in a minute.")
+        url, tracking = r.get("redirect_url"), r.get("order_tracking_id")
+        if not url or not tracking:
+            q("UPDATE payments SET status='error', updated=? WHERE ref=?", (now(), ref))
+            return self.error(502, "We couldn't open the payment page just now. Please try again in a minute.")
+        q("UPDATE payments SET tracking=?, updated=? WHERE ref=?", (tracking, now(), ref))
+        q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
+          (user["id"], t, self.current_game(user["id"]), "Opened the payment page for the %s" % p["name"].lower()))
+        self.send_json(200, {"url": url, "ref": ref})
+
+    def api_confirm(self):
+        """The player came back from Pesapal. Check how the payment went."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        ref = clean_text(d.get("ref"), 60)
+        p = q("SELECT * FROM payments WHERE ref=? AND user_id=?", (ref, user["id"]), one=True)
+        if not p:
+            return self.error(404, "We can't find that payment.")
+        status = p["status"]
+        try:
+            status = check_payment(ref)
+        except PesapalError as e:
+            print("Confirm %s: %s" % (ref, e), flush=True)
+        p = q("SELECT plan,days,amount,status,method FROM payments WHERE ref=?", (ref,), one=True)
+        self.send_json(200, {"payment": dict(p), "bill": bill_status(user)})
+
+    def api_pesapal_ipn(self):
+        """Pesapal tells us a payment changed. We never trust the message itself: we ask Pesapal for the status."""
+        qs = parse_qs(urlparse(self.path).query)
+        tracking = (qs.get("OrderTrackingId") or [""])[0][:80]
+        ref = (qs.get("OrderMerchantReference") or [""])[0][:60]
+        kind = (qs.get("OrderNotificationType") or [""])[0][:30]
+        status = 200
+        p = q("SELECT * FROM payments WHERE ref=?", (ref,), one=True)
+        if p and (not p["tracking"] or p["tracking"] == tracking):
+            if not p["tracking"] and tracking:
+                q("UPDATE payments SET tracking=? WHERE ref=?", (tracking, ref))
+            try:
+                check_payment(ref)
+            except PesapalError as e:
+                print("IPN %s: %s" % (ref, e), flush=True)
+                status = 500
+        self.send_json(200, {"orderNotificationType": kind, "orderTrackingId": tracking,
+                             "orderMerchantReference": ref, "status": status})
 
     def api_lives(self):
         user = self.session_user()
@@ -957,6 +1410,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(401, "Log in as admin.")
         if path == "/api/admin/overview":
             return self.admin_overview()
+        if path == "/api/admin/payments":
+            rows = q("SELECT p.ref,p.plan,p.amount,p.currency,p.status,p.method,p.code,p.created,p.updated,p.user_id,u.name,u.username,u.color "
+                     "FROM payments p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 200")
+            return self.send_json(200, {"payments": [dict(r) for r in rows], "now": now()})
         if path == "/api/admin/players":
             rows = q("SELECT u.id,u.username,u.name,u.company,u.town,u.bg,u.color,u.created,u.last_seen,u.logins,u.disabled,u.email,"
                      "s.nw,s.best,s.cash,s.month,s.rank,s.billion_month,s.bankrupt,s.games,s.months_played,s.detail,"
@@ -966,6 +1423,8 @@ class Handler(BaseHTTPRequestHandler):
             for r in rows:
                 p = dict(r)
                 p["detail"] = json.loads(p["detail"] or "{}")
+                b = bill_status(r)
+                p["pass"] = {"state": b["state"], "until": b.get("until", 0), "plan": b.get("plan", "")}
                 players.append(p)
             return self.send_json(200, {"players": players, "now": now()})
         m = re.match(r"^/api/admin/player/(\d+)$", path)
@@ -981,8 +1440,12 @@ class Handler(BaseHTTPRequestHandler):
             stats = dict(st) if st else {}
             if stats:
                 stats["detail"] = json.loads(stats.get("detail") or "{}")
+            b = bill_status(q("SELECT * FROM users WHERE id=?", (uid,), one=True))
+            pays = q("SELECT ref,plan,amount,status,method,created FROM payments WHERE user_id=? ORDER BY id DESC LIMIT 20", (uid,))
             return self.send_json(200, {"user": dict(u), "stats": stats, "snapshots": [dict(s) for s in snaps],
-                                        "events": [dict(e) for e in evs], "now": now()})
+                                        "events": [dict(e) for e in evs], "now": now(),
+                                        "pass": {"state": b["state"], "until": b.get("until", 0), "plan": b.get("plan", "")},
+                                        "payments": [dict(p) for p in pays]})
         self.error(404, "Not found.")
 
     def admin_overview(self):
@@ -997,6 +1460,7 @@ class Handler(BaseHTTPRequestHandler):
             "bankrupt": q("SELECT COUNT(*) c FROM stats WHERE bankrupt=1", one=True)["c"],
         }
         k["retention"] = retention(t)
+        k["billing"] = billing_overview(t)
         days = []
         for i in range(13, -1, -1):
             day = time.strftime("%Y-%m-%d", time.gmtime(t - i * 86400))
@@ -1032,6 +1496,20 @@ class Handler(BaseHTTPRequestHandler):
                 db.execute("INSERT INTO events(user_id,ts,kind,text) VALUES(?,?,'admin','Password changed by the host')", (uid, t))
             tx(setpw)
             return self.send_json(200, {"ok": True})
+        if action == "gift":
+            try:
+                days = int(body.get("days"))
+            except (TypeError, ValueError):
+                days = 0
+            if days < 1 or days > 3660:
+                return self.error(400, "Give between 1 and 3660 days.")
+            s = sub_row(uid)
+            start = max(t, s["paid_until"] if s else 0)
+            q("INSERT INTO subs(user_id,paid_until,plan,updated) VALUES(?,?,'gift',?) ON CONFLICT(user_id) DO UPDATE SET "
+              "paid_until=excluded.paid_until, plan=CASE WHEN subs.paid_until>? AND subs.plan<>'' THEN subs.plan ELSE 'gift' END, "
+              "updated=excluded.updated", (uid, start + days * 86400, t, t))
+            q("INSERT INTO events(user_id,ts,kind,text) VALUES(?,?,'admin',?)", (uid, t, "The host gave %d free pass day%s" % (days, "" if days == 1 else "s")))
+            return self.send_json(200, {"ok": True})
         if action == "disable":
             q("UPDATE users SET disabled=1 WHERE id=?", (uid,))
             q("DELETE FROM sessions WHERE user_id=?", (uid,))
@@ -1047,7 +1525,7 @@ class Handler(BaseHTTPRequestHandler):
             tx(reset)
         elif action == "delete":
             def delete(db):
-                for table in ("sessions", "saves", "stats", "events", "snapshots", "activity_days", "resets"):
+                for table in ("sessions", "saves", "stats", "events", "snapshots", "activity_days", "resets", "subs", "lives", "season_scores"):
                     db.execute("DELETE FROM %s WHERE user_id=?" % table, (uid,))
                 db.execute("DELETE FROM users WHERE id=?", (uid,))
             tx(delete)
@@ -1058,6 +1536,13 @@ def main():
     if not ADMIN_PASSWORD or len(ADMIN_PASSWORD) < 10:
         print("Note: admin dashboard is off. Set HUSTLE_ADMIN_PASSWORD (10+ characters) to turn it on.", flush=True)
     print("Password reset emails: %s" % ("on (%s, from %s)" % (MAIL_PROVIDER, MAIL_FROM or "log") if mail_ready() else "off"), flush=True)
+    if BILLING_ON:
+        print("Hustle Pass: on (start %s, %dh trial, %d x %d gift days, blocked after %d days). Pesapal %s: %s" % (
+            time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(billing_start())), TRIAL_HOURS, GIFTS, GIFT_DAYS, BLOCK_DAYS,
+            PESAPAL_ENV, "ready" if pesapal_ready() else "NOT SET (add the key, secret and site domain)"), flush=True)
+    else:
+        print("Hustle Pass: off (everyone plays free). Set HUSTLE_BILLING=1 to turn it on.", flush=True)
+    threading.Thread(target=payment_sweeper, daemon=True).start()
     try:
         backfill_lives()
     except Exception as e:  # never stop the game starting over this
