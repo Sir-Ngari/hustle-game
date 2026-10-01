@@ -779,6 +779,23 @@ def billing_overview(t):
     return k
 
 
+# ---- app version: lets open games know an update is ready ----
+_ver = {"mtime": None, "v": ""}
+
+
+def app_version():
+    path = os.path.join(PUBLIC, "index.html")
+    try:
+        mt = os.path.getmtime(path)
+        if mt != _ver["mtime"]:
+            with open(path, encoding="utf-8") as f:
+                m = re.search(r"const APP_VER='([0-9a-f]{12})'", f.read())
+            _ver.update(mtime=mt, v=m.group(1) if m else "")
+    except OSError:
+        pass
+    return _ver["v"]
+
+
 # ---- invite a friend --------------------------------------------------------
 REF_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -1007,6 +1024,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_season()
         if path == "/api/config":
             return self.send_json(200, {"mail": mail_ready()})
+        if path == "/api/version":
+            return self.send_json(200, {"v": app_version()})
         if path == "/api/billing":
             return self.api_billing()
         if path == "/api/invite":

@@ -13,7 +13,7 @@ s=s[:i]+open('accthosted.js').read()+"\nfunction save(){if(!ACC)return;S._uid=AC
 rep("function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});","function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});")
 # click handlers for the account screens
 i=s.index("accts:()=>showAccts('pick'),"); j=s.index("acctdelyes:()=>deleteAccount(v),",i)+len("acctdelyes:()=>deleteAccount(v),")
-s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,"+s[j:]
+s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,"+s[j:]
 # new game keeps the account and tells the server
 rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;")
 # start-up: ask the server who is playing
@@ -29,6 +29,8 @@ rep(".acctbrand{",""".authtabs{display:grid;grid-template-columns:1fr 1fr;border
 .amsg{margin:0;padding:10px 12px;border-radius:3px;background:var(--brass-soft);color:var(--ink);font-size:13.5px}
 .aform input[type=password],.aform input[type=email]{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:15px;color:var(--ink)}
 .me{display:flex;align-items:center;gap:14px}
+.updbar{position:fixed;z-index:44;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));width:min(480px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-radius:14px;background:#14261f;color:#fff;border:2px solid #ffd36b;box-shadow:0 14px 36px rgba(0,0,0,.4)}
+.updbar span{flex:1;min-width:0;display:flex;flex-direction:column}.updbar b{font-size:15px}.updbar small{font-size:12.5px;opacity:.85}
 .iossteps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:15px;line-height:1.5}
 .passbar{display:flex;align-items:center;gap:10px;margin-top:8px;border:1px solid var(--brass);background:var(--brass-soft);color:var(--ink);border-radius:22px;padding:5px 6px 5px 14px;font-size:13px;text-align:left;max-width:100%}
 .passbar span{flex:1;min-width:0}.passbar i{font-style:normal;font-weight:700;background:var(--brass);color:#fff;border-radius:16px;padding:4px 12px;white-space:nowrap}
@@ -72,5 +74,8 @@ head='''<!doctype html>
 </head>
 <body>
 '''
+import hashlib
+assert s.count("'__APP_VER__'")==1
+s=s.replace("'__APP_VER__'","'"+hashlib.sha256(s.encode()).hexdigest()[:12]+"'")
 open(out,'w').write(head+s+'\n</body>\n</html>\n')
 print('built',out,len(head+s),'bytes')

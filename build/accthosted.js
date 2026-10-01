@@ -128,6 +128,18 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
   return'<li class="ach got"><b>'+top+seasonName(h.season)+'</b><span>'+h.pts.toLocaleString('en-US')+' points · #'+h.rankRegion+' of '+h.playersRegion+' in '+esc(c.name)+' · #'+h.rank+' of '+h.players+' worldwide</span></li>';}).join('')+'</ul>';}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
+/* ================= New version available: prompt to update ================= */
+const APP_VER='__APP_VER__';let updShown=false;
+function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
+function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
+ b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
+async function appUpdate(){const b=document.querySelector('.updbar button');if(b){b.disabled=true;b.textContent='Updating…';}stopAuto();
+ try{if(ACC)await doSync();}catch(e){}
+ try{if(navigator.serviceWorker){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update();}}catch(e){}
+ location.reload();}
+setTimeout(checkVersion,15000);setInterval(checkVersion,5*60*1000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkVersion();});
+
 /* ================= Install as an app ================= */
 let installEvt=null;
 const isStandalone=()=>(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
