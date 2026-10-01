@@ -16,6 +16,7 @@ Settings come from environment variables (see deploy/hustle.env.example):
   HUSTLE_MAIL_KEY         API key for resend or brevo (or the SMTP password)
   HUSTLE_MAIL_FROM        sender address (default no-reply@<HUSTLE_SITE_DOMAIN>)
   HUSTLE_SMTP_HOST / HUSTLE_SMTP_PORT / HUSTLE_SMTP_USER   only for HUSTLE_MAIL_PROVIDER=smtp
+  HUSTLE_OLD_DOMAINS      old web addresses (comma separated) whose pages forward to HUSTLE_SITE_DOMAIN
   HUSTLE_BILLING          "1" turns the Hustle Pass (free trial, then pay) on; off when empty or "0"
   HUSTLE_PESAPAL_KEY / HUSTLE_PESAPAL_SECRET   the consumer key and secret from your Pesapal account
   HUSTLE_PESAPAL_ENV      "live" (default) or "sandbox" for Pesapal's test system
@@ -52,6 +53,7 @@ ADMIN_PASSWORD = os.environ.get("HUSTLE_ADMIN_PASSWORD", "")
 SECURE_COOKIES = os.environ.get("HUSTLE_SECURE_COOKIES", "1") == "1"
 TRUST_PROXY = os.environ.get("HUSTLE_TRUST_PROXY", "1") == "1"
 SITE_DOMAIN = os.environ.get("HUSTLE_SITE_DOMAIN", "").strip().strip("/")
+OLD_DOMAINS = {d.strip().lower() for d in os.environ.get("HUSTLE_OLD_DOMAINS", "").split(",") if d.strip()} - {SITE_DOMAIN.lower()}
 MAIL_PROVIDER = os.environ.get("HUSTLE_MAIL_PROVIDER", "").strip().lower()
 MAIL_KEY = os.environ.get("HUSTLE_MAIL_KEY", "").strip()
 MAIL_FROM = os.environ.get("HUSTLE_MAIL_FROM", "").strip() or ("no-reply@" + SITE_DOMAIN if SITE_DOMAIN else "")
@@ -873,8 +875,23 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     # ---------- routing ----------
+    def moved(self, path):
+        """Pages on an old web address forward to the new one. The API keeps answering there, so open games,
+        payment notifications and returns from Pesapal never break."""
+        host = (self.headers.get("Host") or "").split(":")[0].strip().lower()
+        if not (SITE_DOMAIN and host in OLD_DOMAINS) or path.startswith("/api/"):
+            return False
+        self.send_response(301)
+        self.send_header("Location", "https://%s%s" % (SITE_DOMAIN, self.path if self.path.startswith("/") else "/"))
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        return True
+
     def do_GET(self):
         path = urlparse(self.path).path
+        if self.moved(path):
+            return
         if path in ("/", "/index.html"):
             return self.serve_file("index.html")
         if path in ("/admin", "/admin/", "/admin.html"):
@@ -1535,6 +1552,8 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     if not ADMIN_PASSWORD or len(ADMIN_PASSWORD) < 10:
         print("Note: admin dashboard is off. Set HUSTLE_ADMIN_PASSWORD (10+ characters) to turn it on.", flush=True)
+    if OLD_DOMAINS and SITE_DOMAIN:
+        print("Web address: %s (forwarding %s)" % (SITE_DOMAIN, ", ".join(sorted(OLD_DOMAINS))), flush=True)
     print("Password reset emails: %s" % ("on (%s, from %s)" % (MAIL_PROVIDER, MAIL_FROM or "log") if mail_ready() else "off"), flush=True)
     if BILLING_ON:
         print("Hustle Pass: on (start %s, %dh trial, %d x %d gift days, blocked after %d days). Pesapal %s: %s" % (
