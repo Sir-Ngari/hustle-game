@@ -497,6 +497,7 @@ html.gm .stagehead small{display:block;margin-top:4px;font-size:13px;letter-spac
 html.gm .stagehead small.boom{color:#ffd36b}html.gm .stagehead small.bust{color:#c9d3e6}
 @media (prefers-reduced-motion:reduce){html.gm .rank[data-tier="6"],.rankup[data-tier="6"] div{animation:none}}
 
+.guide[hidden],.crisis[hidden]{display:none!important}
 .guide{position:fixed;z-index:30;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100vw - 32px));background:var(--panel);border:2px solid var(--brass);border-radius:12px;padding:14px 16px;box-shadow:0 14px 36px rgba(0,0,0,.35);display:grid;gap:4px;animation:guidein .35s ease}
 .guide b{font-size:17px}.guide p{margin:0 0 6px;font-size:14px;color:var(--muted)}.guide p b{font-size:inherit;color:var(--ink)}
 .guide .gstep{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);font-weight:700}
@@ -513,6 +514,11 @@ html.gm .btn.coach{animation:coach 1.3s ease-in-out infinite;box-shadow:0 4px 0 
 .crisis b{font-size:17px}.cfxs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.cfx{font-size:12px;font-weight:700;padding:2px 8px;border-radius:12px}
 .cfx.dn{background:var(--red-soft);color:var(--red)}.cfx.up{background:var(--green-soft);color:var(--green)}
 html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:uppercase}
+
+.result{display:grid;justify-items:center;gap:2px;margin:4px 0 14px;padding:14px;border-radius:10px;text-align:center}
+.result.good{background:var(--green-soft);color:var(--green)}.result.bad{background:var(--red-soft);color:var(--red)}
+.result small{font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}.result b{font-family:var(--display);font-size:40px;line-height:1.05}.result span{color:var(--ink);font-size:14px}
+.pill.good{color:var(--green)}.pill.bad{color:var(--red)}
 </style>
 
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
@@ -595,6 +601,7 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
           <h2>Monthly statement</h2>
           <p class="sub">What you can expect next month, before surprises.</p>
           <div class="stmt" id="stmt"></div>
+          <div id="invest"></div>
         </section>
         <section class="panel">
           <h2>Active effects</h2>
@@ -1049,7 +1056,7 @@ function dealInfo(d){
 function takeDeal(){const d=todaysDeal(),i=dealInfo(d);if(!i||d.taken||S.cash<i.cost||S.over)return;
  if(d.type==='unit'){const disc=i.was-i.cost,before=owned(d.id);S.cash+=disc;buy(d.id);if(owned(d.id)===before){S.cash-=disc;return;}log('Daily deal: bought a '+BIZ.find(x=>x.id===d.id).name+' at 30% off.','gold');}
  else if(d.type==='bargain'){const disc=i.was-i.cost,before=has(d.id);S.cash+=disc;buyAsset(d.id);if(has(d.id)===before){S.cash-=disc;return;}log('Daily deal: bought '+ASSETS.find(x=>x.id===d.id).name+' at 25% off.','gold');}
- else{S.cash-=i.cost;S.pending.push({due:S.month+3,cash:i.cost*1.7,chance:.75,good:'The hot tip paid off! '+d.id.charAt(0).toUpperCase()+d.id.slice(1)+' returned '+fmt(i.cost*1.7)+'.',bad:'The hot tip was wrong. You lost your '+fmt(i.cost)+'.'});log('Daily deal: invested '+fmt(i.cost)+' on a hot tip about '+d.id+'.','gold');}
+ else{S.cash-=i.cost;S.pending.push({due:S.month+3,cash:i.cost*1.7,chance:.75,inv:i.cost,made:S.month,label:'Hot tip: '+d.id,good:'The hot tip paid off! '+d.id.charAt(0).toUpperCase()+d.id.slice(1)+' returned '+fmt(i.cost*1.7)+'.',bad:'The hot tip was wrong. You lost your '+fmt(i.cost)+'.'});log('Daily deal: invested '+fmt(i.cost)+' on a hot tip about '+d.id+'.','gold');}
  d.taken=true;afterChange();}
 function untilMidnight(){const n=new Date(),m=new Date(n);m.setHours(24,0,0,0);const mins=Math.max(1,Math.round((m-n)/60000));return mins>=60?Math.floor(mins/60)+'h '+(mins%60)+'m':mins+'m';}
 function renderToday(){const el=$('today');if(!el)return;if(!S.inds.length||S.over){el.innerHTML='<p class="seghint">Daily bonuses, deals and weekly challenges start once your empire is running.</p>';return;}
@@ -1385,12 +1392,12 @@ const EVENTS=[
   choices:()=>[{l:'Sue the counterfeiters',d:'Legal costs '+fmt(nwc(.015,500))+'. '+(S.ups.legal?'80%':'50%')+' chance you win and gain reputation.',f(){S.cash-=nwc(.015,500);if(rnd()<(S.ups.legal?.8:.5)){addRep(5);return['You won the case. The fakes vanished.','good']}addBuff(.9,4,'Counterfeits');return['The case stalled. Fakes are still out there.','bad']}},
    {l:'Ignore them',d:'Profit ×0.9 for 6 months.',f(){addBuff(.9,6,'Counterfeits');return['Counterfeits ate into your sales.','bad']}}]},
  {id:'order',cat:'Business',w:1,title:'A big corporate order',text:()=>'A bank wants branded products for all its staff. You pay for materials upfront and get paid on delivery.',
-  choices:()=>{const c=pct(.15);return[{l:'Accept the order',d:'Spend '+fmt(c)+' now. 90% chance of '+fmt(c*1.6)+' in 2 months.',f(){S.cash-=c;S.pending.push({due:S.month+2,cash:c*1.6,chance:.9,good:'The corporate client paid in full. +'+fmt(c*1.6),bad:'The client cancelled. Materials lost.'});return['Order accepted.','']}},
+  choices:()=>{const c=pct(.15);return[{l:'Accept the order',d:'Spend '+fmt(c)+' now. 90% chance of '+fmt(c*1.6)+' in 2 months.',f(){S.cash-=c;S.pending.push({due:S.month+2,cash:c*1.6,chance:.9,inv:c,made:S.month,label:'The corporate order',good:'The corporate client paid in full.',bad:'The client cancelled. The materials are wasted.'});return['Order accepted.','']}},
    {l:'Decline',d:'Too much cash tied up.',f(){return['You declined the corporate order.','']}}]}},
  {id:'fire',cat:'Business',w:.6,when:()=>bizAssets()>30000,title:'Fire at your warehouse',text:()=>'An electrical fault started a fire overnight.'+(S.ups.insure?' Insurance will cover most of it.':' You are not insured.'),
   choices:()=>{const c=bizAssets()*.12*(S.ups.insure?.15:1);return[{l:'Rebuild',d:'Costs '+fmt(c)+'.',f(){S.cash-=c;return['You rebuilt after the fire for '+fmt(c)+'.','bad']}}]}},
  {id:'friend',cat:'Business',w:.8,title:'A friend\'s startup is raising',text:()=>'An old friend is building an app and asks you to back them. Most startups fail. Some don\'t.',
-  choices:()=>{const c=pct(.05);return[{l:'Invest',d:'Put in '+fmt(c)+'. 25% chance it returns '+fmt(c*12)+' in a year.',f(){S.cash-=c;S.pending.push({due:S.month+12,cash:c*12,chance:.25,good:'Your friend\'s startup was acquired! +'+fmt(c*12),bad:'Your friend\'s startup shut down.'});return['You backed the startup.','']}},
+  choices:()=>{const c=pct(.05);return[{l:'Invest',d:'Put in '+fmt(c)+'. 25% chance it returns '+fmt(c*12)+' in a year.',f(){S.cash-=c;S.pending.push({due:S.month+12,cash:c*12,chance:.25,inv:c,made:S.month,label:'Your friend\'s startup',good:'A bigger company bought your friend\'s app.',bad:'Your friend\'s startup ran out of money and shut down.'});return['You backed the startup.','']}},
    {l:'Pass',d:'Stay focused.',f(){return['You passed on the startup.','']}}]}},
  {id:'acq',cat:'Business',w:.6,when:()=>!!biggest(2),build:()=>acqEvent(acqDeal(biggest(2)),1)},
  {id:'mentor',cat:'Business',w:.5,title:'A tycoon offers mentorship',text:()=>'A retired industrialist offers to mentor you for a year.',
@@ -1418,10 +1425,10 @@ const EVENTS=[
    {l:'Settle up',d:'Pay '+fmt(nw*r)+' in back taxes and penalties.',f(){S.cash-=nw*r;return['Audit settled for '+fmt(nw*r)+'.',sv('book').lvl>=0?'':'bad']}},
    {l:'Hire a tax consultant',d:'Pay '+fmt(nw*.01)+'. '+(S.ups.legal?'70%':'50%')+' chance the case is dropped; otherwise pay '+fmt(nw*r*.75)+' more.',f(){S.cash-=nw*.01;if(rnd()<(S.ups.legal?.7:.5))return['The case was dropped.','good'];S.cash-=nw*r*.75;return['You still paid.','bad']}}]}},
  {id:'tender',cat:'Politics',w:.9,title:'A government tender opens',text:()=>'The ministry needs a supplier for a national contract.'+(S.influence>=40?' Your friends in government say you are well placed.':''),
-  choices:()=>{const c=pct(.06),ch=clamp(.3+S.influence/200,0,.8);return[{l:'Bid for it',d:'Spend '+fmt(c)+'. '+Math.round(ch*100)+'% chance of '+fmt(c*3.2)+' in 3 months (better odds with influence).',f(){S.cash-=c;S.pending.push({due:S.month+3,cash:c*3.2,chance:ch,good:'You won the government tender! +'+fmt(c*3.2),bad:'The tender went to someone better connected.',rep:4});return['Bid submitted.','']}},
+  choices:()=>{const c=pct(.06),ch=clamp(.3+S.influence/200,0,.8);return[{l:'Bid for it',d:'Spend '+fmt(c)+'. '+Math.round(ch*100)+'% chance of '+fmt(c*3.2)+' in 3 months (better odds with influence).',f(){S.cash-=c;S.pending.push({due:S.month+3,cash:c*3.2,chance:ch,inv:c,made:S.month,label:'The government tender',good:'You won the government tender.',bad:'The tender went to someone better connected.',xgood:'Reputation +4.',rep:4});return['Bid submitted.','']}},
    {l:'Skip it',d:'Keep your cash.',f(){return['You skipped the tender.','']}}]}},
  {id:'mp',cat:'Politics',w:1,when:()=>S.month>5,title:()=>'Your '+R.mpShort+' wants campaign money',text:()=>'Your local '+R.mpShort+' is running again. Over lunch, he makes it clear a "contribution" would be remembered, and so would a refusal.',
-  choices:()=>{const c=nwc(.015,500);return[{l:'Fund the campaign',d:'Pay '+fmt(c)+'. +15 influence. 20% risk the donation leaks to the press later.',f(){S.cash-=c;addInf(15);S.pending.push({due:S.month+8,chance:.8,good:'',bad:'Journalists exposed your donations to the MP. −10 reputation.',brep:-10});return['You funded the MP\'s campaign.','']}},
+  choices:()=>{const c=nwc(.015,500);return[{l:'Fund the campaign',d:'Pay '+fmt(c)+'. +15 influence. 20% risk the donation leaks to the press later.',f(){S.cash-=c;addInf(15);S.pending.push({due:S.month+8,chance:.8,good:'',bad:'Journalists exposed your donations to the MP. −10 reputation.',brep:-10});const won=rnd()<.65;S.pending.push({due:S.month+4,chance:won?1:0,pol:true,label:'Your '+R.mpShort+'\'s campaign',rep:0,good:'Your '+R.mpShort+' held the seat. Your '+fmt(c)+' was money well spent.',bad:'Your '+R.mpShort+' lost the seat. The new '+R.mpShort+' knows whose side you were on.',xgood:'Influence +10.',xbad:'Influence −10.'});S.mpBet=won?10:-10;return['You funded the '+R.mpShort+'\'s campaign. The vote is in 4 months.','']}},
    {l:'Politely decline',d:'−8 influence. His allies may make life hard.',f(){addInf(-8);if(rnd()<.4){addBuff(.88,3,'Inspections');return[R.pol.county.charAt(0).toUpperCase()+R.pol.county.slice(1)+' inspectors suddenly found "violations" at your outlets.','bad']}return['You declined. Nothing happened, yet.','']}}]}},
  {id:'permits',cat:'Politics',w:.9,when:()=>totalUnits()>=2,title:'Your permits are stuck',text:()=>'The '+R.pol.county+' office is sitting on your licence renewals. An aide hints that a "facilitation fee" would speed things up.',
   choices:()=>{const c=nwc(.01,300);return[{l:'Pay the fee',d:'Pay '+fmt(c)+'. Permits cleared. +3 influence.',f(){S.cash-=c;addInf(3);return['Permits cleared overnight.','']}},
@@ -1508,7 +1515,7 @@ const EVENTS=[
    {l:'Dinner at a nice restaurant',d:'+5 spouse happiness.',f(){S.cash-=Math.min(S.cash,150);addSH(5);return['A nice anniversary dinner.','life']}},
    {l:'Too busy with work',d:'−15 spouse happiness.',f(){addSH(-15);return[S.spouse.name+' spent the anniversary alone.','bad']}}]}},
  {id:'spousebiz',cat:'Family',w:.6,when:()=>S.spouse&&netWorth()>1e5,title:S=>'A business of their own',text:()=>S.spouse.name+' wants to open a boutique and asks you to back it.',
-  choices:()=>{const c=nwc(.03,3000);return[{l:'Fund the boutique',d:'Spend '+fmt(c)+'. +15 spouse happiness. 45% chance it returns '+fmt(c*2.5)+' in a year.',f(){S.cash-=c;addSH(15);S.pending.push({due:S.month+12,cash:c*2.5,chance:.45,sh:10,good:S.spouse.name+'\'s boutique took off! +'+fmt(c*2.5),bad:S.spouse.name+'\'s boutique closed after a tough year.',bsh:-5});return['You backed '+S.spouse.name+'\'s boutique.','life']}},
+  choices:()=>{const c=nwc(.03,3000);return[{l:'Fund the boutique',d:'Spend '+fmt(c)+'. +15 spouse happiness. 45% chance it returns '+fmt(c*2.5)+' in a year.',f(){S.cash-=c;addSH(15);S.pending.push({due:S.month+12,cash:c*2.5,chance:.45,sh:10,inv:c,made:S.month,label:S.spouse.name+'\'s boutique',good:S.spouse.name+'\'s boutique took off and the customers keep coming.',bad:S.spouse.name+'\'s boutique closed after a tough year.',xgood:'Your '+spW()+' is glowing. Spouse happiness +10.',xbad:'Your '+spW()+' is heartbroken. Spouse happiness −5.',bsh:-5});return['You backed '+S.spouse.name+'\'s boutique.','life']}},
    {l:'Say it\'s not a good time',d:'−12 spouse happiness.',f(){addSH(-12);return[S.spouse.name+' felt dismissed.','bad']}}]}},
  {id:'inlaws',cat:'Family',w:.6,when:()=>S.spouse,title:'Your in-laws need a house',text:()=>S.spouse.name+'\'s parents are retiring and their rental lease is up.',
   choices:()=>{const c=nwc(.008,1500);return[{l:'Buy them a house',d:'Spend '+fmt(c)+'. +12 spouse happiness.',f(){S.cash-=c;addSH(12);addRep(2);return['You bought your in-laws a home.','life']}},
@@ -1675,9 +1682,9 @@ function electionEvent(){const O=OFFICES[rank()],inc=clamp(.5+(rnd()-.5)*.2,.35,
    choices:FUND.map(F=>{const c=nwc(F.p*(L>=2.5?1.3:1),[300,1500,8000][FUND.indexOf(F)]*L),ch=Math.min(.9,odds[ci]+F.odds);
     return{l:F.name+' · '+fmt(c),d:Math.round(ch*100)+'% chance they win. Win: +'+Math.round(F.inf*L>100?100:F.inf*L)+' influence'+(O.pol?' and '+(O.pol+(F.biz?1:0))+' friendly polic'+(O.pol+(F.biz?1:0)>1?'ies':'y'):'')+(F.biz?', plus government contracts (profit ×1.1 for 2 years)':'')+'. Lose: −'+Math.round((F.biz?40:20)*Math.min(L,1.5))+' influence'+(O.pol?' and a hostile policy':'')+'.',dis:!canPay(c),
      f(){S.cash-=c;done();if(rnd()<ch){addInf(Math.min(100,F.inf*L));const g=O.pol?goodPol(O.pol+(F.biz?1:0)):[];if(F.biz)addBuff(1.1,24,'Government contracts');addRep(F.biz?-3:0);
-       return[name+' won '+O.office+'! +'+Math.round(Math.min(100,F.inf*L))+' influence'+(g.length?'. New friendly polic'+(g.length>1?'ies':'y')+': '+g.join(', '):'')+(F.biz?'. The contracts are already flowing.':'.'),'gold'];}
+       const m=name+' won '+O.office+'! +'+Math.round(Math.min(100,F.inf*L))+' influence'+(g.length?'. New friendly polic'+(g.length>1?'ies':'y')+': '+g.join(', '):'')+(F.biz?'. The contracts are already flowing.':'.');return[m,'gold',resultEvent({pol:true,ok:true,label:O.title,msg:'You gave '+fmt(c)+' to '+name+'. '+m})];}
       addInf(-(F.biz?40:20)*Math.min(L,1.5));const b=O.pol?badPol(F.biz?2:1):[];
-      return[name+' lost '+O.office+'. The winner punished you'+(b.length?' with a '+b.join(' and a '):'')+'.','bad'];}};}).concat([{l:'Back out',d:'Change your mind and stay neutral.',f(){done();addInf(-3);return['You stayed out of the '+O.title.lc()+'.','']}}])};};
+      const m=name+' lost '+O.office+'. The winner punished you'+(b.length?' with a '+b.join(' and a '):'')+'.';return[m,'bad',resultEvent({pol:true,ok:false,label:O.title,msg:'You gave '+fmt(c)+' to '+name+'. '+m+' Influence −'+Math.round((F.biz?40:20)*Math.min(L,1.5))+'.'})];}};}).concat([{l:'Back out',d:'Change your mind and stay neutral.',f(){done();addInf(-3);return['You stayed out of the '+O.title.lc()+'.','']}}])};};
  const bothCost=nwc(.04*(L>=2.5?1.3:1),2500*L);
  return{cat:'Politics',title:O.title,
   text:'Elections are here. At your level, the race that matters is for '+O.office+'. '+O.cands[0][0]+' ('+O.cands[0][1]+') is polling at '+Math.round(inc*100)+'%, against '+O.cands[1][0]+' ('+O.cands[1][1]+') at '+Math.round((1-inc)*100)+'%.',
@@ -1686,7 +1693,7 @@ function electionEvent(){const O=OFFICES[rank()],inc=clamp(.5+(rnd()-.5)*.2,.35,
    {l:'Back '+O.cands[1][0],d:'Choose how much to give next.',f(){return['','',fundCard(1)]}},
    {l:'Quietly fund both sides · '+fmt(bothCost),d:'Whoever wins owes you something (+'+Math.round(12*L)+' influence), and nobody punishes you. But 30% chance both camps find out (−'+Math.round(10*L)+' influence, −5 reputation).',dis:!canPay(bothCost),
     f(){S.cash-=bothCost;done();if(rnd()<.3){addInf(-10*L);addRep(-5);return['Both camps found out you funded their rival. Neither trusts you now.','bad'];}
-     const w=rnd()<inc?0:1;addInf(12*L);return[O.cands[w][0]+' won '+O.office+'. Your money was on both sides, so you win either way. +'+Math.round(12*L)+' influence.','good'];}},
+     const w=rnd()<inc?0:1;addInf(12*L);const m=O.cands[w][0]+' won '+O.office+'. Your money was on both sides, so you win either way. +'+Math.round(12*L)+' influence.';return[m,'good',resultEvent({pol:true,ok:true,label:O.title,msg:m})];}},
    {l:'Stay neutral',d:'−5 influence. No one owes you anything.',f(){done();addInf(-5);return['You sat out the '+O.title.lc()+'.','']}}]};}
 
 function divorceEvent(){const sp=S.spouse,pers=Math.max(0,S.cash)+lifeAssets(),biz=bizAssets();
@@ -2114,8 +2121,13 @@ function nextMonth(){
  S.buffs.forEach(b=>b.months--);S.buffs=S.buffs.filter(b=>b.months>0);
  S.policies.forEach(p=>p.left--);S.policies.filter(p=>p.left<=0).forEach(p=>log('The '+POLICIES[p.id].name.lc()+' has expired.',''));S.policies=S.policies.filter(p=>p.left>0);
  S.pending=S.pending.filter(p=>{if(p.due>S.month)return true;
-  if(rnd()<p.chance){if(p.cash)S.cash+=p.cash;if(p.rep)addRep(p.rep);if(p.sh)addSH(p.sh);if(p.px&&p.pm)S.px[p.px]*=p.pm;log(p.good,'good')}
-  else{if(p.brep)addRep(p.brep);if(p.bsh)addSH(p.bsh);if(p.bcash)S.cash-=p.bcash;if(p.px&&p.bpm)S.px[p.px]*=p.bpm;log(p.bad,'bad')}return false;});
+  const ok=rnd()<p.chance;
+  if(ok){if(p.cash)S.cash+=p.cash;if(p.rep)addRep(p.rep);if(p.sh)addSH(p.sh);if(p.px&&p.pm)S.px[p.px]*=p.pm;log(p.good,'good')}
+  else{if(p.brep)addRep(p.brep);if(p.bsh)addSH(p.bsh);if(p.bcash)S.cash-=p.bcash;if(p.px&&p.bpm)S.px[p.px]*=p.bpm;log(p.bad,'bad')}
+  if(p.pol&&p.label&&/campaign/.test(p.label))addInf(ok?10:-10);
+  if(p.inv||p.pol){const r={label:p.label||'Investment',inv:p.inv||0,ret:ok?(p.cash||0):0,ok,msg:ok?p.good:p.bad,months:S.month-(p.made||S.month),pol:!!p.pol,extra:ok?p.xgood:p.xbad};
+   S.resultQ=(S.resultQ||[]).concat(r);if(p.inv){S.invHist=[{label:r.label,inv:r.inv,ret:r.ret,ok,m:S.month}].concat(S.invHist||[]).slice(0,12);}}
+  return false;});
  const sPrev=S.s;
  S.s+=(1-S.s)*.08+(rnd()-.5)*.06;S.s=clamp(S.s,.6,1.4);
  marketTick(sPrev);
@@ -2182,6 +2194,7 @@ function nextMonth(){
  checkAch();
  afterChange();
  /* forced events first */
+ if(S.resultQ&&S.resultQ.length){openEvent(resultEvent(S.resultQ.shift()));return;}
  if(!S.g){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
  if(S.indPending&&!S.lifePending){S.indPending=false;if(S.inds.length<SLOTS[S.peak]){openEvent(industryEvent(false));return;}}
@@ -2498,6 +2511,7 @@ function render(){
   line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
   line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+line('Health care',F.health,-1)+line('Estate planning & insurance',F.estatePl||0,-1)+
   '<span class="tot">Net cash flow</span><span class="tot '+(F.net<0?'neg':'pos')+'">'+(F.net<0?'−':'+')+fmt(Math.abs(F.net))+'</span>';
+ {const iv=$('invest');if(iv)iv.innerHTML=investHTML();}
 
  /* life */
  const st=stage(),am=ageMult(),ol=outlook(),cn=Object.keys(S.conds||{});
@@ -2663,7 +2677,7 @@ function crisisEvent(){const c=S.crisis,d=crisisDef(c),c1=nwc(.02,1500),c2=nwc(.
    {l:'Move money offshore',d:'Pay '+fmt(pct(.05))+' in fees. Protects your cash from the war taxes that are coming.',f(){S.cash-=pct(.05);c.safe=true;return['Your reserves are now in a vault far from the fighting.','']}},
    {l:'Keep your head down',d:'Ride it out and hope it ends soon.',f(){return['You battened down the hatches.','']}}]};
  if(c.id==='crash')return{cat:'World crisis',title:'The global financial system cracks',text:'A chain of bank failures has frozen credit worldwide. Markets have crashed and property prices are falling.<div class="cfxs">'+fxLine(c)+'</div>',
-  choices:[{l:'Buy while everyone is selling',d:'Spend '+fmt(c1)+' on distressed assets. They pay back about double after the crisis.',dis:!canPay(c1),f(){S.cash-=c1;S.pending.push({due:c.end,cash:c1*2.1,chance:.8,good:'The distressed assets you bought in the crash have more than doubled.',bad:'The distressed assets you bought never recovered.'});return['You went shopping while others panicked.','good']}},
+  choices:[{l:'Buy while everyone is selling',d:'Spend '+fmt(c1)+' on distressed assets. They pay back about double after the crisis.',dis:!canPay(c1),f(){S.cash-=c1;S.pending.push({due:c.end,cash:c1*2.1,chance:.8,inv:c1,made:S.month,label:'Distressed assets from the crash',good:'The distressed assets you bought in the crash have more than doubled.',bad:'The distressed assets you bought never recovered.'});return['You went shopping while others panicked.','good']}},
    {l:'Hoard cash',d:'Sit tight and protect what you have.',f(){return['You stuffed the mattress.','']}}]};
  const reb=d.rebuild;
  return{cat:'Disaster',title:d.name,text:d.text()+'<div class="cfxs">'+fxLine(c)+'</div>'+(d.prop<1?'<p class="seghint">Property values across the area have dropped '+Math.round((1-d.prop)*100)+'%.</p>':''),
@@ -2689,6 +2703,22 @@ function crisisTick(){const c=S.crisis;
 function crisisHTML(){const c=crisisOf();if(!c)return'';const d=crisisDef(c),left=c.end-S.month;
  return'<div class="crisis"><span class="eyebrow">'+(c.kind==='disaster'?'Disaster':'World crisis')+' · '+left+' month'+(left>1?'s':'')+' to go</span><b>'+d.name+'</b><div class="cfxs">'+fxLine(c)+'</div></div>';}
 function crisisLine(){const c=crisisOf();return c?crisisDef(c).name:'';}
+
+/* ================= Results: tell the player how a bet turned out ================= */
+function resultEvent(r){const profit=r.ret-r.inv,mult=r.inv>0?r.ret/r.inv:0,ago=r.months>0?' '+r.months+' month'+(r.months>1?'s':'')+' ago':'';
+ if(r.pol)return{cat:'Election result',title:r.ok?r.label+': you backed the winner':r.label+': your candidate lost',
+  text:'<div class="result '+(r.ok?'good':'bad')+'"><b>'+(r.ok?'WON':'LOST')+'</b></div>'+r.msg+(r.extra?' '+r.extra:''),choices:[{l:'OK',d:'',f(){return['','']}}]};
+ return{cat:'Investment result',title:r.ok?r.label+' paid off':r.label+(r.ret>0?' paid back less':' did not pay off'),
+  text:'<div class="result '+(profit>=0?'good':'bad')+'"><small>'+(profit>=0?'Profit':'Loss')+'</small><b>'+(profit>=0?'+':'−')+fmt(Math.abs(profit))+'</b><span>You put in '+fmt(r.inv)+ago+(r.ret>0?' and got back '+fmt(r.ret)+' ('+(mult>=10?Math.round(mult):mult.toFixed(1))+'×)':' and lost all of it')+'.</span></div>'+r.msg+(r.extra?' '+r.extra:''),
+  choices:[{l:'OK',d:'',f(){return['','']}}]};}
+function invPending(){return(S.pending||[]).filter(p=>p.inv);}
+function investHTML(){const P=invPending(),H=S.invHist||[];if(!P.length&&!H.length)return'';
+ let h='<h4>Your bets and investments</h4>';
+ P.forEach(p=>{h+='<div class="row"><div class="t"><b>'+esc(p.label||'Investment')+'</b><span>'+fmt(p.inv)+' in · '+Math.round(p.chance*100)+'% chance of '+fmt(p.cash||0)+' · result in '+Math.max(1,p.due-S.month)+' month'+(p.due-S.month>1?'s':'')+'</span></div><span class="pill">Waiting</span></div>';});
+ H.slice(0,6).forEach(r=>{const pr=r.ret-r.inv;h+='<div class="row"><div class="t"><b>'+esc(r.label)+'</b><span>'+fmt(r.inv)+' in · '+dateStr(r.m)+'</span></div><span class="pill '+(pr>=0?'good':'bad')+'">'+(pr>=0?'+':'−')+fmt(Math.abs(pr))+'</span></div>';});
+ const tin=H.reduce((a,r)=>a+r.inv,0),tout=H.reduce((a,r)=>a+r.ret,0);
+ if(H.length)h+='<p class="seghint">Recent record: '+H.filter(r=>r.ret>=r.inv).length+' of '+H.length+' paid off, '+(tout>=tin?'+':'−')+fmt(Math.abs(tout-tin))+' overall.</p>';
+ return h;}
 /* ================= First steps: a coach that shows new players what to press ================= */
 function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
  if(!S.inds.length)return null;
