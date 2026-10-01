@@ -579,8 +579,8 @@ html.gm .btn.coach{animation:coach 1.3s ease-in-out infinite;box-shadow:0 4px 0 
       <button class="btn ghost" id="tourbtn" data-a="tour" aria-label="Take the game tour">Tour</button>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
-      <button role="tab" id="tab-overview" data-a="tab" data-v="overview">Overview<span class="badge" id="badge" hidden></span></button>
       <button role="tab" id="tab-business" data-a="tab" data-v="business">Business</button>
+      <button role="tab" id="tab-overview" data-a="tab" data-v="overview">Overview<span class="badge" id="badge" hidden></span></button>
       <button role="tab" id="tab-money" data-a="tab" data-v="money">Money</button>
       <button role="tab" id="tab-property" data-a="tab" data-v="property">Property</button>
       <button role="tab" id="tab-life" data-a="tab" data-v="life">Life</button>
@@ -1821,7 +1821,7 @@ function industryEvent(first){const avail=INDS.filter(i=>!S.inds.includes(i.id))
 let exitAsk=null,othersOpen=null;
 function exitInd(id){let v=0;BIZ.filter(b=>b.ind===id).forEach(b=>{for(let k=0;k<owned(b.id);k++)v+=unitCost(b,k)*.7;S.owned[b.id]=0;});
  S.cash+=v;S.inds=S.inds.filter(x=>x!==id);exitAsk=null;log('You sold out of '+IND[id].name+' for '+fmt(v)+'.','');afterChange();}
-const TABS=['overview','business','money','property','life','sports','giving','power','news'];
+const TABS=['business','overview','money','property','life','sports','giving','power','news'];
 let curTab='overview';
 try{const h=(location.hash||'').slice(1);const t=TABS.includes(h)?h:localStorage.getItem('hustle-tab');if(TABS.includes(t))curTab=t;}catch(e){}
 function qset(id,txt,cls){const e=$(id);if(!e)return;if(e.textContent!==txt){if(e.textContent&&$('quick').classList.contains('on')){e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump');}e.textContent=txt;}e.classList.toggle('pos',cls==='pos');e.classList.toggle('neg',cls==='neg');}
