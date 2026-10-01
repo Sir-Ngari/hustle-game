@@ -501,6 +501,25 @@ html.gm .acct{background:rgba(6,14,30,.82);backdrop-filter:blur(3px);-webkit-bac
 @keyframes ribbon{0%{transform:scale(.3) rotate(-6deg);opacity:0}12%{transform:scale(1.08) rotate(1deg);opacity:1}20%{transform:scale(1) rotate(0)}82%{opacity:1;transform:scale(1)}100%{opacity:0;transform:translateY(-30px) scale(.95)}}
 .confetti{position:fixed;top:-12px;z-index:44;width:9px;height:14px;pointer-events:none;border-radius:2px}
 @media (prefers-reduced-motion:reduce){html.gm #next::after{animation:none}html.gm .card{animation:none}}
+
+/* rank colours: every rank has its own metal */
+:root.gm:not(#_){--accent:#ff8a2b;--accent2:#ffd36b}
+html.gm .rank[data-tier="0"],.rankup[data-tier="0"] div{background:linear-gradient(180deg,#e2e6ec,#9aa3b2);color:#1c2230;box-shadow:0 3px 0 #5b6372,inset 0 1px 0 rgba(255,255,255,.7)}
+html.gm .rank[data-tier="1"],.rankup[data-tier="1"] div{background:linear-gradient(180deg,#f6c08e,#b9682e);color:#3a1c05;box-shadow:0 3px 0 #7a3f14,inset 0 1px 0 rgba(255,255,255,.6)}
+html.gm .rank[data-tier="2"],.rankup[data-tier="2"] div{background:linear-gradient(180deg,#8ff0a9,#25a24c);color:#06300e;box-shadow:0 3px 0 #126a2c,inset 0 1px 0 rgba(255,255,255,.6)}
+html.gm .rank[data-tier="3"],.rankup[data-tier="3"] div{background:linear-gradient(180deg,#a5d1ff,#2f78e0);color:#06193a;box-shadow:0 3px 0 #1a4790,inset 0 1px 0 rgba(255,255,255,.6)}
+html.gm .rank[data-tier="4"],.rankup[data-tier="4"] div{background:linear-gradient(180deg,#e2c2ff,#8a46e0);color:#22083f;box-shadow:0 3px 0 #55238f,inset 0 1px 0 rgba(255,255,255,.6)}
+html.gm .rank[data-tier="5"],.rankup[data-tier="5"] div{background:linear-gradient(180deg,#ffe170,#f29a12);color:#3a2300;box-shadow:0 3px 0 #b55f00,inset 0 1px 0 rgba(255,255,255,.65)}
+html.gm .rank[data-tier="6"],.rankup[data-tier="6"] div{background:linear-gradient(110deg,#ffd34d 0%,#fff8d6 25%,#ffc93a 50%,#fffbe6 75%,#ffd34d 100%);background-size:220% 100%;color:#3a2a00;box-shadow:0 3px 0 #b58a00,0 0 18px rgba(255,214,90,.55),inset 0 1px 0 #fff;animation:platinum 3.5s linear infinite}
+@keyframes platinum{0%{background-position:0 0}100%{background-position:-220% 0}}
+html.gm .rank{position:relative;overflow:hidden}
+/* the brand's own colour: savanna sunset */
+html.gm .brand h1,html.gm .acctbrand {background:linear-gradient(180deg,var(--accent2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.35))}
+html.gm .stagehead b{position:relative;padding-bottom:6px}
+html.gm .stagehead b::after{content:"";position:absolute;left:0;bottom:0;width:56px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--accent2),var(--accent))}
+html.gm .stagehead small{display:block;margin-top:4px;font-size:16px;letter-spacing:.08em}
+html.gm .stagehead small.boom{color:#ffd36b}html.gm .stagehead small.bust{color:#c9d3e6}
+@media (prefers-reduced-motion:reduce){html.gm .rank[data-tier="6"],.rankup[data-tier="6"] div{animation:none}}
 </style>
 
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
@@ -508,7 +527,7 @@ html.gm .acct{background:rgba(6,14,30,.82);backdrop-filter:blur(3px);-webkit-bac
   <span class="qgap"></span>
   <span class="q"><small>Reputation</small><b id="q-rep"></b></span><span class="q"><small>Happiness</small><b id="q-hap"></b></span><span class="q"><small>Influence</small><b id="q-inf"></b></span><span class="q"><small>Mob heat</small><b id="q-heat"></b></span><span class="q"><small>Health</small><b id="q-hlth"></b></span>
 </div></div>
-<div class="wrap"><div class="stagehead" aria-hidden="true"><b id="ch-city"></b><span id="ch-date"></span></div>
+<div class="wrap"><div class="stagehead" aria-hidden="true"><b id="ch-city"></b><span><span id="ch-date"></span><small id="ch-eco"></small></span></div>
   <section class="note" aria-label="Your empire">
     <div class="head-l">
       <div class="brand"><h1>Hustle to an Empire</h1><span class="rank" id="rank">Street Hustler</span></div>
@@ -759,6 +778,7 @@ const scene=(()=>{const c=document.createElement('canvas');c.id='scene';document
  const clouds=Array.from({length:6},(_,i)=>({x:Math.random(),y:.08+Math.random()*.22,s:.6+Math.random()*.9,v:.004+Math.random()*.006}));
  const cars=Array.from({length:7},()=>({x:Math.random(),v:(.025+Math.random()*.04)*(Math.random()<.5?1:-1),c:['#ff5a4e','#ffd43d','#4fa3ff','#ffffff','#3fd06b'][Math.floor(Math.random()*5)]}));
  function size(){dpr=Math.min(1.5,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;x.setTransform(dpr,0,0,dpr,0,0);city=null;}
+ const rk0=()=>S?Math.max(S.title||0,S.peak||0):0;
  function rng(seed){let h=2166136261;for(const ch of String(seed))h=Math.imul(h^ch.charCodeAt(0),16777619);return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
  function build(){const units=typeof totalUnits==='function'&&S?totalUnits():0,props=S&&S.props?S.props.length:0,rk=S?Math.max(S.title||0,S.peak||0):0;
   const key=W+'|'+H+'|'+Math.min(60,units)+'|'+props+'|'+rk+'|'+(ACC&&ACC.id);if(city&&key===cityKey)return;cityKey=key;
@@ -769,7 +789,7 @@ const scene=(()=>{const c=document.createElement('canvas');c.id='scene';document
  function sky(ph){const day=Math.max(0,Math.sin(ph*Math.PI*2)),dusk=Math.max(0,1-Math.abs(Math.sin(ph*Math.PI*2))*2.2);
   const mix=(a,b,k)=>a.map((v,i)=>Math.round(v+(b[i]-v)*k));const top=mix([8,16,40],[40,110,210],day),mid=mix([18,30,70],[110,170,235],day),low=mix(mix([30,40,80],[180,215,240],day),[255,150,80],dusk*.8);
   const g=x.createLinearGradient(0,0,0,city?city.base:H*.5);g.addColorStop(0,'rgb('+top+')');g.addColorStop(.55,'rgb('+mid+')');g.addColorStop(1,'rgb('+low+')');x.fillStyle=g;x.fillRect(0,0,W,H);return{day,dusk};}
- function draw(now){const t=(now-t0)/1000,ph=((t/240)+.18)%1,L=sky(ph);build();
+ function draw(now){const t=(now-t0)/1000,ph=((t/240)+.18)%1,L=sky(ph);build();if(S&&S.s>1.1){x.fillStyle='rgba(255,165,60,.16)';x.fillRect(0,0,W,city.base);}else if(S&&S.s<.9){x.fillStyle='rgba(60,70,92,.32)';x.fillRect(0,0,W,city.base);}
   /* stars */ if(L.day<.3){x.fillStyle='rgba(255,255,255,'+(0.8*(1-L.day/.3))+')';const r=rng('stars');for(let i=0;i<70;i++){const sx=r()*W,sy=r()*H*.45,tw=.5+.5*Math.sin(t*2+i);x.globalAlpha=tw*(1-L.day/.3);x.fillRect(sx,sy,1.6,1.6);}x.globalAlpha=1;}
   /* sun or moon */ {const cbz=city?city.base:H*.5,a=ph*Math.PI*2,sx=W*.5-Math.cos(a)*W*.42,sy=cbz*.95-Math.sin(a)*cbz*.8,isSun=Math.sin(a)>0;const px=isSun?sx:W-sx,py=isSun?sy:cbz*.95+Math.sin(a)*cbz*.8;
    const gg=x.createRadialGradient(px,py,0,px,py,isSun?90:50);gg.addColorStop(0,isSun?'rgba(255,240,180,.95)':'rgba(230,240,255,.9)');gg.addColorStop(.25,isSun?'rgba(255,210,90,.55)':'rgba(200,220,255,.25)');gg.addColorStop(1,'rgba(255,200,80,0)');
@@ -781,7 +801,7 @@ const scene=(()=>{const c=document.createElement('canvas');c.id='scene';document
   city.bs.forEach((b,i)=>{const sh=[[38,52,82],[46,62,96],[32,44,72]][b.col],k=.55+.45*L.day;x.fillStyle='rgb('+sh.map(v=>Math.round(v*k+(L.dusk*30)))+')';x.fillRect(b.x,cb-b.h,b.w,b.h);
    if(night>.25){const r=rng('w'+i);for(let wy=cb-b.h+8;wy<cb-6;wy+=9)for(let wx=b.x+4;wx<b.x+b.w-4;wx+=8){if(r()<b.win*.6){x.fillStyle='rgba(255,214,120,'+(night*.85*(0.6+.4*Math.sin(t*.7+wx+wy)))+')';x.fillRect(wx,wy,3,4);}}}});
   {const m=city.mine;const g=x.createLinearGradient(m.x,0,m.x+m.w,0);g.addColorStop(0,'#2d4f8a');g.addColorStop(.5,'#6d9be0');g.addColorStop(1,'#223d6e');x.fillStyle=g;x.fillRect(m.x,cb-m.h,m.w,m.h);
-   x.fillStyle='#ffc53d';x.fillRect(m.x+m.w/2-2,cb-m.h-22,4,22);const bl=.5+.5*Math.sin(t*3);x.fillStyle='rgba(255,90,70,'+(0.4+.6*bl)+')';x.beginPath();x.arc(m.x+m.w/2,cb-m.h-24,4,0,7);x.fill();
+   const TC=['#c9ced6','#e39a5a','#46d16f','#5ea8ff','#b47cff','#ffc53d','#fff2b0'][Math.min(6,rk0())];x.fillStyle=TC;x.fillRect(m.x+m.w/2-2,cb-m.h-22,4,22);x.fillRect(m.x-2,cb-m.h-3,m.w+4,3);const bl=.5+.5*Math.sin(t*3);x.fillStyle='rgba(255,90,70,'+(0.4+.6*bl)+')';x.beginPath();x.arc(m.x+m.w/2,cb-m.h-24,4,0,7);x.fill();
    const brand=(typeof BR==='function'?BR():'').toUpperCase();if(brand&&(S&&(S.title||0)>=2)){x.font='600 '+Math.max(11,m.w*.18)+'px Teko, Impact, sans-serif';x.textAlign='center';x.fillStyle='rgba(255,230,150,'+(0.6+.4*night)+')';x.fillText(brand.slice(0,10),m.x+m.w/2,cb-m.h+16);}
    if(night>.25){for(let wy=cb-m.h+26;wy<cb-6;wy+=10)for(let wx=m.x+5;wx<m.x+m.w-5;wx+=9){x.fillStyle='rgba(180,220,255,'+night*.7+')';x.fillRect(wx,wy,4,5);}}}
   /* road and cars */ x.fillStyle='#1b2433';x.fillRect(0,cb,W,32);{const gr=x.createLinearGradient(0,cb+32,0,H);gr.addColorStop(0,'#13283a');gr.addColorStop(1,'#08121f');x.fillStyle=gr;x.fillRect(0,cb+32,W,H-cb-32);}x.fillStyle='rgba(255,255,255,.25)';for(let px=0;px<W;px+=40)x.fillRect(px+((t*30)%40),cb+16,18,2);
@@ -800,7 +820,7 @@ function coinBurst(n){if(!gm()||RM)return;const tgt=document.querySelector('.qui
  for(let i=0;i<(n||14);i++){const c=document.createElement('i');c.className='coinfx';document.body.appendChild(c);const dx=(Math.random()-.5)*200,dy=(Math.random()-.5)*140;
   c.animate([{transform:'translate('+sx+'px,'+sy+'px) scale(.4)',opacity:0},{transform:'translate('+(sx+dx)+'px,'+(sy+dy)+'px) scale(1.1)',opacity:1,offset:.35},{transform:'translate('+tr.left+'px,'+tr.top+'px) scale(.6)',opacity:.9}],{duration:900+i*35,easing:'cubic-bezier(.3,.1,.3,1)'}).onfinish=()=>c.remove();}
  setTimeout(()=>{tgt.animate([{transform:'scale(1)'},{transform:'scale(1.25)'},{transform:'scale(1)'}],{duration:260});},900);}
-function rankUpFx(name){if(!gm())return;scene.redraw();if(RM)return;document.querySelectorAll('.rankup').forEach(e=>e.remove());const d=document.createElement('div');d.className='rankup';d.innerHTML='<div><small>New rank</small><b>'+esc(name)+'</b></div>';document.body.appendChild(d);setTimeout(()=>d.remove(),2700);coinBurst(10);}
+function rankUpFx(name,tier){if(!gm())return;scene.redraw();if(RM)return;document.querySelectorAll('.rankup').forEach(e=>e.remove());const d=document.createElement('div');d.className='rankup';d.dataset.tier=tier==null?5:tier;d.innerHTML='<div><small>New rank</small><b>'+esc(name)+'</b></div>';document.body.appendChild(d);setTimeout(()=>d.remove(),2700);coinBurst(10);}
 function confettiFx(){if(!gm()||RM)return;const cols=['#ffc53d','#3fd06b','#4f86e8','#ff6159','#c993ff','#fff'];for(let i=0;i<90;i++){const c=document.createElement('i');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];document.body.appendChild(c);
  c.animate([{transform:'translateY(0) rotate(0)'},{transform:'translateY('+(innerHeight+40)+'px) rotate('+(Math.random()*720-360)+'deg) translateX('+(Math.random()*120-60)+'px)'}],{duration:2200+Math.random()*1800,delay:Math.random()*600,easing:'ease-in'}).onfinish=()=>c.remove();}}
 function skinMenuHTML(){const v=skinGet();return'<h3 style="margin-top:18px">Look</h3><div class="seg" role="group" aria-label="Game look" style="grid-template-columns:1fr 1fr"><button data-a="skin" data-v="game" aria-pressed="'+(v==='game')+'">Game</button><button data-a="skin" data-v="classic" aria-pressed="'+(v!=='game')+'">Classic</button></div><p class="hint">Game shows your city skyline growing behind the empire, with animations. Classic is the calm, paper-style look.</p>';}
@@ -2225,7 +2245,7 @@ function nextMonth(){
     showCard('Bankrupt','At '+age()+', creditors have seized the empire. Every tycoon has a failure story. This is yours.','<button class="btn primary" data-a="reset">Start a new empire</button><button class="btn" data-a="lives">Past lives</button>');return;}}
  } else S.strikes=0;
  const nw=netWorth();S.hist.push(Math.max(1,nw));
- const ti=titleIdx(nw);if(ti>S.title){addPts(5*(ti-S.title)*ti);wkInc('ranks',ti-S.title);S.title=ti;rankUpFx(TITLES[ti][1]);S.lifeSince=S.month;S.lifePending=true;log('New rank: '+TITLES[ti][1]+'.','gold');flash();}
+ const ti=titleIdx(nw);if(ti>S.title){addPts(5*(ti-S.title)*ti);wkInc('ranks',ti-S.title);S.title=ti;rankUpFx(TITLES[ti][1],ti);S.lifeSince=S.month;S.lifePending=true;log('New rank: '+TITLES[ti][1]+'.','gold');flash();}
  if(ti<S.title)S.title=ti;
  if(ti>S.peak){const before=SLOTS[S.peak];S.peak=ti;if(SLOTS[ti]>before)S.indPending=true;}
  if(nw>=1e9&&!S.won){S.won=true;setTimeout(confettiFx,200);addPts(S.gnum>1||S.headstart?50:100);checkAch();save();render();
@@ -2322,7 +2342,7 @@ function render(){
  $('fdn-title').textContent='The '+BR()+' Foundation';
  countUp($('nw'),nw,v=>(curLocal()?v*R.rate<1e7:v<1e6)?fmtFull(v):fmt(v));
  {const tk=document.querySelector('.ticks');if(tk)tk.innerHTML='<span>'+fmt(1e3)+'</span><span>'+fmt(1e6)+'</span><span>'+fmt(1e9)+' goal</span>';}
- $('rank').textContent=TITLES[titleIdx(nw)][1];
+ $('rank').textContent=TITLES[titleIdx(nw)][1];$('rank').dataset.tier=titleIdx(nw);
  countUp($('cash'),S.cash,fmt);$('cash').className=S.cash<0?'neg':'';
  $('profit').textContent=(F.net>=0?'+':'')+fmt(F.net);$('profit').className=F.net>=0?'pos':'neg';
  $('debt').textContent=fmt(S.debt);$('debt').className=S.debt>0?'neg':'';
@@ -2336,7 +2356,7 @@ function render(){
  renderToday();
  paintQuick();
  $('next').disabled=S.over;
- {const a=$('ch-city'),b=$('ch-date');if(a&&R)a.textContent=R.city;if(b)b.textContent=dateStr(S.month);}
+ {const a=$('ch-city'),b=$('ch-date'),e=$('ch-eco');if(a&&R)a.textContent=R.city;if(b)b.textContent=dateStr(S.month);if(e){e.textContent=S.s>1.1?'Economy booming':S.s<.9?'Recession':'';e.className=S.s>1.1?'boom':S.s<.9?'bust':'';}}
  {const ls=$('lawst');if(ls){const t=statusLine();ls.hidden=!t;ls.textContent=t;}}
  {const d=$('dyn');if(d){d.hidden=!(S.gnum>1);if(S.gnum>1)d.textContent='Generation '+S.gnum+' of the '+familyName()+' family · playing as '+S.who;}
   const r=$('reset');if(r&&S.over&&S.died&&S.kids.length&&!r.querySelector('[data-a=heirpick]'))r.insertAdjacentHTML('afterbegin','<button class="btn primary small" data-a="heirpick">Choose your heir</button> ');}
