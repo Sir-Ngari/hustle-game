@@ -1701,16 +1701,17 @@ function divorceEvent(){const sp=S.spouse,pers=Math.max(0,S.cash)+lifeAssets(),b
  const est=s=>pers*s+(sp.prenup?0:biz*s*.4);
  return{cat:'Family',title:sp.name+' wants a divorce',
  text:sp.name+' has moved out and hired a lawyer. '+(sp.prenup?'Thankfully you signed a prenup.':'There is no prenup, so your businesses are on the table too.')+(S.kids.filter(k=>!k.withEx&&!k.grown).length?' The children will live with '+sp.name+'.':''),
- choices:[{l:'Settle quietly',d:'Hand over about '+fmt(est(settle))+' in cash, property and business claims.',f(){return divorce(settle,'You settled the divorce.')}},
-  {l:'Fight it in court',d:'Legal fees '+fmt(fee)+'. '+Math.round(wchance*100)+'% chance you pay about '+fmt(est(courtWin))+'; otherwise about '+fmt(est(courtLose))+'. −6 reputation.',f(){S.cash-=fee;addRep(-6);return rnd()<wchance?divorce(courtWin,'The court sided mostly with you.'):divorce(courtLose,'The court sided with '+sp.name+'.')}},
-  {l:'Try counselling first',d:'Spend '+fmt(nwc(.004,300))+'. 40% chance you save the marriage.',f(){S.cash-=nwc(.004,300);if(rnd()<.4){sp.happy=55;S.mode=S.mode==='hustle'?'balanced':S.mode;return['Counselling saved your marriage. You promised to work less.','life']}return divorce(settle,'Counselling failed. You settled.')}}]};}
-function divorce(share,msg){const sp=S.spouse;let owed=(Math.max(0,S.cash)+lifeAssets())*share+(sp.prenup?0:bizAssets()*share*.4);let note='';
+ choices:[{l:'Settle quietly',d:'Hand over about '+fmt(est(settle))+' in cash, property and business claims.',f(){return divorce(settle,'You settled the divorce.','You are divorced')}},
+  {l:'Fight it in court',d:'Legal fees '+fmt(fee)+'. '+Math.round(wchance*100)+'% chance you pay about '+fmt(est(courtWin))+'; otherwise about '+fmt(est(courtLose))+'. −6 reputation.',f(){S.cash-=fee;addRep(-6);return rnd()<wchance?divorce(courtWin,'The court sided mostly with you.','The court sided mostly with you'):divorce(courtLose,'The court sided with '+sp.name+'.','The court sided with '+sp.name)}},
+  {l:'Try counselling first',d:'Spend '+fmt(nwc(.004,300))+'. 40% chance you save the marriage. If it fails, you settle.',f(){const fee=nwc(.004,300);S.cash-=fee;if(rnd()<.4){sp.happy=55;const wasHustle=S.mode==='hustle';S.mode=wasHustle?'balanced':S.mode;return['Counselling saved your marriage. You promised to work less.','life',dealCard('Counselling worked',true,'Counselling','Marriage saved',sp.name+' has agreed to give it another go. '+(sp.g==='f'?'Her':sp.g==='m'?'His':'Their')+' happiness is back up to 55 out of 100.','The sessions cost '+fmt(fee)+'.'+(wasHustle?' You promised to work less, so hustle mode is now off.':'')+' Keep '+sp.name+' happy: Family first mode helps.','Family')]}return divorce(settle,'Counselling failed. You settled.','Counselling did not work')}}]};}
+function divorce(share,msg,head){const sp=S.spouse;let owed=(Math.max(0,S.cash)+lifeAssets())*share+(sp.prenup?0:bizAssets()*share*.4);let note='';
  if(!sp.prenup){const home=ASSETS.filter(a=>a.kind==='Homes'&&has(a.id)).pop();if(home){const v=home.price*af(home.id);S.assets[home.id]--;owed=Math.max(0,owed-v);note=' '+sp.name+' keeps the '+home.name+'.';if(homeTier()<0){S.rent=home.tier;note+=' You moved into a rented '+HOMES[home.tier].name.lc()+'.';}}}
  const fromCash=Math.min(Math.max(0,S.cash),owed);S.cash-=fromCash;if(owed>fromCash){S.debt+=owed-fromCash;note+=' '+fmt(owed-fromCash)+' of the settlement became debt.';}
  const kids=S.kids.filter(k=>!k.grown&&!k.withEx);kids.forEach(k=>k.withEx=true);
  if(!sp.prenup){const amt=Math.max(100,flows(false).biz*.04);S.alimony={amt,left:48,to:sp.name};note+=' Alimony: '+fmt(amt)+' a month for 4 years.';}
- addHappy(-25);S.exes++;S.spouse=null;S.lastSplit=S.month;S.divorcedAt=S.month;
- return[msg+note,'bad'];}
+ addHappy(-25);S.exes++;S.spouse=null;S.lastSplit=S.month;S.divorcedAt=S.month;S.lastEx=sp.name;
+ const paid=fromCash+Math.max(0,owed-fromCash);
+ return[msg+note,'bad',dealCard(head||'You are divorced',false,'Divorce','Divorced','You and '+sp.name+' are no longer married. The settlement cost you '+fmt(paid)+'.',msg+note+' Happiness −25. You will be expected to remarry within a year or so.','Family')];}
 function mobHitEvent(){const targets=BIZ.filter(b=>b.tier<=4&&owned(b.id)>0);const b=targets.length?pick(targets):null;let lost=0,fam=rnd()<.35&&S.spouse;
  if(b){lost=Math.max(1,Math.floor(owned(b.id)*.25*(S.ups.insure?.5:1)));S.owned[b.id]-=lost;}
  if(fam){addHappy(-12);addSH(-15);}
@@ -2082,7 +2083,7 @@ function modelUI(a){if(!MODELS[a.id]||!has(a.id))return'';const k=behind(a.id),c
 function marriageEvent(){const n=pick(partnerPool()),dowry=nwc(.006,400),big=nwc(.04,3000),small=nwc(.01,800),again=S.exes>0;
  const wed=(happy,prenup,msg)=>{S.spouse={name:n,g:spG(),happy,prenup,since:S.month};return[msg,'life'];};
  return{cat:'Family',title:again?'Time to remarry':'Marriage is mandatory at 35',
-  text:(again?'It has been a year since your divorce, and the family has run out of patience.':'You are '+age()+'. '+R.elders+' all agree the time for excuses is over.')+' They have introduced you to '+n+'. Staying single is not an option. '+(!R.wedding.dowry?'The '+R.wedding.name+' ('+R.wedding.gloss+') alone will cost '+fmt(dowry)+'.':S.g==='f'?'Hosting '+n+'\'s family for the '+R.wedding.name+' ('+R.wedding.gloss+') alone will cost '+fmt(dowry)+'.':'The '+R.wedding.name+' ('+R.wedding.gloss+') negotiations alone will cost '+fmt(dowry)+'.'),
+  text:(again?'It has been a year since your divorce'+(S.lastEx?' from '+S.lastEx:'')+', and the family has run out of patience.':'You are '+age()+'. '+R.elders+' all agree the time for excuses is over.')+' They have introduced you to '+n+'. Staying single is not an option. '+(!R.wedding.dowry?'The '+R.wedding.name+' ('+R.wedding.gloss+') alone will cost '+fmt(dowry)+'.':S.g==='f'?'Hosting '+n+'\'s family for the '+R.wedding.name+' ('+R.wedding.gloss+') alone will cost '+fmt(dowry)+'.':'The '+R.wedding.name+' ('+R.wedding.gloss+') negotiations alone will cost '+fmt(dowry)+'.'),
   choices:[{l:'Lavish wedding',dis:!canPay(big+dowry),d:'Spend '+fmt(big+dowry)+' including the '+R.wedding.name+'. +5 reputation. '+n+' starts very happy.',f(){S.cash-=big+dowry;addRep(5);addHappy(12);return wed(85,false,'You married '+n+' in a wedding the whole city talked about.')}},
    {l:'Simple wedding',dis:!canPay(small+dowry),d:'Spend '+fmt(small+dowry)+' including the '+R.wedding.name+'.',f(){S.cash-=small+dowry;addHappy(10);return wed(70,false,'You married '+n+'.')}},
    {l:'Simple wedding, with a prenup',dis:!canPay(small+dowry),d:'Spend '+fmt(small+dowry)+'. Protects your wealth, but '+n+' is hurt you asked.',f(){S.cash-=small+dowry;addHappy(6);return wed(52,true,'You married '+n+', with a prenup.')}},
@@ -2707,7 +2708,7 @@ function crisisHTML(){const c=crisisOf();if(!c)return'';const d=crisisDef(c),lef
 function crisisLine(){const c=crisisOf();return c?crisisDef(c).name:'';}
 
 /* ================= Results: tell the player how a bet turned out ================= */
-function dealCard(title,ok,small,big,line,msg){return{cat:'Deal result',title,text:'<div class="result '+(ok?'good':'bad')+'"><small>'+small+'</small><b>'+big+'</b><span>'+line+'</span></div>'+(msg||''),choices:[{l:'OK',d:'',f(){return['','']}}]};}
+function dealCard(title,ok,small,big,line,msg,cat){return{cat:cat||'Deal result',title,text:'<div class="result '+(ok?'good':'bad')+'"><small>'+small+'</small><b>'+big+'</b><span>'+line+'</span></div>'+(msg||''),choices:[{l:'OK',d:'',f(){return['','']}}]};}
 function resultEvent(r){const profit=r.ret-r.inv,mult=r.inv>0?r.ret/r.inv:0,ago=r.months>0?' '+r.months+' month'+(r.months>1?'s':'')+' ago':'';
  if(r.pol)return{cat:'Election result',title:r.ok?r.label+': you backed the winner':r.label+': your candidate lost',
   text:'<div class="result '+(r.ok?'good':'bad')+'"><b>'+(r.ok?'WON':'LOST')+'</b></div>'+r.msg+(r.extra?' '+r.extra:''),choices:[{l:'OK',d:'',f(){return['','']}}]};
