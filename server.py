@@ -222,10 +222,11 @@ def clean_life(d):
     for k in LIFE_NUM:
         if isinstance(d.get(k), (int, float)) and not isinstance(d.get(k), bool):
             out[k] = num(d.get(k))
-    out["fdn"] = bool(d.get("fdn"))
+    for k in ("fdn", "dirty", "bribed", "jailed"):
+        out[k] = bool(d.get(k))
     ba = d.get("billionAge")
     out["billionAge"] = int(ba) if isinstance(ba, (int, float)) and not isinstance(ba, bool) and 0 < ba < 200 else None
-    if out.get("end") not in ("died", "bankrupt", "restarted"):
+    if out.get("end") not in ("died", "bankrupt", "restarted", "vanished"):
         out["end"] = "restarted"
     return out
 
