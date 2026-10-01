@@ -932,6 +932,7 @@ S.peak=Math.max(S.peak||0,S.title||0);
 if(S.assets&&S.assets.football){S.teams=S.teams||{};S.teams.football={strength:55,af:(S.af&&S.af.football)||1,tier:0,academy:false,last:'',titles:0};delete S.assets.football;}
 if(!S.pcOpen||!S.pcOpen.length){S.pcOpen=['nairobi'].concat([...new Set((S.props||[]).map(p=>p.city))].filter(x=>x!=='nairobi'));}
 if(S.tourDone===undefined)S.tourDone=S.month>0;
+if(!S.plan&&S.month>0)S.plan={type:'will',ins:0,sha:false,mentor:null};
 if(!S.region)S.region=S.month>0?'KE':detectCountry();if(!S.cur)S.cur='USD';
 if(typeof useRegion==='function'){useRegion(S.region);if(S.month===0&&!(S.props||[]).length)S.pcOpen=[PCITIES[0].id];}
 if(typeof S.health!=='number'){S.health=clamp(92-Math.max(0,age()-30)*.7,35,95);S.care=S.care||0;S.conds=S.conds||{};}
@@ -1101,7 +1102,7 @@ function flows(noisy){
  const E=svcEffects();
  let biz=0;
  BIZ.forEach(b=>{const n=owned(b.id);if(!n)return;const noise=noisy?1+b.vol*(rnd()*2-1):1;biz+=b.profit*n*policyMult(b)*noise*cyc(b)*indBuff(b.ind)*masteryMult(b.ind);});
- biz*=baseMult()*buffMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float);
+ biz*=baseMult()*buffMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float)*(S.plan&&S.plan.mentor?.97:1);
  const rent=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.rent*has(a.id)*af(a.id),0)*policyMult('rent');
  const sport=sportsNet(),prop=propNet();
  const lux=custEffects().inc+ASSETS.reduce((t,a)=>t+(a.inc&&has(a.id)?a.price*af(a.id)*a.inc*(noisy&&a.incVol?1+(rnd()-.5)*2*a.incVol:1):0),0);
@@ -1115,7 +1116,8 @@ function flows(noisy){
  const mob=S.protection>0?Math.max(0,biz)*S.protection:0;
  const alimony=S.alimony?S.alimony.amt:0,health=careFee();
  const giving=S.fdn?Math.max(0,biz)*S.fdn.giving:0;
- return{biz,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,E,net:biz+rent+lux+inv+sport+prop-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health};
+ const estatePl=typeof planCost==='function'?planCost():0,trustInc=S.trustPay||0;
+ return{biz,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,E,net:biz+rent+lux+inv+sport+prop+trustInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl};
 }
 function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});S.log.length=Math.min(S.log.length,80);}
 function soften(f){return sv('exec').lvl>=0&&f<1?1-(1-f)*.6:f;}
@@ -2032,7 +2034,7 @@ function stopAuto(){if(timer){clearInterval(timer);timer=null}const a=$('auto');
 function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInterval(nextMonth,750);const a=$('auto');a.classList.add('on');a.setAttribute('aria-pressed','true');a.textContent='Pause';}
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
- ({lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>showAccts('pick'),acctnew:()=>showAccts('create'),acctcancel:()=>showAccts('pick'),acctclose:()=>{acctView=null;renderAccts();},acctpick:()=>pickAccount(v),acctdel:()=>{acctDelAsk=v;renderAccts();},acctdelno:()=>{acctDelAsk=null;renderAccts();},acctdelyes:()=>deleteAccount(v),lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
@@ -2281,9 +2283,9 @@ function render(){
 
  /* statement */
  const line=(l,v,sign)=>'<span>'+l+'</span><span class="'+(Math.abs(v)<.5?'zero':sign<0?'neg':'pos')+'">'+(Math.abs(v)<.5?'—':(sign<0?'−':'+')+fmt(v).replace('−',''))+'</span>';
- $('stmt').innerHTML=line('Business profit'+(S.float?' (80% yours)':''),F.biz,F.biz<0?-1:1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Dividends & bond interest',F.inv,1)+line('Loan interest',F.interest,-1)+
+ $('stmt').innerHTML=line('Business profit'+(S.float?' (80% yours)':''),F.biz,F.biz<0?-1:1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Dividends & bond interest',F.inv,1)+line('Family trust income',F.trustInc||0,1)+line('Loan interest',F.interest,-1)+
   line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
-  line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+line('Health care',F.health,-1)+
+  line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+line('Health care',F.health,-1)+line('Estate planning & insurance',F.estatePl||0,-1)+
   '<span class="tot">Net cash flow</span><span class="tot '+(F.net<0?'neg':'pos')+'">'+(F.net<0?'−':'+')+fmt(Math.abs(F.net))+'</span>';
 
  /* life */
@@ -2308,7 +2310,7 @@ function render(){
    else if(a<264){sub='Age '+y+' · university · '+fmt(UNI[k.best])+'/mo';right='<span class="pill">University</span>';}
    else{sub='Age '+y;right='<span class="pill good">Grown up</span>';}
    lh+='<div class="person"><div><b>'+k.name+'</b><br><span>'+sub+'</span></div>'+right+'</div>';});}
- lh+=sibsHTML();$('life').innerHTML=lh;
+ lh+=planHTML()+sibsHTML();$('life').innerHTML=lh;
 
  /* politics & street */
  let ph='<div class="kv"><span>Influence</span><span>'+Math.round(S.influence)+' / 100</span><span>Next general election</span><span>'+(S.nextElection-S.month>0?(S.nextElection-S.month)+' months':'This month')+'</span></div>'+meter(S.influence,'--brass');
@@ -2409,10 +2411,52 @@ window.addEventListener('resize',drawChart);
 
 
 
+
+/* ================= Succession planning ================= */
+const PLANS_EST={
+ none:{name:'No will',tax:.35,cap:1e7,win:.5,how:'If you die now, the courts split your estate equally between your children and the eldest takes control. Court costs and duty take 35%.'},
+ will:{name:'A will',tax:.25,cap:1e7,win:.65,how:'You choose your heir and they get the largest share. Estate duty and legal fees take 25%. A brother or sister can still contest it.'},
+ ftrust:{name:'A family trust',tax:.10,cap:1e7,win:1,how:'Duty and fees fall to 10%. Your heir gets up to '+'$10M, and the rest stays in the trust, paying them an income every month. Nobody can contest it, and the trust controls handouts to any black sheep.'},
+ ltrust:{name:'A living trust',tax:.15,cap:1.5e7,win:.9,how:'No probate, so the family business keeps running the day you die. Your heir gets up to $15M plus every outlet in the family business. Duty and fees take 15%, and a will challenge almost never succeeds.'}};
+const INS=[[5e5,'Basic cover'],[5e6,'Standard cover'],[2.5e7,'Premium cover']];
+function planOf(){S.plan=S.plan||{type:'none',ins:0,sha:false,mentor:null};return S.plan;}
+const planSetup=t=>t==='will'?Math.min(1e6,nwc(.002,800)):t==='ftrust'?Math.min(2e7,nwc(.015,6000)):t==='ltrust'?Math.min(5e7,nwc(.025,10000)):0;
+const insPremium=c=>c*(.00008+.00001*Math.max(0,age()-25));
+function planCost(){const p=S.plan;if(!p)return 0;const nw=Math.max(0,netWorth());
+ return(p.type==='ftrust'?clamp(nw*.00008,200,5e4):p.type==='ltrust'?clamp(nw*.00012,300,8e4):0)+(p.ins?insPremium(p.ins):0);}
+function mentee(){const p=planOf();return p.mentor?S.kids.find(k=>k.name===p.mentor):null;}
+function setPlan(t){const p=planOf(),c=planSetup(t);if(!PLANS_EST[t]||p.type===t||!canPay(c))return;S.cash-=c;p.type=t;
+ log({will:'You wrote a will and named your heir.',ftrust:'You set up a family trust. Your lawyers will manage it.',ltrust:'You moved your empire into a living trust.'}[t]+' It cost '+fmt(c)+'.','good');afterChange();}
+function setIns(v){const p=planOf();if(v==='off'){p.ins=0;log('You cancelled your life insurance.','');afterChange();return;}const c=INS[+v];if(!c||age()>75)return;p.ins=c[0];log('You took out '+c[1].lc()+' of '+fmt(c[0])+'. Premium: '+fmt(insPremium(c[0]))+' a month.','good');afterChange();}
+function setSha(){const p=planOf(),c=nwc(.004,2000);if(p.sha||!canPay(c))return;S.cash-=c;p.sha=true;log('The family signed a shareholders\' agreement. It cost '+fmt(c)+'.','good');afterChange();}
+function setMentor(v){const p=planOf();if(v==='off'){p.mentor=null;log('You stopped grooming a successor.','');afterChange();return;}const k=S.kids[+v];if(!k||kidAge(k)<216)return;p.mentor=k.name;log('You are grooming '+k.name+' to take over one day. It takes time away from the business.','');afterChange();}
+function planHTML(){const p=planOf(),e=estate(),kids=S.kids,adult=kids.filter(k=>kidAge(k)>=216),me=mentee();
+ const row=(title,body,btn)=>'<div class="row"><div class="t"><b>'+title+'</b><span>'+body+'</span></div>'+btn+'</div>';
+ const btn=(a,v,label,c,on)=>on?'<span class="pill">In place ✓</span>':'<button class="btn small" data-a="'+a+'" data-v="'+v+'"'+(c!=null&&!canPay(c)?' disabled':'')+'>'+label+(c!=null?' · '+fmt(c):'')+'</button>';
+ let h='<h3 class="sibh">Succession planning</h3><p class="sub">What happens to your empire when you die. Your plan today: <b>'+PLANS_EST[p.type].name+'</b>. '+dollars(PLANS_EST[p.type].how)+'</p>'+
+  '<div class="kv"><span>If you died today</span><span>'+(kids.length?'your heir would inherit '+fmt(e.cash+(p.ins||0)):'no children to inherit')+'</span></div>';
+ h+=row('Write a will','Choose your heir and give them the largest share. 25% duty and fees.',btn('plan','will','Write a will',planSetup('will'),p.type==='will'));
+ h+=row('Family trust','10% duty. Up to '+fmt(1e7)+' now, plus monthly trust income from the rest. No will fights, and the black sheep\'s handouts are controlled. Running cost about '+fmt(clamp(Math.max(0,netWorth())*.00008,200,5e4))+' a month.',btn('plan','ftrust','Set up',planSetup('ftrust'),p.type==='ftrust'));
+ h+=row('Living trust','No probate: your heir gets up to '+fmt(1.5e7)+' and every outlet in the family business keeps running. 15% duty. Running cost about '+fmt(clamp(Math.max(0,netWorth())*.00012,300,8e4))+' a month.',btn('plan','ltrust','Set up',planSetup('ltrust'),p.type==='ltrust'));
+ h+=row('Life insurance',(p.ins?'You have '+fmt(p.ins)+' of cover at '+fmt(insPremium(p.ins))+' a month. ':'')+'Paid straight to your heir on top of the inheritance. Premiums rise as you age; insurers stop selling new cover after 75.',
+  p.ins?'<button class="btn small ghost" data-a="ins" data-v="off">Cancel</button>':age()>75?'<span class="pill">Too old</span>':'<span class="chips">'+INS.map((c,i)=>'<button class="btn small" data-a="ins" data-v="'+i+'">'+fmt(c[0])+' · '+fmt(insPremium(c[0]))+'/mo</button>').join('')+'</span>');
+ h+=row('Shareholders\' agreement','Sets the rules for your children as co-owners. Fights over the direction of the business happen half as often, and buying out a sibling costs half as much.',btn('sha','1','Sign',nwc(.004,2000),p.sha));
+ h+=row('Groom a successor',me?'You are grooming '+esc(me.name)+'. If they become your heir they start with +10 reputation and profit ×1.15 for 2 years. Their brothers and sisters notice the favouritism. Profit ×0.97 while you mentor.':'Mentor one adult child in the business. If they become your heir they start much stronger. Costs you time: profit ×0.97 while you mentor.',
+  me?'<button class="btn small ghost" data-a="mentor" data-v="off">Stop</button>':adult.length?'<span class="chips">'+kids.map((k,i)=>kidAge(k)>=216?'<button class="btn small" data-a="mentor" data-v="'+i+'">Mentor '+esc(k.name)+'</button>':'').join('')+'</span>':'<span class="pill">No adult children</span>');
+ return h;}
 /* ================= Family drama: brothers and sisters of an heir ================= */
 const SIB_TRAITS={rival:['The rival','Thinks the empire should have been theirs.'],visionary:['The visionary','Full of big ideas for the family business.'],
  blacksheep:['The black sheep','Drinking, debts and trouble, again and again.'],spender:['The big spender','Treats the family fortune like a bottomless purse.'],
  loyal:['The loyal one','Always has your back.'],recovering:['In recovery','Sober and rebuilding their life.'],bought:['Bought out','Took their share and left the business.']};
+function applyPlan(h){const pl=h.plan||'will';S.contestWin=(PLANS_EST[pl]||PLANS_EST.will).win;S.trustPay=h.trustPay||0;S.spendthrift=pl==='ftrust';S.shaOn=!!h.sha;
+ if(h.ins){S.cash+=h.ins;S.hist=[Math.max(1,S.cash)];}
+ if(h.units){Object.assign(S.owned,h.units);}
+ if(pl==='ftrust')S.sibs.forEach(x=>{if(x.t==='rival')x.settled=true;});
+ if(pl==='none'&&S.sibs.length&&!S.sibs.some(x=>x.t==='rival')){const x=S.sibs.find(y=>y.t!=='blacksheep')||S.sibs[0];if(x.t!=='blacksheep'){x.t='rival';x.rel=30;x.settled=false;}}
+ if(h.favour)S.sibs.forEach(x=>{x.rel=clamp(x.rel-10,0,100);});
+ if(h.groomed){addRep(10);addBuff(1.15,24,'Groomed for this');}
+ const extra=[h.ins?fmt(h.ins)+' of life insurance':'',h.trustPay?'a trust income of '+fmt(h.trustPay)+' a month':'',h.units?'the family business, still running':'',h.groomed?'years of training for this moment':''].filter(Boolean);
+ if(extra.length)S.log[0].t+=' You also have '+extra.join(', ')+'.';}
 function makeSibs(names){const pool=['rival','visionary','spender','loyal','rival','visionary'];const t=[];
  if(names.length>=2)t.push('blacksheep');
  while(t.length<names.length){const k=names.length===1?pick(['rival','visionary','blacksheep','loyal']):pick(pool);if(!t.includes(k)||t.length>=4)t.push(k);}
@@ -2427,13 +2471,13 @@ const FAM_EVENTS=[
  {id:'fam_will',cat:'Family',w:40,when:()=>S.gnum>1&&S.month>=2&&S.month<=30&&(S.sibs||[]).some(x=>x.t==='rival'&&!x.settled&&!x.out),
   build(){const x=(S.sibs||[]).find(y=>y.t==='rival'&&!y.settled&&!y.out),fee=nwc(.02,2500);famMark();
    return{cat:'Family',title:x.name+' is contesting the will',text:x.name+' claims '+esc(S.parent||'your parent')+' was not of sound mind when the will named you heir, and has filed a case in the High Court. The newspapers have the story.',
-    choices:[{l:'Fight it in court',d:'Legal fees '+fmt(fee)+'. You will probably win, but if you lose, '+x.name+' takes 30% of your cash.',dis:!canPay(fee),f(){S.cash-=fee;x.settled=true;sibRel(x,-30);
-      if(rnd()<.65){addRep(3);return['The court upheld the will. '+x.name+' walked out without a word to you.','good'];}
+    choices:[{l:'Fight it in court',d:'Legal fees '+fmt(fee)+'. '+((S.contestWin||.65)>=.9?'Your living trust makes it very likely you win':(S.contestWin||.65)<=.5?'With no will, it could go either way':'You will probably win')+', but if you lose, '+x.name+' takes 30% of your cash.',dis:!canPay(fee),f(){S.cash-=fee;x.settled=true;sibRel(x,-30);
+      if(rnd()<(S.contestWin||.65)){addRep(3);return['The court upheld the will. '+x.name+' walked out without a word to you.','good'];}
       const loss=pct(.3);S.cash-=loss;addRep(-3);return['You lost. The court awarded '+x.name+' '+fmt(loss)+'.','bad'];}},
      {l:'Settle quietly',d:'Pay '+x.name+' '+fmt(pct(.15))+' to drop the case.',f(){const c=pct(.15);S.cash-=c;x.settled=true;sibRel(x,20);return[x.name+' took the settlement and dropped the case.','']}},
      {l:'Offer a seat on the board',d:'Costs nothing now, but board meetings will be a battle. Profit ×0.93 for a year.',f(){x.settled=true;x.board=true;sibRel(x,30);addBuff(.93,12,'Boardroom infighting');return[x.name+' joined the board and dropped the case. Meetings are tense.','']}}]};}},
- {id:'fam_plan',cat:'Family',w:2.2,when:()=>famReady()&&(S.sibs||[]).some(x=>!x.out&&(x.t==='visionary'||x.board)),
-  build(){const x=(S.sibs||[]).find(y=>!y.out&&(y.t==='visionary'||y.board)),p=pick(PLANS),cost=nwc(.03,2000),buy=nwc(.06,4000);famMark();
+ {id:'fam_plan',cat:'Family',w:()=>S.shaOn?1.1:2.2,when:()=>famReady()&&(S.sibs||[]).some(x=>!x.out&&(x.t==='visionary'||x.board)),
+  build(){const x=(S.sibs||[]).find(y=>!y.out&&(y.t==='visionary'||y.board)),p=pick(PLANS),cost=nwc(.03,2000),buy=nwc(.06,4000)*(S.shaOn?.5:1);famMark();
    return{cat:'Family',title:x.name+' wants to change direction',text:x.name+' has been lobbying the whole family to '+p[0]+'. They say the old way is dying. The managers are confused about who is in charge.',
     choices:[{l:'Back '+x.name+'\'s plan',d:'Invest '+fmt(cost)+'. It could transform the business, or sink it for a while.',dis:!canPay(cost),f(){S.cash-=cost;sibRel(x,20);
       if(rnd()<.5){addBuff(1.25,12,x.name+'\'s '+p[1]);return['The '+p[1]+' paid off. Profit is up and '+x.name+' will not stop reminding you.','good'];}
@@ -2441,8 +2485,8 @@ const FAM_EVENTS=[
      {l:'Overrule them',d:'Keep the business as it is. '+x.name+' will be bitter.',f(){sibRel(x,-15);addHappy(-3);return['You overruled '+x.name+'. Family dinners are frosty.','']}},
      {l:'Buy out their share',d:'Pay '+fmt(buy)+' and run the business your way from now on.',dis:!canPay(buy),f(){S.cash-=buy;x.t='bought';x.board=false;sibRel(x,5);return['You bought out '+x.name+'. They are off to try the '+p[1]+' with their own money.','']}}]};}},
  {id:'fam_debt',cat:'Family',w:2.6,when:()=>famReady()&&!!sibOf('blacksheep'),
-  build(){const x=sibOf('blacksheep'),d=nwc(.008,1500)*(1+x.asks*.5),rehab=d*1.5;famMark();
-   return{cat:'Family',title:x.name+' is in debt again',text:x.name+' turned up at your office, unsteady and smelling of last night. They owe '+fmt(d)+' to some very impatient lenders'+(x.asks?', and it is not the first time':'')+'.',
+  build(){const x=sibOf('blacksheep'),d=nwc(.008,1500)*(1+x.asks*.5)*(S.spendthrift?.5:1),rehab=d*1.5;famMark();
+   return{cat:'Family',title:x.name+' is in debt again',text:x.name+' turned up at your office, unsteady and smelling of last night. They owe '+fmt(d)+' to some very impatient lenders'+(x.asks?', and it is not the first time':'')+'.'+(S.spendthrift?' The family trust caps what you can be asked for.':''),
     choices:[{l:'Pay the debt',d:'Spend '+fmt(d)+'. '+x.name+' swears it is the last time.',dis:!canPay(d),f(){S.cash-=d;x.asks++;sibRel(x,10);return['You cleared '+x.name+'\'s debt. Again.','']}},
      {l:'Pay for rehab instead',d:'Spend '+fmt(rehab)+' on a residential treatment programme. It may not work the first time.',dis:!canPay(rehab),f(){S.cash-=rehab;sibRel(x,5);
       if(rnd()<.45){x.t='recovering';x.sober=S.month;addHappy(4);return[x.name+' checked into rehab and stayed. For the first time in years, there is hope.','good'];}
@@ -2477,6 +2521,12 @@ const FAM_EVENTS=[
       if(rnd()<.8){x.t='loyal';addBuff(1.05,24,x.name+'\'s comeback');return[x.name+' is thriving at work. The whole family noticed.','good'];}
       x.t='blacksheep';x.asks=0;return[x.name+' relapsed under the pressure. It is back to square one.','bad'];}},
      {l:'Not yet',d:'Ask them to keep going for another year.',f(){x.hired=true;sibRel(x,-10);x.t='loyal';return[x.name+' was hurt, but kept going. They found work elsewhere.','']}}]};}}];
+FAM_EVENTS.push({id:'fam_lawyer',cat:'Family',w:4,when:()=>age()>=45&&S.kids.length>0&&planOf().type==='none'&&!S.lawyerAsked,
+  build(){S.lawyerAsked=true;const w=planSetup('will'),t=planSetup('ftrust');
+   return{cat:'Family',title:'Your lawyer raises a hard question',text:'Over lunch, your lawyer asks what happens to the empire if you die tomorrow. Without a will, the courts split everything and your eldest takes control, whoever you would have chosen.',
+    choices:[{l:'Write a will',d:'Costs '+fmt(w)+'. You choose your heir.',dis:!canPay(w),f(){setPlan('will');return['Your will is signed and witnessed.','good']}},
+     {l:'Set up a family trust',d:'Costs '+fmt(t)+' plus running fees. Lower duty, and no will fights.',dis:!canPay(t),f(){setPlan('ftrust');return['Your family trust is set up.','good']}},
+     {l:'Not now',d:'You can plan your succession any time from the Life tab.',f(){return['You put it off. Most people do.','']}}]};}});
 EVENTS.push(...FAM_EVENTS);
 function sibsHTML(){const xs=S.sibs||[];if(!xs.length)return'';
  return'<h3 class="sibh">Your brothers and sisters</h3><ul class="sibs">'+xs.map(x=>{const tr=SIB_TRAITS[x.t]||['',''];const r=x.rel>=65?'Close':x.rel>=40?'Civil':x.rel>=20?'Strained':'Not speaking';
@@ -2484,23 +2534,25 @@ function sibsHTML(){const xs=S.sibs||[];if(!xs.length)return'';
 /* ================= Dynasty ================= */
 const HEIR_CAP=1e7;
 function familyName(){const n=String((ACC&&ACC.name)||'').trim().split(/\s+/);return n.length>1?n[n.length-1]:BR();}
-function estate(){const nw=Math.max(0,netWorth()),sib=Math.max(0,S.kids.length-1),tax=nw*.25,spouse=S.spouse?(nw-tax)/3:0,share=(nw-tax-spouse)/(1+.5*sib);
- return{nw,tax,spouse,share,cash:Math.max(1000,Math.min(HEIR_CAP,share)),trust:Math.max(0,share-HEIR_CAP)};}
+function estate(){const P=PLANS_EST[planOf().type],nw=Math.max(0,netWorth()),n=Math.max(1,S.kids.length),sib=n-1,tax=nw*P.tax,spouse=S.spouse?(nw-tax)/3:0,share=(nw-tax-spouse)/(planOf().type==='none'?n:1+.5*sib);
+ return{nw,tax,spouse,share,cash:Math.max(1000,Math.min(P.cap,share)),trust:Math.max(0,share-P.cap),P};}
+const eldest=()=>S.kids.reduce((b,k,i)=>b<0||kidAge(k)>kidAge(S.kids[b])?i:b,-1);
 function familyInd(){let best=null,v=-1;(S.inds||[]).forEach(id=>{const t=BIZ.filter(b=>b.ind===id).reduce((a,b)=>a+bizValue(b),0);if(t>v){v=t;best=id;}});return best;}
 function heirAge(k){return Math.max(18,Math.floor(kidAge(k)/12));}
 function heirCard(){if(!S.kids.length)return;const e=estate(),fi=familyInd(),ind=fi&&IND[fi];
- const body='Your estate is worth <b>'+fmt(e.nw)+'</b>. Estate duty and legal fees take '+fmt(e.tax)+(e.spouse?', '+esc(S.spouse.name)+' keeps '+fmt(e.spouse):'')+(S.kids.length>1?', and your other children take their shares':'')+'. '+
-  'Your heir inherits <b>'+fmt(e.cash)+'</b>'+(e.trust>0?' to run the business (another '+fmt(e.trust)+' stays locked in the family trust)':'')+', the '+esc(BR())+' name'+(ind?', the family '+ind.name.lc()+' business':'')+(S.fdn?' and the '+esc(BR())+' Foundation':'')+'. Who takes over?';
+ const pl=planOf(),el=eldest(),me=mentee();const body='You died with <b>'+PLANS_EST[pl.type].name.toLowerCase()+'</b>. Your estate is worth <b>'+fmt(e.nw)+'</b>. '+(pl.type==='none'?'Court costs and duty take ':'Estate duty and legal fees take ')+fmt(e.tax)+(e.spouse?', '+esc(S.spouse.name)+' keeps '+fmt(e.spouse):'')+(S.kids.length>1?', and your other children take their shares':'')+'. '+
+  (pl.type==='none'?'With no will, the estate is split equally and the court gives control to your eldest. ':'')+'Your heir inherits <b>'+fmt(e.cash)+'</b>'+(pl.ins?' plus '+fmt(pl.ins)+' from your life insurance':'')+(e.trust>0?(pl.type==='ftrust'?' and a monthly income of '+fmt(Math.min(2e5,e.trust*.002))+' from the family trust':' to run the business (another '+fmt(e.trust)+' stays locked away)'):'')+(pl.type==='ltrust'?', every outlet of the family business':'')+', the '+esc(BR())+' name'+(ind?', the family '+ind.name.lc()+' business':'')+(S.fdn?' and the '+esc(BR())+' Foundation':'')+'. Who takes over?';
  showCard('Choose your heir',body,S.kids.map((k,i)=>{const a=Math.floor(kidAge(k)/12),sc=SCHOOLS[k.best||0]||SCHOOLS[0];
-  return'<button class="choice" data-a="heir" data-v="'+i+'"><b>'+esc(k.name)+', '+a+'</b><span>'+sc.name+' education'+(k.best?' · reputation +'+(k.best*5):'')+(a<18?' · a guardian runs the trust until they turn 18':'')+(k.withEx?' · grew up with your ex':'')+'</span></button>';}).join('')+
+  const lock=pl.type==='none'&&i!==el;return'<button class="choice" data-a="heir" data-v="'+i+'"'+(lock?' disabled':'')+'><b>'+esc(k.name)+', '+a+(me===k?' · groomed to lead':'')+'</b><span>'+(lock?'No will: only your eldest can take control · ':'')+sc.name+' education'+(k.best?' · reputation +'+(k.best*5):'')+(a<18?' · a guardian runs the trust until they turn 18':'')+(k.withEx?' · grew up with your ex':'')+'</span></button>';}).join('')+
   '<button class="btn ghost" data-a="reset">Start a new family instead</button>');}
 function heirData(i){const k=S.kids[i],e=estate(),fi=familyInd();
- return{name:k.name,age:heirAge(k),best:k.best||0,cash:Math.round(e.cash),trust:Math.round(e.trust),rep:S.rep,ind:fi,fdn:S.fdn?Object.assign({},S.fdn,{cool:{}}):null,gen:(S.gnum||1)+1,parent:S.who||(ACC&&ACC.name)||'your parent',parentAge:age(),sibs:S.kids.filter((x,j)=>j!==i).map(x=>x.name)};}
+ return{name:k.name,age:heirAge(k),best:k.best||0,cash:Math.round(e.cash),trust:Math.round(e.trust),rep:S.rep,ind:fi,fdn:S.fdn?Object.assign({},S.fdn,{cool:{}}):null,gen:(S.gnum||1)+1,parent:S.who||(ACC&&ACC.name)||'your parent',parentAge:age(),sibs:S.kids.filter((x,j)=>j!==i).map(x=>x.name),plan:planOf().type,ins:planOf().ins||0,sha:!!planOf().sha,groomed:planOf().mentor===k.name,favour:!!planOf().mentor,
+ trustPay:planOf().type==='ftrust'?Math.min(2e5,e.trust*.002):0,units:planOf().type==='ltrust'&&fi?Object.fromEntries(BIZ.filter(b=>b.ind===fi&&owned(b.id)).map(b=>[b.id,owned(b.id)])):null};}
 function applyHeir(h){S.gnum=h.gen;S.who=h.name;S.age0=h.age;S.g='';S.cash=h.cash;S.debt=0;S.hist=[Math.max(1,h.cash)];S.trust=h.trust;
  S.rep=clamp(50+(h.rep-50)*.5+h.best*5,30,95);S.tourDone=true;if(h.fdn)S.fdn=h.fdn;
  if(h.ind&&IND[h.ind]){S.inds=[h.ind];const b=BIZ.filter(x=>x.ind===h.ind).sort((a,c)=>a.tier-c.tier)[0];if(b)S.owned[b.id]=1;}
  S.health=clamp(95-Math.max(0,h.age-30)*.7,40,95);S.parent=h.parent;S.sibs=makeSibs(h.sibs||[]);
- S.log=[{m:0,t:'You are '+h.name+', '+h.age+'. '+h.parent+' passed away at '+h.parentAge+' and left you '+fmt(h.cash)+(h.ind?' and the family business':'')+'. Generation '+h.gen+' of the '+familyName()+' family begins.',k:'gold'}];}
+ S.log=[{m:0,t:'You are '+h.name+', '+h.age+'. '+h.parent+' passed away at '+h.parentAge+' and left you '+fmt(h.cash)+(h.ind?' and the family business':'')+'. Generation '+h.gen+' of the '+familyName()+' family begins.',k:'gold'}];applyPlan(h);}
 function newLife(hi){stopAuto();closeModal();current=null;if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur;if(S.month>0)recordLife(lifeSummary());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;useRegion(S.region);S.pcOpen=[PCITIES[0].id];if(heir)applyHeir(heir);$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
 
 /* ================= Legacy: families and achievements ================= */
