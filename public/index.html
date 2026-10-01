@@ -4,19 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Build an empire from a street hustle to a billion.">
-<meta name="theme-color" content="#14261f">
+<meta name="theme-color" content="#0b1a2c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Hustle">
+<meta name="apple-mobile-web-app-title" content="Hustlempires">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314261f'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='%23e2ac48' font-family='Arial' font-weight='700'%3E%24%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"%3E%3Cdefs%3E%3ClinearGradient id="bg" x1="0" y1="0" x2="1" y2="1"%3E%3Cstop offset="0" stop-color="#264476"/%3E%3Cstop offset="1" stop-color="#0b1a2c"/%3E%3C/linearGradient%3E%3ClinearGradient id="gold" x1="0" y1="0" x2="0" y2="1"%3E%3Cstop offset="0" stop-color="#ffe08a"/%3E%3Cstop offset="1" stop-color="#ff8a2b"/%3E%3C/linearGradient%3E%3CclipPath id="r"%3E%3Crect width="512" height="512" rx="112"/%3E%3C/clipPath%3E%3C/defs%3E%3Cg clip-path="url(#r)"%3E%3Crect width="512" height="512" fill="url(#bg)"/%3E%3Cg fill="url(#gold)"%3E%3Cpath d="M120 420V150l40-40 40 40v270z"/%3E%3Cpath d="M312 420V110l40-44 40 44v310z"/%3E%3Crect x="190" y="250" width="132" height="54" rx="6"/%3E%3Crect x="96" y="420" width="320" height="22" rx="8"/%3E%3C/g%3E%3Cg fill="#0b1a2c" opacity=".55"%3E%3Crect x="144" y="170" width="12" height="18"/%3E%3Crect x="164" y="170" width="12" height="18"/%3E%3Crect x="144" y="206" width="12" height="18"/%3E%3Crect x="164" y="330" width="12" height="18"/%3E%3Crect x="144" y="366" width="12" height="18"/%3E%3Crect x="336" y="140" width="12" height="18"/%3E%3Crect x="356" y="176" width="12" height="18"/%3E%3Crect x="336" y="212" width="12" height="18"/%3E%3Crect x="356" y="330" width="12" height="18"/%3E%3Crect x="336" y="366" width="12" height="18"/%3E%3C/g%3E%3Cpath d="M232 196l12-30 12 14 12-14 12 30z" fill="#ffd36b"/%3E%3C/g%3E%3C/svg%3E">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:#eef0e6}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
-<title>Hustle to an Empire</title>
+<title>Hustlempires</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -567,7 +567,7 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
 <div class="wrap"><div class="stagehead" aria-hidden="true"><b id="ch-city"></b><span><span id="ch-date"></span><small id="ch-eco"></small></span></div>
   <section class="note" aria-label="Your empire">
     <div class="head-l">
-      <div class="brand"><h1>Hustle to an Empire</h1><span class="rank" id="rank">Street Hustler</span></div>
+      <div class="brand"><h1>Hustlempires</h1><span class="rank" id="rank">Street Hustler</span></div>
       <button class="acctchip" id="acctchip" data-a="accts" aria-label="Switch account"></button>
       <div class="dyn" id="dyn" hidden></div>
       <div class="lawst" id="lawst" hidden></div>
@@ -1109,7 +1109,7 @@ function renderToday(){const el=$('today');if(!el)return;if(!S.inds.length||S.ov
 let tourOn=false,tourI=0;
 const panelOf=id=>{const e=$(id);return e?(e.closest('.panel')||e.parentElement):null;};
 const TOUR=[
- {t:'Welcome to Hustle to an Empire',x:()=>'You are 24, with a small stake and a big idea. Your goal: grow it into a <b>'+(curLocal()?fmt(1e9):'$1 billion')+'</b> empire. This short tour shows you where everything is. Use <b>Next</b> or your arrow keys.'},
+ {t:'Welcome to Hustlempires',x:()=>'You are 24, with a small stake and a big idea. Your goal: grow it into a <b>'+(curLocal()?fmt(1e9):'$1 billion')+'</b> empire. This short tour shows you where everything is. Use <b>Next</b> or your arrow keys.'},
  {el:()=>document.querySelector('.note .head-l'),t:'Your scoreboard',x:()=>'<b>Net worth</b> is everything you own minus what you owe. Reach '+fmt(1e9)+' to win.<ul><li><b>Cash</b>: money you can spend right now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li><li><b>Debt</b>: interest on it eats your profit.</li></ul>'},
  {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:()=>'Your net worth over time, and your progress to '+fmt(1e9)+'. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
@@ -1243,7 +1243,7 @@ function authForm(){const su=authMode==='signup';
   '<fieldset><legend>Starting background</legend>'+BGS.map((b,i)=>'<label class="bgopt"><input type="radio" name="acc-bg" id="acc-bg-'+b.id+'" value="'+b.id+'"'+(i===0?' checked':'')+'><span><b>'+b.name+'</b><span>'+dollars(b.desc)+'</span></span></label>').join('')+'</fieldset>'+
   '<fieldset><legend>Avatar colour</legend><div class="swatches">'+AVCOL.map((c,i)=>'<label class="sw"><input type="radio" name="acc-col" id="acc-col-'+i+'" value="'+i+'"'+(i===0?' checked':'')+' aria-label="Colour '+(i+1)+'"><span style="background:'+c+'"></span></label>').join('')+'</div></fieldset>';
  return h+'<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="acc-submit">'+(su?'Create account and start':'Log in')+'</button>'+(su?'':'<button type="button" class="btn ghost" data-a="forgotview">Forgot your password?</button>')+'</div></form>';}
-function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustle to an Empire</div>';
+function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustlempires</div>';
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
  else if(acctView==='down')h+='<h2>Can\'t connect</h2><p class="sub">'+esc(authMsg)+'</p><div class="chips"><button class="btn primary" data-a="retryboot">Try again</button></div>';
  else if(acctView==='auth')h+='<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm();

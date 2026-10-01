@@ -1,14 +1,14 @@
 {
   "id": "/",
-  "name": "Hustle to an Empire",
-  "short_name": "Hustle",
+  "name": "Hustlempires",
+  "short_name": "Hustlempires",
   "description": "Build an empire from a street kiosk to a billion.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#14261f",
-  "theme_color": "#14261f",
+  "background_color": "#0b1a2c",
+  "theme_color": "#0b1a2c",
   "categories": ["games", "business"],
   "icons": [
     {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},

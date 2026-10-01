@@ -51,15 +51,15 @@ head='''<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Build an empire from a street hustle to a billion.">
-<meta name="theme-color" content="#14261f">
+<meta name="theme-color" content="#0b1a2c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Hustle">
+<meta name="apple-mobile-web-app-title" content="Hustlempires">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314261f'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='%23e2ac48' font-family='Arial' font-weight='700'%3E%24%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"%3E%3Cdefs%3E%3ClinearGradient id="bg" x1="0" y1="0" x2="1" y2="1"%3E%3Cstop offset="0" stop-color="#264476"/%3E%3Cstop offset="1" stop-color="#0b1a2c"/%3E%3C/linearGradient%3E%3ClinearGradient id="gold" x1="0" y1="0" x2="0" y2="1"%3E%3Cstop offset="0" stop-color="#ffe08a"/%3E%3Cstop offset="1" stop-color="#ff8a2b"/%3E%3C/linearGradient%3E%3CclipPath id="r"%3E%3Crect width="512" height="512" rx="112"/%3E%3C/clipPath%3E%3C/defs%3E%3Cg clip-path="url(#r)"%3E%3Crect width="512" height="512" fill="url(#bg)"/%3E%3Cg fill="url(#gold)"%3E%3Cpath d="M120 420V150l40-40 40 40v270z"/%3E%3Cpath d="M312 420V110l40-44 40 44v310z"/%3E%3Crect x="190" y="250" width="132" height="54" rx="6"/%3E%3Crect x="96" y="420" width="320" height="22" rx="8"/%3E%3C/g%3E%3Cg fill="#0b1a2c" opacity=".55"%3E%3Crect x="144" y="170" width="12" height="18"/%3E%3Crect x="164" y="170" width="12" height="18"/%3E%3Crect x="144" y="206" width="12" height="18"/%3E%3Crect x="164" y="330" width="12" height="18"/%3E%3Crect x="144" y="366" width="12" height="18"/%3E%3Crect x="336" y="140" width="12" height="18"/%3E%3Crect x="356" y="176" width="12" height="18"/%3E%3Crect x="336" y="212" width="12" height="18"/%3E%3Crect x="356" y="330" width="12" height="18"/%3E%3Crect x="336" y="366" width="12" height="18"/%3E%3C/g%3E%3Cpath d="M232 196l12-30 12 14 12-14 12 30z" fill="#ffd36b"/%3E%3C/g%3E%3C/svg%3E">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:#eef0e6}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>

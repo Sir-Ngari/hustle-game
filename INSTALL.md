@@ -1,4 +1,4 @@
-# Hustle to an Empire: install guide
+# Hustlempires: install guide
 
 This puts the game online at your own web address, for example `https://game.denriafrica.com`, with:
 
@@ -90,7 +90,7 @@ sudo cp /opt/hustle/app/deploy/hustle.service /etc/systemd/system/hustle.service
 sudo systemctl status hustle --no-pager
 ```
 *What it does:* shows the service's state.
-*What you should see:* a green `active (running)` line, and near the bottom `Hustle to an Empire is running on http://127.0.0.1:8090`.
+*What you should see:* a green `active (running)` line, and near the bottom `Hustlempires is running on http://127.0.0.1:8090`.
 *If it says `failed`:* run `sudo journalctl -u hustle -n 30 --no-pager` and send me the output.
 
 ```bash

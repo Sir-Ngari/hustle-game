@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hustle to an Empire - game server.
+"""Hustlempires - game server.
 
 Serves the game and the admin dashboard, stores player accounts, saved games
 and activity in a single SQLite file. Uses only the Python standard library
@@ -430,7 +430,7 @@ def mail_ready():
 
 def send_mail(to, subject, text, html):
     """Send one email with the configured provider. Returns True when it was accepted."""
-    sender_name = "Hustle to an Empire"
+    sender_name = "Hustlempires"
     try:
         if MAIL_PROVIDER == "log":
             print("MAIL to %s | %s\n%s" % (to, subject, text), flush=True)
@@ -488,7 +488,7 @@ def html_escape(x):
 def send_reset_emails(email, accounts):
     """accounts: list of (username, name, link). One email lists every account on that address."""
     lines = "\n".join("  %s (@%s): %s" % (n, u, link) for u, n, link in accounts)
-    text = ("Someone asked to reset the password for your Hustle to an Empire account%s.\n\n"
+    text = ("Someone asked to reset the password for your Hustlempires account%s.\n\n"
             "Open this link to choose a new password:\n%s\n\n"
             "The link works once and expires in 1 hour. If you didn't ask for this, ignore this email; "
             "your password stays the same.\n" % ("s" if len(accounts) > 1 else "", lines))
@@ -498,10 +498,10 @@ def send_reset_emails(email, accounts):
         for u, n, link in accounts)
     html = ('<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#14261f;max-width:520px">'
             '<h2 style="margin:0 0 12px">Reset your password</h2>'
-            '<p>Someone asked to reset the password for your <b>Hustle to an Empire</b> account%s.</p>%s'
+            '<p>Someone asked to reset the password for your <b>Hustlempires</b> account%s.</p>%s'
             '<p style="color:#5b6660;font-size:13px">The link works once and expires in 1 hour. If you didn\'t ask for this, '
             'ignore this email; your password stays the same.</p></div>') % ("s" if len(accounts) > 1 else "", buttons)
-    send_mail(email, "Reset your Hustle to an Empire password", text, html)
+    send_mail(email, "Reset your Hustlempires password", text, html)
 
 
 # ---- Hustle Pass: who may play, and Pesapal payments -------------------------
@@ -1286,7 +1286,7 @@ class Handler(BaseHTTPRequestHandler):
           (user["id"], t))
         names = (user["name"] or "Player").split()
         body = {"id": ref, "currency": "KES", "amount": float(p["kes"]),
-                "description": "Hustle to an Empire - %s" % p["name"],
+                "description": "Hustlempires - %s" % p["name"],
                 "callback_url": "https://%s/?paid=%s" % (SITE_DOMAIN, ref),
                 "cancellation_url": "https://%s/?paid=%s&cancelled=1" % (SITE_DOMAIN, ref),
                 "notification_id": "", "redirect_mode": "TOP_WINDOW",
@@ -1569,7 +1569,7 @@ def main():
     ThreadingHTTPServer.request_queue_size = 512
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.daemon_threads = True
-    print("Hustle to an Empire is running on http://%s:%d" % (HOST, PORT), flush=True)
+    print("Hustlempires is running on http://%s:%d" % (HOST, PORT), flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
