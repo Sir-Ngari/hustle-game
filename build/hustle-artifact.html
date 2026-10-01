@@ -508,6 +508,11 @@ html.gm .guide b{font-family:var(--display);font-size:20px;text-transform:upperc
 @keyframes coach{0%,100%{box-shadow:0 0 0 0 rgba(255,197,61,.85)}60%{box-shadow:0 0 0 10px rgba(255,197,61,0)}}
 html.gm .btn.coach{animation:coach 1.3s ease-in-out infinite;box-shadow:0 4px 0 #b55f00,0 0 0 0 rgba(255,197,61,.9)}
 @media (prefers-reduced-motion:reduce){.coach{animation:none;outline:3px solid var(--brass);outline-offset:2px}}
+
+.crisis{margin:0 0 12px;padding:12px 14px;border-radius:10px;border:1px solid var(--red);background:var(--red-soft);display:grid;gap:4px}
+.crisis b{font-size:17px}.cfxs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.cfx{font-size:12px;font-weight:700;padding:2px 8px;border-radius:12px}
+.cfx.dn{background:var(--red-soft);color:var(--red)}.cfx.up{background:var(--green-soft);color:var(--green)}
+html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:uppercase}
 </style>
 
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
@@ -777,12 +782,13 @@ const scene=(()=>{const c=document.createElement('canvas');c.id='scene';document
  function sky(ph){const day=Math.max(0,Math.sin(ph*Math.PI*2)),dusk=Math.max(0,1-Math.abs(Math.sin(ph*Math.PI*2))*2.2);
   const mix=(a,b,k)=>a.map((v,i)=>Math.round(v+(b[i]-v)*k));const top=mix([8,16,40],[40,110,210],day),mid=mix([18,30,70],[110,170,235],day),low=mix(mix([30,40,80],[180,215,240],day),[255,150,80],dusk*.8);
   const g=x.createLinearGradient(0,0,0,city?city.base:H*.5);g.addColorStop(0,'rgb('+top+')');g.addColorStop(.55,'rgb('+mid+')');g.addColorStop(1,'rgb('+low+')');x.fillStyle=g;x.fillRect(0,0,W,H);return{day,dusk};}
- function draw(now){const t=(now-t0)/1000,ph=((t/240)+.18)%1,L=sky(ph);build();if(S&&S.s>1.1){x.fillStyle='rgba(255,165,60,.16)';x.fillRect(0,0,W,city.base);}else if(S&&S.s<.9){x.fillStyle='rgba(60,70,92,.32)';x.fillRect(0,0,W,city.base);}
+ function draw(now){const t=(now-t0)/1000,ph=((t/240)+.18)%1,L=sky(ph);build();const CR=(typeof crisisOf==='function'&&S)?crisisOf():null,CI=CR?crisisDef(CR).icon:'';
+  if(CI==='war'){x.fillStyle='rgba(120,30,20,.28)';x.fillRect(0,0,W,city.base);}else if(CI==='haze'||CI==='drought'){x.fillStyle='rgba(215,120,35,'+(CI==='haze'?.5:.42)+')';x.fillRect(0,0,W,city.base);}else if(CI==='grey'||CI==='pandemic'){x.fillStyle='rgba(70,80,95,.25)';x.fillRect(0,0,W,city.base);}else if(CI==='rain'||CI==='storm'){x.fillStyle='rgba(22,28,42,.58)';x.fillRect(0,0,W,city.base);}if(S&&S.s>1.1){x.fillStyle='rgba(255,165,60,.16)';x.fillRect(0,0,W,city.base);}else if(S&&S.s<.9){x.fillStyle='rgba(60,70,92,.32)';x.fillRect(0,0,W,city.base);}
   /* stars */ if(L.day<.3){x.fillStyle='rgba(255,255,255,'+(0.8*(1-L.day/.3))+')';const r=rng('stars');for(let i=0;i<70;i++){const sx=r()*W,sy=r()*H*.45,tw=.5+.5*Math.sin(t*2+i);x.globalAlpha=tw*(1-L.day/.3);x.fillRect(sx,sy,1.6,1.6);}x.globalAlpha=1;}
-  /* sun or moon */ {const cbz=city?city.base:H*.5,a=ph*Math.PI*2,sx=W*.5-Math.cos(a)*W*.42,sy=cbz*.95-Math.sin(a)*cbz*.8,isSun=Math.sin(a)>0;const px=isSun?sx:W-sx,py=isSun?sy:cbz*.95+Math.sin(a)*cbz*.8;
+  /* sun or moon */ if(CI!=='rain'&&CI!=='storm'){const cbz=city?city.base:H*.5,a=ph*Math.PI*2,sx=W*.5-Math.cos(a)*W*.42,sy=cbz*.95-Math.sin(a)*cbz*.8,isSun=Math.sin(a)>0;const px=isSun?sx:W-sx,py=isSun?sy:cbz*.95+Math.sin(a)*cbz*.8;
    const gg=x.createRadialGradient(px,py,0,px,py,isSun?90:50);gg.addColorStop(0,isSun?'rgba(255,240,180,.95)':'rgba(230,240,255,.9)');gg.addColorStop(.25,isSun?'rgba(255,210,90,.55)':'rgba(200,220,255,.25)');gg.addColorStop(1,'rgba(255,200,80,0)');
    x.fillStyle=gg;x.beginPath();x.arc(px,py,isSun?90:50,0,7);x.fill();x.fillStyle=isSun?'#fff4c8':'#eef3ff';x.beginPath();x.arc(px,py,isSun?22:16,0,7);x.fill();}
-  /* clouds */ clouds.forEach(cl=>{cl.x=(cl.x+cl.v*(RM?0:.016))%1.3;const cx=cl.x*W*1.3-W*.15,cy=cl.y*(city?city.base:H*.5)*1.6,s=cl.s*46;x.fillStyle='rgba(255,255,255,'+(0.18+.5*L.day)+')';
+  /* clouds */ clouds.forEach(cl=>{cl.x=(cl.x+cl.v*(RM?0:.016))%1.3;const cx=cl.x*W*1.3-W*.15,cy=cl.y*(city?city.base:H*.5)*1.6,s=cl.s*46;x.fillStyle=(CI==='rain'||CI==='storm'||CI==='war')?'rgba(95,102,118,.85)':'rgba(255,255,255,'+(0.18+.5*L.day)+')';
    [[0,0,1],[.8,.1,.75],[-.8,.12,.7],[.35,-.35,.7]].forEach(p=>{x.beginPath();x.ellipse(cx+p[0]*s,cy+p[1]*s,s*p[2],s*p[2]*.62,0,0,7);x.fill();});});
   /* hills */ {const b0=city.base;[[.80,'rgba(40,90,70,',.10],[.90,'rgba(28,70,52,',.07]].forEach((h,i)=>{x.fillStyle=h[1]+(0.55+.45*L.day)+')';x.beginPath();x.moveTo(0,H);for(let px=0;px<=W;px+=12)x.lineTo(px,b0*h[0]-Math.sin(px/W*6+i*2)*b0*h[2]-Math.sin(px/W*13+i)*b0*.02);x.lineTo(W,H);x.fill();});}
   /* skyline */ const night=1-L.day,cb=city.base;
@@ -793,8 +799,13 @@ const scene=(()=>{const c=document.createElement('canvas');c.id='scene';document
    const brand=(typeof BR==='function'?BR():'').toUpperCase();if(brand&&(S&&(S.title||0)>=2)){x.font='600 '+Math.max(11,m.w*.18)+'px Oswald, Impact, sans-serif';x.textAlign='center';x.fillStyle='rgba(255,230,150,'+(0.6+.4*night)+')';x.fillText(brand.slice(0,10),m.x+m.w/2,cb-m.h+16);}
    if(night>.25){for(let wy=cb-m.h+26;wy<cb-6;wy+=10)for(let wx=m.x+5;wx<m.x+m.w-5;wx+=9){x.fillStyle='rgba(180,220,255,'+night*.7+')';x.fillRect(wx,wy,4,5);}}}
   /* road and cars */ x.fillStyle='#1b2433';x.fillRect(0,cb,W,32);{const gr=x.createLinearGradient(0,cb+32,0,H);gr.addColorStop(0,'#13283a');gr.addColorStop(1,'#08121f');x.fillStyle=gr;x.fillRect(0,cb+32,W,H-cb-32);}x.fillStyle='rgba(255,255,255,.25)';for(let px=0;px<W;px+=40)x.fillRect(px+((t*30)%40),cb+16,18,2);
-  cars.forEach(cr=>{cr.x=(cr.x+cr.v*(RM?0:.016)+1.2)%1.2;const cx=cr.x*W*1.2-W*.1,cy=cb+(cr.v>0?8:22);x.fillStyle=cr.c;x.fillRect(cx,cy,16,6);x.fillStyle='rgba(0,0,0,.4)';x.fillRect(cx+3,cy-3,9,3);
+  cars.forEach((cr,ci)=>{if((CI==='pandemic'||CI==='rain')&&ci%3!==0)return;cr.x=(cr.x+cr.v*(RM?0:.016)+1.2)%1.2;const cx=cr.x*W*1.2-W*.1,cy=cb+(cr.v>0?8:22);x.fillStyle=cr.c;x.fillRect(cx,cy,16,6);x.fillStyle='rgba(0,0,0,.4)';x.fillRect(cx+3,cy-3,9,3);
    if(night>.3){x.fillStyle='rgba(255,240,180,'+night*.8+')';x.fillRect(cr.v>0?cx+16:cx-6,cy+1,6,3);}});
+  /* crisis weather */ 
+  if(CI==='rain'||CI==='storm'){x.strokeStyle='rgba(190,210,255,.35)';x.lineWidth=1;x.beginPath();for(let i=0;i<120;i++){const rx=((i*97+t*(CI==='storm'?520:300))%(W+60))-30,ry=((i*53+t*700)%cb);x.moveTo(rx,ry);x.lineTo(rx-(CI==='storm'?9:4),ry+14);}x.stroke();
+   if(CI==='storm'&&Math.sin(t*1.7)>.995){x.fillStyle='rgba(255,255,255,.35)';x.fillRect(0,0,W,cb);}
+   if(CI==='rain'){x.fillStyle='rgba(70,110,150,.55)';x.fillRect(0,cb-8,W,40);}}
+  if(CI==='war'){for(let i=0;i<4;i++){const sx=(i*0.23+.1)*W,sy=cb-30-i*12;x.fillStyle='rgba(60,60,60,.35)';for(let k=0;k<6;k++){x.beginPath();x.arc(sx+Math.sin(t*.5+k)*8+k*6,sy-k*22-((t*14)%22),10+k*4,0,7);x.fill();}}if(Math.sin(t*2.3)>.98){x.fillStyle='rgba(255,140,60,.25)';x.fillRect(0,0,W,cb);}}
   /* gentle vignette so panels stay readable */ const v=x.createLinearGradient(0,0,0,H);v.addColorStop(0,'rgba(5,12,25,.0)');v.addColorStop(1,'rgba(5,12,25,.25)');x.fillStyle=v;x.fillRect(0,0,W,H);}
  function loop(now){raf=0;if(!gm()||document.hidden)return;if(now-last>33){last=now;draw(now);}if(!RM)raf=requestAnimationFrame(loop);}
  function kick(){if(!raf&&gm())raf=requestAnimationFrame(loop);}
@@ -1293,7 +1304,7 @@ function kidCost(k){const m=kidAge(k);if(m<0||m>=264)return 0;if(m<48)return 60;
 function flows(noisy){
  const E=svcEffects();
  let biz=0;
- BIZ.forEach(b=>{const n=owned(b.id);if(!n)return;const noise=noisy?1+b.vol*(rnd()*2-1):1;biz+=b.profit*n*policyMult(b)*noise*cyc(b)*indBuff(b.ind)*masteryMult(b.ind);});
+ BIZ.forEach(b=>{const n=owned(b.id);if(!n)return;const noise=noisy?1+b.vol*(rnd()*2-1):1;biz+=b.profit*n*policyMult(b)*noise*cyc(b)*indBuff(b.ind)*masteryMult(b.ind)*(typeof crisisMult==='function'?crisisMult(b.ind):1);});
  biz*=baseMult()*buffMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float)*(S.plan&&S.plan.mentor?.97:1)*(typeof statusMult==='function'?statusMult():1);
  const rent=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.rent*has(a.id)*af(a.id),0)*policyMult('rent');
  const sport=sportsNet(),prop=propNet();
@@ -2165,6 +2176,7 @@ function nextMonth(){
   showCard('You are a billionaire','You built a '+fmt(nw)+' empire in '+y+' years and '+mo+' months, from '+(S.gnum>1?'an inheritance of '+fmt(S.hist[0]):fmt(S.hist[0]||1000)+' and a '+(R?R.biz.kiosk[0].lc():'street kiosk'))+'. You are '+age()+'. '+fam+', '+S.kids.length+' child'+(S.kids.length===1?'':'ren')+', happiness '+Math.round(S.happy)+' out of 100. Keep going, or start again and beat your time.',
    '<button class="btn primary" data-a="close">Keep building</button><button class="btn" data-a="reset">New game</button>');return;}
  S.cool--;
+ {const ce=crisisTick();if(ce&&!current){S.cool=Math.max(S.cool,2);afterChange();openEvent(ce);return;}}
  wkInc('months');if(S.happy>75)wkInc('happy');if(S.month%12===0)addPts(3);
  lawTick();
  checkAch();
@@ -2267,7 +2279,7 @@ function render(){
  renderToday();
  paintQuick();
  $('next').disabled=S.over;
- {const a=$('ch-city'),b=$('ch-date'),e=$('ch-eco');if(a&&R)a.textContent=R.city;if(b)b.textContent=dateStr(S.month);if(e){e.textContent=S.s>1.1?'Economy booming':S.s<.9?'Recession':'';e.className=S.s>1.1?'boom':S.s<.9?'bust':'';}}
+ {const a=$('ch-city'),b=$('ch-date'),e=$('ch-eco');if(a&&R)a.textContent=R.city;if(b)b.textContent=dateStr(S.month);if(e){const cl=crisisLine();e.textContent=cl||(S.s>1.1?'Economy booming':S.s<.9?'Recession':'');e.className=cl?'bust':S.s>1.1?'boom':S.s<.9?'bust':'';}}
  setTimeout(paintGuide,0);
  {const ls=$('lawst');if(ls){const t=statusLine();ls.hidden=!t;ls.textContent=t;}}
  {const d=$('dyn');if(d){d.hidden=!(S.gnum>1);if(S.gnum>1)d.textContent='Generation '+S.gnum+' of the '+familyName()+' family · playing as '+S.who;}
@@ -2614,6 +2626,69 @@ window.addEventListener('resize',drawChart);
 
 
 
+
+/* ================= World crises: wars, pandemics and natural disasters ================= */
+const IND_NAME=id=>(IND[id]||{name:id}).name;
+const DISASTERS={
+ drought:{name:'A severe drought',icon:'drought',fx:{food:.5,energy:.8,manufacturing:.9},prop:1,len:[8,14],text:()=>'The rains have failed for a second season. Crops are dying across '+R.theCountry+' and food prices are soaring.'},
+ floods:{name:'Catastrophic floods',icon:'rain',fx:{transport:.6,food:.7,retail:.85},prop:.9,len:[4,8],text:()=>'Rivers have burst their banks. Roads and warehouses across '+R.city+' are under water.'},
+ earthquake:{name:'A major earthquake',icon:'quake',fx:{hospitality:.6,retail:.8,realestate:.7},prop:.85,len:[6,10],rebuild:'realestate',text:()=>'A powerful earthquake has struck near '+R.city+'. Buildings are down and the city is in shock.'},
+ storm:{name:'A devastating storm',icon:'storm',fx:{hospitality:.5,transport:.7,energy:.85},prop:.9,len:[4,8],rebuild:'realestate',text:()=>'The strongest storm in decades has torn through the coast. Power is out and ports are closed.'},
+ wildfire:{name:'Wildfires and a heatwave',icon:'haze',fx:{food:.7,hospitality:.75,energy:.85},prop:.95,len:[4,8],text:()=>'Record heat and wildfires are burning across the region. The sky is orange with smoke.'}};
+const WR_DISASTERS={eastafrica:['drought','floods'],southernafrica:['drought','storm'],westafrica:['floods','drought'],centralafrica:['floods'],northafrica:['drought','earthquake'],middleeast:['drought','earthquake','wildfire'],
+ southasia:['floods','storm','earthquake'],eastasia:['earthquake','storm'],southeastasia:['storm','floods','earthquake'],centralasia:['earthquake','drought'],europe:['floods','wildfire'],
+ northamerica:['storm','wildfire','earthquake'],latinamerica:['earthquake','storm','floods'],caribbean:['storm'],oceania:['wildfire','storm']};
+const CRISES={
+ pandemic:{name:'A global pandemic',icon:'pandemic',len:[18,30],fx:{hospitality:.35,transport:.65,retail:.7,realestate:.85,media:1.15,tech:1.3,health:1.4,food:1.05},econ:.75},
+ war:{name:'A world war',icon:'war',len:[24,40],fx:{energy:1.5,manufacturing:1.3,hospitality:.5,tech:.85,retail:.85,transport:.85},econ:.8},
+ crash:{name:'A global financial crisis',icon:'grey',len:[12,20],fx:{tech:.7,realestate:.6,retail:.85,hospitality:.8},econ:.7}};
+function crisisOf(){return S.crisis&&S.month<S.crisis.end?S.crisis:null;}
+function crisisDef(c){return c.kind==='disaster'?DISASTERS[c.id]:CRISES[c.id];}
+function crisisFx(c){const d=crisisDef(c),f=Object.assign({},d.fx);if(c.adj)Object.entries(c.adj).forEach(([k,v])=>f[k]=(f[k]||1)*v);return f;}
+function crisisMult(ind){const c=crisisOf();if(!c)return 1;const f=crisisFx(c);return f[ind]||1;}
+function fxLine(c){const f=crisisFx(c);return Object.entries(f).sort((a,b)=>a[1]-b[1]).map(([k,v])=>'<span class="cfx '+(v<1?'dn':'up')+'">'+IND_NAME(k)+' '+(v<1?'−':'+')+Math.round(Math.abs(1-v)*100)+'%</span>').join('');}
+function startCrisis(kind,id){const d=kind==='disaster'?DISASTERS[id]:CRISES[id],n=d.len[0]+Math.floor(rnd()*(d.len[1]-d.len[0]+1));
+ S.crisis={kind,id,start:S.month,end:S.month+n,adj:{},net0:netWorth()};S.lastCrisis=S.month;
+ if(d.econ)S.s=Math.min(S.s,d.econ);
+ if(d.prop&&d.prop<1)(S.props||[]).forEach(p=>{p.af=(p.af||1)*d.prop;});
+ log((kind==='disaster'?'Disaster: ':'World crisis: ')+d.name.charAt(0).toLowerCase()+d.name.slice(1)+'. Expect about '+n+' months of disruption.','bad');
+ if(scene&&scene.redraw)scene.redraw();return crisisEvent();}
+function crisisEvent(){const c=S.crisis,d=crisisDef(c),c1=nwc(.02,1500),c2=nwc(.01,800);
+ if(c.id==='pandemic')return{cat:'World crisis',title:'A pandemic is sweeping the world',text:'A new virus is spreading fast. Governments are ordering lockdowns, borders are closing and customers are staying home.<div class="cfxs">'+fxLine(c)+'</div>',
+  choices:[{l:'Pivot to delivery and online',d:'Spend '+fmt(c1)+'. Hospitality, retail and transport losses are cut by a third.',dis:!canPay(c1),f(){S.cash-=c1;c.adj={hospitality:1.6,retail:1.3,transport:1.3};return['You moved everything you could online. Your drivers are busier than ever.','good']}},
+   {l:'Keep every worker on full pay',d:'Spend '+fmt(c2)+' a month for 6 months. Reputation +8, happiness +5.',f(){for(let i=1;i<=6;i++)S.pending.push({due:S.month+i,cash:0,chance:0,bcash:c2,good:'',bad:'You paid your idle staff again this month.'});addRep(8);addHappy(5);return['Your staff will never forget this.','good']}},
+   {l:'Lay staff off and wait it out',d:'Profit ×1.1 for a year from lower costs, reputation −8.',f(){addBuff(1.1,12,'Lay-offs');addRep(-8);return['You laid off half the workforce. The press noticed.','bad']}}]};
+ if(c.id==='war')return{cat:'World crisis',title:'War breaks out',text:'The world\'s great powers are at war. Oil prices have exploded, trade routes are closing and markets are in turmoil.<div class="cfxs">'+fxLine(c)+'</div>',
+  choices:[{l:'Take government war contracts',d:'Manufacturing, transport and energy gain a further 30%. Influence +10, reputation −5.',f(){c.adj={manufacturing:1.3,transport:1.3,energy:1.3};addInf(10);addRep(-5);return['Your factories and trucks now serve the war effort.','']}},
+   {l:'Move money offshore',d:'Pay '+fmt(pct(.05))+' in fees. Protects your cash from the war taxes that are coming.',f(){S.cash-=pct(.05);c.safe=true;return['Your reserves are now in a vault far from the fighting.','']}},
+   {l:'Keep your head down',d:'Ride it out and hope it ends soon.',f(){return['You battened down the hatches.','']}}]};
+ if(c.id==='crash')return{cat:'World crisis',title:'The global financial system cracks',text:'A chain of bank failures has frozen credit worldwide. Markets have crashed and property prices are falling.<div class="cfxs">'+fxLine(c)+'</div>',
+  choices:[{l:'Buy while everyone is selling',d:'Spend '+fmt(c1)+' on distressed assets. They pay back about double after the crisis.',dis:!canPay(c1),f(){S.cash-=c1;S.pending.push({due:c.end,cash:c1*2.1,chance:.8,good:'The distressed assets you bought in the crash have more than doubled.',bad:'The distressed assets you bought never recovered.'});return['You went shopping while others panicked.','good']}},
+   {l:'Hoard cash',d:'Sit tight and protect what you have.',f(){return['You stuffed the mattress.','']}}]};
+ const reb=d.rebuild;
+ return{cat:'Disaster',title:d.name,text:d.text()+'<div class="cfxs">'+fxLine(c)+'</div>'+(d.prop<1?'<p class="seghint">Property values across the area have dropped '+Math.round((1-d.prop)*100)+'%.</p>':''),
+  choices:[{l:'Lead the relief effort',d:'Donate '+fmt(c2)+'. Reputation +10, happiness +4.',dis:!canPay(c2),f(){S.cash-=c2;addRep(10);addHappy(4);if(S.fdn)S.fdn.total=(S.fdn.total||0)+c2;return['Your trucks were first on the scene with food and water.','good']}},
+   {l:reb?'Rebuild fast and win the contracts':'Protect your own businesses',d:reb?'Spend '+fmt(c1)+'. Construction booms for you: real estate profit ×1.5 for a year.':'Spend '+fmt(c1)+'. Cuts your losses by a third.',dis:!canPay(c1),f(){S.cash-=c1;if(reb)addBuff(1.5,12,'Rebuilding boom',reb);else{const f=crisisFx(c);Object.keys(f).forEach(k=>{if(f[k]<1)c.adj[k]=1.35;});}return[reb?'Your crews are rebuilding the city.':'You sandbagged, stockpiled and rerouted.','good']}},
+   {l:'Wait it out',d:'Losses run their course.',f(){return['You waited for the worst to pass.','']}}]};}
+function crisisTick(){const c=S.crisis;
+ if(c&&S.month>=c.end){const d=crisisDef(c),won=netWorth()>c.net0;S.crisis=null;S.crisisSeen=(S.crisisSeen||0)+1;
+  if(c.kind!=='disaster'){S.s=Math.max(S.s,1.2);addBuff(1.15,6,'Recovery boom');}
+  const nm=d.name.replace(/^(A|An) /,'');log('The '+nm.charAt(0).toLowerCase()+nm.slice(1)+(/s$/.test(nm)&&!/crisis$/.test(nm)?' are':' is')+(c.kind==='disaster'?' over. Rebuilding is under way.':' over. A recovery boom is starting.')+(won?' You came out of it richer than you went in.':''),won?'gold':'good');
+  if(scene&&scene.redraw)scene.redraw();return null;}
+ if(c){/* the crisis in progress */
+  if(c.id==='pandemic'&&!c.vax&&S.month-c.start>=Math.round((c.end-c.start)*.55)){c.vax=true;return{cat:'World crisis',title:'A vaccine is ready',text:'After months of lockdowns, the first vaccines are being rolled out.',choices:[{l:'Get vaccinated',d:'Protects your health for the rest of the pandemic.',f(){c.jab=true;return['You rolled up your sleeve.','good']}},{l:'Wait and see',d:'You will take your chances.',f(){return['You decided to wait.','']}}]};}
+  if(c.id==='pandemic'&&!c.jab&&rnd()<(age()>60?.05:.025)){if(typeof S.health==='number')S.health=clamp(S.health-(age()>60?25:12),0,100);if(typeof hospitalize==='function'&&rnd()<.5)hospitalize(1,'catching the virus');else log('You caught the virus and spent weeks in bed.','bad');}
+  if(c.id==='war'&&!c.taxed&&S.month-c.start>=6){c.taxed=true;const t=c.safe?0:pct(.12);if(t>0){S.cash-=t;log('A wartime emergency tax took '+fmt(t)+' of your cash.','bad');}else log('The wartime emergency tax arrived. Your offshore reserves were out of reach.','good');}
+  return null;}
+ /* will something happen this month? */
+ if(S.month<24||S.month-(S.lastCrisis||-999)<60||S.over)return null;
+ const r=rnd();
+ if(r<1/360){const k=pick(['pandemic','war','crash']);return startCrisis('world',k);}
+ if(r<1/360+1/150){const list=WR_DISASTERS[R&&R.wr]||['floods','drought'];return startCrisis('disaster',pick(list));}
+ return null;}
+function crisisHTML(){const c=crisisOf();if(!c)return'';const d=crisisDef(c),left=c.end-S.month;
+ return'<div class="crisis"><span class="eyebrow">'+(c.kind==='disaster'?'Disaster':'World crisis')+' · '+left+' month'+(left>1?'s':'')+' to go</span><b>'+d.name+'</b><div class="cfxs">'+fxLine(c)+'</div></div>';}
+function crisisLine(){const c=crisisOf();return c?crisisDef(c).name:'';}
 /* ================= First steps: a coach that shows new players what to press ================= */
 function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
  if(!S.inds.length)return null;
@@ -2689,7 +2764,7 @@ function calKey(c){const d=new Date();return c.id+'|'+(c.id==='holidays'&&d.getM
 function calDue(){const c=calNow();return c&&!S.over&&S.inds.length&&!(S.calSeen||[]).includes(calKey(c))?c:null;}
 function openCal(){const c=calDue();if(!c)return false;S.calSeen=(S.calSeen||[]).concat(calKey(c)).slice(-20);openEvent(c.ev());return true;}
 function seasonRankText(){return typeof seasonRankLine==='function'?seasonRankLine():'';}
-function comebackHTML(){const w=week(),c=calNow(),s=sea();let h='';
+function comebackHTML(){const w=week(),c=calNow(),s=sea();let h=crisisHTML();
  if(c)h+='<div class="calban"><b>'+c.name+'</b> · until '+c.until+(calDue()?' · <button class="btn small" data-a="calopen">See what\'s on</button>':'')+'</div>';
  h+='<div class="wk"><div class="wktop"><span class="eyebrow">This week\'s challenges</span><span class="seghint">'+daysLeftInWeek()+' day'+(daysLeftInWeek()>1?'s':'')+' left</span></div>'+
   w.list.map((id,i)=>{const x=WK_POOL.find(y=>y.id===id),n=x.n[i],done=w.done.includes(id),v=Math.min(n,x.p(w));
