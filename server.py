@@ -132,6 +132,14 @@ CREATE TABLE IF NOT EXISTS resets(
   expires INTEGER NOT NULL,
   used INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS lives(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  game INTEGER NOT NULL,
+  ended INTEGER NOT NULL,
+  data TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS lives_game ON lives(user_id, game);
 CREATE TABLE IF NOT EXISTS activity_days(
   user_id INTEGER NOT NULL,
   day TEXT NOT NULL,
@@ -199,6 +207,80 @@ def rate_limited(key, limit=10, window=600):
         hits.append(t)
         _attempts[key] = hits
         return len(hits) > limit
+
+
+# ---- past lives: one row per finished game ---------------------------------
+LIFE_TEXT = {"region": 3, "end": 10, "cause": 160, "rank": 30, "spouse": 40}
+LIFE_NUM = ("months", "age", "nw", "best", "start", "kids", "inds", "props", "teams", "ts")
+
+
+def clean_life(d):
+    """Keep only the known fields of a finished-game summary sent by the browser."""
+    if not isinstance(d, dict):
+        return None
+    out = {k: clean_text(d.get(k), n) for k, n in LIFE_TEXT.items() if isinstance(d.get(k), str)}
+    for k in LIFE_NUM:
+        if isinstance(d.get(k), (int, float)) and not isinstance(d.get(k), bool):
+            out[k] = num(d.get(k))
+    out["fdn"] = bool(d.get("fdn"))
+    ba = d.get("billionAge")
+    out["billionAge"] = int(ba) if isinstance(ba, (int, float)) and not isinstance(ba, bool) and 0 < ba < 200 else None
+    if out.get("end") not in ("died", "bankrupt", "restarted"):
+        out["end"] = "restarted"
+    return out
+
+
+def life_from_records(db, uid, game, st=None):
+    """Rebuild what we can of a finished game from the news feed and the stats row."""
+    det = {}
+    if st is not None:
+        try:
+            det = json.loads(st["detail"] or "{}")
+        except ValueError:
+            det = {}
+    row = db.execute("SELECT MAX(game_month) m, MAX(ts) t FROM events WHERE user_id=? AND game=?", (uid, game)).fetchone()
+    months = int(st["month"]) if st is not None else int(row["m"] or 0)
+    death = db.execute("SELECT text FROM events WHERE user_id=? AND game=? AND text LIKE 'You passed away at %' "
+                       "ORDER BY id DESC LIMIT 1", (uid, game)).fetchone()
+    snap = db.execute("SELECT nw FROM snapshots WHERE user_id=? AND game=? ORDER BY month DESC LIMIT 1", (uid, game)).fetchone()
+    best = db.execute("SELECT MAX(nw) b FROM snapshots WHERE user_id=? AND game=?", (uid, game)).fetchone()
+    life = {"months": months, "age": 24 + months // 12, "region": det.get("region") or "KE", "partial": st is None,
+            "nw": st["nw"] if st is not None else (snap["nw"] if snap else 0),
+            "best": st["best"] if st is not None else (best["b"] if best and best["b"] else 0),
+            "rank": st["rank"] if st is not None else "", "spouse": "", "kids": det.get("kids") or 0,
+            "inds": det.get("industries") or 0, "props": det.get("properties") or 0, "teams": det.get("teams") or 0,
+            "fdn": bool(det.get("foundation")), "ts": (row["t"] or 0) * 1000,
+            "billionAge": (24 + st["billion_month"] // 12) if st is not None and st["billion_month"] is not None else None}
+    if death:
+        text = death["text"]
+        life["end"] = "died"
+        parts = text.split(". ", 1)
+        life["cause"] = clean_text(parts[1] if len(parts) > 1 else "", 160)
+        try:
+            life["age"] = int(parts[0].rsplit(" ", 1)[1])
+        except (IndexError, ValueError):
+            pass
+    else:
+        broke = db.execute("SELECT 1 FROM events WHERE user_id=? AND game=? AND text LIKE 'Bankrupt at %' LIMIT 1",
+                           (uid, game)).fetchone()
+        life["end"] = "bankrupt" if broke or (st is not None and st["bankrupt"]) else "restarted"
+    return life
+
+
+def backfill_lives():
+    """Give players who finished games before past lives existed a history of them."""
+    def run(db):
+        for st in db.execute("SELECT user_id, games FROM stats WHERE games>1").fetchall():
+            uid = st["user_id"]
+            for g in range(1, st["games"]):
+                if db.execute("SELECT 1 FROM lives WHERE user_id=? AND game=?", (uid, g)).fetchone():
+                    continue
+                if not db.execute("SELECT 1 FROM events WHERE user_id=? AND game=? LIMIT 1", (uid, g)).fetchone():
+                    continue
+                life = life_from_records(db, uid, g)
+                db.execute("INSERT OR IGNORE INTO lives(user_id,game,ended,data) VALUES(?,?,?,?)",
+                           (uid, g, int(life["ts"] // 1000) or now(), json.dumps(life)))
+    tx(run)
 
 
 def clean_text(value, max_len):
@@ -447,6 +529,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_me()
         if path == "/api/leaderboard":
             return self.api_leaderboard()
+        if path == "/api/lives":
+            return self.api_lives()
         if path == "/api/config":
             return self.send_json(200, {"mail": mail_ready()})
         if path.startswith("/api/admin/"):
@@ -698,6 +782,11 @@ class Handler(BaseHTTPRequestHandler):
             game = st["games"] if st else 1
             prev_month = st["month"] if st else 0
             if new_game:
+                if st is not None and st["month"] > 0 or isinstance(summary.get("prev"), dict):
+                    life = clean_life(summary.get("prev")) or life_from_records(db, uid, game, st)
+                    life.setdefault("ts", t * 1000)
+                    db.execute("INSERT OR IGNORE INTO lives(user_id,game,ended,data) VALUES(?,?,?,?)",
+                               (uid, game, t, json.dumps(life)))
                 game += 1
                 db.execute("DELETE FROM snapshots WHERE user_id=? AND game<?", (uid, game - 3))
                 db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'game','Started a new game')", (uid, t, game))
@@ -738,6 +827,22 @@ class Handler(BaseHTTPRequestHandler):
         game = tx(write)
         self.touch(uid)
         self.send_json(200, {"ok": True, "game": game})
+
+    def api_lives(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in to see your past lives.")
+        rows = q("SELECT game, ended, data FROM lives WHERE user_id=? ORDER BY game DESC LIMIT 50", (user["id"],))
+        out = []
+        for r in rows:
+            try:
+                d = json.loads(r["data"])
+            except ValueError:
+                continue
+            d["n"] = r["game"]
+            d.setdefault("ts", r["ended"] * 1000)
+            out.append(d)
+        self.send_json(200, {"lives": out})
 
     def api_leaderboard(self):
         rows = q("SELECT u.name,u.company,u.color,s.best,s.nw,s.month,s.billion_month,s.bankrupt FROM users u "
@@ -874,6 +979,10 @@ def main():
     if not ADMIN_PASSWORD or len(ADMIN_PASSWORD) < 10:
         print("Note: admin dashboard is off. Set HUSTLE_ADMIN_PASSWORD (10+ characters) to turn it on.", flush=True)
     print("Password reset emails: %s" % ("on (%s, from %s)" % (MAIL_PROVIDER, MAIL_FROM or "log") if mail_ready() else "off"), flush=True)
+    try:
+        backfill_lives()
+    except Exception as e:  # never stop the game starting over this
+        print("Past lives backfill skipped: %s" % e, flush=True)
     ThreadingHTTPServer.request_queue_size = 512
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.daemon_threads = True
