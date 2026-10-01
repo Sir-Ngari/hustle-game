@@ -496,6 +496,18 @@ html.gm .stagehead b::after{content:"";position:absolute;left:0;bottom:0;width:5
 html.gm .stagehead small{display:block;margin-top:4px;font-size:13px;letter-spacing:.08em}
 html.gm .stagehead small.boom{color:#ffd36b}html.gm .stagehead small.bust{color:#c9d3e6}
 @media (prefers-reduced-motion:reduce){html.gm .rank[data-tier="6"],.rankup[data-tier="6"] div{animation:none}}
+
+.guide{position:fixed;z-index:30;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100vw - 32px));background:var(--panel);border:2px solid var(--brass);border-radius:12px;padding:14px 16px;box-shadow:0 14px 36px rgba(0,0,0,.35);display:grid;gap:4px;animation:guidein .35s ease}
+.guide b{font-size:17px}.guide p{margin:0 0 6px;font-size:14px;color:var(--muted)}.guide p b{font-size:inherit;color:var(--ink)}
+.guide .gstep{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);font-weight:700}
+html.gm .guide{background:linear-gradient(180deg,#2c5296,#17325f);border-color:#ffc53d}
+html.gm .guide b{font-family:var(--display);font-size:20px;text-transform:uppercase;letter-spacing:.03em}html.gm .guide p b{font-family:inherit;font-size:inherit;text-transform:none;letter-spacing:0}
+@media (max-width:760px){html.gm .guide{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+@keyframes guidein{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+.coach{position:relative;z-index:2;animation:coach 1.3s ease-in-out infinite}
+@keyframes coach{0%,100%{box-shadow:0 0 0 0 rgba(255,197,61,.85)}60%{box-shadow:0 0 0 10px rgba(255,197,61,0)}}
+html.gm .btn.coach{animation:coach 1.3s ease-in-out infinite;box-shadow:0 4px 0 #b55f00,0 0 0 0 rgba(255,197,61,.9)}
+@media (prefers-reduced-motion:reduce){.coach{animation:none;outline:3px solid var(--brass);outline-offset:2px}}
 </style>
 
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
@@ -1059,7 +1071,7 @@ const TOUR=[
  {t:'Decisions will find you',x:'Life throws events at you: politicians asking for money, family needs, deals and crises. Each choice shows what it costs and what it does. Choices you cannot afford are greyed out.'},
  {el:()=>$('tourbtn'),t:'You\'re ready',x:'Start by clicking <b>Next month</b> and watch your first profit come in. You can take this tour again any time with the <b>Tour</b> button. Good luck, and build something big.'}
 ];
-function maybeTour(){if(!tourOn&&!current&&!S.tourDone&&S.inds.length&&!S.over&&!S.won&&!acctView)startTour();}
+function maybeTour(){paintGuide();}
 function startTour(){if(current)return;stopAuto();tourOn=true;tourI=0;paintTour();}
 function endTour(){if(!tourOn)return;tourOn=false;const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(bonusDue()&&!current)openEvent(bonusEvent());}
 function tourGo(d){const n=tourI+d;if(n<0)return;if(n>=TOUR.length){endTour();return;}tourI=n;paintTour();}
@@ -2218,7 +2230,7 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInter
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
- ({skin:()=>setSkin(v),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>showAccts('pick'),acctnew:()=>showAccts('create'),acctcancel:()=>showAccts('pick'),acctclose:()=>{acctView=null;renderAccts();},acctpick:()=>pickAccount(v),acctdel:()=>{acctDelAsk=v;renderAccts();},acctdelno:()=>{acctDelAsk=null;renderAccts();},acctdelyes:()=>deleteAccount(v),lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
@@ -2229,8 +2241,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
 });
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset.sel==='engine'){raceEngine(t.value);return;}if(t.dataset.sel==='drivers'){raceDrivers(t.value);return;}if(t.dataset.kid!==undefined){const k=S.kids[+t.dataset.kid];k.school=+t.value;k.best=Math.max(k.best,k.school);
  log(k.name+' now attends '+SCHOOLS[k.school].name.lc()+'.','life');afterChange();}});
-$('next').addEventListener('click',nextMonth);
-$('auto').addEventListener('click',toggleAuto);
+$('next').addEventListener('click',nextClick);
+$('auto').addEventListener('click',autoClick);
 document.addEventListener('keydown',e=>{if(e.key==='n'&&!tourOn&&!e.metaKey&&!e.ctrlKey&&!['INPUT','SELECT'].includes(document.activeElement.tagName))nextMonth();});
 
 /* ================= Render ================= */
@@ -2256,6 +2268,7 @@ function render(){
  paintQuick();
  $('next').disabled=S.over;
  {const a=$('ch-city'),b=$('ch-date'),e=$('ch-eco');if(a&&R)a.textContent=R.city;if(b)b.textContent=dateStr(S.month);if(e){e.textContent=S.s>1.1?'Economy booming':S.s<.9?'Recession':'';e.className=S.s>1.1?'boom':S.s<.9?'bust':'';}}
+ setTimeout(paintGuide,0);
  {const ls=$('lawst');if(ls){const t=statusLine();ls.hidden=!t;ls.textContent=t;}}
  {const d=$('dyn');if(d){d.hidden=!(S.gnum>1);if(S.gnum>1)d.textContent='Generation '+S.gnum+' of the '+familyName()+' family · playing as '+S.who;}
   const r=$('reset');if(r&&S.over&&S.died&&S.kids.length&&!r.querySelector('[data-a=heirpick]'))r.insertAdjacentHTML('afterbegin','<button class="btn primary small" data-a="heirpick">Choose your heir</button> ');}
@@ -2600,6 +2613,31 @@ window.addEventListener('resize',drawChart);
 
 
 
+
+/* ================= First steps: a coach that shows new players what to press ================= */
+function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
+ if(!S.inds.length)return null;
+ if(totalUnits()===0)return'buy';
+ if(S.month<2)return'play';
+ S.guideDone=true;log('You are up and running. Keep pressing Next month, or use Auto-play, and grow your empire.','gold');return null;}
+function cheapestBuy(){const bs=[...document.querySelectorAll('.tabpane[data-tab="business"] [data-a="buy"]')];return bs.find(b=>!b.disabled)||bs[0]||null;}
+function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.id='guide';g.className='guide';g.setAttribute('role','status');document.body.appendChild(g);}
+ document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));
+ const st=current?null:guideStep();if(!st){g.hidden=true;return;}
+ const unit=(BIZ.filter(b=>S.inds.includes(b.ind)).sort((a,b)=>unitCost(a,0)-unitCost(b,0))[0]||{name:'business'});
+ if(st==='buy'){g.innerHTML=curTab==='business'?'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Press the glowing <b>Open</b> button on the '+esc(unit.name)+'. It earns money for you every month.</p>'
+  :'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Your empire starts with one '+esc(unit.name.lc())+'. Go to the <b>Business</b> tab and press <b>Open</b>. It earns money for you every month.</p><div class="chips"><button class="btn primary small" data-a="guidego" data-v="buy">Show me</button></div>';
+  if(curTab==='business'){const b=cheapestBuy();if(b)b.classList.add('coach');}else{const t=$('tab-business');if(t)t.classList.add('coach');}}
+ else{g.innerHTML='<span class="gstep">Step 2 of 2</span><b>Start the clock</b><p>Press <b>Next month</b> to move time forward. Your businesses earn, events happen, and your choices shape the empire. Press <b>Auto-play</b> to let the months roll by themselves.</p><div class="chips"><button class="btn primary small" data-a="guidenext">Next month</button><button class="btn small" data-a="guideauto">Auto-play</button><button class="btn ghost small" data-a="tour">Full tour</button></div>';
+  $('next').classList.add('coach');$('auto').classList.add('coach');}
+ g.hidden=false;}
+function guideGo(v){if(v==='buy'){showTab('business');setTimeout(()=>{const b=cheapestBuy();if(b){b.scrollIntoView({block:'center',behavior:'smooth'});}paintGuide();},60);}
+ else{window.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{const n=$('next');if(n)n.scrollIntoView({block:'center',behavior:'smooth'});},100);}}
+function nextClick(){if(S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){
+  showCard('Buy a business first','The clock is ready, but you have nothing earning money yet. Buy your first business, then press Next month and watch it earn.',
+   '<button class="btn primary" data-a="guidebuy">Show me where</button><button class="btn ghost" data-a="guideskip">Skip a month anyway</button>');return;}
+ nextMonth();}
+function autoClick(){if(!timer&&S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){nextClick();return;}toggleAuto();}
 /* ================= Coming back: seasons, weekly challenges, calendar events ================= */
 const seasonId=()=>dayKey().slice(0,7);
 const SEASON_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
