@@ -127,6 +127,11 @@ tbody tr:hover td{background:var(--brass-soft)}
 .evpace{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:12px}
 .evpace label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .evpace select,.evtable select{padding:6px 8px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:13.5px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:600}
+.crbox{border:1px solid var(--line);border-radius:4px;padding:12px 14px;margin:0 0 14px;background:var(--paper)}
+.crbox h3{margin:0 0 4px;font-size:15px}
+.crtypes{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.crtype{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--panel);font-size:13px;cursor:pointer}
+.crtype input{margin-top:3px}.crtype small{display:block;color:var(--muted);font-size:11.5px}
 .evest{font-size:14px;padding:6px 0}.evest b{font-family:var(--mono)}
 .evtable tbody tr.evcat{cursor:pointer}.evtable tbody tr.evcat td:first-child b::before{content:"▸ ";color:var(--muted)}.evtable tbody tr.evcat.open td:first-child b::before{content:"▾ "}
 .evtable tr.evrow td{background:var(--panel);font-size:12.5px;white-space:normal}.evtable tr.evrow td:first-child{padding-left:26px}
@@ -200,8 +205,19 @@ tbody tr:hover td{background:var(--brass-soft)}
         <label>Quiet months after each event<select id="evGap"><option value="1">1 month</option><option value="2">2 months</option><option value="3">3 months</option><option value="4">4 months</option><option value="6">6 months</option></select></label>
         <div class="evest" id="evEst"></div>
       </div>
+      <div class="crbox">
+        <h3>Nature &amp; world crises</h3>
+        <p class="sub" style="margin:0 0 8px">Big events that last months and hit whole industries. They run on their own timer, never in a player's first 2 game years, and never twice within the gap below.</p>
+        <div class="evpace">
+          <label>Natural disasters<select id="crNature"></select></label>
+          <label>World crises<select id="crWorld"></select></label>
+          <label>Shortest gap between big events<select id="crGap"><option value="2">2 game years</option><option value="3">3 game years</option><option value="5">5 game years</option><option value="8">8 game years</option><option value="10">10 game years</option></select></label>
+          <div class="evest" id="crEst"></div>
+        </div>
+        <div class="crtypes" id="crTypes"></div>
+      </div>
       <div class="tablewrap"><table class="evtable" style="min-width:760px"><thead><tr><th>Category · event</th><th class="r">Events · weight</th><th class="r">Share of random events</th><th class="r">Shown, 30 days</th><th class="r">Shown, all time</th><th>Setting</th></tr></thead><tbody id="evRows"></tbody></table></div>
-      <p class="sub" style="margin-top:8px">Shares are measured from simulated games: the chance that a random event is this one, for a typical player across a whole life. Events marked <b>if</b> only happen when their condition is met (owning a mine, being married, having children), shown as how much of a typical life they are possible. The <b>Shown</b> columns are what real players actually got. Events at 0% depend on choices simulated players rarely make (crime, sports teams, property deals) or on rare situations; real players will still see them. Billionaire challenges, world crises and disasters run on their own timers and are not in this draw.</p>
+      <p class="sub" style="margin-top:8px">Shares are measured from simulated games: the chance that a random event is this one, for a typical player across a whole life. Events marked <b>if</b> only happen when their condition is met (owning a mine, being married, having children), shown as how much of a typical life they are possible. The <b>Shown</b> columns are what real players actually got. Events at 0% depend on choices simulated players rarely make (crime, sports teams, property deals) or on rare situations; real players will still see them. Billionaire challenges run on their own timer and are not in this draw.</p>
       <div class="actions"><button class="btn primary" id="evSave" disabled>Save changes</button><button class="btn ghost" id="evReset">Reset everything to normal</button><span id="evMsg" style="font-size:13px;color:var(--muted)"></span></div>
     </section>
 
@@ -326,8 +342,16 @@ const evSel=(val,attr)=>'<select '+attr+'>'+EVM.map(m=>'<option value="'+m[0]+'"
 async function loadEvents(force){if(evDirty&&!force)return;try{const [c,st]=await Promise.all([evCat?Promise.resolve(evCat):fetch('/events-catalog.json',{cache:'no-store'}).then(r=>r.json()),api('GET','/api/admin/events')]);
   evCat=c;evStats=st;evTune=JSON.parse(JSON.stringify(st.tuning||{freq:1,gap:2,w:{},cat:{}}));evTune.w=evTune.w||{};evTune.cat=evTune.cat||{};evDirty=false;renderEvents();}
  catch(e){$('evRows').innerHTML='<tr><td colspan="6" class="empty">Could not load events: '+esc(e.message||'')+'</td></tr>';}}
+const CRT=[['drought','Severe drought','nature','Farming, energy and factories suffer'],['floods','Catastrophic floods','nature','Roads, farms and property damaged'],['storm','Devastating storm','nature','Coastal property and tourism hit'],['earthquake','Major earthquake','nature','Buildings and factories damaged'],['wildfire','Wildfires and a heatwave','nature','Tourism, farming and energy hit'],['pandemic','Global pandemic','world','Hotels and transport collapse, tech and health boom'],['war','World war','world','Energy soars, wartime tax on cash'],['crash','Market crash','world','Shares, property and finance fall hard']];
+const CRM=[[0,'Off'],[0.25,'Much rarer'],[0.5,'Rarer'],[1,'Normal'],[1.5,'More often'],[2,'Much more often'],[3,'Very often']];
+function renderCrisis(){const C=evTune.crisis=evTune.crisis||{},S=evStats.stats||{},opt=v=>CRM.map(m=>'<option value="'+m[0]+'"'+(Math.abs(m[0]-v)<1e-9?' selected':'')+'>'+m[1]+'</option>').join('');
+ const nv=C.nature==null?1:+C.nature,wv=C.world==null?1:+C.world,gap=C.gap==null?5:+C.gap,off=C.off||[];
+ $('crNature').innerHTML=opt(nv);$('crWorld').innerHTML=opt(wv);$('crGap').value=String(gap);
+ const p=(1/150)*nv+(1/360)*wv,yrs=p>0?(gap*12+1/p)/12:0,lifeY=45,n=p>0?Math.max(0,(lifeY-2)/yrs):0;
+ $('crEst').innerHTML=p>0?'About one big event every <b>'+yrs.toFixed(1)+'</b> game years, so roughly <b>'+n.toFixed(1)+'</b> in a typical 45-year life. Natural disasters make up <b>'+Math.round(100*(nv/150)/((nv/150)+(wv/360)))+'%</b> of them.':'All big events are switched off.';
+ $('crTypes').innerHTML=CRT.map(t=>{const st=S['cr_'+t[0]]||{},on=!off.includes(t[0]);return'<label class="crtype"><input type="checkbox" data-cr="'+t[0]+'"'+(on?' checked':'')+'><span><b>'+t[1]+'</b>'+(t[2]==='world'?' <span class="tag">world</span>':'')+'<small>'+t[3]+' · hit players '+(st.all||0)+' time'+((st.all||0)===1?'':'s')+(st.d30?' ('+st.d30+' in 30 days)':'')+'</small></span></label>';}).join('');}
 function evPerYear(){const p=Math.min(.95,.34*(+evTune.freq||1)),g=+evTune.gap||2;return 12/(g-1+1/p);}
-function renderEvents(){if(!evCat)return;const T=evTune,S=evStats.stats||{};$('evFreq').value=String(T.freq||1);$('evGap').value=String(T.gap||2);
+function renderEvents(){if(!evCat)return;renderCrisis();const T=evTune,S=evStats.stats||{};$('evFreq').value=String(T.freq||1);$('evGap').value=String(T.gap||2);
  const py=evPerYear();$('evEst').innerHTML='About <b>'+py.toFixed(1)+'</b> random events per game year for each player (one every <b>'+(12/py).toFixed(1)+'</b> game months)'+(evStats.total30?' · players answered <b>'+evStats.total30.toLocaleString('en-US')+'</b> questions in the last 30 days':'')+'.';
  const evs=evCat.events,mult=e=>((T.w[e.id]==null?1:+T.w[e.id])*(T.cat[e.group]==null?1:+T.cat[e.group])),eff=e=>(e.p||0)*mult(e),tot=evs.reduce((t,e)=>t+eff(e),0)||1,shareOf=e=>eff(e)/tot;
  const groups={};evs.forEach(e=>{(groups[e.group]=groups[e.group]||[]).push(e);});
@@ -341,9 +365,11 @@ function renderEvents(){if(!evCat)return;const T=evTune,S=evStats.stats||{};$('e
  $('evRows').innerHTML=h;$('evSave').disabled=!evDirty;}
 $('evRows').addEventListener('click',e=>{if(e.target.closest('select'))return;const r=e.target.closest('tr.evcat');if(r){evOpen[r.dataset.g]=!evOpen[r.dataset.g];renderEvents();}});
 $('evRows').addEventListener('change',e=>{const s=e.target;if(s.dataset.cat){const v=+s.value;if(v===1)delete evTune.cat[s.dataset.cat];else evTune.cat[s.dataset.cat]=v;}if(s.dataset.ev){const v=+s.value;if(v===1)delete evTune.w[s.dataset.ev];else evTune.w[s.dataset.ev]=v;}evDirty=true;$('evMsg').textContent='Unsaved changes';renderEvents();});
+['crNature','crWorld','crGap'].forEach(id=>$(id).addEventListener('change',()=>{const C=evTune.crisis=evTune.crisis||{};C.nature=+$('crNature').value;C.world=+$('crWorld').value;C.gap=+$('crGap').value;evDirty=true;$('evMsg').textContent='Unsaved changes';renderEvents();}));
+$('crTypes').addEventListener('change',e=>{const k=e.target.dataset.cr;if(!k)return;const C=evTune.crisis=evTune.crisis||{};const off=new Set(C.off||[]);if(e.target.checked)off.delete(k);else off.add(k);C.off=[...off];evDirty=true;$('evMsg').textContent='Unsaved changes';renderEvents();});
 ['evFreq','evGap'].forEach(id=>$(id).addEventListener('change',()=>{evTune.freq=+$('evFreq').value;evTune.gap=+$('evGap').value;evDirty=true;$('evMsg').textContent='Unsaved changes';renderEvents();}));
 $('evSave').addEventListener('click',async()=>{try{const r=await api('POST','/api/admin/tuning',evTune);evTune=r.tuning;evDirty=false;$('evMsg').textContent='Saved. Players get the new settings the next time their game loads.';renderEvents();}catch(e){$('evMsg').textContent='Could not save: '+e.message;}});
-$('evReset').addEventListener('click',()=>{evTune={freq:1,gap:2,w:{},cat:{}};evDirty=true;$('evMsg').textContent='Everything set back to normal. Press Save to apply.';renderEvents();});
+$('evReset').addEventListener('click',()=>{evTune={freq:1,gap:2,w:{},cat:{},crisis:{}};evDirty=true;$('evMsg').textContent='Everything set back to normal. Press Save to apply.';renderEvents();});
 
 /* ---------- daily active chart (single series, bars) ---------- */
 function niceMax(v){if(v<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return(n<=2?2:n<=5?5:10)*p;}

@@ -817,7 +817,24 @@ def clean_tuning(d):
         gap = 2
     w = {k: mult(v) for k, v in (d.get("w") or {}).items() if isinstance(k, str) and EV_ID_RE.match(k) and mult(v) is not None and mult(v) != 1}
     cat = {k[:40]: mult(v) for k, v in (d.get("cat") or {}).items() if isinstance(k, str) and mult(v) is not None and mult(v) != 1}
-    return {"freq": freq, "gap": gap, "w": dict(list(w.items())[:500]), "cat": dict(list(cat.items())[:60])}
+    c = d.get("crisis") if isinstance(d.get("crisis"), dict) else {}
+    crisis = {}
+    for k in ("world", "nature"):
+        if mult(c.get(k)) is not None and mult(c.get(k)) != 1:
+            crisis[k] = mult(c.get(k))
+    try:
+        cg = int(min(15, max(1, int(c.get("gap", 5)))))
+    except (TypeError, ValueError):
+        cg = 5
+    if cg != 5:
+        crisis["gap"] = cg
+    off = [x for x in (c.get("off") or []) if x in ("pandemic", "war", "crash", "drought", "floods", "storm", "earthquake", "wildfire")]
+    if off:
+        crisis["off"] = sorted(set(off))
+    out = {"freq": freq, "gap": gap, "w": dict(list(w.items())[:500]), "cat": dict(list(cat.items())[:60])}
+    if crisis:
+        out["crisis"] = crisis
+    return out
 
 
 # ---- app version: lets open games know an update is ready ----

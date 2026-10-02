@@ -1376,7 +1376,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='67c29095041a';let updShown=false;
+const APP_VER='e8dfced729e1';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -3023,10 +3023,12 @@ function crisisTick(){const c=S.crisis;
   if(c.id==='war'&&!c.taxed&&S.month-c.start>=6){c.taxed=true;const t=c.safe?0:pct(.12);if(t>0){S.cash-=t;log('A wartime emergency tax took '+fmt(t)+' of your cash.','bad');}else log('The wartime emergency tax arrived. Your offshore reserves were out of reach.','good');}
   return null;}
  /* will something happen this month? */
- if(S.month<24||S.month-(S.lastCrisis||-999)<60||S.over)return null;
- const r=rnd();
- if(r<1/360){const k=pick(['pandemic','war','crash']);return startCrisis('world',k);}
- if(r<1/360+1/150){const list=WR_DISASTERS[R&&R.wr]||['floods','drought'];return startCrisis('disaster',pick(list));}
+ const CT=(typeof TUNE!=='undefined'&&TUNE.crisis)||{},off=CT.off||[],gapM=12*(CT.gap!=null?+CT.gap:5);
+ if(S.month<24||S.month-(S.lastCrisis||-999)<gapM||S.over)return null;
+ const r=rnd(),pw=(1/360)*(CT.world!=null?+CT.world:1),pn=(1/150)*(CT.nature!=null?+CT.nature:1);
+ const mark=k=>{S.evq=S.evq||[];S.evq.push(['cr_'+k,0]);};
+ if(r<pw){const ks=['pandemic','war','crash'].filter(k=>!off.includes(k));if(!ks.length)return null;const k=pick(ks);mark(k);return startCrisis('world',k);}
+ if(r<pw+pn){const list=(WR_DISASTERS[R&&R.wr]||['floods','drought']).filter(k=>!off.includes(k));if(!list.length)return null;const k=pick(list);mark(k);return startCrisis('disaster',k);}
  return null;}
 function crisisHTML(){const c=crisisOf();if(!c)return'';const d=crisisDef(c),left=c.end-S.month;
  return'<div class="crisis"><span class="eyebrow">'+(c.kind==='disaster'?'Disaster':'World crisis')+' · '+left+' month'+(left>1?'s':'')+' to go</span><b>'+d.name+'</b><div class="cfxs">'+fxLine(c)+'</div></div>';}
