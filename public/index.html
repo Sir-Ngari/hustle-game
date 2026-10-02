@@ -1284,6 +1284,12 @@ function genMarket(){const px={},pxh={};const common=[];for(let t=0;t<24;t++)com
 let S=fresh();
 function migrate(){
 if(!S.y0)S.y0=new Date().getFullYear();
+/* foundation causes now cost $250B each to solve: reopen causes solved under the old, cheaper goals, keeping what was given */
+if(S.fdn&&!S.fdn.c2t){const F=S.fdn,old={water:8e8,malaria:1.5e9,education:6e8,climate:1e9,hunger:1.2e9,jobs:5e8,wildlife:4e8,health:2e9};let n=0;
+ F.stage=F.stage||{};F.prog=F.prog||{};
+ Object.keys(old).forEach(id=>{if((F.stage[id]||0)>=3){F.stage[id]=2;F.prog[id]=old[id];n++;}});
+ F.solved=Math.max(0,(F.solved||0)-n);F.c2t=1;
+ if(n&&S.log)S.log.unshift({m:S.month,t:'The world raised the bar: solving a cause now takes $250 billion. '+n+' of your solved cause'+(n>1?'s are back in their':' is back in its')+' final stage, with everything you gave still counted.',k:'gold'});}
 if(!S.ver||S.ver<4){const m={h5:'h6',h4:'villa',h3:'h4',h2:'h3',h1:'h2',car4:'car6',car5:'jet'};const na={},nf={};
  Object.keys(S.assets).forEach(k=>{na[m[k]||k]=(na[m[k]||k]||0)+S.assets[k]});Object.keys(S.af).forEach(k=>{nf[m[k]||k]=S.af[k]});S.assets=na;S.af=nf;
  S.ver=4;S.rent=HOMES.some(h=>S.assets[h.id])?-1:0;S.travel=0;S.lifeSince=S.month;S.lifePending=true;}
@@ -1459,7 +1465,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='5c6cdad43257';let updShown=false;
+const APP_VER='4490b46b9f00';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2617,7 +2623,7 @@ function fdnFund(amt){const F=S.fdn;if(!F||amt<=0)return;F.total+=amt;let id=F.f
   amt-=need;F.prog[id]=0;F.stage[id]=st+1;const lvl=st+1;addRep([5,10,20][st]);addInf([5,10,20][st]);addHappy(8);
   log('Your foundation achieved: '+c.stages[st][0]+'.'+(lvl===3?' '+c.name+' is SOLVED. The world is talking about you.':''),'gold');
   if(lvl===3){F.solved++;}}}
-function openFdn(){const c=5e4;if(S.fdn||S.cash<c)return;S.cash-=c;S.fdn={focus:'water',giving:0,stage:{},prog:{},total:0,solved:0,cool:{}};addRep(3);log('You opened the '+BR()+' Foundation.','gold');afterChange();}
+function openFdn(){const c=5e4;if(S.fdn||S.cash<c)return;S.cash-=c;S.fdn={focus:'water',giving:0,stage:{},prog:{},total:0,solved:0,cool:{},c2t:1};addRep(3);log('You opened the '+BR()+' Foundation.','gold');afterChange();}
 function runFundraiser(id){const F=S.fdn,f=FUNDRAISERS.find(x=>x.id===id);if(!F||!f.need()||(F.cool[id]||-99)>S.month)return;const c=f.cost();if(S.cash<c)return;
  S.cash-=c;const r=f.raise()*(.6+rnd()*.8);F.cool[id]=S.month+6;const c0=cause(F.focus);fdnFund(r);addRep(3);addInf(3);
  log('Your '+f.name.lc()+' raised '+fmt(r)+' for '+c0.name.toLowerCase()+'.','good');
