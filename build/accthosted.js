@@ -21,7 +21,7 @@ function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
 async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save,bill,ver){SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+function startWith(user,save,bill,ver){SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
  signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
@@ -45,8 +45,11 @@ async function loadLatest(){if(!ACC)return;stopAuto();try{const d=await api('GET
 async function syncCheck(){if(!ACC||syncBusy||syncChecking||SAVEVER==null||document.visibilityState!=='visible')return;syncChecking=true;
  try{const d=await api('GET','/api/save/ver');if(d&&typeof d.ver==='number'&&d.ver>SAVEVER&&!syncBusy)await loadLatest();}catch(e){}syncChecking=false;}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncCheck();});
-window.addEventListener('focus',()=>syncCheck());setInterval(syncCheck,30000);
-function paintChip(){const c=$('acctchip');if(!c)return;c.innerHTML=ACC?avatar(ACC)+'<span><b>'+esc(ACC.name)+'</b><small>'+esc(ACC.company)+' · '+({saved:'saved',saving:'saving…',offline:'offline, retrying',locked:'needs the Hustle Pass'})[syncState]+'</small></span>':'<span><b>Not logged in</b><small>Log in to play</small></span>';}
+window.addEventListener('focus',()=>syncCheck());window.addEventListener('online',()=>syncCheck());window.addEventListener('pageshow',e=>{if(e.persisted){syncCheck();checkVersion(true);}});setInterval(syncCheck,15000);
+/* the person being played: the founder, or the heir who took over the family empire */
+function playerName(){return(S&&S.who)||(ACC&&ACC.name)||'';}
+const playerAcc=()=>Object.assign({},ACC,{name:playerName()});
+function paintChip(){const c=$('acctchip');if(!c)return;c.innerHTML=ACC?avatar(playerAcc())+'<span><b>'+esc(playerName())+'</b><small>'+esc(ACC.company)+' · '+({saved:'saved',saving:'saving…',offline:'offline, retrying',locked:'needs the Hustle Pass'})[syncState]+'</small></span>':'<span><b>Not logged in</b><small>Log in to play</small></span>';}
 function authForm(){const su=authMode==='signup';const inv=su&&refInfo?'<p class="invbanner"><span aria-hidden="true">🎁</span><span><b>'+esc(refInfo.name)+'</b> invited you to Hustlempires'+(refInfo.trialDays?'. You get <b>'+refInfo.trialDays+' days free</b> to build your empire.':'.')+'</span></p>':'';
  let h=inv+'<div class="authtabs" role="tablist"><button role="tab" aria-selected="'+su+'" data-a="authmode" data-v="signup">Create account</button><button role="tab" aria-selected="'+(!su)+'" data-a="authmode" data-v="login">Log in</button></div>';
  if(authMsg)h+='<p class="amsg">'+esc(authMsg)+'</p>';
@@ -66,7 +69,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
  else if(acctView==='down')h+='<h2>Can\'t connect</h2><p class="sub">'+esc(authMsg)+'</p><div class="chips"><button class="btn primary" data-a="retryboot">Try again</button></div>';
  else if(acctView==='auth')h+='<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm();
- else if(acctView==='menu')h+='<div class="me">'+avatar(ACC,true)+'<div><h2>'+esc(ACC.name)+'</h2><p class="sub">@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
+ else if(acctView==='menu')h+='<div class="me">'+avatar(playerAcc(),true)+'<div><h2>'+esc(playerName())+'</h2><p class="sub">'+((S&&S.gnum>1)?'Generation '+S.gnum+' of the '+esc(familyName())+' family · ':'')+'@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
   '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
   passMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div><h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
  else if(acctView==='installios')h+='<h2>Install the app</h2><p class="sub">Put the game on your home screen. It opens full-screen, like any other app.</p><ol class="iossteps"><li>At the bottom of Safari, tap the <b>Share</b> button (the square with an arrow pointing up).</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The game\'s icon appears on your home screen.</li></ol><div class="chips"><button class="btn primary" data-a="acctclose">Got it</button></div>';
@@ -153,7 +156,9 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 
 /* ================= New version available: prompt to update ================= */
 const APP_VER='__APP_VER__';let updShown=false;
-function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
+/* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
+function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
+const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
 async function appUpdate(){const b=document.querySelector('.updbar button');if(b){b.disabled=true;b.textContent='Updating…';}stopAuto();
@@ -161,7 +166,7 @@ async function appUpdate(){const b=document.querySelector('.updbar button');if(b
  try{if(navigator.serviceWorker){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update();}}catch(e){}
  location.reload();}
 setTimeout(checkVersion,15000);setInterval(checkVersion,5*60*1000);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkVersion();});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){hiddenAt=Date.now();return;}checkVersion(hiddenAt&&Date.now()-hiddenAt>60000);});
 
 /* ================= Install as an app ================= */
 let installEvt=null;

@@ -1257,7 +1257,7 @@ class Handler(BaseHTTPRequestHandler):
         except sqlite3.IntegrityError:
             return self.error(409, "That username is taken. Try another.")
         user = q("SELECT * FROM users WHERE id=?", (uid,), one=True)
-        self.send_json(201, {"user": user_public(user), "save": None, "bill": bill_status(user)},
+        self.send_json(201, {"user": user_public(user), "save": None, "ver": 0, "bill": bill_status(user)},
                        [self.make_cookie("hs", token, PLAYER_SESSION_SECONDS)])
 
     def api_login(self):
@@ -1472,7 +1472,8 @@ class Handler(BaseHTTPRequestHandler):
         def write(db):
             sv = db.execute("SELECT ver FROM saves WHERE user_id=?", (uid,)).fetchone()
             cur_ver = sv["ver"] if sv else 0
-            if base is not None and cur_ver > base:
+            # a save must say which version it was built on; an old screen that doesn't (or is behind) must not overwrite newer play
+            if (base is None and cur_ver > 0) or (base is not None and cur_ver > base):
                 return {"conflict": cur_ver}
             st = db.execute("SELECT * FROM stats WHERE user_id=?", (uid,)).fetchone()
             game = st["games"] if st else 1
