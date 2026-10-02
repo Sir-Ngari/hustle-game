@@ -13,7 +13,7 @@ s=s[:i]+open('accthosted.js').read()+"\nfunction save(){if(!ACC)return;S._uid=AC
 rep("function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});","function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});")
 # click handlers for the account screens
 i=s.index("accts:()=>showAccts('pick'),"); j=s.index("acctdelyes:()=>deleteAccount(v),",i)+len("acctdelyes:()=>deleteAccount(v),")
-s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,"+s[j:]
+s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,"+s[j:]
 # new game keeps the account and tells the server
 rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;")
 # start-up: ask the server who is playing
@@ -50,9 +50,11 @@ rep(".acctbrand{",""".authtabs{display:grid;grid-template-columns:1fr 1fr;border
 .invlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}.invlist li{display:flex;align-items:center;gap:10px}
 .invlist .ameta{flex:1;min-width:0;display:flex;flex-direction:column}.invlist .ameta span{font-size:12.5px;color:var(--muted)}
 a.btn{text-decoration:none;display:inline-flex;align-items:center}
+.plans.tips{grid-template-columns:repeat(5,minmax(0,1fr))}.plans.tips .plan{padding:14px 6px 12px}.plans.tips .pr{font-size:19px}
+@media (max-width:520px){.plans.tips{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .paidbox{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:10px 0}
 .paidicon{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-size:30px;font-weight:700}
-@media (max-width:420px){.plans{grid-template-columns:1fr}.plan{flex-direction:row;flex-wrap:wrap;justify-content:space-between;text-align:left;padding:14px}.plan small{width:100%}.plan em{left:auto;right:10px;transform:none}}
+@media (max-width:420px){.plans:not(.tips){grid-template-columns:1fr}.plan{flex-direction:row;flex-wrap:wrap;justify-content:space-between;text-align:left;padding:14px}.plan small{width:100%}.plan em{left:auto;right:10px;transform:none}.plans.tips .plan{flex-direction:column;justify-content:center;text-align:center;padding:12px 4px}.plans.tips .plan small{width:auto}}
 .acctbrand{""")
 assert 'localStorage.getItem(SAVE)' not in s and 'ACCS' not in s, 'device-account code left behind'
 head='''<!doctype html>

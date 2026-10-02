@@ -78,6 +78,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
   '<label for="rs-pass">New password</label><input id="rs-pass" type="password" maxlength="128" autocomplete="new-password" required><p class="hint">At least 8 characters.</p>'+
   '<label for="rs-pass2">Type it again</label><input id="rs-pass2" type="password" maxlength="128" autocomplete="new-password" required>'+
   '<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="rs-submit">Save new password</button><button type="button" class="btn ghost" data-a="forgotview">Get a new link</button></div></form>';
+ else if(acctView==='tip')h+=tipViewHTML();
  else if(acctView==='pay'||acctView==='gift'||acctView==='payleft'||acctView==='paid')h+=payViewHTML();
  else if(acctView==='invite')h+=inviteHTML();
  else if(acctView==='lives'){h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire you have built.</p>'+(livesData===null?'<p class="sub">Loading…</p>':legacyHTML()+trophiesHTML()+livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
@@ -176,7 +177,7 @@ async function installApp(){if(installEvt){const e=installEvt;e.prompt();try{awa
  else if(isIOS){stopAuto();acctView='installios';renderAccts();}}
 
 /* ================= Hustle Pass (free trial, then pay through Pesapal) ================= */
-function setBill(b){BILL=b&&b.on?b:null;if(BILL&&BILL.now)billSkew=BILL.now-Date.now()/1000;paintPass();}
+function setBill(b){TIPS=b&&!b.on&&b.tips?b:null;BILL=b&&b.on?b:null;if(BILL&&BILL.now)billSkew=BILL.now-Date.now()/1000;paintPass();}
 const nowS=()=>Date.now()/1000+billSkew;
 const passLocked=()=>!!(BILL&&BILL.state==='locked');
 function leftText(sec){sec=Math.max(0,sec);const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.max(1,Math.ceil(sec%3600/60));
@@ -186,18 +187,22 @@ function kesText(k){return'KSh '+Number(k).toLocaleString('en-US');}
 function kesLocal(k){const ke=countryRow('KE');if(!ke||typeof R==='undefined'||!R||R.cur==='KES')return'';const usd=k/ke.rate;
  if(R.cur==='USD'||!R.rate)return'about $'+(usd<10?usd.toFixed(2):Math.round(usd));const v=usd*R.rate;return'about '+R.sym+(/[A-Za-z.]$/.test(R.sym)?' ':'')+(v<100?v.toFixed(v<10?2:0):Math.round(v).toLocaleString('en-US'));}
 function paintPass(){let b=$('passbar');const st=BILL&&BILL.state,left=BILL&&BILL.until?BILL.until-nowS():0;
+ if(!BILL){const tip=tipAskNow();if(!b&&tip){const c=$('acctchip');if(!c)return;b=document.createElement('button');b.id='passbar';b.className='passbar';c.parentNode.insertBefore(b,c.nextSibling);}
+  if(!b)return;b.hidden=!tip;b.dataset.a='tipopen';b.classList.remove('warn');if(tip)b.innerHTML='<span>Enjoying '+esc(GAME_NAME)+'?</span><i>Tip the developers</i>';return;}
  const show=ACC&&BILL&&(st==='trial'||st==='bonus'||st==='locked'||(st==='paid'&&left<3*86400));
+ if(b)b.dataset.a='passopen';
  if(!b&&show){const c=$('acctchip');if(!c)return;b=document.createElement('button');b.id='passbar';b.className='passbar';b.dataset.a='passopen';c.parentNode.insertBefore(b,c.nextSibling);}
  if(!b)return;b.hidden=!show;if(!show)return;b.classList.toggle('warn',st==='locked'||left<6*3600);
  b.innerHTML=st==='trial'?'<span>Free trial · <b>'+leftText(left)+' left</b></span><i>Get the Pass</i>':st==='bonus'?'<span>Bonus days · <b>'+leftText(left)+' left</b></span><i>Get the Pass</i>':
   st==='paid'?'<span>Hustle Pass ends in <b>'+leftText(left)+'</b></span><i>Renew</i>':'<span><b>Your free time is up</b></span><i>Get the Pass</i>';}
-function passMenuHTML(){if(!BILL)return'';const st=BILL.state,left=BILL.until?BILL.until-nowS():0;
+function passMenuHTML(){if(!BILL)return TIPS?'<h3>Tip the developers</h3><p class="sub">'+esc(GAME_NAME)+' is free to play. If you enjoy it, a tip helps us keep adding new events, countries and features.</p><div class="chips"><button class="btn" data-a="tipopen">Leave a tip</button></div>':'';const st=BILL.state,left=BILL.until?BILL.until-nowS():0;
  const line=st==='paid'?'Your <b>'+esc(planName(BILL.plan))+'</b> is active until <b>'+dateText(BILL.until)+'</b>.':st==='trial'?'You\'re on your free trial: <b>'+leftText(left)+'</b> left.':st==='bonus'?'You\'re on bonus days: <b>'+leftText(left)+'</b> left.':'You need the pass to keep playing.';
  return'<h3>Hustle Pass</h3><p class="sub">'+line+'</p><div class="chips"><button class="btn" data-a="passopen">'+(st==='paid'?'Add more time':'Get the Hustle Pass')+'</button></div>';}
 function planName(id){const p=BILL&&BILL.plans&&BILL.plans.find(x=>x.id===id);return id==='gift'?'gifted pass':p?p.name.toLowerCase():'Hustle Pass';}
 function openPay(msg){stopAuto();closeModal();payMsg=msg||'';payBusy=false;acctView='pay';renderAccts();window.scrollTo(0,0);}
 const PERKS=['Keep building past your first day, all the way to a billion','Dynasties: hand your empire to your heirs, generation after generation','Monthly seasons, trophies and the country leaderboard','Every new event, crisis and feature we add'];
 function payViewHTML(){const b=BILL||{plans:[]},st=b.state,co=esc(BR());let h='';
+ if(acctView==='paid'&&payDone&&payDone.plan==='tip')return'<div class="paidbox"><span class="paidicon" aria-hidden="true">♥</span><h2>Thank you!</h2><p class="sub">Your '+kesText(payDone.amount)+' tip came through. It means a lot, and it goes straight into making the game better. '+co+' is waiting for you.</p></div><div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button></div>';
  if(acctView==='paid'){const p=payDone||{};return'<div class="paidbox"><span class="paidicon" aria-hidden="true">✓</span><h2>Payment received</h2><p class="sub">Thank you! Your <b>'+esc(planName(p.plan))+'</b> is active'+(b.until?' until <b>'+dateText(b.until)+'</b>':'')+'. '+co+' is waiting for you.</p></div><div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button></div>';}
  if(acctView==='gift'){const d=b.giftDays||2;return'<h2>Before you go: '+d+' more days on us</h2><p class="sub">'+co+' is just getting going. Keep building free for '+d+' more days. After that, the Hustle Pass starts at just '+kesText(Math.min.apply(null,b.plans.map(p=>p.kes)))+' a week.</p>'+
   '<div class="chips"><button class="btn primary" data-a="paygift">Claim '+d+' free days</button><button class="btn" data-a="passopen">See the passes</button></div>';}
@@ -223,16 +228,39 @@ async function payLater(){payBusy=true;renderAccts();let b=BILL;try{b=(await api
 async function payGift(){try{setBill((await api('POST','/api/billing/gift',{})).bill);acctView=null;renderAccts();if(syncState==='locked'){syncState='saving';queueSync(true);}
   log('You have '+((BILL&&BILL.giftDays)||2)+' more free days. Make them count.','gold');render();}
  catch(e){if(e.data&&e.data.bill)setBill(e.data.bill);acctView='payleft';renderAccts();}}
-async function confirmPay(){if(!payRef)return;stopAuto();closeModal();acctView='pay';payBusy=true;payMsg=payCancelled?'You left the payment page. Checking…':'Checking your payment…';renderAccts();
+async function confirmPay(){if(!payRef)return;stopAuto();closeModal();acctView=TIPS?'tip':'pay';payBusy=true;payMsg=payCancelled?'You left the payment page. Checking…':'Checking your payment…';renderAccts();
  let d=null;try{d=await api('POST','/api/billing/confirm',{ref:payRef});}catch(e){}
  if(d){setBill(d.bill);const ps=d.payment&&d.payment.status;
   if(ps==='paid'){payDone=d.payment;payRef='';payMsg='';payBusy=false;acctView='paid';renderAccts();if(syncState==='locked'||syncState==='offline'){syncState='saving';}queueSync(true);if(typeof confettiFx==='function')try{confettiFx();}catch(e){}return;}
   if(ps==='pending'&&!payCancelled&&++payTries<13){payMsg='Waiting for the payment to come through. If you paid by M-Pesa, approve the prompt on your phone.';renderAccts();setTimeout(confirmPay,5000);return;}
-  payMsg=ps==='pending'&&!payCancelled?'We haven\'t had confirmation yet. If you paid, your pass switches on within a few minutes; we keep checking. You can also pick a pass again below.':'The payment didn\'t go through, so you weren\'t charged. You can try again below.';}
+  payMsg=ps==='pending'&&!payCancelled?(TIPS?'We haven\'t had confirmation yet. If you paid, it will come through within a few minutes. Thank you!':'We haven\'t had confirmation yet. If you paid, your pass switches on within a few minutes; we keep checking. You can also pick a pass again below.'):'The payment didn\'t go through, so you weren\'t charged. You can try again below.';}
  else payMsg='We couldn\'t check your payment just now. If you paid, your pass switches on within a few minutes.';
- payRef='';payBusy=false;if(passLocked()||acctView==='pay'){acctView='pay';renderAccts();}}
-setInterval(()=>{if(!ACC||!BILL)return;paintPass();if(BILL.state!=='locked'&&BILL.until&&nowS()>=BILL.until){
+ payRef='';payBusy=false;if(acctView==='tip'){renderAccts();return;}if(passLocked()||acctView==='pay'){acctView='pay';renderAccts();}}
+setInterval(()=>{if(ACC&&!BILL&&TIPS){paintPass();return;}if(!ACC||!BILL)return;paintPass();if(BILL.state!=='locked'&&BILL.until&&nowS()>=BILL.until){
  api('GET','/api/billing').then(d=>{setBill(d.bill);if(passLocked()&&acctView!=='pay'&&acctView!=='gift'&&acctView!=='payleft')openPay();}).catch(()=>{});}},30000);
+
+/* ================= Tips: the game is free; players can tip the developers ================= */
+let TIPS=null,tipAmt=100;
+const GAME_NAME='Hustlempires';
+function tipAskNow(){if(!ACC||!TIPS||!S||S.month<24||S.over)return false;let last=0;try{last=+localStorage.getItem('hs-tipask')||0;}catch(e){}return Date.now()-last>14*86400000;}
+function tipSnooze(){try{localStorage.setItem('hs-tipask',String(Date.now()));}catch(e){}paintPass();}
+function openTip(msg){stopAuto();closeModal();tipSnooze();payMsg=msg||'';payBusy=false;acctView='tip';renderAccts();window.scrollTo(0,0);}
+function tipViewHTML(){const am=(TIPS&&TIPS.tipAmounts)||[50,100,250,500,1000],co=esc(BR());let h='<h2>Enjoying '+GAME_NAME+'?</h2>'+
+ '<p class="sub">The game is free, and it stays free. If '+co+' has given you some fun, you can leave a tip for the developers. It goes straight into new events, countries and features.</p>';
+ if(payMsg)h+='<p class="amsg" role="status">'+payMsg+'</p>';
+ h+='<div class="plans tips">'+am.map(k=>{const loc=kesLocal(k);return'<button class="plan'+(k===tipAmt?' pick':'')+'" data-a="tipamt" data-v="'+k+'" aria-pressed="'+(k===tipAmt)+'"'+(payBusy?' disabled':'')+'><span class="pr">'+kesText(k)+'</span>'+(loc?'<small>'+loc+'</small>':'')+'</button>';}).join('')+'</div>';
+ h+='<form id="tipform" class="aform" novalidate><label for="tip-amt">Or choose your own amount (KSh)</label><input id="tip-amt" type="number" inputmode="numeric" min="20" max="100000" step="10" value="'+(am.includes(tipAmt)?'':tipAmt)+'" placeholder="For example 300"></form>';
+ h+='<p class="hint">Pay with M-Pesa, Airtel Money, card or bank through Pesapal. It is a one-off tip, nothing renews, and the game is exactly the same whether you tip or not.</p>';
+ h+='<div class="chips"><button class="btn primary" data-a="tipgo"'+(payBusy?' disabled':'')+'>Tip '+kesText(tipAmt)+'</button><button class="btn ghost" data-a="acctclose">Not now</button></div>';
+ return h;}
+function tipPick(v){tipAmt=+v||100;const i=$('tip-amt');if(i)i.value='';renderAccts();}
+async function sendTip(){if(payBusy)return;const i=$('tip-amt'),own=i&&i.value?Math.round(+i.value):0;const k=own||tipAmt;
+ if(!(k>=20&&k<=100000)){payMsg='Choose an amount from KSh 20 to KSh 100,000.';renderAccts();return;}
+ tipAmt=k;payBusy=true;payMsg='Opening the payment page…';renderAccts();try{await doSync();}catch(e){}
+ try{const d=await api('POST','/api/billing/checkout',{tip:k});location.href=d.url;}
+ catch(e){payBusy=false;payMsg=esc(e.message);renderAccts();}}
+document.addEventListener('input',e=>{if(e.target&&e.target.id==='tip-amt'){const v=Math.round(+e.target.value);const b=document.querySelector('[data-a=tipgo]');if(b)b.textContent='Tip '+kesText(v>=20?v:tipAmt);if(v>=20)document.querySelectorAll('.tips .plan').forEach(x=>{x.classList.remove('pick');x.setAttribute('aria-pressed','false');});}});
+document.addEventListener('submit',e=>{if(e.target&&e.target.id==='tipform'){e.preventDefault();sendTip();}});
 
 /* ================= Invite a friend ================= */
 function inviteRuleLine(){const b=BILL;if(!b)return'Share your link. Build an empire together and race each other on the leaderboard.';

@@ -17,7 +17,7 @@ Settings come from environment variables (see deploy/hustle.env.example):
   HUSTLE_MAIL_FROM        sender address (default no-reply@<HUSTLE_SITE_DOMAIN>)
   HUSTLE_SMTP_HOST / HUSTLE_SMTP_PORT / HUSTLE_SMTP_USER   only for HUSTLE_MAIL_PROVIDER=smtp
   HUSTLE_OLD_DOMAINS      old web addresses (comma separated) whose pages forward to HUSTLE_SITE_DOMAIN
-  HUSTLE_BILLING          "1" turns the Hustle Pass (free trial, then pay) on; off when empty or "0"
+  HUSTLE_BILLING          no longer used: the Hustle Pass was retired, the game is free, and players can tip instead
   HUSTLE_PESAPAL_KEY / HUSTLE_PESAPAL_SECRET   the consumer key and secret from your Pesapal account
   HUSTLE_PESAPAL_ENV      "live" (default) or "sandbox" for Pesapal's test system
   HUSTLE_TRIAL_HOURS / HUSTLE_GIFT_DAYS / HUSTLE_GIFTS / HUSTLE_BLOCK_DAYS   trial length and the "more free days" offers
@@ -71,7 +71,8 @@ def env_int(name, default):
 
 
 # ---- Hustle Pass (subscription) settings ----
-BILLING_ON = os.environ.get("HUSTLE_BILLING", "").strip() == "1"
+# The Hustle Pass was retired: the game is free for everyone, and players can tip the developers instead.
+BILLING_ON = False
 PESAPAL_KEY = os.environ.get("HUSTLE_PESAPAL_KEY", "").strip()
 PESAPAL_SECRET = os.environ.get("HUSTLE_PESAPAL_SECRET", "").strip()
 PESAPAL_ENV = "sandbox" if os.environ.get("HUSTLE_PESAPAL_ENV", "").strip().lower() == "sandbox" else "live"
@@ -90,6 +91,8 @@ PLANS = {
     "month": {"name": "Monthly pass", "days": 30, "kes": env_int("HUSTLE_PRICE_MONTH", 250)},
     "year": {"name": "Yearly pass", "days": 365, "kes": env_int("HUSTLE_PRICE_YEAR", 2000)},
 }
+TIP_AMOUNTS = [50, 100, 250, 500, 1000]   # the suggested tips, in KSh
+TIP_MIN, TIP_MAX = 20, 100000
 
 MAX_BODY = 3 * 1024 * 1024          # largest request body accepted
 MAX_STATE = int(2.5 * 1024 * 1024)  # largest saved game
@@ -567,7 +570,7 @@ def sub_row(uid):
 def bill_status(user, mark_paywall=False):
     """The player's pass: off, trial, bonus (gift days), paid, or locked (must pay; maybe offered gift days)."""
     if not BILLING_ON:
-        return {"on": False, "state": "off"}
+        return {"on": False, "state": "off", "tips": pesapal_ready(), "tipAmounts": TIP_AMOUNTS, "now": now()}
     t = now()
     s = sub_row(user["id"])
     paid_until = s["paid_until"] if s else 0
@@ -671,6 +674,12 @@ def credit_payment(ref, method, code):
         if not p or p["status"] == "paid":
             return False
         db.execute("UPDATE payments SET status='paid', method=?, code=?, updated=? WHERE ref=?", (method[:40], code[:60], t, ref))
+        if p["plan"] == "tip":
+            st = db.execute("SELECT games FROM stats WHERE user_id=?", (p["user_id"],)).fetchone()
+            db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
+                       (p["user_id"], t, st["games"] if st else 1, "Tipped the developers KSh %s%s" % (
+                           "{:,.0f}".format(p["amount"]), " via " + method if method else "")))
+            return -p["user_id"]
         s = db.execute("SELECT paid_until FROM subs WHERE user_id=?", (p["user_id"],)).fetchone()
         start = max(t, s["paid_until"] if s else 0)
         db.execute("INSERT INTO subs(user_id,paid_until,plan,updated) VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET "
@@ -683,6 +692,8 @@ def credit_payment(ref, method, code):
                        " via " + method if method else "")))
         return p["user_id"]
     uid = tx(run)
+    if uid and uid < 0:
+        return True
     if uid:
         try:
             referral_paid(uid)
@@ -700,7 +711,7 @@ def reverse_payment(ref):
             return
         db.execute("UPDATE payments SET status='reversed', updated=? WHERE ref=?", (t, ref))
         db.execute("UPDATE subs SET paid_until=MAX(0, paid_until-?), updated=? WHERE user_id=?", (p["days"] * 86400, t, p["user_id"]))
-        db.execute("INSERT INTO events(user_id,ts,kind,text) VALUES(?,?,'account',?)", (p["user_id"], t, "A pass payment was reversed"))
+        db.execute("INSERT INTO events(user_id,ts,kind,text) VALUES(?,?,'account',?)", (p["user_id"], t, "A tip was reversed" if p["plan"] == "tip" else "A pass payment was reversed"))
     tx(run)
 
 
@@ -738,7 +749,7 @@ def payment_sweeper():
     """Every few minutes, re-check recent unpaid orders, in case a notification from Pesapal went missing."""
     while True:
         time.sleep(300)
-        if not (BILLING_ON and pesapal_ready()):
+        if not pesapal_ready():
             continue
         t = now()
         for r in q("SELECT ref FROM payments WHERE status IN ('pending','failed') AND tracking<>'' AND created>? AND created<? "
@@ -751,7 +762,14 @@ def payment_sweeper():
 
 def billing_overview(t):
     if not BILLING_ON:
-        return {"on": False, "ready": pesapal_ready(), "env": PESAPAL_ENV}
+        tip = lambda since: q("SELECT COALESCE(SUM(amount),0) a, COUNT(*) c, COUNT(DISTINCT user_id) u FROM payments "
+                              "WHERE status='paid' AND plan='tip' AND updated>?", (since,), one=True)
+        t30, tall = tip(t - 30 * 86400), tip(0)
+        opened = q("SELECT COUNT(*) c FROM payments WHERE plan='tip' AND created>?", (t - 30 * 86400,), one=True)["c"]
+        passes = q("SELECT COALESCE(SUM(amount),0) a, COUNT(*) c FROM payments WHERE status='paid' AND plan<>'tip'", one=True)
+        return {"on": False, "ready": pesapal_ready(), "env": PESAPAL_ENV, "tips30": t30["a"], "tipN30": t30["c"], "tippers30": t30["u"],
+                "tipsAll": tall["a"], "tipNAll": tall["c"], "tippersAll": tall["u"], "opened30": opened,
+                "passRev": passes["a"], "passN": passes["c"], "tipAmounts": TIP_AMOUNTS}
     bs = billing_start()
     users = q("SELECT u.id,u.created,s.paid_until,s.gifts,s.gift_until,s.paywall_at,s.later,s.checkouts FROM users u "
               "LEFT JOIN subs s ON s.user_id=u.id WHERE u.disabled=0")
@@ -1588,19 +1606,30 @@ class Handler(BaseHTTPRequestHandler):
         user = self.session_user()
         if not user:
             return self.error(401, "Log in first.")
-        if not BILLING_ON or not pesapal_ready():
+        if not pesapal_ready():
             return self.error(503, "Payments aren't switched on yet. Please try again later.")
         if rate_limited("checkout:%d" % user["id"], limit=12, window=3600):
             return self.error(429, "Too many payment attempts. Wait a few minutes and try again.")
         d = self.read_json()
         if d is None:
             return
-        plan = d.get("plan") if d.get("plan") in PLANS else None
-        if not plan:
-            return self.error(400, "Choose a pass.")
+        if d.get("tip") is not None:
+            try:
+                amt = int(round(float(d.get("tip"))))
+            except (TypeError, ValueError):
+                return self.error(400, "Choose an amount.")
+            if amt < TIP_MIN or amt > TIP_MAX:
+                return self.error(400, "Tips can be from KSh %d to KSh %s." % (TIP_MIN, "{:,}".format(TIP_MAX)))
+            plan, p = "tip", {"name": "Tip for the developers", "days": 0, "kes": amt}
+        else:
+            if not BILLING_ON:
+                return self.error(400, "The game is free now. There is no pass to buy.")
+            plan = d.get("plan") if d.get("plan") in PLANS else None
+            if not plan:
+                return self.error(400, "Choose a pass.")
+            p = PLANS[plan]
         if not user["email"]:
             return self.error(400, "Add your email first (in your account menu). Pesapal sends your receipt there.")
-        p = PLANS[plan]
         t = now()
         ref = "HS%d-%s" % (user["id"], secrets.token_hex(4).upper())
         q("INSERT INTO payments(ref,user_id,plan,days,amount,currency,created,updated) VALUES(?,?,?,?,?,?,?,?)",
@@ -1628,7 +1657,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(502, "We couldn't open the payment page just now. Please try again in a minute.")
         q("UPDATE payments SET tracking=?, updated=? WHERE ref=?", (tracking, now(), ref))
         q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
-          (user["id"], t, self.current_game(user["id"]), "Opened the payment page for the %s" % p["name"].lower()))
+          (user["id"], t, self.current_game(user["id"]), "Opened the payment page for a KSh %s tip" % "{:,}".format(p["kes"]) if plan == "tip" else
+           "Opened the payment page for the %s" % p["name"].lower()))
         self.send_json(200, {"url": url, "ref": ref})
 
     def api_confirm(self):
@@ -1920,7 +1950,7 @@ def main():
             time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(billing_start())), TRIAL_HOURS, GIFTS, GIFT_DAYS, BLOCK_DAYS,
             PESAPAL_ENV, "ready" if pesapal_ready() else "NOT SET (add the key, secret and site domain)"), flush=True)
     else:
-        print("Hustle Pass: off (everyone plays free). Set HUSTLE_BILLING=1 to turn it on.", flush=True)
+        print("Free to play. Tips through Pesapal %s: %s" % (PESAPAL_ENV, "ready" if pesapal_ready() else "NOT SET (add the key, secret and site domain)"), flush=True)
     threading.Thread(target=payment_sweeper, daemon=True).start()
     try:
         backfill_lives()
