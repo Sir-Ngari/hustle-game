@@ -565,6 +565,11 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
 .pill.good{color:var(--green)}.pill.bad{color:var(--red)}
 .venue{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
 .pastl{margin:4px 0 6px;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px}.pastl b{margin-right:4px}
+.moon{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}.mbtot+.moon{border-top:0}
+.moon .evic{float:none;margin:0;width:52px;height:52px;border-radius:13px;flex:none}.moon .evic svg{width:32px!important;height:32px!important}
+.moon .vsub{font-size:12.5px;color:var(--muted)}.moon .vsub b{font:inherit;font-weight:700;letter-spacing:0}
+.moon .mtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}.moon .mtx>b{font-size:15px}
+.seg.four{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.seg.four button{font-size:12.5px;padding:6px 4px;line-height:1.25}
 .venue>b{font-size:14px}.venue .vsub{font-size:12.5px;color:var(--muted)}.venue .vsub b{font:inherit;font-weight:700;font-size:inherit;letter-spacing:0}.venue .chips{margin-top:2px}
 </style>
 
@@ -768,6 +773,11 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
 
     <div class="tabpane" data-tab="giving" role="tabpanel" aria-labelledby="tab-giving" hidden>
       <div class="col">
+        <section class="panel" id="moonpanel">
+          <h2>Moonshots</h2>
+          <p class="sub">Billionaire bets on space, living forever, curing cancer and fusion power. Millions a month, and most tests fail.</p>
+          <div id="moonshots"></div>
+        </section>
         <section class="panel">
           <h2 id="fdn-title">Your foundation</h2>
           <p class="sub">Take on the world's hardest problems, one stage at a time.</p>
@@ -1234,7 +1244,7 @@ function acctCard(a){const st=a.over?'Bankrupt':a.billion!=null?'Billionaire in 
  return'<div class="acard">'+(acctDelAsk===a.id?'<div class="adel"><span>Delete '+esc(a.name)+' and their saved game? This cannot be undone.</span><button class="btn small" data-a="acctdelyes" data-v="'+a.id+'">Delete</button><button class="btn ghost small" data-a="acctdelno">Keep</button></div>'
   :'<button class="apick" data-a="acctpick" data-v="'+a.id+'">'+avatar(a)+'<span class="ameta"><b>'+esc(a.name)+'</b><span>'+esc(a.company)+' · '+esc(a.town)+'</span><span>'+st+'</span></span></button><button class="btn ghost small" data-a="acctdel" data-v="'+a.id+'" aria-label="Delete '+esc(a.name)+'">Delete</button>')+'</div>';}
 function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustlempires</div>';
- if(acctView==='lives'){const L=ACC.lives||[];h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire '+esc(ACC.name)+' has built on this device.</p>'+legacyHTML()+livesHTML(L,L.length)+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
+ if(acctView==='lives'){const L=ACC.lives||[];h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire '+esc(ACC.name)+' has built on this device.</p>'+legacyHTML()+livesHTML(L,L.length)+'<div class="chips">'+(S&&S.over&&S.died&&!S.worldEnded&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
  else if(acctView==='pick'){h+='<h2>Who\'s playing?</h2><p class="sub">Accounts and saved games live on this device.</p><div class="alist">'+ACCS.list.map(acctCard).join('')+'</div>'+
    '<button class="btn primary" data-a="acctnew">Create a new account</button>'+(ACC?' <button class="btn ghost" data-a="acctclose">Back to my game</button> <button class="btn ghost" data-a="lives">My past lives</button>':'')+(ACC&&S?'<div class="regionbox">'+regionMenuHTML()+'</div>':'');
   const hof=ACCS.list.filter(a=>(a.best||0)>0).sort((a,b)=>(a.billion!=null&&b.billion!=null?a.billion-b.billion:a.billion!=null?-1:b.billion!=null?1:(b.best||0)-(a.best||0)));
@@ -1378,6 +1388,73 @@ function lifestyle(){const r=rank(),fl=flightsNeeded();
 function lifeMult(){const L=lifestyle();return(L.late?1-.03*Math.min(L.steps,5):1)*(L.absent?.92:1);}
 function kidAge(k){return S.month-k.born;}
 function kidCost(k){const m=kidAge(k);if(m<0||m>=264)return 0;if(m<48)return 60;if(m<216)return SCHOOLS[k.school].fee;return UNI[k.best];}
+/* ================= Moonshots: billionaire-only research that mostly fails ================= */
+const MOON=[
+ {id:'space',cat:'Space programme',name:'Space programme',blurb:'Rockets, satellites, the Moon and Mars.',base:2e7,
+  stages:[['Engine test-fire','Fire your first rocket engine on the test stand.',.45],['Suborbital hop','Fly a rocket to the edge of space and land it.',.3],['First orbit','Put your rocket into orbit.',.22],['Satellite internet','Launch a constellation of internet satellites. Earns money every month.',.18,{inc:3e7}],['Reusable booster','Land the booster back on its pad so rockets fly again.',.15],['Moon landing','Land a crew on the Moon.',.1],['Humans on Mars','Send the first humans to Mars. The hardest thing anyone has ever tried, and nobody knows what is waiting there.',.03,{mars:1}]],
+  fails:['The rocket exploded 40 seconds after lift-off. Debris rained into the ocean.','An engine shut down on ascent. The flight computer destroyed the rocket.','The rocket blew up on the launch pad during fuelling.','The satellite reached orbit, then went silent. A solar panel never opened.','The second stage failed to ignite. Everything fell back to Earth.','The landing legs collapsed. The booster toppled and burned.'],
+  marsFails:['The Mars ship lost contact two months out. It was never heard from again.','The crew capsule failed its final pressure test. Launch scrubbed for two years.','A solar storm fried the ship\'s electronics halfway to Mars. The crew limped home.','The lander hit the Martian surface at 300 km/h. A crater, and silence.','The Mars rocket exploded on the pad in front of a million live viewers.'],
+  news:['engineers rebuilt the turbopump','a new engine survived a full-length burn','the launch tower is half built','a test tank burst on purpose, as planned','the guidance software passed its simulations','the heat shield passed a re-entry test']},
+ {id:'life',cat:'Longevity research',name:'Longevity & eternity',blurb:'Slow ageing, reverse it, and maybe never die.',base:1e7,
+  stages:[['Ageing research lab','Hire the world\'s best ageing scientists.',.5],['Mice live 20% longer','Extend the lifespan of lab mice.',.35],['Gene therapy trial','A gene therapy that slows ageing in people. Adds 3 years to your own life.',.25,{years:3}],['Reverse ageing in humans','Turn back the clock in human cells. Adds 5 more years and better health.',.18,{years:5,health:15}],['Halt ageing','Stop ageing altogether. Adds 10 more years.',.1,{years:10}],['Eternity','Upload a mind, or never age at all. No age limit.',.05,{eternal:1}]],
+  fails:['The mice aged faster, not slower. Back to the drawing board.','Two volunteers had severe side effects. Regulators halted the trial.','The results could not be repeated in a second lab.','The therapy worked in skin cells and nowhere else.','A cancer risk showed up in the data. The trial was stopped.'],
+  news:['a promising compound turned up in yeast','the lab sequenced 10,000 genomes','old mice ran like young ones for a week','a rival lab published something you needed','the trial recruited its first volunteers']},
+ {id:'cancer',cat:'Cancer research',name:'Cancer cure',blurb:'Fund the search for a cure. Win and the world changes.',base:1.5e7,
+  stages:[['Cancer research institute','Build a world-class cancer institute.',.5],['Tumours shrink in mice','Show the treatment works in animals.',.35],['Phase 1 trial','Prove it is safe in a small group of patients.',.25],['Phase 2 trial','Prove it works in hundreds of patients.',.18],['Phase 3 trial','Prove it at scale in thousands of patients.',.12],['The cure','Regulators approve a cure. Royalties every month and a place in history.',.08,{inc:6e7,rep:30,inf:20}]],
+  fails:['The tumours shrank, then came back stronger.','The drug was safe but did nothing. The trial failed.','Patients in the placebo group did just as well.','Liver damage in a third of patients. Trial stopped.','The results looked good until the statisticians checked them.'],
+  news:['a new antibody looked promising in the lab','the trial enrolled its hundredth patient','a scan showed a tumour shrinking','your scientists published in a top journal','a cancer charity pledged support']},
+ {id:'fusion',cat:'Fusion energy',name:'Fusion power',blurb:'Limitless clean energy from a star in a bottle.',base:1.5e7,
+  stages:[['Plasma lab','Build a reactor that can hold plasma.',.45],['Ignition','Light a fusion reaction for the first time.',.25],['Net energy gain','Get more energy out than you put in.',.15],['Pilot power plant','Power a town. Earns money every month.',.12,{inc:2e7}],['Fusion grid','Fusion plants across the continent. Huge monthly income.',.07,{inc:1e8,rep:20}]],
+  fails:['The plasma escaped after 3 milliseconds and scorched the wall.','A magnet quenched and the reactor shut down for months.','The reactor made less energy than a kettle.','A cooling pipe cracked. The reactor is offline for repairs.'],
+  news:['the magnets reached record strength','the reactor held plasma for a full second','a new fuel pellet design passed testing','the control system learned to tame instabilities']}];
+const MTIER=[['Paused',0,0,0],['Lean',1,4,0],['Serious',3,8,.04],['All-in',8,16,.08]];
+function moonOn(){return!!S&&(S.won||netWorth()>=1e9);}
+function moonOf(id){S.moon=S.moon||{};return S.moon[id]=S.moon[id]||{tier:0,stage:0,prog:0,fails:0,failsAt:0,spent:0,inc:0,wins:0};}
+function moonCost(M,m){return M.base*MTIER[m.tier][1]*(1+.35*m.stage)*(S.reIdx||1);}
+function moonChance(M,m){const st=M.stages[m.stage];return Math.min(st[3]&&st[3].mars?.25:.75,st[2]+MTIER[Math.max(1,m.tier)][3]+Math.min(.2,m.failsAt*.04));}
+function moonSpend(){if(!S||!S.moon)return 0;return MOON.reduce((t,M)=>{const m=S.moon[M.id];return t+(m&&m.tier&&m.stage<M.stages.length?moonCost(M,m):0);},0);}
+function moonIncome(){if(!S||!S.moon)return 0;return MOON.reduce((t,M)=>t+((S.moon[M.id]||{}).inc||0),0);}
+function lifeX(){const m=S.moon&&S.moon.life;return m?(m.years||0):0;}
+const eternal=()=>!!(S.moon&&S.moon.life&&S.moon.life.eternal);
+function moonSet(id,t){if(!moonOn())return;const M=MOON.find(x=>x.id===id),m=moonOf(id);t=+t;if(!M||m.stage>=M.stages.length||t<0||t>3)return;
+ if(t>0&&S.cash<moonCost(M,{tier:t,stage:m.stage})){render();return;}m.tier=t;log(M.name+': funding set to '+MTIER[t][0].toLowerCase()+(t?' ('+fmt(moonCost(M,m))+' a month)':'')+'.',t?'gold':'');afterChange();}
+function moonTick(){if(!S||S.over||!S.moon)return null;let ev=null;
+ MOON.forEach(M=>{const m=S.moon[M.id];if(!m||!m.tier||m.stage>=M.stages.length)return;const c=moonCost(M,m);
+  if(S.cash<0){m.tier=0;log(M.name+': you could not pay the scientists, so funding stopped. Restart it when you have the cash.','bad');return;}
+  m.spent+=c;const was=m.prog;m.prog=Math.min(100,m.prog+MTIER[m.tier][2]*(.8+rnd()*.4));
+  if(Math.floor(was/25)<Math.floor(m.prog/25)&&m.prog<100)log(M.name+': '+pick(M.news)+'. '+Math.round(m.prog)+'% of the way to the next big test.','');
+  if(m.prog>=100&&!ev)ev=moonTest(M,m);});
+ return ev;}
+function worldEnd(){S.over=true;S.died=true;S.deathDue=null;S.worldEnded=true;
+ S.deathCause='Your Mars mission found something under the ice, and it found us back. The ships arrived three months later. Nobody survived.';checkAch();
+ log('The end of the world. '+S.deathCause,'bad');save();render();
+ showCard('The end of the world','Your crew landed on Mars and drilled into the ice. They found a signal, old and waiting. It answered.<br><br>Three months later the sky over every city filled with ships. Your empire, worth <b>'+fmt(netWorth())+'</b>, your family and every human on Earth were gone in a single night.<br><br>You did what nobody else could. That was the problem.',
+  '<button class="btn primary" data-a="obit">Read your obituary</button><button class="btn primary" data-a="reset">Start a new world</button><button class="btn" data-a="lives">Past lives</button>');}
+function moonTest(M,m){const st=M.stages[m.stage],ch=moonChance(M,m),ok=rnd()<ch,loss=moonCost(M,m)*2*(st[3]&&st[3].mars?2:1);m.prog=0;
+ if(ok&&st[3]&&st[3].mars){m.stage++;m.wins++;m.tier=0;addRep(40);addHappy(20);log('Space programme: humans walked on Mars. The whole world watched.','gold');
+  return{cat:'First contact',title:'Humans on Mars',text:'<div class="result good"><small>Space programme</small><b>Mars</b><span>After '+m.fails+' failure'+(m.fails===1?'':'s')+' and '+fmt(m.spent)+', your crew stepped onto Mars. Eight billion people watched live.</span></div>Two weeks later, the drill team hit something hard under the ice. It is not rock. It is warm, and it is humming.',
+   choices:[{l:'Keep drilling',d:'History is waiting.',f(){setTimeout(worldEnd,50);return['Your crew kept drilling.','bad']}},{l:'Bring the crew home now',d:'Leave it buried.',f(){setTimeout(worldEnd,50);return['You ordered the crew home. It was already too late.','bad']}}]};}
+ if(ok){m.stage++;m.failsAt=0;m.wins++;const R=st[3]||{};addRep(R.rep||4+m.stage);addInf(R.inf||2);addHappy(8);if(R.inc)m.inc=(m.inc||0)+R.inc;if(R.years)m.years=(m.years||0)+R.years;if(R.health)addHealth(R.health);if(R.eternal)m.eternal=true;
+  const done=m.stage>=M.stages.length;if(done)m.tier=0;
+  log(M.name+': '+st[0]+' succeeded!'+(R.inc?' It now earns '+fmt(R.inc)+' a month.':'')+(R.years?' You gain '+R.years+' years of life.':'')+(R.eternal?' You no longer age.':''),'gold');
+  return{cat:M.cat,title:st[0]+': success',text:'<div class="result good"><small>'+M.name+'</small><b>It worked</b><span>'+st[1]+' After '+m.fails+' failure'+(m.fails===1?'':'s')+' and '+fmt(m.spent)+' spent so far, history was made.</span></div>'+(done?'This programme is complete. You did what nobody thought possible.':'Next goal: <b>'+M.stages[m.stage][0]+'</b> ('+Math.round(moonChance(M,m)*100)+'% chance on the first try). Keep funding it.'),
+   choices:[{l:'Celebrate',d:'Reputation, influence and happiness up.',f(){return['','']}}]};}
+ m.fails++;m.failsAt++;m.prog=35;S.cash-=loss;addHappy(-2);const why=pick(st[3]&&st[3].mars&&M.marsFails?M.marsFails:M.fails);
+ log(M.name+': '+st[0]+' failed. '+why+' Lost '+fmt(loss)+'.','bad');
+ return{cat:M.cat,title:st[0]+': failed',text:'<div class="result bad"><small>'+M.name+'</small><b>Failed</b><span>'+why+' The test cost '+fmt(loss)+'.</span></div>Your team has learned a lot: the next attempt has a '+Math.round(moonChance(M,m)*100)+'% chance (it was '+Math.round(ch*100)+'%). Every failure makes the next try better, but only if you keep paying.',
+  choices:[{l:'Go again, keep funding',d:'The team starts rebuilding, already 35% of the way to the next try.',f(){return['Your team went back to work.','']}},{l:'Pause the programme',d:'Stop the monthly spending for now. Progress is kept.',f(){m.tier=0;return[M.name+' paused.','']}}]};}
+function moonHTML(){if(!moonOn())return'<p class="seghint" style="margin:0">Moonshots open up when you become a billionaire: a space programme, longevity research, a cancer cure and fusion power. They cost millions a month and almost always fail. Almost.</p>';
+ let h='<div class="mbtot"><div><span class="eyebrow">Spending / mo</span><b class="neg">'+fmt(moonSpend())+'</b></div><div><span class="eyebrow">Moonshot income / mo</span><b class="pos">'+fmt(moonIncome())+'</b></div><div><span class="eyebrow">Breakthroughs</span><b>'+MOON.reduce((t,M)=>t+((S.moon&&S.moon[M.id]&&S.moon[M.id].wins)||0),0)+'</b></div></div>';
+ MOON.forEach(M=>{const m=moonOf(M.id),done=m.stage>=M.stages.length,st=M.stages[Math.min(m.stage,M.stages.length-1)];
+  h+='<div class="moon">'+evIconHTML({cat:M.cat,title:''})+'<div class="mtx"><b>'+M.name+'</b><span class="vsub">'+M.blurb+'</span>';
+  if(done)h+='<span class="pill good">Complete</span>';
+  else{h+='<div class="mlabel"><span class="eyebrow">Next: '+st[0]+'</span><b>'+Math.round(m.prog)+'%</b></div><div class="meter"><i style="width:'+m.prog+'%;background:var(--brass)"></i></div>'+
+   '<span class="vsub">'+st[1]+' Chance when tested: '+Math.round(moonChance(M,m)*100)+'%.'+(m.fails?' '+m.fails+' failure'+(m.fails>1?'s':'')+' so far.':'')+(m.spent?' Spent '+fmt(m.spent)+'.':'')+'</span>'+
+   '<div class="seg four" role="group" aria-label="Funding for '+M.name+'">'+MTIER.map((T,i)=>{const c=i?moonCost(M,{tier:i,stage:m.stage}):0;return'<button data-a="moonset" data-v="'+M.id+':'+i+'" aria-pressed="'+(m.tier===i)+'"'+(i&&S.cash<c&&m.tier!==i?' disabled':'')+'>'+T[0]+'<br><small class="num">'+(i?fmt(c)+'/mo':'—')+'</small></button>';}).join('')+'</div>';}
+  if(m.inc)h+='<span class="vsub">Earning <b class="pos">+'+fmt(m.inc)+'/mo</b></span>';
+  if(M.id==='life'&&(m.years||m.eternal))h+='<span class="vsub">'+(m.eternal?'You no longer age.':'+'+m.years+' years added to your life.')+'</span>';
+  h+='</div></div>';});
+ return h+'<p class="seghint" style="margin:8px 0 0">More funding means faster tests and slightly better odds. Every failure teaches your team something and raises the next chance.</p>';}
 function flows(noisy){
  const E=svcEffects();
  let biz=0;
@@ -1397,7 +1474,8 @@ function flows(noisy){
  const alimony=S.alimony?S.alimony.amt:0,health=careFee();
  const giving=S.fdn?Math.max(0,biz)*S.fdn.giving:0;
  const estatePl=typeof planCost==='function'?planCost():0,trustInc=S.trustPay||0,shady=typeof shadyIncome==='function'?shadyIncome(biz,noisy):0;
- return{biz,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,E,net:biz+rent+lux+inv+sport+prop+trustInc+shady-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl};
+ const moon=moonSpend(),moonInc=moonIncome();
+ return{biz,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,moon,moonInc,E,net:biz+rent+lux+inv+sport+prop+trustInc+shady+moonInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl-moon};
 }
 function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});S.log.length=Math.min(S.log.length,80);}
 function soften(f){return sv('exec').lvl>=0&&f<1?1-(1-f)*.6:f;}
@@ -1418,9 +1496,9 @@ const CONDS={bp:{name:'High blood pressure',hit:6,mhit:1,cost:40},diab:{name:'Ty
  heart:{name:'Heart disease',hit:12,mhit:4,cost:800},knee:{name:'Worn-out knees',hit:5,mhit:1,cost:100},mem:{name:'Memory decline',hit:7,mhit:3,cost:1500}};
 function careFee(){return CARE[S.care||0].fee+Object.keys(S.conds||{}).reduce((t,k)=>t+(S.conds[k].managed?CONDS[k].cost:0),0);}
 function healthTarget(){const a=age();let t=92-Math.max(0,a-30)*.75+CARE[S.care||0].h+({hustle:-10-Math.max(0,a-45)*.3,balanced:0,family:5})[S.mode]+(S.happy-55)/5-S.heat/12;
- Object.keys(S.conds||{}).forEach(k=>{t-=S.conds[k].managed?CONDS[k].mhit:CONDS[k].hit;});return clamp(t,3,100);}
+ Object.keys(S.conds||{}).forEach(k=>{t-=S.conds[k].managed?CONDS[k].mhit:CONDS[k].hit;});t+=(typeof lifeX==='function'?lifeX():0)*.6;return clamp(t,3,100);}
 function ageMult(){let f=stage()[2];if(f<1&&sv('exec').lvl>=0)f=1-(1-f)*.6;return f*Math.min(1,.8+.25*S.health/100);}
-function deathRisk(){return age()<55?0:.00012*Math.exp((age()-55)/7)*Math.pow(2-S.health/100,2);}
+function deathRisk(){const a=age()-(typeof lifeX==='function'?lifeX():0);return(a<55?0:.00012*Math.exp((a-55)/7)*Math.pow(2-S.health/100,2))*(typeof eternal==='function'&&eternal()?.1:1);}
 function addHealth(d){S.health=clamp(S.health+d,0,100);}
 function addCond(id,managed){S.conds=S.conds||{};S.conds[id]={managed,since:S.month};}
 function outlook(){const r=deathRisk()*12;return age()<55?(S.health>=60?['Excellent','good']:['Fair','']):r<.01?['Good','good']:r<.03?['Fair','']:r<.08?['Worrying','bad']:['Grave','bad'];}
@@ -1844,6 +1922,7 @@ function attention(F){const A=[],L=lifestyle();
  if(S.mobMet&&!S.protection&&S.heat>=40&&S.month>=S.mobQuiet)A.push(['bad','Mob heat is '+Math.round(S.heat)+'. An attack is coming.','power','Street']);
  if(S.happy<30)A.push(['warn','You are close to burning out. Ease off or take a break.','life','Balance']);
  Object.keys(MODELS).forEach(id=>{const k=behind(id);if(k)A.push([k>1?'warn':'info','Your '+ASSETS.find(x=>x.id===id).name.lc()+' is '+k+' generation'+(k>1?'s':'')+' old. The '+modelName(id,latestGen(id))+' is out.','life','Upgrade']);});
+ if(moonOn()&&!MOON.some(M=>S.moon&&S.moon[M.id]&&(S.moon[M.id].tier||S.moon[M.id].stage)))A.push(['info','You are a billionaire. Moonshots are open: space, eternal life, a cancer cure and fusion power.','giving','See moonshots']);
  TEAMS.forEach(T=>{const t=S.teams[T.id];if(t&&t.strength<40)A.push(['warn','Your '+T.ref+' squad is weak (strength '+Math.round(t.strength)+').','sports','Sign players']);});
  if(S.f1Offer&&S.race&&S.race.series==='F2')A.push(['info','Your F2 title earned you 20% off a Formula 1 team.','sports','Move up']);
  if(S.fdn&&(S.fdn.stage[S.fdn.focus]||0)>=3)A.push(['info','Your foundation solved its focus cause. Choose a new one.','giving','Choose']);
@@ -2263,10 +2342,15 @@ const EVI={
  tax:['#36b37e','<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15l6 4M15 15l-6 4"/>'],
  strike:['#f0a030','<path d="M7 22V11M7 11c0-4 1-7 5-7s5 3 5 7v4M17 15h-10"/><path d="M3 22h18"/>'],
  ghost:['#c4b5fd','<path d="M5 21V10a7 7 0 0 1 14 0v11l-2.5-2-2.3 2-2.2-2-2.2 2-2.3-2z"/><path d="M9.5 11h.01M14.5 11h.01"/>'],
+ alien:['#7dff9a','<path d="M12 3c-5 0-8 3.5-8 7.5C4 15 8 21 12 21s8-6 8-10.5C20 6.5 17 3 12 3z"/><path d="M7.5 11c1.5 0 3 1 3.5 2.5-1.5.3-3.5-.5-3.5-2.5zM16.5 11c-1.5 0-3 1-3.5 2.5 1.5.3 3.5-.5 3.5-2.5z"/>'],
+ rocket:['#ff8a5b','<path d="M12 2c3 2 5 6 5 10l-2 4H9l-2-4c0-4 2-8 5-10z"/><circle cx="12" cy="9" r="2"/><path d="M9 16l-3 3 1-5M15 16l3 3-1-5M10.5 19c0 1.5.5 2.5 1.5 3 1-.5 1.5-1.5 1.5-3"/>'],
+ dna:['#36d6a8','<path d="M7 2c0 6 10 6 10 12s-10 6-10 8M17 2c0 6-10 6-10 12s10 6 10 8"/><path d="M8.5 6h7M8 18h8M10 10h4M10 14h4"/>'],
+ micro:['#ff7eb6','<path d="M9 3h4l-1 7h-2zM11 10v3"/><path d="M6 21h12M8 21c0-4 2-6 6-7a5 5 0 0 1 2 7"/><path d="M14 14a3 3 0 0 1-3-1"/>'],
+ atom:['#7fc8ff','<circle cx="12" cy="12" r="1.8"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/>'],
  spark:['#ffd36b','<path d="M12 2l2.5 7H22l-6 4.5 2.5 7.5L12 16.5 5.5 21 8 13.5 2 9h7.5z"/>']};
 const EVCAT={'Business':'briefcase','Economy':'chart','Markets':'chart','Politics':'capitol','Social':'people','Health':'heart','Family':'family','Law':'gavel','Darkworld':'mask',
  'Luxury':'diamond','Lifestyle':'diamond','Property':'building','Sports':'trophy','Foundation':'handheart','Street':'knife','World crisis':'globe','Disaster':'storm','Environmental disaster':'water',
- 'Billionaire challenge':'crown','Your past':'ghost','Daily bonus':'coins','Black Friday':'gift','Holiday season':'gift','New year':'spark','Valentine\'s Day':'heart','Mid-year sales':'gift',
+ 'Billionaire challenge':'crown','First contact':'alien','Space programme':'rocket','Longevity research':'dna','Cancer research':'micro','Fusion energy':'atom','Your past':'ghost','Daily bonus':'coins','Black Friday':'gift','Holiday season':'gift','New year':'spark','Valentine\'s Day':'heart','Mid-year sales':'gift',
  'Investment result':'chart','Tax audit result':'tax','Election result':'ballot','Deal result':'briefcase','Your profile':'user','Life':'user','Industry risk':'boom','Industries':'factory',
  'Fire':'flame','Factory fire':'flame','Explosion':'boom','Mining accident':'pick','Building collapse':'building','Road accident':'car','Aviation incident':'plane','Cyber attack':'lock',
  'Food safety':'food','Medical scandal':'cross','Lawsuit':'gavel','Compliance':'tax','Security scare':'badge',
@@ -2278,7 +2362,7 @@ const EVWORD=[[/\b(baby|pregnan|born|twins)\b/i,'baby'],[/\b(wedding|marr|propos
  [/\b(pandemic|virus|outbreak|epidemic)/i,'virus'],[/\b(crash(es)?|recession|slump)\b/i,'chartdown'],[/\b(strike|union)\b/i,'strike'],[/\b(hack|cyber)/i,'lock'],[/\b(mine|tunnel)/i,'pick'],
  [/\b(hospital|doctor|surgery|cancer|diagnos|heart attack|sick|ill)\b/i,'cross'],[/\b(gift|spoil|birthday|party)\b/i,'gift']];
 function evIconKey(ev){const cat=String(ev.cat||''),t=String(ev.title||'').replace(/<[^>]*>/g,'');
- if(['Tax audit result','Your past','Daily bonus','Billionaire challenge','Investment result','Election result','Deal result','Darkworld','Your profile'].includes(cat))return EVCAT[cat];
+ if(['First contact','Tax audit result','Your past','Daily bonus','Billionaire challenge','Investment result','Election result','Deal result','Darkworld','Your profile'].includes(cat))return EVCAT[cat];
  if(EVCAT[cat]&&!EVGEN.includes(cat))return EVCAT[cat];
  for(const [re,k] of EVWORD)if(re.test(t))return k;
  if(EVCAT[cat])return EVCAT[cat];if(typeof IND_CATS!=='undefined'&&IND_CATS.includes(cat))return'factory';
@@ -2413,7 +2497,7 @@ function nextMonth(){
  /* health */
  S.health=clamp(S.health+(healthTarget()-S.health)*.07,0,100);
  if(age()===55&&S.month%12===0)log('You turned 55. From here on, your health decides how long you have. Check Age & health in the Life tab.','life');
- if(age()>=100){die('You lived to a hundred, and passed peacefully in your sleep.');return;}
+ if(age()>=100+lifeX()&&!eternal()){die('You lived to '+age()+', and passed peacefully in your sleep.');return;}
  if(rnd()<deathRisk()){die(pick(['Your heart gave out in your sleep.','You passed after a short illness.','You collapsed at your desk, working to the very end.']));return;}
  /* cash crisis */
  if(S.cash<0){const room=creditLimit()-S.debt;
@@ -2437,6 +2521,7 @@ function nextMonth(){
  lawTick();
  checkAch();
  {const be=bcTick();if(be&&!current){S.cool=Math.max(S.cool,2);afterChange();openEvent(be);return;}}
+ {const me=moonTick();if(me&&!current){afterChange();openEvent(me);return;}}
  afterChange();
  /* forced events first */
  if(S.resultQ&&S.resultQ.length){openEvent(resultEvent(S.resultQ.shift()));return;}
@@ -2500,7 +2585,7 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInter
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
- ({guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>showAccts('pick'),acctnew:()=>showAccts('create'),acctcancel:()=>showAccts('pick'),acctclose:()=>{acctView=null;renderAccts();},acctpick:()=>pickAccount(v),acctdel:()=>{acctDelAsk=v;renderAccts();},acctdelno:()=>{acctDelAsk=null;renderAccts();},acctdelyes:()=>deleteAccount(v),lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propctry:()=>{propShut[v]=!propShut[v];render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),venuebuild:()=>venueGet(v,false),venuebuy:()=>venueGet(v,true),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
@@ -2762,14 +2847,14 @@ function render(){try{paintBC();}catch(e){}
     fh+='<div class="row"><div class="t"><b>'+f.name+'</b><span>'+f.desc+' '+(ok?'Expect roughly '+fmt(f.raise()*.6)+'–'+fmt(f.raise()*1.4)+'.':f.req+'.')+'</span></div>'+
      (!ok?'<span class="pill">Locked</span>':cd>0?'<span class="pill">In '+cd+' mo</span>':'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="fundraise" data-v="'+f.id+'" '+(S.cash<c?'disabled':'')+'>Host · '+fmt(c)+'</button>')+'</div>';});
    fh+='<p class="seghint" style="margin:8px 0 0">Money raised goes to your focus cause: '+cause(F.focus).name.toLowerCase()+'. Reputation and influence raise more. Each event can run once every 6 months.</p>';}
-  $('foundation').innerHTML=gh;$('fundraisers').innerHTML=fh;}
+  $('foundation').innerHTML=gh;$('fundraisers').innerHTML=fh;$('moonshots').innerHTML=moonHTML();}
 
 
 
 
  /* statement */
  const line=(l,v,sign)=>'<span>'+l+'</span><span class="'+(Math.abs(v)<.5?'zero':sign<0?'neg':'pos')+'">'+(Math.abs(v)<.5?'—':(sign<0?'−':'+')+fmt(v).replace('−',''))+'</span>';
- $('stmt').innerHTML=line('Business profit'+(S.float?' (80% yours)':''),F.biz,F.biz<0?-1:1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Dividends & bond interest',F.inv,1)+line('Family trust income',F.trustInc||0,1)+line('Under the table',F.shady||0,1)+line('Loan interest',F.interest,-1)+
+ $('stmt').innerHTML=line('Business profit'+(S.float?' (80% yours)':''),F.biz,F.biz<0?-1:1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Moonshot research',F.moon||0,-1)+line('Moonshot income',F.moonInc||0,1)+line('Dividends & bond interest',F.inv,1)+line('Family trust income',F.trustInc||0,1)+line('Under the table',F.shady||0,1)+line('Loan interest',F.interest,-1)+
   line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
   line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+line('Health care',F.health,-1)+line('Estate planning & insurance',F.estatePl||0,-1)+
   '<span class="tot">Net cash flow</span><span class="tot '+(F.net<0?'neg':'pos')+'">'+(F.net<0?'−':'+')+fmt(Math.abs(F.net))+'</span>';
