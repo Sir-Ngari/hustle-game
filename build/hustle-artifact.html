@@ -352,6 +352,9 @@ footer.foot{justify-content:center;padding-top:6px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:4px;max-width:540px;width:100%;padding:24px;position:relative}
 .card::before{content:"";position:absolute;inset:6px;border:1px solid color-mix(in srgb,var(--brass) 45%,transparent);pointer-events:none}
 .card .cat{position:relative;display:inline-block;margin-right:6px}
+.evic{float:right;width:64px;height:64px;margin:-4px -4px 6px 14px;border-radius:16px;display:grid;place-items:center;background:color-mix(in srgb,var(--ec) 18%,transparent);border:1.5px solid color-mix(in srgb,var(--ec) 55%,transparent);box-shadow:0 6px 18px color-mix(in srgb,var(--ec) 25%,transparent)}
+.evic svg{width:42px!important;height:42px!important;fill:none;stroke:var(--ec);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:420px){.evic{width:52px;height:52px;border-radius:13px}.evic svg{width:34px!important;height:34px!important}}
 .card h3{font-family:var(--display);font-weight:900;font-size:30px;line-height:1.05;letter-spacing:.02em;text-transform:uppercase;margin:8px 0 10px;text-wrap:balance}
 .card p{margin:0 0 16px;max-width:62ch;position:relative}
 .choices{display:flex;flex-direction:column;gap:8px;position:relative}
@@ -2202,8 +2205,73 @@ function svcEvent(ids){const ds=ids.map(id=>SERVICES.find(d=>d.id===id));
   text:'At your size, the law, your bank and your customers expect more. You now need: '+ds.map(d=>'<b>'+need(d).name+'</b> ('+fmt(need(d).fee)+'/mo)').join(', ')+'.',choices:ch};}
 
 let current=null;
+/* ================= Event icons: a picture for every pop-up ================= */
+const EVI={
+ briefcase:['#4f8cff','<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 12h18"/>'],
+ chart:['#36b37e','<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-7"/><path d="M16 7h4v4"/>'],
+ chartdown:['#ef5a5a','<path d="M3 3v18h18"/><path d="M7 8l4 4 3-3 6 7"/><path d="M16 16h4v-4"/>'],
+ capitol:['#a66cff','<path d="M3 21h18M5 21v-8M9 21v-8M15 21v-8M19 21v-8M4 13h16M12 3l8 6H4z"/>'],
+ ballot:['#a66cff','<rect x="4" y="11" width="16" height="10" rx="1"/><path d="M8 11V4h8v7M10 7l1.5 1.5L14 6"/>'],
+ people:['#14b8c4','<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c2 .6 3.2 2.5 3.6 5.5"/>'],
+ heart:['#ef5a5a','<path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/><path d="M6 12h3l1.5-3 2 6 1.5-3h3"/>'],
+ family:['#ff8fb1','<path d="M3 11l9-7 9 7v10H3z"/><path d="M12 19s-3.5-2.2-3.5-4.6a1.8 1.8 0 0 1 3.5-.6 1.8 1.8 0 0 1 3.5.6C15.5 16.8 12 19 12 19z"/>'],
+ baby:['#ff8fb1','<circle cx="12" cy="10" r="6"/><path d="M10 9h.01M14 9h.01M10 12.5a3 3 0 0 0 4 0M9 20h6M12 16v4"/>'],
+ rings:['#ffb020','<circle cx="9" cy="14" r="5"/><circle cx="15" cy="14" r="5"/><path d="M9 6l1.5-2h-3zM15 6l1.5-2h-3z"/>'],
+ broken:['#ef5a5a','<path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/><path d="M12 7.2l-1.5 4 3 2-1.5 4"/>'],
+ candle:['#94a3b8','<path d="M9 21h6M10 21V10h4v11"/><path d="M12 7c-1.2-1.4-1-2.6 0-4 1 1.4 1.2 2.6 0 4z"/>'],
+ gavel:['#5b8db8','<path d="M14 4l6 6M12 6l6 6M13 5l-6 6 2 2 6-6M8 12l-5 5 2 2 5-5M4 21h9"/>'],
+ badge:['#4f8cff','<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/><path d="M9 12l2 2 4-4"/>'],
+ handcuffs:['#5b8db8','<circle cx="7" cy="15" r="4"/><circle cx="17" cy="15" r="4"/><path d="M10 12l4 0M7 11V8M17 11V8M5 8h4M15 8h4"/>'],
+ mask:['#b06cff','<path d="M3 8c3-2 15-2 18 0 0 6-3 9-6 9-1.5 0-2-1.5-3-1.5S10.5 17 9 17c-3 0-6-3-6-9z"/><path d="M7 11c1-.7 2.5-.7 3 0M14 11c.5-.7 2-.7 3 0"/>'],
+ diamond:['#ffb020','<path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20M9 3l3 6 3-6M12 9v12"/>'],
+ building:['#f0a030','<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3h4v3"/>'],
+ trophy:['#ffd36b','<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4.5a3 3 0 0 0 3.5 4M16 6h3.5a3 3 0 0 1-3.5 4M12 13v4M8 21h8M9 17h6v4H9z"/>'],
+ handheart:['#e5568a','<path d="M3 15h3l4 3h6a2 2 0 0 0 0-4h-4"/><path d="M14 9.5S10.5 7.3 10.5 5a1.8 1.8 0 0 1 3.5-.6 1.8 1.8 0 0 1 3.5.6c0 2.3-3.5 4.5-3.5 4.5z"/><path d="M3 21h4V13H3z"/>'],
+ knife:['#ef5a5a','<path d="M20 4L9 15l-2-2L18 2z"/><path d="M7 13l-3 3 4 4 3-3M5 19l-2 2"/>'],
+ globe:['#ef7f6c','<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.3 3 14.7 0 18M12 3c-3 3.3-3 14.7 0 18"/>'],
+ flame:['#ff6b2b','<path d="M12 22c-4 0-7-3-7-7 0-4 3-6 4-10 2 2 3 4 3 6 1-1 2-2 2-4 3 2 5 5 5 8 0 4-3 7-7 7z"/><path d="M12 22c-2 0-3-1.5-3-3.5S11 15 12 13c1 2 3 3.5 3 5.5S14 22 12 22z"/>'],
+ boom:['#ff6b2b','<path d="M12 2l2 6 6-3-3 6 5 2-6 2 2 7-6-4-4 6-1-7-6-1 5-4-3-6 6 2z"/>'],
+ water:['#4fa8ff','<path d="M2 16c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M2 20c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0"/><path d="M12 3s-4 4.5-4 7a4 4 0 0 0 8 0c0-2.5-4-7-4-7z"/>'],
+ sun:['#ffb020','<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>'],
+ storm:['#7f9cff','<path d="M7 15a4 4 0 0 1-.5-8A5.5 5.5 0 0 1 17 7.5a3.8 3.8 0 0 1 0 7.5"/><path d="M13 12l-3 5h4l-3 5"/>'],
+ quake:['#c08b5c','<path d="M2 12h4l2-5 3 10 3-12 2 7h6"/>'],
+ virus:['#36b37e','<circle cx="12" cy="12" r="5"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5M5 5l3.5 3.5M15.5 15.5L19 19M5 19l3.5-3.5M15.5 8.5L19 5"/>'],
+ crown:['#ffd36b','<path d="M3 18h18L19 7l-4.5 4L12 4l-2.5 7L5 7z"/><path d="M3 21h18"/>'],
+ gift:['#e5568a','<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 13h18M12 9v12M12 9c-2.5 0-5-1-5-3a2 2 0 0 1 4-.5L12 9zM12 9c2.5 0 5-1 5-3a2 2 0 0 0-4-.5L12 9z"/>'],
+ coins:['#ffd36b','<ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v4c0 1.7 2.7 3 6 3s6-1.3 6-3V7"/><path d="M9 14v3c0 1.7 2.7 3 6 3s6-1.3 6-3v-4c0-1.7-2.7-3-6-3"/>'],
+ factory:['#5b8db8','<path d="M2 21V10l6 4V10l6 4V6h4v15z"/><path d="M2 21h20M6 17h2M11 17h2M16 17h2"/>'],
+ pick:['#c08b5c','<path d="M4 9c4-5 12-5 16 0"/><path d="M12 6l-8 15M7 15l3 2"/>'],
+ car:['#4f8cff','<path d="M3 16v-4l2-5h14l2 5v4z"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 12h14"/>'],
+ plane:['#4f8cff','<path d="M2 13l8-2 3-8h2l-1 8 7 2v2l-7-1-1 6 2 1v1l-4-1-4 1v-1l2-1-1-6-6 1z"/>'],
+ lock:['#36b37e','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>'],
+ food:['#f0a030','<path d="M7 2v8a2 2 0 0 0 4 0V2M9 10v12M17 2c-2 0-3 3-3 6s1 4 3 4v10"/>'],
+ cross:['#ef5a5a','<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 7v10M7 12h10"/>'],
+ user:['#94a3b8','<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4-7 8-7s7 2.5 8 7"/>'],
+ tax:['#36b37e','<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15l6 4M15 15l-6 4"/>'],
+ strike:['#f0a030','<path d="M7 22V11M7 11c0-4 1-7 5-7s5 3 5 7v4M17 15h-10"/><path d="M3 22h18"/>'],
+ spark:['#ffd36b','<path d="M12 2l2.5 7H22l-6 4.5 2.5 7.5L12 16.5 5.5 21 8 13.5 2 9h7.5z"/>']};
+const EVCAT={'Business':'briefcase','Economy':'chart','Markets':'chart','Politics':'capitol','Social':'people','Health':'heart','Family':'family','Law':'gavel','Darkworld':'mask',
+ 'Luxury':'diamond','Lifestyle':'diamond','Property':'building','Sports':'trophy','Foundation':'handheart','Street':'knife','World crisis':'globe','Disaster':'storm','Environmental disaster':'water',
+ 'Billionaire challenge':'crown','Daily bonus':'coins','Black Friday':'gift','Holiday season':'gift','New year':'spark','Valentine\'s Day':'heart','Mid-year sales':'gift',
+ 'Investment result':'chart','Election result':'ballot','Deal result':'briefcase','Your profile':'user','Life':'user','Industry risk':'boom','Industries':'factory',
+ 'Fire':'flame','Factory fire':'flame','Explosion':'boom','Mining accident':'pick','Building collapse':'building','Road accident':'car','Aviation incident':'plane','Cyber attack':'lock',
+ 'Food safety':'food','Medical scandal':'cross','Lawsuit':'gavel','Compliance':'tax','Security scare':'badge',
+ 'Retail & Fashion':'gift','Food & Agriculture':'food','Transport & Logistics':'car','Manufacturing':'factory','Real Estate & Construction':'building','Technology & Finance':'lock','Hospitality & Tourism':'plane','Health & Education':'cross','Energy & Mining':'pick','Media & Entertainment':'spark'};
+const EVGEN=['Business','Economy','Markets','Politics','Social','Health','Family','Law','Luxury','Lifestyle','Property','Sports','Street','Life','Food & Agriculture','Hospitality & Tourism','Health & Education','Technology & Finance'];
+const EVWORD=[[/\b(baby|pregnan|born|twins)\b/i,'baby'],[/\b(wedding|marr|propos|engag)/i,'rings'],[/\b(divorc|affair|cheat|breakup|separat)/i,'broken'],[/\b(funeral|death|passed away|dies\b|grief)|\bdied(?! down)/i,'candle'],
+ [/\b(arrest|raid|police|detective|prison|jail|cell block)/i,'handcuffs'],[/\b(audit|tax|taxman|revenue authority|customs|duty)\b/i,'tax'],[/\b(election|vote|campaign|ballot)/i,'ballot'],
+ [/\b(fire|blaze|burn)/i,'flame'],[/\b(explo|blast)/i,'boom'],[/\b(drought|heatwave|wildfire)|rains failed/i,'sun'],[/\bfloods?\b|\bflooded\b/i,'water'],[/\b(storm|cyclone|hurricane)/i,'storm'],[/\b(earthquake|quake)/i,'quake'],
+ [/\b(pandemic|virus|outbreak|epidemic)/i,'virus'],[/\b(crash(es)?|recession|slump)\b/i,'chartdown'],[/\b(strike|union)\b/i,'strike'],[/\b(hack|cyber)/i,'lock'],[/\b(mine|tunnel)/i,'pick'],
+ [/\b(hospital|doctor|surgery|cancer|diagnos|heart attack|sick|ill)\b/i,'cross'],[/\b(gift|spoil|birthday|party)\b/i,'gift']];
+function evIconKey(ev){const cat=String(ev.cat||''),t=String(ev.title||'').replace(/<[^>]*>/g,'');
+ if(['Daily bonus','Billionaire challenge','Investment result','Election result','Deal result','Darkworld','Your profile'].includes(cat))return EVCAT[cat];
+ if(EVCAT[cat]&&!EVGEN.includes(cat))return EVCAT[cat];
+ for(const [re,k] of EVWORD)if(re.test(t))return k;
+ if(EVCAT[cat])return EVCAT[cat];if(typeof IND_CATS!=='undefined'&&IND_CATS.includes(cat))return'factory';
+ for(const [re,k] of EVWORD)if(re.test(cat))return k;return'spark';}
+function evIconHTML(ev){const k=evIconKey(ev),x=EVI[k]||EVI.spark;return'<span class="evic" style="--ec:'+x[0]+'" aria-hidden="true"><svg viewBox="0 0 24 24">'+x[1]+'</svg></span>';}
 function openEvent(ev){current=ev;stopAuto();const m=$('modal');m.hidden=false;
- m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true" aria-labelledby="et"><span class="pill cat gold">'+ev.cat+'</span><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3 id="et">'+ev.title+'</h3><p>'+ev.text+'</p><div class="choices">'+
+ m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true" aria-labelledby="et">'+evIconHTML(ev)+'<span class="pill cat gold">'+ev.cat+'</span><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3 id="et">'+ev.title+'</h3><p>'+ev.text+'</p><div class="choices">'+
  ev.choices.map((c,i)=>'<button class="choice" data-a="choose" data-i="'+i+'"'+(c.dis?' disabled':'')+'><b>'+c.l+'</b><span>'+c.d+(c.dis?' Not enough cash.':'')+'</span></button>').join('')+'</div></div></div>';
  (m.querySelector('.choice:not(:disabled)')||m.querySelector('.choice')).focus();}
 /* ================= Industry risks: the dangers of each kind of business ================= */
