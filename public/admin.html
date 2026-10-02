@@ -188,7 +188,7 @@ body.navhide .main{margin-left:0}
 <div id="appView" hidden>
   <aside class="side" id="side" aria-label="Admin sections">
     <div class="brand">Hustlempires<span>Admin</span><button class="sideclose" id="sideClose" aria-label="Close the menu">×</button></div>
-    <nav><button class="navi" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3zM13 21h8V11h-8zM13 3v6h8V3zM3 21h8v-6H3z"/></svg><span>Overview</span></button><div class="navlbl">Players</div><button class="navi" data-view="players"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c2 .6 3.2 2.5 3.6 5.5"/></svg><span>Players</span><span class="cnt" id="cntPlayers" hidden></span></button><button class="navi" data-view="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Live activity</span></button><div class="navlbl">Money</div><button class="navi" data-view="pass"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M2.5 10h19M6.5 15h4"/></svg><span>Hustle Pass</span><span class="cnt" id="cntPaid" hidden></span></button><button class="navi" data-view="invites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 20V7M12 7H8a2.5 2.5 0 1 1 0-5c3 0 4 5 4 5zM12 7h4a2.5 2.5 0 1 0 0-5c-3 0-4 5-4 5z"/></svg><span>Invites</span><span class="cnt" id="cntInv" hidden></span></button><div class="navlbl">Game</div><button class="navi" data-view="events"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="19" cy="19" r="2"/></svg><span>Events</span></button><button class="navi" data-view="crises"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.2v.3"/></svg><span>Crises</span></button></nav>
+    <nav><button class="navi" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3zM13 21h8V11h-8zM13 3v6h8V3zM3 21h8v-6H3z"/></svg><span>Overview</span></button><div class="navlbl">Players</div><button class="navi" data-view="players"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c2 .6 3.2 2.5 3.6 5.5"/></svg><span>Players</span><span class="cnt" id="cntPlayers" hidden></span></button><button class="navi" data-view="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Live activity</span></button><div class="navlbl">Money</div><button class="navi" data-view="pass"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M2.5 10h19M6.5 15h4"/></svg><span>Hustle Pass</span><span class="cnt" id="cntPaid" hidden></span></button><button class="navi" data-view="invites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 20V7M12 7H8a2.5 2.5 0 1 1 0-5c3 0 4 5 4 5zM12 7h4a2.5 2.5 0 1 0 0-5c-3 0-4 5-4 5z"/></svg><span>Invites</span><span class="cnt" id="cntInv" hidden></span></button><div class="navlbl">Game</div><button class="navi" data-view="events"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="19" cy="19" r="2"/></svg><span>Events</span></button><button class="navi" data-view="crises"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.2v.3"/></svg><span>Crises</span></button><button class="navi" data-view="deaths"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a7 7 0 0 0-7 7v4l2 2v4h10v-4l2-2v-4a7 7 0 0 0-7-7z"/><path d="M9.5 11h.01M14.5 11h.01M10 16h4"/></svg><span>Deaths</span></button></nav>
     <div class="foot">Press the menu button at the top to hide this menu.</div>
   </aside>
   <div class="sideshade" id="sideShade" hidden></div>
@@ -288,6 +288,21 @@ body.navhide .main{margin-left:0}
       <div class="tablewrap"><table class="evtable" style="min-width:760px"><thead><tr><th>Category · event</th><th class="r">Events · weight</th><th class="r">Share of random events</th><th class="r">Shown, 30 days</th><th class="r">Shown, all time</th><th>Setting</th></tr></thead><tbody id="evRows"></tbody></table></div>
       <p class="sub" style="margin-top:8px">Shares are measured from simulated games: the chance that a random event is this one, for a typical player across a whole life. Events marked <b>if</b> only happen when their condition is met (owning a mine, being married, having children), shown as how much of a typical life they are possible. The <b>Shown</b> columns are what real players actually got. Events at 0% depend on choices simulated players rarely make (crime, sports teams, property deals) or on rare situations; real players will still see them. Billionaire challenges run on their own timer and are not in this draw.</p>
       <div class="actions"><button class="btn primary" id="evSave" disabled>Save changes</button><button class="btn ghost" id="evReset">Reset everything to normal</button><span id="evMsgA" style="font-size:13px;color:var(--muted)"></span></div>
+    </section>
+    </div>
+
+    <div class="view" id="view-deaths" hidden>
+    <section class="panel" id="dePanel">
+      <h2>What makes players die</h2>
+      <p class="sub">Every way a life can end. Make a cause rarer, commoner or switch it off, the same way as events. Changes reach players the next time their game loads.</p>
+      <div class="evpace">
+        <label>Bankruptcy causes a fatal heart attack<select id="deBank"><option value="0">Never (game just ends)</option><option value="0.25">1 in 4 bankruptcies</option><option value="0.5">Half of bankruptcies</option><option value="0.75">3 in 4 bankruptcies</option><option value="1">Every bankruptcy</option></select></label>
+        <label>Oldest a player can live to<select id="deMax"><option value="85">85</option><option value="90">90</option><option value="95">95</option><option value="100">100</option><option value="105">105</option><option value="110">110</option><option value="120">120</option></select></label>
+      </div>
+      <div class="tablewrap"><table class="evtable" style="min-width:640px"><thead><tr><th>Cause</th><th>How it works</th><th class="r">Real deaths, last year</th><th>Setting</th></tr></thead><tbody id="deRows"></tbody></table></div>
+      <h3 class="eyebrow" style="margin:16px 0 6px">Latest deaths</h3>
+      <div id="deRecent"></div>
+      <div class="actions" style="margin-top:14px"><button class="btn primary" id="deSave" disabled>Save changes</button><span id="deMsg" style="font-size:13px;color:var(--muted)"></span></div>
     </section>
     </div>
 
@@ -416,7 +431,7 @@ function renderEvents(){if(!evCat)return;renderCrisis();const T=evTune,S=evStats
    const ch=st.choices||{},n=Object.values(ch).reduce((a,b)=>a+b,0);let top='';if(n){const best=Object.keys(ch).sort((a,b)=>ch[b]-ch[a])[0];top=Math.round(100*ch[best]/n)+'% chose “'+esc(e.choices[+best]||('answer '+(+best+1)))+'”';}
    h+='<tr class="evrow'+(mult(e)===0?' off':'')+'"><td><b>'+esc(e.title)+'</b>'+(e.cond?'<span class="tag" title="Only happens when its condition is met">if</span>':'')+(e.w==null?'<span class="tag" title="Its weight changes with the player\'s situation">varies</span>':'')+'<small>'+esc(e.id)+(e.choices.length?' · answers: '+e.choices.map(esc).join(' / '):'')+'</small></td>'+
     '<td class="r num">'+(e.w==null?'—':e.w)+'</td><td class="r num">'+(sh*100).toFixed(2)+'%<small>'+(mult(e)===0?'switched off':!(e.p>0)?'not seen in simulated games':yrs>=1?'about once every '+(yrs<10?yrs.toFixed(1):Math.round(yrs))+' game years':'several times a game year')+(e.cond?'<br>possible '+Math.round((e.possible||0)*100)+'% of the time':'')+'</small></td><td class="r num">'+(st.d30||0)+'</td><td class="r num">'+(st.all||0)+(top?'<small>'+top+'</small>':'')+'</td><td>'+evSel(wm,'data-ev="'+esc(e.id)+'" aria-label="Setting for '+esc(e.title)+'"')+'</td></tr>';});});
- $('evRows').innerHTML=h;$('evSave').disabled=!evDirty;$('crSave').disabled=!evDirty;}
+ $('evRows').innerHTML=h;$('evSave').disabled=!evDirty;$('crSave').disabled=!evDirty;if($('deSave'))$('deSave').disabled=!evDirty;if(typeof renderDeaths==='function'&&document.getElementById('deRows'))renderDeaths();}
 $('evRows').addEventListener('click',e=>{if(e.target.closest('select'))return;const r=e.target.closest('tr.evcat');if(r){evOpen[r.dataset.g]=!evOpen[r.dataset.g];renderEvents();}});
 $('evRows').addEventListener('change',e=>{const s=e.target;if(s.dataset.cat){const v=+s.value;if(v===1)delete evTune.cat[s.dataset.cat];else evTune.cat[s.dataset.cat]=v;}if(s.dataset.ev){const v=+s.value;if(v===1)delete evTune.w[s.dataset.ev];else evTune.w[s.dataset.ev]=v;}evDirty=true;EVMSG.t='Unsaved changes';renderEvents();});
 ['crNature','crWorld','crGap'].forEach(id=>$(id).addEventListener('change',()=>{const C=evTune.crisis=evTune.crisis||{};C.nature=+$('crNature').value;C.world=+$('crWorld').value;C.gap=+$('crGap').value;evDirty=true;EVMSG.t='Unsaved changes';renderEvents();}));
@@ -424,7 +439,28 @@ $('crTypes').addEventListener('change',e=>{const k=e.target.dataset.cr;if(!k)ret
 ['evFreq','evGap'].forEach(id=>$(id).addEventListener('change',()=>{evTune.freq=+$('evFreq').value;evTune.gap=+$('evGap').value;evDirty=true;EVMSG.t='Unsaved changes';renderEvents();}));
 async function evSaveNow(){try{const r=await api('POST','/api/admin/tuning',evTune);evTune=r.tuning;evDirty=false;EVMSG.t='Saved. Players get the new settings the next time their game loads.';renderEvents();}catch(e){EVMSG.t='Could not save: '+e.message;}}
 $('evSave').addEventListener('click',evSaveNow);$('crSave').addEventListener('click',evSaveNow);
-$('evReset').addEventListener('click',()=>{evTune={freq:1,gap:2,w:{},cat:{},crisis:{}};evDirty=true;EVMSG.t='Everything set back to normal. Press Save to apply.';renderEvents();});
+$('evReset').addEventListener('click',()=>{evTune={freq:1,gap:2,w:{},cat:{},crisis:{},death:{}};evDirty=true;EVMSG.t='Everything set back to normal. Press Save to apply.';renderEvents();});
+
+/* ---------- deaths ---------- */
+let deStats=null;
+const DEATHS=[['natural','Old age & health','From age 55, a monthly chance that rises with age and falls with good health.'],
+ ['illness','Ignored or critical illness','Ignoring a heart attack (15%), an untreated growth (35%), and not surviving intensive care (10 to 60% by hospital).'],
+ ['bankrupt','Bankruptcy heart attack','When creditors seize the empire. Set the chance above.'],
+ ['road','Road accident','Very rare: about 1 in 1,400 a year.'],
+ ['jet','Private jet crash','Only players who own a jet: about 1 in 1,000 a year.'],
+ ['hit','Mob hit','Only when mob heat is 70+ and the player pays no protection: about 4% a month.'],
+ ['maxage','Reached the age limit','Everyone dies at the oldest age set above, unless longevity research removes the limit.'],
+ ['aliens','The end of the world','A successful Mars mission. See the Moonshots.'],['other','Other','Anything else.']];
+async function loadDeaths(){try{deStats=await api('GET','/api/admin/deaths');renderDeaths();}catch(e){}}
+function renderDeaths(){if(!evTune)return;const D=evTune.death=evTune.death||{},C=(deStats&&deStats.counts)||{},tot=(deStats&&deStats.total)||0;
+ $('deBank').value=String(D.bankrupt==null?1:D.bankrupt);$('deMax').value=String(D.maxAge||100);
+ $('deRows').innerHTML=DEATHS.map(([k,n,how])=>{const tun=['natural','illness','road','jet','hit'].includes(k),v=D[k]==null?1:+D[k],c=C[k]||0;
+  return'<tr'+(tun&&v===0?' class="off"':'')+'><td><b>'+n+'</b></td><td style="white-space:normal;font-size:12.5px;color:var(--muted)">'+how+'</td><td class="r num">'+c+(tot?' <small style="color:var(--muted)">('+Math.round(c/tot*100)+'%)</small>':'')+'</td><td>'+(tun?evSel(v,'data-de="'+k+'"'):'<small style="color:var(--muted)">'+(k==='bankrupt'?'Set above':k==='maxage'?'Set above':'—')+'</small>')+'</td></tr>';}).join('');
+ const R=(deStats&&deStats.recent)||[];$('deRecent').innerHTML=R.length?'<ul class="events">'+R.map(r=>'<li class="k-bad"><small>'+ago(r.when)+' · '+esc(r.name)+(r.age?' · aged '+r.age:'')+'</small>'+esc(r.cause)+'</li>').join('')+'</ul>':'<p class="sub">No player has died yet.</p>';
+ $('deSave').disabled=!evDirty;}
+$('deRows').addEventListener('change',e=>{const k=e.target.dataset.de;if(!k)return;const v=+e.target.value,D=evTune.death=evTune.death||{};if(v===1)delete D[k];else D[k]=v;evDirty=true;$('deMsg').textContent='Unsaved changes';renderDeaths();renderEvents();});
+['deBank','deMax'].forEach(id=>$(id).addEventListener('change',()=>{const D=evTune.death=evTune.death||{};D.bankrupt=+$('deBank').value;D.maxAge=+$('deMax').value;if(D.bankrupt===1)delete D.bankrupt;if(D.maxAge===100)delete D.maxAge;evDirty=true;$('deMsg').textContent='Unsaved changes';renderDeaths();renderEvents();}));
+$('deSave').addEventListener('click',async()=>{await evSaveNow();$('deMsg').textContent='Saved. Players get the new settings the next time their game loads.';renderDeaths();});
 
 /* ---------- daily active chart (single series, bars) ---------- */
 function niceMax(v){if(v<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return(n<=2?2:n<=5?5:10)*p;}
@@ -522,7 +558,7 @@ function drawNW(pts){const box=$('nwChart');if(!box)return;box._pts=pts;
  $('nwHit').addEventListener('mousemove',move);$('nwHit').addEventListener('mouseleave',leave);$('nwHit').addEventListener('touchmove',move,{passive:true});}
 
 /* ---------- side menu ---------- */
-const VIEWS={overview:'Overview',players:'Players',activity:'Live activity',pass:'Hustle Pass',invites:'Invites',events:'Events & challenges',crises:'Nature & world crises'};
+const VIEWS={overview:'Overview',players:'Players',activity:'Live activity',pass:'Hustle Pass',invites:'Invites',events:'Events & challenges',crises:'Nature & world crises',deaths:'What makes players die'};
 let view='overview';
 const narrow=()=>window.matchMedia('(max-width:900px)').matches;
 function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
@@ -536,6 +572,7 @@ function showView(v,push){if(!VIEWS[v])v='overview';view=v;
  $('ptitle').textContent=VIEWS[v];document.title=VIEWS[v]+' · Hustlempires Admin';
  if(push!==false&&location.hash!=='#'+v)history.replaceState(null,'','#'+v);
  if(v==='overview'){const b=$('dauChart');if(b._days)renderDau(b._days);}
+ if(v==='deaths')loadDeaths();
  if(narrow())setNav(false);window.scrollTo(0,0);}
 function navCounts(k){const set=(id,n)=>{const e=$(id);if(!e)return;e.hidden=!(n>0);e.textContent=n;};
  set('cntPlayers',k.players);set('cntPaid',k.billing&&k.billing.on?k.billing.paid:0);set('cntInv',k.invites?k.invites.joined:0);}

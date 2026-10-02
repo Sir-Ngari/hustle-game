@@ -839,7 +839,40 @@ def clean_tuning(d):
     out = {"freq": freq, "gap": gap, "w": dict(list(w.items())[:500]), "cat": dict(list(cat.items())[:60])}
     if crisis:
         out["crisis"] = crisis
+    dd = d.get("death") if isinstance(d.get("death"), dict) else {}
+    death = {}
+    for k in ("natural", "illness", "road", "jet", "hit"):
+        if mult(dd.get(k)) is not None and mult(dd.get(k)) != 1:
+            death[k] = mult(dd.get(k))
+    try:
+        bk = round(min(1.0, max(0.0, float(dd.get("bankrupt", 1)))), 2)
+    except (TypeError, ValueError):
+        bk = 1.0
+    if bk != 1.0:
+        death["bankrupt"] = bk
+    try:
+        ma = int(min(130, max(80, int(dd.get("maxAge", 100)))))
+    except (TypeError, ValueError):
+        ma = 100
+    if ma != 100:
+        death["maxAge"] = ma
+    if death:
+        out["death"] = death
     return out
+
+
+DEATH_KINDS = [("bankrupt", ("creditors", "bankrupt")), ("hit", ("gunmen", "mob had warned")), ("jet", ("jet went down",)),
+               ("road", ("ran a red light", "road")), ("aliens", ("mars", "ships arrived")),
+               ("illness", ("second heart attack", "spread too far", "could not save you", "in hospital", "at home, surrounded")),
+               ("maxage", ("you lived to",)), ("natural", ("heart gave out", "short illness", "collapsed at your desk"))]
+
+
+def death_kind(cause):
+    c = (cause or "").lower()
+    for k, words in DEATH_KINDS:
+        if any(w in c for w in words):
+            return k
+    return "other"
 
 
 # ---- app version: lets open games know an update is ready ----
@@ -1714,6 +1747,22 @@ class Handler(BaseHTTPRequestHandler):
                     rows[r["ev"]]["choices"][str(r["choice"])] = r["n"]
             tot = q("SELECT COUNT(*) n, SUM(ts>?) n30, COUNT(DISTINCT user_id) p FROM ev_log", (t - 30 * 86400,), one=True)
             return self.send_json(200, {"tuning": tuning(), "stats": rows, "total": tot["n"], "total30": tot["n30"] or 0, "players": tot["p"], "now": t})
+        if path == "/api/admin/deaths":
+            t = now()
+            counts, recent, total = {}, [], 0
+            for r in q("SELECT l.ended, l.data, u.name FROM lives l LEFT JOIN users u ON u.id=l.user_id WHERE l.ended>? ORDER BY l.ended DESC LIMIT 5000", (t - 365 * 86400,)):
+                try:
+                    d = json.loads(r["data"])
+                except (TypeError, ValueError):
+                    continue
+                if d.get("end") != "died":
+                    continue
+                k = death_kind(d.get("cause"))
+                counts[k] = counts.get(k, 0) + 1
+                total += 1
+                if len(recent) < 15:
+                    recent.append({"when": r["ended"], "name": r["name"] or "", "age": d.get("age"), "cause": (d.get("cause") or "")[:160], "kind": k})
+            return self.send_json(200, {"counts": counts, "total": total, "recent": recent, "now": t})
         if path == "/api/admin/payments":
             rows = q("SELECT p.ref,p.plan,p.amount,p.currency,p.status,p.method,p.code,p.created,p.updated,p.user_id,u.name,u.username,u.color "
                      "FROM payments p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 200")

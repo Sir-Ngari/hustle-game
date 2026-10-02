@@ -1264,7 +1264,7 @@ function acctCard(a){const st=a.over?'Bankrupt':a.billion!=null?'Billionaire in 
  return'<div class="acard">'+(acctDelAsk===a.id?'<div class="adel"><span>Delete '+esc(a.name)+' and their saved game? This cannot be undone.</span><button class="btn small" data-a="acctdelyes" data-v="'+a.id+'">Delete</button><button class="btn ghost small" data-a="acctdelno">Keep</button></div>'
   :'<button class="apick" data-a="acctpick" data-v="'+a.id+'">'+avatar(a)+'<span class="ameta"><b>'+esc(a.name)+'</b><span>'+esc(a.company)+' · '+esc(a.town)+'</span><span>'+st+'</span></span></button><button class="btn ghost small" data-a="acctdel" data-v="'+a.id+'" aria-label="Delete '+esc(a.name)+'">Delete</button>')+'</div>';}
 function renderAccts(){const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustlempires</div>';
- if(acctView==='lives'){const L=ACC.lives||[];h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire '+esc(ACC.name)+' has built on this device.</p>'+legacyHTML()+livesHTML(L,L.length)+'<div class="chips">'+(S&&S.over&&S.died&&!S.worldEnded&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
+ if(acctView==='lives'){const L=ACC.lives||[];h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire '+esc(ACC.name)+' has built on this device.</p>'+legacyHTML()+livesHTML(L,L.length)+'<div class="chips">'+(S&&S.over&&S.died&&!S.worldEnded&&!S.noHeir&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
  else if(acctView==='pick'){h+='<h2>Who\'s playing?</h2><p class="sub">Accounts and saved games live on this device.</p><div class="alist">'+ACCS.list.map(acctCard).join('')+'</div>'+
    '<button class="btn primary" data-a="acctnew">Create a new account</button>'+(ACC?' <button class="btn ghost" data-a="acctclose">Back to my game</button> <button class="btn ghost" data-a="lives">My past lives</button>':'')+(ACC&&S?'<div class="regionbox">'+regionMenuHTML()+'</div>':'');
   const hof=ACCS.list.filter(a=>(a.best||0)>0).sort((a,b)=>(a.billion!=null&&b.billion!=null?a.billion-b.billion:a.billion!=null?-1:b.billion!=null?1:(b.best||0)-(a.best||0)));
@@ -1571,7 +1571,9 @@ function careFee(){return CARE[S.care||0].fee+Object.keys(S.conds||{}).reduce((t
 function healthTarget(){const a=age();let t=92-Math.max(0,a-30)*.75+CARE[S.care||0].h+({hustle:-10-Math.max(0,a-45)*.3,balanced:0,family:5})[S.mode]+(S.happy-55)/5-S.heat/12;
  Object.keys(S.conds||{}).forEach(k=>{t-=S.conds[k].managed?CONDS[k].mhit:CONDS[k].hit;});t+=(typeof lifeX==='function'?lifeX():0)*.6;return clamp(t,3,100);}
 function ageMult(){let f=stage()[2];if(f<1&&sv('exec').lvl>=0)f=1-(1-f)*.6;return f*Math.min(1,.8+.25*S.health/100);}
-function deathRisk(){const a=age()-(typeof lifeX==='function'?lifeX():0);return(a<55?0:.00012*Math.exp((a-55)/7)*Math.pow(2-S.health/100,2))*(typeof eternal==='function'&&eternal()?.1:1);}
+function DT(){return Object.assign({natural:1,illness:1,road:1,jet:1,hit:1,bankrupt:1,maxAge:100},(typeof TUNE!=='undefined'&&TUNE.death)||{});}
+const dill=p=>Math.min(1,p*DT().illness);
+function deathRisk(){const a=age()-(typeof lifeX==='function'?lifeX():0);return(a<55?0:.00012*Math.exp((a-55)/7)*Math.pow(2-S.health/100,2))*(typeof eternal==='function'&&eternal()?.1:1)*DT().natural;}
 function addHealth(d){S.health=clamp(S.health+d,0,100);}
 function addCond(id,managed){S.conds=S.conds||{};S.conds[id]={managed,since:S.month};}
 function outlook(){const r=deathRisk()*12;return age()<55?(S.health>=60?['Excellent','good']:['Fair','']):r<.01?['Good','good']:r<.03?['Fair','']:r<.08?['Worrying','bad']:['Grave','bad'];}
@@ -1579,8 +1581,8 @@ function die(cause){S.over=true;S.died=true;S.deathDue=null;S.deathCause=cause;c
  log('You passed away at '+a+'. '+cause,'bad');save();render();
  showCard('You passed away at '+a,cause+' You leave behind an empire worth <b>'+fmt(nw)+'</b>, built over '+Math.floor(S.month/12)+' years from '+fmt(S.hist[0])+'. '+
   (S.won?'You reached a billion. Your name will be remembered. ':'You never reached the billion. ')+(S.spouse?S.spouse.name+' and ':'')+(kids.length?'your children '+kids.join(', ')+' ':S.spouse?'your family ':'')+(S.spouse||kids.length?'mourn you. ':'')+(S.fdn?'The '+BR()+' Foundation carries on your work.':'')+
-  (S.kids.length?'<br><br>Your empire can pass to one of your children.':'<br><br>With no children, the '+familyName()+' line ends here. Have children in your next life to pass your empire on.'),
-  '<button class="btn primary" data-a="obit">Read your obituary</button>'+(S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button><button class="btn" data-a="reset">Start a new family</button>':'<button class="btn primary" data-a="reset">Start a new life</button>')+'<button class="btn" data-a="lives">Past lives</button>');}
+  (S.noHeir?'<br><br>The creditors took everything. There is nothing left to pass on.':S.kids.length?'<br><br>Your empire can pass to one of your children.':'<br><br>With no children, the '+familyName()+' line ends here. Have children in your next life to pass your empire on.'),
+  '<button class="btn primary" data-a="obit">Read your obituary</button>'+(S.kids.length&&!S.noHeir?'<button class="btn primary" data-a="heirpick">Choose your heir</button><button class="btn" data-a="reset">Start a new family</button>':'<button class="btn primary" data-a="reset">Start a new life</button>')+'<button class="btn" data-a="lives">Past lives</button>');}
 
 const dateStr=m=>'Year '+(Math.floor(m/12)+1)+' · '+MONTHS[m%12];
 function titleIdx(nw){let i=0;TITLES.forEach((t,j)=>{if(nw>=t[0])i=j});return i;}
@@ -1704,7 +1706,7 @@ const EVENTS=[
   choices:()=>{const big=nwc(.02,15000),small=nwc(.006,3000);return[
    {l:'Fly abroad for surgery',d:'Spend '+fmt(big)+'. Profit ×0.8 for 3 months. +8 health. Heart disease managed ('+fmt(800)+'/mo).',dis:!canPay(big),f(){S.cash-=big;addBuff(.8,3,'Heart surgery');addHealth(8);addCond('heart',true);return['The surgery abroad went well.','life']}},
    {l:'Treatment at home',d:'Spend '+fmt(small)+'. Profit ×0.85 for 2 months. −4 health. Heart disease managed ('+fmt(800)+'/mo).',dis:!canPay(small),f(){S.cash-=small;addBuff(.85,2,'Heart treatment');addHealth(-4);addCond('heart',true);return['You recovered at home, slowly.','life']}},
-   {l:'Shake it off and get back to work',d:'Untreated heart disease: −12 to your long-term health, and a real chance it kills you.',f(){addCond('heart',false);addHealth(-12);if(rnd()<.15)S.deathDue='You ignored the warning signs. A second heart attack took you days later.';return['You went back to work the next morning.','bad']}}]}},
+   {l:'Shake it off and get back to work',d:'Untreated heart disease: −12 to your long-term health, and a real chance it kills you.',f(){addCond('heart',false);addHealth(-12);if(rnd()<dill(.15))S.deathDue='You ignored the warning signs. A second heart attack took you days later.';return['You went back to work the next morning.','bad']}}]}},
  {id:'knee',cat:'Health',w:.3,when:()=>age()>=58&&!(S.conds||{}).knee,title:'Your knees are giving up',text:()=>'Every step hurts. The surgeon recommends replacing both knees.',
   choices:()=>{const c=nwc(.004,4000);return[{l:'Replace them',d:'Spend '+fmt(c)+'. Profit ×0.9 for 2 months. Managed: '+fmt(100)+'/mo.',dis:!canPay(c),f(){S.cash-=c;addBuff(.9,2,'Knee surgery');addCond('knee',true);return['New knees. You are walking the golf course again.','life']}},
    {l:'Live with it',d:'Worn-out knees: −5 to long-term health.',f(){addCond('knee',false);return['You live with the pain.','bad']}}]}},
@@ -1712,7 +1714,7 @@ const EVENTS=[
   choices:()=>{const early=(S.care||0)>=2,c=nwc(early?.004:.012,early?2000:8000),abroad=nwc(.02,20000);S.scanAt=S.month;return[
    {l:'Start treatment now',d:'Spend '+fmt(c)+'. Profit ×0.85 for 3 months. '+(early?'Good odds of a full recovery.':'Fair odds.'),dis:!canPay(c),f(){S.cash-=c;addBuff(.85,3,'Treatment');if(rnd()<(early?.9:.65)){addHealth(-4);return['The treatment worked. You are in the clear.','life']}addHealth(-20);return['The treatment was hard on you. You survived, but your health took a big hit.','bad']}},
    {l:'The best specialists abroad',d:'Spend '+fmt(abroad)+'. Profit ×0.8 for 4 months. Excellent odds.',dis:!canPay(abroad),f(){S.cash-=abroad;addBuff(.8,4,'Treatment abroad');if(rnd()<.95){return['The specialists abroad cured you.','life']}addHealth(-15);return['A long, hard treatment abroad. You pulled through.','bad']}},
-   {l:'Wait and see',d:'Save the money. Risky.',f(){if(rnd()<.4){addHealth(-30);if(rnd()<.35)S.deathDue='The growth you chose to ignore spread too far to treat.';return['It grew. You are much sicker now.','bad']}return['It turned out to be harmless. Lucky.','good']}}]}},
+   {l:'Wait and see',d:'Save the money. Risky.',f(){if(rnd()<.4){addHealth(-30);if(rnd()<dill(.35))S.deathDue='The growth you chose to ignore spread too far to treat.';return['It grew. You are much sicker now.','bad']}return['It turned out to be harmless. Lucky.','good']}}]}},
  {id:'stroke',cat:'Health',w:()=>.08+(age()-65)*.02+(S.health<45?.3:0),when:()=>age()>=65,title:'A mild stroke',text:()=>'Your speech slurred halfway through a speech. The doctors caught it in time, but recovery will take months.',
   choices:()=>{const c=nwc(.005,5000);return[{l:'Full rehabilitation',d:'Spend '+fmt(c)+'. Profit ×0.8 for 6 months. −6 health.',dis:!canPay(c),f(){S.cash-=c;addBuff(.8,6,'Stroke recovery');addHealth(-6);return['Months of rehab. You are back, but slower.','life']}},
    {l:'Hand day-to-day control to your executives for a year',d:'Profit ×0.85 for 12 months. +6 health.',f(){addBuff(.85,12,'Stepped back');addHealth(6);return['You stepped back to recover. The business carried on.','life']}},
@@ -1947,9 +1949,9 @@ function mobHitEvent(){const targets=BIZ.filter(b=>b.tier<=4&&owned(b.id)>0);con
  if(!S.ups.security&&S.cash>=150000)ch2.splice(1,0,{l:'Hire a private security firm',d:'Buy the security upgrade for '+fmt(150000)+'. Heat −25.',f(){S.cash-=150000;S.ups.security=1;addHeat(-25);return['Armed guards now patrol your sites.','good']}});
  return{cat:'Street',title:'The mob sends a message',text,choices:ch2,log:[text,'bad']};}
 function icuEvent(){const big=nwc(.03,20000),small=nwc(.004,1500);return{cat:'Health',title:'Rushed to intensive care',text:'Your body finally gave out. You collapsed at home and were rushed to hospital. The doctors are fighting for your life.',
- choices:[{l:'Air-lift to the best hospital in the world',d:'Spend '+fmt(big)+'. Profit ×0.7 for 3 months. Very good odds.',dis:!canPay(big),f(){S.cash-=big;addBuff(.7,3,'Intensive care');if(rnd()<.9){addHealth(25);return['You pulled through. The doctors call it a miracle.','life']}S.deathDue='Even the best doctors in the world could not save you.';return['','bad']}},
-  {l:'The local hospital',d:'Spend '+fmt(small)+'. Profit ×0.8 for 2 months. It could go either way.',dis:!canPay(small),f(){S.cash-=small;addBuff(.8,2,'Hospital');if(rnd()<.65){addHealth(15);return['You survived. It was close.','life']}S.deathDue='You passed away in hospital.';return['','bad']}},
-  {l:'Go home',d:'Save the money. It is in God\'s hands.',f(){if(rnd()<.4){addHealth(10);return['Somehow, you recovered at home.','life']}S.deathDue='You passed away at home, surrounded by family.';return['','bad']}}]};}
+ choices:[{l:'Air-lift to the best hospital in the world',d:'Spend '+fmt(big)+'. Profit ×0.7 for 3 months. Very good odds.',dis:!canPay(big),f(){S.cash-=big;addBuff(.7,3,'Intensive care');if(rnd()>=dill(.1)){addHealth(25);return['You pulled through. The doctors call it a miracle.','life']}S.deathDue='Even the best doctors in the world could not save you.';return['','bad']}},
+  {l:'The local hospital',d:'Spend '+fmt(small)+'. Profit ×0.8 for 2 months. It could go either way.',dis:!canPay(small),f(){S.cash-=small;addBuff(.8,2,'Hospital');if(rnd()>=dill(.35)){addHealth(15);return['You survived. It was close.','life']}S.deathDue='You passed away in hospital.';return['','bad']}},
+  {l:'Go home',d:'Save the money. It is in God\'s hands.',f(){if(rnd()>=dill(.6)){addHealth(10);return['Somehow, you recovered at home.','life']}S.deathDue='You passed away at home, surrounded by family.';return['','bad']}}]};}
 function burnoutEvent(){const c=nwc(.01,300);return{cat:'Life',title:'You are burning out',text:'Eighteen-hour days, no sleep, snapping at everyone. Your doctor says slow down.',
  choices:[{l:'Take a proper vacation',d:'Spend '+fmt(c)+'. Profit ×0.9 this month. +22 happiness.',f(){S.cash-=c;addBuff(.9,1,'Vacation');addHappy(22);addSH(8);return['Two weeks off. You came back a new person.','life']}},
   {l:'Push through',d:'−8 happiness.',f(){addHappy(-8);return['You pushed through. It is taking a toll.','bad']}}]};}
@@ -2572,12 +2574,17 @@ function nextMonth(){
  /* health */
  S.health=clamp(S.health+(healthTarget()-S.health)*.07,0,100);
  if(age()===55&&S.month%12===0)log('You turned 55. From here on, your health decides how long you have. Check Age & health in the Life tab.','life');
- if(age()>=100+lifeX()&&!eternal()){die('You lived to '+age()+', and passed peacefully in your sleep.');return;}
+ if(age()>=DT().maxAge+lifeX()&&!eternal()){die('You lived to '+age()+', and passed peacefully in your sleep.');return;}
  if(rnd()<deathRisk()){die(pick(['Your heart gave out in your sleep.','You passed after a short illness.','You collapsed at your desk, working to the very end.']));return;}
+ {const D=DT(),city=(R&&R.city)||'Nairobi';
+  if(rnd()<.00006*D.road){die('A truck ran a red light on a busy road in '+city+'. You died at the scene.');return;}
+  if(hasJet()&&rnd()<.00008*D.jet){die('Your private jet went down in bad weather. There were no survivors.');return;}
+  if(S.mobMet&&S.heat>=70&&!(S.protection>0)&&rnd()<.004*D.hit){die('Gunmen ambushed your car outside your home. The mob had warned you.');return;}}
  /* cash crisis */
  if(S.cash<0){const room=creditLimit()-S.debt;
   if(room>=-S.cash){S.debt+=-S.cash;log('The bank covered a '+fmt(-S.cash)+' shortfall. It was added to your debt.','bad');S.cash=0;S.strikes=0;}
   else{S.strikes++;log('You missed payments ('+S.strikes+' of 3). Sell assets or you go bankrupt.','bad');
+   if(S.strikes>=3&&rnd()<DT().bankrupt){S.bankrupt=true;S.noHeir=true;log('Bankrupt at '+age()+'. Creditors seized the empire.','bad');die('The day the creditors seized your empire, you suffered a massive heart attack. Losing everything was too much.');return;}
    if(S.strikes>=3){S.over=true;S.bankrupt=true;log('Bankrupt at '+age()+'. Creditors seized the empire.','bad');save();render();
     showCard('Bankrupt','At '+age()+', creditors have seized the empire. Every tycoon has a failure story. This is yours.','<button class="btn primary" data-a="reset">Start a new empire</button><button class="btn" data-a="lives">Past lives</button>');return;}}
  } else S.strikes=0;
