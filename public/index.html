@@ -1459,7 +1459,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='820477465081';let updShown=false;
+const APP_VER='717b81554a8a';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -3614,16 +3614,16 @@ const BC=[
   win:c=>{addHappy(12);addInf(10);return'The stadium chants your name. +12 happiness, +10 influence.';},
   lose:c=>{addHappy(-5);return'The fans gave up waiting. −5 happiness.';}},
  {id:'audit',forced:true,instant:true,name:'Wealth audit',ask:()=>'The revenue authority has opened a full audit of your empire, going back ten years. Your lawyers can settle quietly, or fight it in court.',
-  choices:()=>[{l:'Settle quietly',d:'Pay '+fmt(bcNW()*.03)+' and it all goes away.',f(){const p=bcNW()*.03;bcTake(p,'You settled the wealth audit.');return['You settled the audit for '+fmt(p)+'. Quietly.','']}},
-   {l:'Fight it in court',d:'Win and pay nothing. Lose and pay more, in public.',f(){if(rnd()<.55){addRep(5);return['The court threw the case out. +5 reputation.','good'];}const p=bcNW()*.07;bcTake(p,'You lost the wealth audit case.');addRep(-10);return['You lost in court and paid '+fmt(p)+', with the cameras rolling. −10 reputation.','bad'];}}]},
+  choices:()=>[{l:'Settle quietly',d:'Pay '+fmt(bcNW()*.03)+' and it all goes away.',f(){const p=bcNW()*.03;bcTake(p,'You settled the wealth audit.');return['You settled the audit for '+fmt(p)+'. Quietly.','',{title:'Audit settled',big:'−'+fmt(p),line:'Your lawyers paid '+fmt(p)+' and the revenue authority closed the file. No court, no cameras.'}]}},
+   {l:'Fight it in court',d:'Win and pay nothing. Lose and pay '+fmt(bcNW()*.07)+', in public. Your lawyers give you slightly better than even odds.',f(){if(rnd()<.55){addRep(5);return['The court threw the case out. +5 reputation.','good',{title:'You won in court',big:'Case thrown out',line:'After months of hearings, the judge ruled the audit had no basis. You pay nothing, and walk out of court with +5 reputation.'}];}const p=bcNW()*.07;bcTake(p,'You lost the wealth audit case.');addRep(-10);return['You lost in court and paid '+fmt(p)+', with the cameras rolling. −10 reputation.','bad',{title:'You lost in court',big:'−'+fmt(p),line:'The judge sided with the revenue authority. You paid '+fmt(p)+' in back taxes and penalties, with the cameras rolling. −10 reputation.'}];}}]},
  {id:'threat',forced:true,instant:true,name:'Security threat',ask:()=>'Police have picked up chatter about a plot to kidnap a billionaire, and your name came up. Your head of security wants a bigger team.',
   choices:()=>[{l:'Hire the security team',d:'Costs '+fmt(bcNW()*.01)+'. Your family sleeps easy.',f(){const p=bcNW()*.01;bcTake(p,'You hired a private security team.');addHappy(3);return['The security team is in place. Nothing happened, which is the point.','good'];}},
-   {l:'Ignore it',d:'Probably nothing.',f(){if(rnd()<.35){const p=bcNW()*.04;bcTake(p,'You paid a ransom to get a family member back.');addHappy(-20);addSH(-15);return['It was not nothing. You paid a '+fmt(p)+' ransom to bring your family home safely. −20 happiness.','bad'];}return['Nothing happened. This time.',''];}}]}];
+   {l:'Ignore it',d:'Probably nothing.',f(){if(rnd()<.35){const p=bcNW()*.04;bcTake(p,'You paid a ransom to get a family member back.');addHappy(-20);addSH(-15);return['It was not nothing. You paid a '+fmt(p)+' ransom to bring your family home safely. −20 happiness.','bad',{title:'The threat was real',big:'−'+fmt(p),line:'Kidnappers took a member of your family. You paid a '+fmt(p)+' ransom to bring them home safely. −20 happiness.'}];}return['Nothing happened. This time.','',{title:'Nothing happened',big:'All quiet',line:'The plot never came. This time.'}];}}]}];
 function bcOf(){S.bc=S.bc||{next:null,active:null,done:[],failed:[],recent:[]};return S.bc;}
 const bcDef=id=>BC.find(x=>x.id===id);
 function bcOffer(d,first){const b=bcOf(),intro=first?'<p><b>The billion was the easy part.</b> From now on, billionaire challenges test whether you can keep it.</p>':'';
  b.recent=[d.id].concat(b.recent).slice(0,4);
- if(d.instant)return{_id:'bc_'+d.id,cat:'Billionaire challenge',title:d.name,text:intro+d.ask(),choices:d.choices().map(ch=>({l:ch.l,d:ch.d,f(){const r=ch.f();b.next=S.month+12+Math.floor(rnd()*7);return r;}}))};
+ if(d.instant)return{_id:'bc_'+d.id,cat:'Billionaire challenge',title:d.name,text:intro+d.ask(),choices:d.choices().map(ch=>({l:ch.l,d:ch.d,f(){const r=ch.f();b.next=S.month+12+Math.floor(rnd()*7);const o=r[2];return o?[r[0],r[1],dealCard(o.title,r[1]!=='bad',d.name,o.big,o.line,'','Billionaire challenge')]:r;}}))};
  const len=d.months,start=()=>{const c={id:d.id,start:S.month,len,end:S.month+len};if(d.pre)d.pre(c);d.init(c);b.active=c;log('Billionaire challenge accepted: '+d.name+'. '+d.goal(c)+'.','gold');return c;};
  const ch=[{l:d.forced?'Fight it':'Accept the challenge',d:'Goal: '+(()=>{const c={len,start:S.month};if(d.pre)d.pre(c);const save=JSON.stringify({cash:S.cash,log:S.log.length});if(d.id==='ipo')return'raise monthly cash flow by 40% within '+len+' months. You get '+fmt(bcNW()*.06)+' now.';d.init(c);return d.goal(c);})()+'.',f(){start();return['Challenge on. Track it at the top of your Overview.','gold'];}}];
  if(d.alt)ch.push({l:d.alt.l,d:d.alt.d(),f(){const r=d.alt.f();b.next=S.month+12+Math.floor(rnd()*7);return[r,''];}});
