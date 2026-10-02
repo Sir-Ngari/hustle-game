@@ -1432,7 +1432,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='c2e46c219c2c';let updShown=false;
+const APP_VER='658d7107b4c7';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -1716,15 +1716,18 @@ function moonHTML(){if(!moonOn())return'<p class="seghint" style="margin:0">Moon
  return h+'<p class="seghint" style="margin:8px 0 0"><b>As a billionaire you must always fund at least one moonshot.</b> More funding means faster tests and slightly better odds. Every failure teaches your team something and raises the next chance.</p>';}
 /* ================= Reports: income statement and balance sheet ================= */
 const PLK=['bizRev','bizCost','rent','prop','sport','lux','inv','trustInc','moonInc','shady','interest','fees','fines','upkeep','school','homeRent','travel','health','giving','moon','mob','alimony','estatePl','net'];
-function plRecord(f){S.plh=S.plh||[];const e={m:S.month};PLK.forEach(k=>e[k]=Math.round(+f[k]||0));S.plh.push(e);if(S.plh.length>36)S.plh.splice(0,S.plh.length-36);}
+function plYears(){if(!S.ply){S.ply={};(S.plh||[]).forEach(e=>plAddYear(e));}return S.ply;}
+function plAddYear(e){const y=Math.floor(e.m/12),b=S.ply[y]=S.ply[y]||{n:0};b.n++;PLK.forEach(k=>b[k]=(b[k]||0)+(e[k]||0));}
+function plRecord(f){S.plh=S.plh||[];plYears();const e={m:S.month};PLK.forEach(k=>e[k]=Math.round(+f[k]||0));S.plh.push(e);plAddYear(e);if(S.plh.length>36)S.plh.splice(0,S.plh.length-36);}
 function bsNow(){const rentals=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.price*af(a.id)*has(a.id),0);
  return{cash:S.cash,biz:bizAssets(),prop:propValue(),rentals,lux:lifeAssets()-rentals,inv:portValue(),sport:sportsValue(),debt:S.debt};}
 function bsRecord(){S.bsh=S.bsh||[];const b=bsNow();const e={m:S.month};Object.keys(b).forEach(k=>e[k]=Math.round(b[k]));S.bsh.push(e);if(S.bsh.length>25)S.bsh.splice(0,S.bsh.length-25);}
 let repPeriod='last';
 function plSum(list){const t={};PLK.forEach(k=>t[k]=list.reduce((a,e)=>a+(e[k]||0),0));return t;}
 function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e={m:S.month-1};PLK.forEach(k=>e[k]=Math.round(+S.last[k]||0));H.push(e);}
- const yr=Math.floor((S.month-1)/12),P={last:['Last month',H.slice(-1)],m12:['Last 12 months',H.slice(-12)],ytd:['Year '+(yr+1)+' so far',H.filter(e=>Math.floor(e.m/12)===yr)],prev:['Year '+yr,H.filter(e=>Math.floor(e.m/12)===yr-1)]};
- if(!P[repPeriod]||(repPeriod==='prev'&&yr<1))repPeriod='last';
+ const Y=plYears(),yr=Math.floor((S.month-1)/12),ys=Object.keys(Y).map(Number).sort((a,b)=>a-b),yb=from=>ys.filter(y=>y>=from).map(y=>Object.assign({m:y*12},Y[y])),
+  P={last:['Last month',H.slice(-1)],m12:['Last 12 months',H.slice(-12)],y10:['Last 10 years',yb(yr-9)],all:['All time',yb(-1)]};
+ if(!P[repPeriod])repPeriod='last';
  const [lbl,list]=P[repPeriod],T=plSum(list),C=repPeriod==='last'?plSum(H.slice(-2,-1)):null;
  const money=v=>(v<0?'(':'')+fmt(Math.abs(v))+(v<0?')':''),cell=(v,b)=>'<td class="r num'+(v<0?' neg':'')+(b?' b':'')+'">'+(v===null||v===undefined?'—':money(v))+'</td>';
  const row=(name,k,sign,opt)=>{const v=(T[k]||0)*sign,cv=C?(C[k]||0)*sign:null;if(opt&&!v&&!cv)return'';return'<tr><td>'+name+'</td>'+cell(v)+(C?cell(cv):'')+'</tr>';};
@@ -1733,7 +1736,7 @@ function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e
   EXP=[['Loan interest','interest'],['Professional fees','fees'],['Fines & penalties','fines'],['Asset upkeep','upkeep'],['School & childcare','school'],['Home rent','homeRent'],['Business travel','travel'],['Health care','health'],['Foundation giving','giving'],['Moonshot research','moon'],['Protection money','mob'],['Alimony','alimony'],['Estate planning & insurance','estatePl']],
   exp=x=>EXP.reduce((a,e)=>a+(x[e[1]]||0),0);
  let h='<div class="seg four reptabs" role="group" aria-label="Report period">'+Object.keys(P).map(k=>'<button data-a="repper" data-v="'+k+'" aria-pressed="'+(repPeriod===k)+'"'+(!P[k][1].length?' disabled':'')+'>'+P[k][0]+'</button>').join('')+'</div>';
- h+='<div class="reps"><div class="rep"><h3>Income statement</h3><p class="seghint">'+lbl+(list.length>1&&repPeriod!=='m12'?' · '+list.length+' months':'')+(repPeriod==='m12'&&list.length<12?' (only '+list.length+' recorded so far)':'')+'</p><table class="fin"><thead><tr><th></th><th class="r">'+lbl+'</th>'+(C?'<th class="r">Prior month</th>':'')+'</tr></thead><tbody>';
+ h+='<div class="reps"><div class="rep"><h3>Income statement</h3><p class="seghint">'+lbl+((repPeriod==='y10'||repPeriod==='all')&&ys.length?' · '+list.reduce((a,e)=>a+(e.n||0),0)+' months, from Year '+(list.length?Math.floor(list[0].m/12)+1:yr+1)+(ys[0]>0&&(S.month-1)/12>ys[0]?' (records began in Year '+(ys[0]+1)+')':''):'')+(repPeriod==='m12'&&list.length<12?' (only '+list.length+' recorded so far)':'')+'</p><table class="fin"><thead><tr><th></th><th class="r">'+lbl+'</th>'+(C?'<th class="r">Prior month</th>':'')+'</tr></thead><tbody>';
  h+=head('Business')+row('Income from sales','bizRev',1)+row('Running costs','bizCost',-1)+tot('Gross profit',gross(T),C?gross(C):null);
  h+=head('Other income')+row('Rental income','rent',1,1)+row('Property portfolio (net)','prop',1,1)+row('Sports teams (net)','sport',1,1)+row('Luxury income','lux',1,1)+row('Dividends & bond interest','inv',1,1)+row('Family trust income','trustInc',1,1)+row('Moonshot income','moonInc',1,1)+row('Under the table','shady',1,1)+tot('Total other income',oth(T),C?oth(C):null);
  h+=head('Expenses')+EXP.map(e=>row(e[0],e[1],-1,1)).join('')+tot('Total expenses',-exp(T),C?-exp(C):null);
