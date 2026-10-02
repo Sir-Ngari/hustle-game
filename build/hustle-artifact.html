@@ -2208,7 +2208,7 @@ const PTYPES=[
 ];
 let propCity='nairobi',propSellAsk=null,propShut={};
 const PCOUNTRY={nairobi:['KE','Kenya'],mombasa:['KE','Kenya'],kigali:['RW','Rwanda'],zanzibar:['TZ','Tanzania'],cairo:['EG','Egypt'],lagos:['NG','Nigeria'],joburg:['ZA','South Africa'],dubai:['AE','United Arab Emirates'],mumbai:['IN','India'],maldives:['MV','Maldives'],miami:['US','United States'],singapore:['SG','Singapore'],tokyo:['JP','Japan'],paris:['FR','France'],london:['GB','United Kingdom'],newyork:['US','United States']};
-const pcountry=id=>PCOUNTRY[id]||['--','Elsewhere'];
+function pcountry(id){if(PCOUNTRY[id])return PCOUNTRY[id];const i=PCITIES.findIndex(c=>c.id===id);if(i>=0&&i<2&&R&&R.code)return[R.code,R.country];const c=PCITIES[i];return c?[c.name.slice(0,2).toUpperCase(),c.name]:['--','Elsewhere'];}
 const PICON={serviced:['#4f8cff','<path d="M3 21h18M5 21V9h14v12M5 13h14M5 17h14M9 9V5h6v4M8 21v-2M16 21v-2"/>'],
  logistics:['#f0a030','<path d="M2 10l10-6 10 6v11H2z"/><path d="M6 21v-7h12v7M6 17.5h12"/>'],
  apartments:['#36b37e','<rect x="7" y="2" width="10" height="20" rx="1"/><path d="M10 6h1M13 6h1M10 10h1M13 10h1M10 14h1M13 14h1M11 22v-3h2v3"/>'],
@@ -2218,7 +2218,7 @@ const PICON={serviced:['#4f8cff','<path d="M3 21h18M5 21V9h14v12M5 13h14M5 17h14
  office:['#5b8db8','<path d="M6 21V5l6-3v19M12 21V8l6 2v11M3 21h18M8.5 8h1M8.5 12h1M8.5 16h1M14.5 13h1M14.5 17h1"/>'],
  supertall:['#ffb020','<path d="M12 1v4M9 21V9l3-4 3 4v12M5 21v-7h4M15 14h4v7M3 21h18M11.5 11h1M11.5 15h1"/>']};
 function picon(id){const x=PICON[id];if(!x)return'';return'<span class="picon" style="--pc:'+x[0]+'" aria-hidden="true"><svg viewBox="0 0 24 24">'+x[1]+'</svg></span>';}
-const cityOpen=c=>(S.pcOpen||['nairobi']).includes(c.id);
+const cityOpen=c=>!!c&&(c===PCITIES[0]||(S.pcOpen||['nairobi']).includes(c.id));
 function propUnlockCheck(quiet){S.pcOpen=S.pcOpen||['nairobi'];let go=true;
  while(go){go=false;for(let i=0;i<PCITIES.length-1;i++){const c=PCITIES[i],n=PCITIES[i+1];
   if(cityOpen(c)&&!cityOpen(n)&&(S.props||[]).some(p=>p.city===c.id&&!p.left)){S.pcOpen.push(n.id);go=true;

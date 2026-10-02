@@ -18,7 +18,7 @@ s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},ac
 rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;")
 # start-up: ask the server who is playing
 i=s.index("{const a=ACCS.list.find(x=>x.id===ACCS.active);if(a)loadAccount(a);}"); j=s.index("else startEvents();",i)+len("else startEvents();")
-s=s[:i]+"render();\nshowTab(curTab);\nbootAuth();\npaintInstall();\nif('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));"+s[j:]
+s=s[:i]+"window.addEventListener('error',()=>{if(typeof hideSplash==='function')setTimeout(()=>{if(acctView==='loading')return;hideSplash();},50);});\ntry{render();showTab(curTab);}catch(e){console.error('start-up render failed',e);}\nbootAuth();\npaintInstall();\nif('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));"+s[j:]
 # header chip shows sync status
 s=re.sub(r" \$\('acctchip'\)\.innerHTML=ACC\?avatar\(ACC\).*?;\n"," paintChip();\n",s,count=1)
 assert "paintChip();\n $('fdn-title')" in s
