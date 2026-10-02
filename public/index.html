@@ -1323,7 +1323,7 @@ function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
 async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save,bill){setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+function startWith(user,save,bill,ver){SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
  signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
@@ -1331,14 +1331,23 @@ function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
  influence:Math.round(S.influence),debt:Math.round(S.debt),married:!!S.spouse,health:Math.round(S.health||0),died:!!S.died,streak:(S.daily&&S.daily.last)?S.daily.streak:0,gender:S.g||'',gen:S.headstart?2:(S.gnum||1),season:S.sea?{id:S.sea.id,pts:S.sea.pts}:null,region:S.region||'',currency:S.cur||'USD',spouse:S.spouse?spW():'',kids:S.kids.length,age:age(),race:S.race?S.race.series:'',foundation:!!S.fdn,cities:(S.pcOpen||[]).length,tab:curTab};}
 function queueSync(now){if(!ACC)return;syncState='saving';paintChip();clearTimeout(syncTimer);syncTimer=setTimeout(doSync,now?0:900);}
+let SAVEVER=null,syncChecking=false;
 async function doSync(){if(!ACC)return;if(syncBusy){syncAgain=true;return;}syncBusy=true;
  const evs=S.log.filter(l=>l.n&&l.n>(S.logSent||0)).slice(0,60).reverse(),maxN=evs.reduce((m,l)=>Math.max(m,l.n),S.logSent||0);
  const evq=(S.evq||[]).slice(0,200);
- try{await api('PUT','/api/save',{state:S,summary:summary(),events:evs,evlog:evq});S.logSent=maxN;S.evq=(S.evq||[]).slice(evq.length);if(newGameFlag)pendingLife=null;newGameFlag=false;syncState='saved';}
- catch(e){if(e.status===402){setBill(e.data&&e.data.bill);syncState='locked';stopAuto();openPay();}
+ try{const r=await api('PUT','/api/save',{state:S,summary:summary(),events:evs,evlog:evq,base:SAVEVER==null?undefined:SAVEVER});if(r&&typeof r.ver==='number')SAVEVER=r.ver;S.logSent=maxN;S.evq=(S.evq||[]).slice(evq.length);if(newGameFlag)pendingLife=null;newGameFlag=false;syncState='saved';}
+ catch(e){if(e.status===409){syncBusy=false;syncAgain=false;loadLatest();return;}
+  if(e.status===402){setBill(e.data&&e.data.bill);syncState='locked';stopAuto();openPay();}
   else if(e.status===401){ACC=null;stopAuto();acctView='auth';authMode='login';authMsg='Your session ended. Log in again to keep playing. Your last moves are safe on this screen until you do.';renderAccts();}
   else{syncState='offline';clearTimeout(syncTimer);syncTimer=setTimeout(doSync,8000);}}
  syncBusy=false;paintChip();if(syncAgain){syncAgain=false;queueSync();}}
+/* the same account on several devices: always show the newest saved game */
+async function loadLatest(){if(!ACC)return;stopAuto();try{const d=await api('GET','/api/me');current=null;closeModal();startWith(d.user,d.save,d.bill,d.ver);syncState='saved';paintChip();
+ showCard('Updated from your other device','You played on another phone or computer, so this screen now shows your latest empire. Nothing was lost.','<button class="btn primary" data-a="close">Continue</button>');}catch(e){}}
+async function syncCheck(){if(!ACC||syncBusy||syncChecking||SAVEVER==null||document.visibilityState!=='visible')return;syncChecking=true;
+ try{const d=await api('GET','/api/save/ver');if(d&&typeof d.ver==='number'&&d.ver>SAVEVER&&!syncBusy)await loadLatest();}catch(e){}syncChecking=false;}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncCheck();});
+window.addEventListener('focus',()=>syncCheck());setInterval(syncCheck,30000);
 function paintChip(){const c=$('acctchip');if(!c)return;c.innerHTML=ACC?avatar(ACC)+'<span><b>'+esc(ACC.name)+'</b><small>'+esc(ACC.company)+' · '+({saved:'saved',saving:'saving…',offline:'offline, retrying',locked:'needs the Hustle Pass'})[syncState]+'</small></span>':'<span><b>Not logged in</b><small>Log in to play</small></span>';}
 function authForm(){const su=authMode==='signup';const inv=su&&refInfo?'<p class="invbanner"><span aria-hidden="true">🎁</span><span><b>'+esc(refInfo.name)+'</b> invited you to Hustlempires'+(refInfo.trialDays?'. You get <b>'+refInfo.trialDays+' days free</b> to build your empire.':'.')+'</span></p>':'';
  let h=inv+'<div class="authtabs" role="tablist"><button role="tab" aria-selected="'+su+'" data-a="authmode" data-v="signup">Create account</button><button role="tab" aria-selected="'+(!su)+'" data-a="authmode" data-v="login">Log in</button></div>';
@@ -1408,7 +1417,7 @@ async function submitForgot(){const who=$('fg-who').value.trim(),btn=$('fg-submi
  catch(e){btn.disabled=false;btn.textContent='Email me a reset link';showErr(e.message);}}
 async function submitReset(){const a=$('rs-pass').value,b=$('rs-pass2').value,btn=$('rs-submit');
  if(a.length<8)return showErr('Passwords need at least 8 characters.');if(a!==b)return showErr('The two passwords don\'t match.');
- btn.disabled=true;btn.textContent='Saving…';try{const d=await api('POST','/api/reset',{token:resetToken,password:a});resetToken='';startWith(d.user,d.save,d.bill);}
+ btn.disabled=true;btn.textContent='Saving…';try{const d=await api('POST','/api/reset',{token:resetToken,password:a});resetToken='';startWith(d.user,d.save,d.bill,d.ver);}
  catch(e){btn.disabled=false;btn.textContent='Save new password';showErr(e.message);}}
 function showErr(msg){const e=$('acc-err');if(e){e.textContent=msg;e.hidden=false;}}
 async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').value.trim().toLowerCase(),password=$('acc-pass').value;
@@ -1421,7 +1430,7 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
   body=Object.assign(body,{ref:refCode||undefined,email,name,company:$('acc-company').value.trim()||'Savanna',town:$('acc-town').value,bg:(document.querySelector('input[name="acc-bg"]:checked')||{}).value||'hustler',color:+((document.querySelector('input[name="acc-col"]:checked')||{}).value||0)});}
  btn.disabled=true;btn.textContent=authMode==='signup'?'Creating your account…':'Logging in…';
  try{const d=await api('POST',authMode==='signup'?'/api/signup':'/api/login',body);
-  if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S,d.bill);}else startWith(d.user,d.save,d.bill);}
+  if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S,d.bill,d.ver);}else startWith(d.user,d.save,d.bill,d.ver);}
  catch(e){btn.disabled=false;btn.textContent=authMode==='signup'?'Create account and start':'Log in';showErr(e.message);}}
 function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('reset'),pr=u.searchParams.get('paid');if(t){resetToken=t;u.searchParams.delete('reset');}
  if(pr){payRef=pr.slice(0,60);payCancelled=u.searchParams.get('cancelled')==='1';payTries=0;['paid','cancelled','OrderTrackingId','OrderMerchantReference','OrderNotificationType'].forEach(k=>u.searchParams.delete(k));}
@@ -1431,7 +1440,7 @@ function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('res
  if(refCode)api('GET','/api/invite/check?code='+encodeURIComponent(refCode)).then(d=>{refInfo=d&&d.ok?d:null;if(acctView==='auth')renderAccts();}).catch(()=>{});
  api('GET','/api/tuning').then(t=>{if(t&&typeof t==='object')TUNE=Object.assign({freq:1,gap:2,w:{},cat:{}},t);}).catch(()=>{});
  if(resetToken){acctView='reset';authMsg='';renderAccts();return;}
- acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save,d.bill)).catch(e=>{if(e.status===401){acctView='auth';authMode='signup';}else{acctView='down';authMsg=e.message;}renderAccts();});}
+ acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save,d.bill,d.ver)).catch(e=>{if(e.status===401){acctView='auth';authMode='signup';}else{acctView='down';authMsg=e.message;}renderAccts();});}
 async function logout(){stopAuto();BILL=null;paintPass();if(ACC)try{await doSync();}catch(e){}try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
 async function openBoard(tab){if(tab)lbTab=tab;stopAuto();closeModal();acctView='board';lbData=null;renderAccts();
  try{if(lbTab==='alltime')lbData=(await api('GET','/api/leaderboard')).players;else{const d=await api('GET','/api/season?scope='+(lbTab==='season-world'?'world':'country')+'&region='+encodeURIComponent(S.region||''));seasonCache=d;lbData=d.top;}}catch(e){lbData=[];}renderAccts();}
@@ -1444,7 +1453,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='78119f5203b6';let updShown=false;
+const APP_VER='f2a754a0b537';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}

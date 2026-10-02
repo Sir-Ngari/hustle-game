@@ -256,6 +256,8 @@ _db.execute("CREATE INDEX IF NOT EXISTS users_email ON users(email)")
 if "ref_code" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
     _db.execute("ALTER TABLE users ADD COLUMN ref_code TEXT NOT NULL DEFAULT ''")
 _db.execute("CREATE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)")
+if "ver" not in [r[1] for r in _db.execute("PRAGMA table_info(saves)").fetchall()]:
+    _db.execute("ALTER TABLE saves ADD COLUMN ver INTEGER NOT NULL DEFAULT 0")
 if "company_renamed" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
     _db.execute("ALTER TABLE users ADD COLUMN company_renamed INTEGER NOT NULL DEFAULT 0")
 _lock = threading.Lock()
@@ -1077,6 +1079,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, {"ok": True})
         if path == "/api/me":
             return self.api_me()
+        if path == "/api/save/ver":
+            return self.api_save_ver()
         if path == "/api/leaderboard":
             return self.api_leaderboard()
         if path == "/api/lives":
@@ -1218,9 +1222,9 @@ class Handler(BaseHTTPRequestHandler):
         q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'login','Logged in')",
           (user["id"], t, self.current_game(user["id"])))
         self.touch(user["id"])
-        save = q("SELECT state FROM saves WHERE user_id=?", (user["id"],), one=True)
+        save = q("SELECT state, ver FROM saves WHERE user_id=?", (user["id"],), one=True)
         self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None,
-                             "bill": bill_status(user, True)},
+                             "ver": save["ver"] if save else 0, "bill": bill_status(user, True)},
                        [self.make_cookie("hs", token, PLAYER_SESSION_SECONDS)])
 
     def api_logout(self):
@@ -1343,9 +1347,9 @@ class Handler(BaseHTTPRequestHandler):
                        (user["id"], t, game))
         tx(apply)
         self.touch(user["id"])
-        save = q("SELECT state FROM saves WHERE user_id=?", (user["id"],), one=True)
+        save = q("SELECT state, ver FROM saves WHERE user_id=?", (user["id"],), one=True)
         self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None,
-                             "bill": bill_status(user, True)},
+                             "ver": save["ver"] if save else 0, "bill": bill_status(user, True)},
                        [self.make_cookie("hs", session, PLAYER_SESSION_SECONDS)])
 
     def api_me(self):
@@ -1354,9 +1358,17 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(401, "Not logged in.")
         self.touch(user["id"])
         referral_progress(user["id"])
-        save = q("SELECT state FROM saves WHERE user_id=?", (user["id"],), one=True)
+        save = q("SELECT state, ver FROM saves WHERE user_id=?", (user["id"],), one=True)
         self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None,
-                             "bill": bill_status(user, True)})
+                             "ver": save["ver"] if save else 0, "bill": bill_status(user, True)})
+
+    def api_save_ver(self):
+        """Cheap check: which version of the saved game does the server hold? Lets other devices catch up."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Not logged in.")
+        row = q("SELECT ver FROM saves WHERE user_id=?", (user["id"],), one=True)
+        self.send_json(200, {"ver": row["ver"] if row else 0})
 
     def current_game(self, uid):
         row = q("SELECT games FROM stats WHERE user_id=?", (uid,), one=True)
@@ -1373,6 +1385,7 @@ class Handler(BaseHTTPRequestHandler):
         summary = d.get("summary") if isinstance(d.get("summary"), dict) else {}
         events = d.get("events") if isinstance(d.get("events"), list) else []
         evlog = d.get("evlog") if isinstance(d.get("evlog"), list) else []
+        base = d.get("base") if isinstance(d.get("base"), int) and not isinstance(d.get("base"), bool) else None
         if not isinstance(state, dict):
             return self.error(400, "Missing game state.")
         if BILLING_ON and not can_play(user):
@@ -1392,6 +1405,10 @@ class Handler(BaseHTTPRequestHandler):
         detail = {k: (clean_text(v, 40) if isinstance(v, str) else v) for k, v in detail.items()}
 
         def write(db):
+            sv = db.execute("SELECT ver FROM saves WHERE user_id=?", (uid,)).fetchone()
+            cur_ver = sv["ver"] if sv else 0
+            if base is not None and cur_ver > base:
+                return {"conflict": cur_ver}
             st = db.execute("SELECT * FROM stats WHERE user_id=?", (uid,)).fetchone()
             game = st["games"] if st else 1
             prev_month = st["month"] if st else 0
@@ -1410,9 +1427,9 @@ class Handler(BaseHTTPRequestHandler):
             billion = st["billion_month"] if st and not new_game else None
             if billion is None and summary.get("won") and num(summary.get("gen"), 1) <= 1:
                 billion = month
-            db.execute("INSERT INTO saves(user_id,state,updated) VALUES(?,?,?) "
-                       "ON CONFLICT(user_id) DO UPDATE SET state=excluded.state, updated=excluded.updated",
-                       (uid, state_text, t))
+            db.execute("INSERT INTO saves(user_id,state,updated,ver) VALUES(?,?,?,?) "
+                       "ON CONFLICT(user_id) DO UPDATE SET state=excluded.state, updated=excluded.updated, ver=excluded.ver",
+                       (uid, state_text, t, cur_ver + 1))
             db.execute("INSERT INTO stats(user_id,nw,best,cash,month,rank,billion_month,bankrupt,games,months_played,detail,updated) "
                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET nw=excluded.nw, best=excluded.best, "
                        "cash=excluded.cash, month=excluded.month, rank=excluded.rank, billion_month=excluded.billion_month, "
@@ -1446,12 +1463,14 @@ class Handler(BaseHTTPRequestHandler):
                 db.execute("INSERT INTO season_scores(user_id,season,pts,region,updated) VALUES(?,?,?,?,?) "
                            "ON CONFLICT(user_id,season) DO UPDATE SET pts=MAX(season_scores.pts,excluded.pts), "
                            "region=excluded.region, updated=excluded.updated", (uid, sea["id"], pts, region, t))
-            return game
+            return {"game": game, "ver": cur_ver + 1}
 
-        game = tx(write)
+        res = tx(write)
+        if "conflict" in res:
+            return self.send_json(409, {"error": "This game was saved from another device.", "newer": True, "ver": res["conflict"]})
         self.touch(uid)
         referral_progress(uid)
-        self.send_json(200, {"ok": True, "game": game})
+        self.send_json(200, {"ok": True, "game": res["game"], "ver": res["ver"]})
 
     # ---------- invite a friend ----------
     def api_invite(self):
