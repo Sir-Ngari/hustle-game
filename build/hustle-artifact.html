@@ -563,6 +563,7 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
 .result.good{background:var(--green-soft);color:var(--green)}.result.bad{background:var(--red-soft);color:var(--red)}
 .result small{font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}.result b{font-family:var(--display);font-size:40px;line-height:1.05}.result span{color:var(--ink);font-size:14px}
 .pill.good{color:var(--green)}.pill.bad{color:var(--red)}
+.mbname .plrow{display:block;margin-top:2px;font-size:12px;color:var(--muted);font-family:var(--mono,monospace);white-space:normal}.mbname .plrow i{font-style:normal;font-weight:700}.mbtot .plsub{display:block;font-size:11.5px;color:var(--muted);font-weight:600}
 .venue{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
 .pastl{margin:4px 0 6px;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px}.pastl b{margin-right:4px}
 .moon{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}.mbtot+.moon{border-top:0}
@@ -570,6 +571,15 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
 .moon .vsub{font-size:12.5px;color:var(--muted)}.moon .vsub b{font:inherit;font-weight:700;letter-spacing:0}
 .moon .mtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}.moon .mtx>b{font-size:15px}
 .seg.four{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.seg.four button{font-size:12.5px;padding:6px 4px;line-height:1.25}
+.reps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:12px}@media (max-width:900px){.reps{grid-template-columns:minmax(0,1fr)}}
+.rep{min-width:0}.rep h3{margin:0;font-size:18px}
+@media (max-width:620px){table.fin{font-size:12.5px}table.fin td,table.fin th{padding:4px 3px}table.fin th{font-size:10px;letter-spacing:.04em}table.fin tr.grand td{font-size:13.5px}table.fin th.r{white-space:normal}}
+table.fin td:first-child{white-space:normal;overflow-wrap:anywhere}table.fin td.r{white-space:nowrap}.reptabs{margin-top:4px}
+table.fin{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px;table-layout:fixed}table.fin th.r{width:30%;white-space:normal!important}table.fin th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:4px 6px;border-bottom:2px solid var(--line)}
+table.fin td{padding:5px 6px;border-bottom:1px solid var(--line)}table.fin td.r,table.fin th.r{text-align:right;white-space:nowrap}table.fin td.b{font-weight:800}
+table.fin tr.fsec td{padding-top:12px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:800;border-bottom:0}
+table.fin tr.sub td{font-weight:700;border-top:1px solid var(--muted)}table.fin tr.grand td{font-weight:800;font-size:15px;border-top:2px solid var(--ink);border-bottom:3px double var(--ink)}
+html.gm table.fin tr.grand td{border-color:#ffd36b}
 .venue>b{font-size:14px}.venue .vsub{font-size:12.5px;color:var(--muted)}.venue .vsub b{font:inherit;font-weight:700;font-size:inherit;letter-spacing:0}.venue .chips{margin-top:2px}
 </style>
 
@@ -621,6 +631,7 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
       <button role="tab" id="tab-business" data-a="tab" data-v="business">Business</button>
       <button role="tab" id="tab-overview" data-a="tab" data-v="overview">Overview<span class="badge" id="badge" hidden></span></button>
       <button role="tab" id="tab-money" data-a="tab" data-v="money">Money</button>
+      <button role="tab" id="tab-reports" data-a="tab" data-v="reports">Reports</button>
       <button role="tab" id="tab-property" data-a="tab" data-v="property">Property</button>
       <button role="tab" id="tab-life" data-a="tab" data-v="life">Life</button>
       <button role="tab" id="tab-sports" data-a="tab" data-v="sports">Sports</button>
@@ -809,6 +820,13 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
       </div>
     </div>
 
+    <div class="tabpane single" data-tab="reports" role="tabpanel" aria-labelledby="tab-reports" hidden>
+      <section class="panel">
+        <h2>Financial reports</h2>
+        <p class="sub">Your empire's accounts, the way a real company reports them. They build up month by month as you play.</p>
+        <div id="reports"></div>
+      </section>
+    </div>
     <div class="tabpane single" data-tab="news" role="tabpanel" aria-labelledby="tab-news" hidden>
       <section class="panel">
         <h2>News</h2>
@@ -833,7 +851,7 @@ document.documentElement.classList.toggle('gm',skinGet()==='game');
 {const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap';document.head.appendChild(l);}
 const TAB_ICONS={overview:'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',business:'M4 7h16v13H4zM9 7V4h6v3M4 12h16',money:'M12 2v20M17 6.5c0-1.9-2.2-3.5-5-3.5S7 4.6 7 6.5 9.2 9.5 12 10s5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5',
  property:'M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6',life:'M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z',sports:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 3v18M3 12h18',
- giving:'M12 21V9M12 9c-2-4-7-4-7 0 0 3 7 3 7 0zm0 0c2-4 7-4 7 0 0 3-7 3-7 0zM5 13h14v4H5z',power:'M4 21h16M6 21V10h12v11M12 3l9 5H3zM9 14v4M15 14v4',news:'M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7M7 16h4'};
+ giving:'M12 21V9M12 9c-2-4-7-4-7 0 0 3 7 3 7 0zm0 0c2-4 7-4 7 0 0 3-7 3-7 0zM5 13h14v4H5z',power:'M4 21h16M6 21V10h12v11M12 3l9 5H3zM9 14v4M15 14v4',news:'M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7M7 16h4',reports:'M3 21h18M6 17V11M11 17V6M16 17v-4M21 17V8'};
 document.querySelectorAll('.tabs button[data-v]').forEach(b=>{const d=TAB_ICONS[b.dataset.v];if(d)b.insertAdjacentHTML('afterbegin','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg>');});
 /* the skyline */
 const scene=(()=>{const c=document.createElement('canvas');c.id='scene';document.body.prepend(c);const x=c.getContext('2d');let W=0,H=0,dpr=1,last=0,t0=performance.now(),raf=0,city=null,cityKey='';
@@ -1416,7 +1434,13 @@ function moonSpend(){if(!S||!S.moon)return 0;return MOON.reduce((t,M)=>{const m=
 function moonIncome(){if(!S||!S.moon)return 0;return MOON.reduce((t,M)=>t+((S.moon[M.id]||{}).inc||0),0);}
 function lifeX(){const m=S.moon&&S.moon.life;return m?(m.years||0):0;}
 const eternal=()=>!!(S.moon&&S.moon.life&&S.moon.life.eternal);
-function moonSet(id,t){if(!moonOn())return;const M=MOON.find(x=>x.id===id),m=moonOf(id);t=+t;if(!M||m.stage>=M.stages.length||t<0||t>3)return;
+/* moonshots are compulsory for billionaires: at least one programme must stay funded */
+const moonLeft=()=>MOON.filter(M=>moonOf(M.id).stage<M.stages.length);
+const moonActive=()=>MOON.filter(M=>{const m=S.moon&&S.moon[M.id];return m&&m.tier>0&&m.stage<M.stages.length;});
+function moonDue(){if(!moonOn()||S.over||moonActive().length)return false;const L=moonLeft();return L.length>0&&L.some(M=>S.cash>=moonCost(M,{tier:1,stage:moonOf(M.id).stage}));}
+function moonPickEvent(){return{cat:'Moonshots',title:'The world expects you to dream big',text:'Billionaires are judged by what they build for the future. Your board, the press and history are watching. Choose at least one moonshot to fund. Most tests will fail, but you must keep trying. You can add more, or fund them harder, in the Foundation tab.',
+ choices:moonLeft().map(M=>{const m=moonOf(M.id),c=moonCost(M,{tier:1,stage:m.stage});return{l:M.name,d:M.blurb+' Lean funding: '+fmt(c)+'/mo. Next: '+M.stages[m.stage][0]+' ('+Math.round(moonChance(M,m)*100)+'% chance).',dis:S.cash<c,f(){m.tier=1;return['You committed to '+M.name.lc()+'. '+fmt(c)+' a month.','gold']}};})};}
+function moonSet(id,t){if(+t===0){const A=moonActive();if(A.length===1&&A[0].id===id){showCard('One moonshot must stay funded','As a billionaire you must always be funding at least one moonshot. Fund another programme first, then you can pause this one.','<button class="btn primary" data-a="close">OK</button>');return;}}if(!moonOn())return;const M=MOON.find(x=>x.id===id),m=moonOf(id);t=+t;if(!M||m.stage>=M.stages.length||t<0||t>3)return;
  if(t>0&&S.cash<moonCost(M,{tier:t,stage:m.stage})){render();return;}m.tier=t;log(M.name+': funding set to '+MTIER[t][0].toLowerCase()+(t?' ('+fmt(moonCost(M,m))+' a month)':'')+'.',t?'gold':'');afterChange();}
 function moonTick(){if(!S||S.over||!S.moon)return null;let ev=null;
  MOON.forEach(M=>{const m=S.moon[M.id];if(!m||!m.tier||m.stage>=M.stages.length)return;const c=moonCost(M,m);
@@ -1442,7 +1466,7 @@ function moonTest(M,m){const st=M.stages[m.stage],ch=moonChance(M,m),ok=rnd()<ch
  m.fails++;m.failsAt++;m.prog=35;S.cash-=loss;addHappy(-2);const why=pick(st[3]&&st[3].mars&&M.marsFails?M.marsFails:M.fails);
  log(M.name+': '+st[0]+' failed. '+why+' Lost '+fmt(loss)+'.','bad');
  return{cat:M.cat,title:st[0]+': failed',text:'<div class="result bad"><small>'+M.name+'</small><b>Failed</b><span>'+why+' The test cost '+fmt(loss)+'.</span></div>Your team has learned a lot: the next attempt has a '+Math.round(moonChance(M,m)*100)+'% chance (it was '+Math.round(ch*100)+'%). Every failure makes the next try better, but only if you keep paying.',
-  choices:[{l:'Go again, keep funding',d:'The team starts rebuilding, already 35% of the way to the next try.',f(){return['Your team went back to work.','']}},{l:'Pause the programme',d:'Stop the monthly spending for now. Progress is kept.',f(){m.tier=0;return[M.name+' paused.','']}}]};}
+  choices:[{l:'Go again, keep funding',d:'The team starts rebuilding, already 35% of the way to the next try.',f(){return['Your team went back to work.','']}}].concat(moonActive().length>1?[{l:'Pause the programme',d:'Stop the monthly spending for now. Progress is kept. Your other moonshots carry on.',f(){m.tier=0;return[M.name+' paused.','']}}]:[])};}
 function moonHTML(){if(!moonOn())return'<p class="seghint" style="margin:0">Moonshots open up when you become a billionaire: a space programme, longevity research, a cancer cure and fusion power. They cost millions a month and almost always fail. Almost.</p>';
  let h='<div class="mbtot"><div><span class="eyebrow">Spending / mo</span><b class="neg">'+fmt(moonSpend())+'</b></div><div><span class="eyebrow">Moonshot income / mo</span><b class="pos">'+fmt(moonIncome())+'</b></div><div><span class="eyebrow">Breakthroughs</span><b>'+MOON.reduce((t,M)=>t+((S.moon&&S.moon[M.id]&&S.moon[M.id].wins)||0),0)+'</b></div></div>';
  MOON.forEach(M=>{const m=moonOf(M.id),done=m.stage>=M.stages.length,st=M.stages[Math.min(m.stage,M.stages.length-1)];
@@ -1450,16 +1474,60 @@ function moonHTML(){if(!moonOn())return'<p class="seghint" style="margin:0">Moon
   if(done)h+='<span class="pill good">Complete</span>';
   else{h+='<div class="mlabel"><span class="eyebrow">Next: '+st[0]+'</span><b>'+Math.round(m.prog)+'%</b></div><div class="meter"><i style="width:'+m.prog+'%;background:var(--brass)"></i></div>'+
    '<span class="vsub">'+st[1]+' Chance when tested: '+Math.round(moonChance(M,m)*100)+'%.'+(m.fails?' '+m.fails+' failure'+(m.fails>1?'s':'')+' so far.':'')+(m.spent?' Spent '+fmt(m.spent)+'.':'')+'</span>'+
-   '<div class="seg four" role="group" aria-label="Funding for '+M.name+'">'+MTIER.map((T,i)=>{const c=i?moonCost(M,{tier:i,stage:m.stage}):0;return'<button data-a="moonset" data-v="'+M.id+':'+i+'" aria-pressed="'+(m.tier===i)+'"'+(i&&S.cash<c&&m.tier!==i?' disabled':'')+'>'+T[0]+'<br><small class="num">'+(i?fmt(c)+'/mo':'—')+'</small></button>';}).join('')+'</div>';}
+   '<div class="seg four" role="group" aria-label="Funding for '+M.name+'">'+MTIER.map((T,i)=>{const c=i?moonCost(M,{tier:i,stage:m.stage}):0,last=!i&&m.tier>0&&moonActive().length===1;return'<button data-a="moonset" data-v="'+M.id+':'+i+'" aria-pressed="'+(m.tier===i)+'"'+((i&&S.cash<c&&m.tier!==i)||last?' disabled':'')+(last?' title="At least one moonshot must stay funded"':'')+'>'+T[0]+'<br><small class="num">'+(i?fmt(c)+'/mo':'—')+'</small></button>';}).join('')+'</div>';}
   if(m.inc)h+='<span class="vsub">Earning <b class="pos">+'+fmt(m.inc)+'/mo</b></span>';
   if(M.id==='life'&&(m.years||m.eternal))h+='<span class="vsub">'+(m.eternal?'You no longer age.':'+'+m.years+' years added to your life.')+'</span>';
   h+='</div></div>';});
- return h+'<p class="seghint" style="margin:8px 0 0">More funding means faster tests and slightly better odds. Every failure teaches your team something and raises the next chance.</p>';}
+ return h+'<p class="seghint" style="margin:8px 0 0"><b>As a billionaire you must always fund at least one moonshot.</b> More funding means faster tests and slightly better odds. Every failure teaches your team something and raises the next chance.</p>';}
+/* ================= Reports: income statement and balance sheet ================= */
+const PLK=['bizRev','bizCost','rent','prop','sport','lux','inv','trustInc','moonInc','shady','interest','fees','fines','upkeep','school','homeRent','travel','health','giving','moon','mob','alimony','estatePl','net'];
+function plRecord(f){S.plh=S.plh||[];const e={m:S.month};PLK.forEach(k=>e[k]=Math.round(+f[k]||0));S.plh.push(e);if(S.plh.length>36)S.plh.splice(0,S.plh.length-36);}
+function bsNow(){const rentals=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.price*af(a.id)*has(a.id),0);
+ return{cash:S.cash,biz:bizAssets(),prop:propValue(),rentals,lux:lifeAssets()-rentals,inv:portValue(),sport:sportsValue(),debt:S.debt};}
+function bsRecord(){S.bsh=S.bsh||[];const b=bsNow();const e={m:S.month};Object.keys(b).forEach(k=>e[k]=Math.round(b[k]));S.bsh.push(e);if(S.bsh.length>25)S.bsh.splice(0,S.bsh.length-25);}
+let repPeriod='last';
+function plSum(list){const t={};PLK.forEach(k=>t[k]=list.reduce((a,e)=>a+(e[k]||0),0));return t;}
+function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e={m:S.month-1};PLK.forEach(k=>e[k]=Math.round(+S.last[k]||0));H.push(e);}
+ const yr=Math.floor((S.month-1)/12),P={last:['Last month',H.slice(-1)],m12:['Last 12 months',H.slice(-12)],ytd:['Year '+(yr+1)+' so far',H.filter(e=>Math.floor(e.m/12)===yr)],prev:['Year '+yr,H.filter(e=>Math.floor(e.m/12)===yr-1)]};
+ if(!P[repPeriod]||(repPeriod==='prev'&&yr<1))repPeriod='last';
+ const [lbl,list]=P[repPeriod],T=plSum(list),C=repPeriod==='last'?plSum(H.slice(-2,-1)):null;
+ const money=v=>(v<0?'(':'')+fmt(Math.abs(v))+(v<0?')':''),cell=(v,b)=>'<td class="r num'+(v<0?' neg':'')+(b?' b':'')+'">'+(v===null||v===undefined?'—':money(v))+'</td>';
+ const row=(name,k,sign,opt)=>{const v=(T[k]||0)*sign,cv=C?(C[k]||0)*sign:null;if(opt&&!v&&!cv)return'';return'<tr><td>'+name+'</td>'+cell(v)+(C?cell(cv):'')+'</tr>';};
+ const tot=(name,v,cv,cls)=>'<tr class="'+(cls||'sub')+'"><td>'+name+'</td>'+cell(v,1)+(C?cell(cv,1):'')+'</tr>',head=t=>'<tr class="fsec"><td>'+t+'</td><td></td>'+(C?'<td></td>':'')+'</tr>';
+ const gross=x=>(x.bizRev||0)-(x.bizCost||0),oth=x=>['rent','prop','sport','lux','inv','trustInc','moonInc','shady'].reduce((a,k)=>a+(x[k]||0),0),
+  EXP=[['Loan interest','interest'],['Professional fees','fees'],['Fines & penalties','fines'],['Asset upkeep','upkeep'],['School & childcare','school'],['Home rent','homeRent'],['Business travel','travel'],['Health care','health'],['Foundation giving','giving'],['Moonshot research','moon'],['Protection money','mob'],['Alimony','alimony'],['Estate planning & insurance','estatePl']],
+  exp=x=>EXP.reduce((a,e)=>a+(x[e[1]]||0),0);
+ let h='<div class="seg four reptabs" role="group" aria-label="Report period">'+Object.keys(P).map(k=>'<button data-a="repper" data-v="'+k+'" aria-pressed="'+(repPeriod===k)+'"'+(!P[k][1].length?' disabled':'')+'>'+P[k][0]+'</button>').join('')+'</div>';
+ h+='<div class="reps"><div class="rep"><h3>Income statement</h3><p class="seghint">'+lbl+(list.length>1&&repPeriod!=='m12'?' · '+list.length+' months':'')+(repPeriod==='m12'&&list.length<12?' (only '+list.length+' recorded so far)':'')+'</p><table class="fin"><thead><tr><th></th><th class="r">'+lbl+'</th>'+(C?'<th class="r">Prior month</th>':'')+'</tr></thead><tbody>';
+ h+=head('Business')+row('Income from sales','bizRev',1)+row('Running costs','bizCost',-1)+tot('Gross profit',gross(T),C?gross(C):null);
+ h+=head('Other income')+row('Rental income','rent',1,1)+row('Property portfolio (net)','prop',1,1)+row('Sports teams (net)','sport',1,1)+row('Luxury income','lux',1,1)+row('Dividends & bond interest','inv',1,1)+row('Family trust income','trustInc',1,1)+row('Moonshot income','moonInc',1,1)+row('Under the table','shady',1,1)+tot('Total other income',oth(T),C?oth(C):null);
+ h+=head('Expenses')+EXP.map(e=>row(e[0],e[1],-1,1)).join('')+tot('Total expenses',-exp(T),C?-exp(C):null);
+ h+=tot('Net income',T.net,C?C.net:null,'grand')+'</tbody></table>';
+ const marg=T.bizRev?Math.round(gross(T)/T.bizRev*100):0;h+='<p class="seghint">Business margin: <b>'+marg+'%</b> of sales kept as gross profit. Figures in brackets are losses or costs. One-off event costs and purchases are not included.</p></div>';
+ /* balance sheet */
+ const B=bsNow(),ago=(S.bsh||[]).find(e=>e.m===S.month-12)||null,bt=x=>x.cash+x.biz+x.prop+x.rentals+x.lux+x.inv+x.sport;
+ const brow=(name,k,neg)=>'<tr><td>'+name+'</td>'+cell((neg?-1:1)*B[k])+(ago?cell((neg?-1:1)*ago[k]):'')+'</tr>';
+ h+='<div class="rep"><h3>Balance sheet</h3><p class="seghint">What you own and owe today, '+dateStr(S.month)+'.</p><table class="fin"><thead><tr><th></th><th class="r">Now</th>'+(ago?'<th class="r">A year ago</th>':'')+'</tr></thead><tbody>';
+ const sec=t=>'<tr class="fsec"><td>'+t+'</td><td></td>'+(ago?'<td></td>':'')+'</tr>',btot=(n,v,av,cls)=>'<tr class="'+(cls||'sub')+'"><td>'+n+'</td>'+cell(v,1)+(ago?cell(av,1):'')+'</tr>';
+ h+=sec('Assets')+brow('Cash','cash')+brow('Businesses','biz')+brow('Property portfolio','prop')+brow('Rental units','rentals')+brow('Cars, homes & luxury','lux')+brow('Stocks & bonds','inv')+brow('Sports teams & venues','sport')+btot('Total assets',bt(B),ago?bt(ago):null);
+ h+=sec('Liabilities')+brow('Bank loans','debt',1)+btot('Total liabilities',-B.debt,ago?-ago.debt:null);
+ h+=btot('Net worth (equity)',bt(B)-B.debt,ago?bt(ago)-ago.debt:null,'grand')+'</tbody></table>';
+ const ta=bt(B),ln=S.last?S.last.net:0;h+='<p class="seghint">Debt is <b>'+(ta>0?Math.round(B.debt/ta*100):0)+'%</b> of your assets. '+(ln<0?'At last month\'s loss of '+fmt(-ln)+', your cash lasts about <b>'+Math.floor(Math.max(0,S.cash)/-ln)+' months</b>.':'Your empire brings in more cash than it spends.')+'</p></div></div>';
+ return h;}
+/* ---- Income, running costs and profit per business ----
+   Planned profit P comes from the business's size and how well it is run. Income is P/margin.
+   Half of the running costs are fixed (staff, rent, loans), half rise and fall with sales.
+   Events, the economy, crises and industry news move demand (D), so a bad month can turn into a loss. */
+const MARGIN={retail:.25,food:.22,transport:.28,manufacturing:.22,realestate:.35,tech:.4,hospitality:.25,health:.3,energy:.35,media:.3};
+function bizStructMult(E){return baseMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float)*(S.plan&&S.plan.mentor?.97:1)*(typeof statusMult==='function'?statusMult():1);}
+function bizPL(b,noisy,E,sm){const n=owned(b.id);if(!n)return{rev:0,cost:0,profit:0,d:1};E=E||svcEffects();if(sm==null)sm=bizStructMult(E);
+ const m=MARGIN[b.ind]||.3,k=.5/m+.5,P=b.profit*n*policyMult(b)*masteryMult(b.ind)*sm;
+ let d=cyc(b)*indBuff(b.ind)*buffMult()*(typeof crisisMult==='function'?crisisMult(b.ind):1);if(noisy)d*=1+(b.vol/k)*(rnd()*2-1);
+ const R0=P/m,C0=R0-P,rev=R0*d,cost=C0*.5+C0*.5*d;return{rev,cost,profit:rev-cost,d};}
 function flows(noisy){
- const E=svcEffects();
- let biz=0;
- BIZ.forEach(b=>{const n=owned(b.id);if(!n)return;const noise=noisy?1+b.vol*(rnd()*2-1):1;biz+=b.profit*n*policyMult(b)*noise*cyc(b)*indBuff(b.ind)*masteryMult(b.ind)*(typeof crisisMult==='function'?crisisMult(b.ind):1);});
- biz*=baseMult()*buffMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float)*(S.plan&&S.plan.mentor?.97:1)*(typeof statusMult==='function'?statusMult():1);
+ const E=svcEffects(),sm=bizStructMult(E);
+ let biz=0,bizRev=0,bizCost=0;
+ BIZ.forEach(b=>{if(!owned(b.id))return;const x=bizPL(b,noisy,E,sm);biz+=x.profit;bizRev+=x.rev;bizCost+=x.cost;});
  const rent=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.rent*has(a.id)*af(a.id),0)*policyMult('rent');
  const sport=sportsNet(),prop=propNet();
  const lux=custEffects().inc+ASSETS.reduce((t,a)=>t+(a.inc&&has(a.id)?a.price*af(a.id)*a.inc*(noisy&&a.incVol?1+(rnd()-.5)*2*a.incVol:1):0),0);
@@ -1475,7 +1543,7 @@ function flows(noisy){
  const giving=S.fdn?Math.max(0,biz)*S.fdn.giving:0;
  const estatePl=typeof planCost==='function'?planCost():0,trustInc=S.trustPay||0,shady=typeof shadyIncome==='function'?shadyIncome(biz,noisy):0;
  const moon=moonSpend(),moonInc=moonIncome();
- return{biz,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,moon,moonInc,E,net:biz+rent+lux+inv+sport+prop+trustInc+shady+moonInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl-moon};
+ return{biz,bizRev,bizCost,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,moon,moonInc,E,net:biz+rent+lux+inv+sport+prop+trustInc+shady+moonInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl-moon};
 }
 function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});S.log.length=Math.min(S.log.length,80);}
 function soften(f){return sv('exec').lvl>=0&&f<1?1-(1-f)*.6:f;}
@@ -1889,7 +1957,7 @@ function industryEvent(first){const avail=INDS.filter(i=>!S.inds.includes(i.id))
 let exitAsk=null,othersOpen=null;
 function exitInd(id){let v=0;BIZ.filter(b=>b.ind===id).forEach(b=>{for(let k=0;k<owned(b.id);k++)v+=unitCost(b,k)*.7;S.owned[b.id]=0;});
  S.cash+=v;S.inds=S.inds.filter(x=>x!==id);exitAsk=null;log('You sold out of '+IND[id].name+' for '+fmt(v)+'.','');afterChange();}
-const TABS=['business','overview','money','property','life','sports','giving','power','news'];
+const TABS=['business','overview','money','reports','property','life','sports','giving','power','news'];
 let curTab='overview';
 try{const h=(location.hash||'').slice(1);const t=TABS.includes(h)?h:localStorage.getItem('hustle-tab');if(TABS.includes(t))curTab=t;}catch(e){}
 function qset(id,txt,cls){const e=$(id);if(!e)return;if(e.textContent!==txt){if(e.textContent&&$('quick').classList.contains('on')){e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump');}e.textContent=txt;}e.classList.toggle('pos',cls==='pos');e.classList.toggle('neg',cls==='neg');}
@@ -1901,7 +1969,7 @@ if('IntersectionObserver' in window){const mt=document.querySelector('.meters');
 window.addEventListener('resize',()=>{const q=$('quick');if(q&&q.classList.contains('on'))document.documentElement.style.setProperty('--qh',q.offsetHeight+'px');});
 function syncBar(){const b=document.querySelector('.bar');if(b)document.documentElement.style.setProperty('--barh',b.offsetHeight+'px');}
 window.addEventListener('resize',syncBar);
-function showTab(t,scroll){if(!TABS.includes(t))return;curTab=t;
+function showTab(t,scroll){if(!TABS.includes(t))return;curTab=t;if(t==='reports'&&$('reports'))$('reports').innerHTML=reportsHTML();
  document.querySelectorAll('.tabpane').forEach(p=>{p.hidden=p.dataset.tab!==t;});
  TABS.forEach(x=>{const b=$('tab-'+x);b.setAttribute('aria-selected',x===t?'true':'false');b.tabIndex=x===t?0:-1;});
  try{localStorage.setItem('hustle-tab',t);}catch(e){}
@@ -2350,7 +2418,7 @@ const EVI={
  spark:['#ffd36b','<path d="M12 2l2.5 7H22l-6 4.5 2.5 7.5L12 16.5 5.5 21 8 13.5 2 9h7.5z"/>']};
 const EVCAT={'Business':'briefcase','Economy':'chart','Markets':'chart','Politics':'capitol','Social':'people','Health':'heart','Family':'family','Law':'gavel','Darkworld':'mask',
  'Luxury':'diamond','Lifestyle':'diamond','Property':'building','Sports':'trophy','Foundation':'handheart','Street':'knife','World crisis':'globe','Disaster':'storm','Environmental disaster':'water',
- 'Billionaire challenge':'crown','First contact':'alien','Space programme':'rocket','Longevity research':'dna','Cancer research':'micro','Fusion energy':'atom','Your past':'ghost','Daily bonus':'coins','Black Friday':'gift','Holiday season':'gift','New year':'spark','Valentine\'s Day':'heart','Mid-year sales':'gift',
+ 'Billionaire challenge':'crown','Moonshots':'rocket','First contact':'alien','Space programme':'rocket','Longevity research':'dna','Cancer research':'micro','Fusion energy':'atom','Your past':'ghost','Daily bonus':'coins','Black Friday':'gift','Holiday season':'gift','New year':'spark','Valentine\'s Day':'heart','Mid-year sales':'gift',
  'Investment result':'chart','Tax audit result':'tax','Election result':'ballot','Deal result':'briefcase','Your profile':'user','Life':'user','Industry risk':'boom','Industries':'factory',
  'Fire':'flame','Factory fire':'flame','Explosion':'boom','Mining accident':'pick','Building collapse':'building','Road accident':'car','Aviation incident':'plane','Cyber attack':'lock',
  'Food safety':'food','Medical scandal':'cross','Lawsuit':'gavel','Compliance':'tax','Security scare':'badge',
@@ -2444,7 +2512,7 @@ function nextMonth(){
  if(!ACC||acctView||S.over||current)return;
  if(bonusDue()){openEvent(bonusEvent());return;}
  if(openCal())return;
- const f=flows(true);S.cash+=f.net;S.last=f;S.month++;
+ const f=flows(true);S.cash+=f.net;S.last=f;plRecord(f);S.month++;
  ASSETS.forEach(a=>{if(has(a.id)||S.af[a.id]){S.af[a.id]=Math.max(.3,af(a.id)*(1+a.drift-.003*behind(a.id)+(rnd()-.5)*(a.vol||.004)));}});
  S.buffs.forEach(b=>b.months--);S.buffs=S.buffs.filter(b=>b.months>0);
  S.policies.forEach(p=>p.left--);S.policies.filter(p=>p.left<=0).forEach(p=>log('The '+POLICIES[p.id].name.lc()+' has expired.',''));S.policies=S.policies.filter(p=>p.left>0);
@@ -2506,7 +2574,7 @@ function nextMonth(){
    if(S.strikes>=3){S.over=true;S.bankrupt=true;log('Bankrupt at '+age()+'. Creditors seized the empire.','bad');save();render();
     showCard('Bankrupt','At '+age()+', creditors have seized the empire. Every tycoon has a failure story. This is yours.','<button class="btn primary" data-a="reset">Start a new empire</button><button class="btn" data-a="lives">Past lives</button>');return;}}
  } else S.strikes=0;
- const nw=netWorth();S.hist.push(Math.max(1,nw));
+ const nw=netWorth();S.hist.push(Math.max(1,nw));bsRecord();
  const ti=titleIdx(nw);if(ti>S.title){addPts(5*(ti-S.title)*ti);wkInc('ranks',ti-S.title);S.title=ti;rankUpFx(TITLES[ti][1],ti);S.lifeSince=S.month;S.lifePending=true;log('New rank: '+TITLES[ti][1]+'.','gold');flash();}
  if(ti<S.title)S.title=ti;
  if(ti>S.peak){const before=SLOTS[S.peak];S.peak=ti;if(SLOTS[ti]>before)S.indPending=true;}
@@ -2525,6 +2593,7 @@ function nextMonth(){
  afterChange();
  /* forced events first */
  if(S.resultQ&&S.resultQ.length){openEvent(resultEvent(S.resultQ.shift()));return;}
+ if(moonDue()){openEvent(moonPickEvent());return;}
  if(!S.g){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
  if(S.indPending&&!S.lifePending){S.indPending=false;if(S.inds.length<SLOTS[S.peak]){openEvent(industryEvent(false));return;}}
@@ -2585,7 +2654,7 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInter
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
- ({guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},repper:()=>{repPeriod=v;render();},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>showAccts('pick'),acctnew:()=>showAccts('create'),acctcancel:()=>showAccts('pick'),acctclose:()=>{acctView=null;renderAccts();},acctpick:()=>pickAccount(v),acctdel:()=>{acctDelAsk=v;renderAccts();},acctdelno:()=>{acctDelAsk=null;renderAccts();},acctdelyes:()=>deleteAccount(v),lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propctry:()=>{propShut[v]=!propShut[v];render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),venuebuild:()=>venueGet(v,false),venuebuy:()=>venueGet(v,true),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
@@ -2644,15 +2713,15 @@ function render(){try{paintBC();}catch(e){}
  /* businesses */
  const bmBase=baseMult()*S.s*buffMult()*modeMult()*moodMult()*F.E.mult*lifeMult()*(1-S.float);
  const slots=SLOTS[S.peak];
- const monthly=b=>b.profit*owned(b.id)*bmBase*policyMult(b)*indBuff(b.ind)*masteryMult(b.ind)*cyc(b)/S.s;
+ const PLs={};const pl=b=>PLs[b.id]||(PLs[b.id]=bizPL(b,false));const monthly=b=>pl(b).profit;
  const mine=BIZ.filter(b=>owned(b.id)>0).sort((a,b)=>bizValue(b)-bizValue(a));
  let mh='';
  if(!mine.length)mh='<p class="seghint" style="margin:0">You don\'t own any businesses yet. Open your first one in the industry below.</p>';
  else{const tp=mine.reduce((t,b)=>t+monthly(b),0),tv=mine.reduce((t,b)=>t+bizValue(b),0),tu=mine.reduce((t,b)=>t+owned(b.id),0);
-  mh='<div class="mbtot"><div><span class="eyebrow">Businesses</span><b>'+mine.length+' types · '+tu+' units</b></div><div><span class="eyebrow">Profit / mo</span><b class="pos">'+fmt(tp)+'</b></div><div><span class="eyebrow">Worth</span><b>'+fmt(tv)+'</b></div></div>';
+  mh='<div class="mbtot"><div><span class="eyebrow">Businesses</span><b>'+mine.length+' types · '+tu+' units</b></div><div><span class="eyebrow">Profit / mo</span><b class="'+(tp<0?'neg':'pos')+'">'+(tp<0?'−':'')+fmt(Math.abs(tp))+'</b><small class="plsub">'+fmt(mine.reduce((t,b)=>t+pl(b).rev,0))+' income − '+fmt(mine.reduce((t,b)=>t+pl(b).cost,0))+' costs</small></div><div><span class="eyebrow">Worth</span><b>'+fmt(tv)+'</b></div></div>';
   mine.forEach(b=>{const n=owned(b.id),c=unitCost(b,n);
-   mh+='<div class="mb"><div class="tier">'+b.tier+'</div><div class="mbname"><b>'+b.name+' <span class="count">×'+n+'</span></b><span>'+IND[b.ind].name+'</span></div>'+
-    '<div class="mbnum"><b class="pos">'+fmt(monthly(b))+'/mo</b><span>worth '+fmt(bizValue(b))+'</span></div>'+
+   mh+='<div class="mb"><div class="tier">'+b.tier+'</div><div class="mbname"><b>'+b.name+' <span class="count">×'+n+'</span></b><span>'+IND[b.ind].name+'</span><span class="plrow">Income '+fmt(pl(b).rev)+' − costs '+fmt(pl(b).cost)+(pl(b).d<.97?' · <i class="neg">sales '+Math.round((pl(b).d-1)*100)+'%</i>':pl(b).d>1.03?' · <i class="pos">sales +'+Math.round((pl(b).d-1)*100)+'%</i>':'')+'</span></div>'+
+    '<div class="mbnum"><b class="'+(monthly(b)<0?'neg':'pos')+'">'+(monthly(b)<0?'−':'')+fmt(Math.abs(monthly(b)))+'/mo</b><span>worth '+fmt(bizValue(b))+'</span></div>'+
     '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+(S.cash<c||S.over?'disabled':'')+'>+1 · '+fmt(c)+'</button><button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1</button></div></div>';});}
  $('mybiz').innerHTML=mh;
  let bh='';
@@ -2848,13 +2917,14 @@ function render(){try{paintBC();}catch(e){}
      (!ok?'<span class="pill">Locked</span>':cd>0?'<span class="pill">In '+cd+' mo</span>':'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="fundraise" data-v="'+f.id+'" '+(S.cash<c?'disabled':'')+'>Host · '+fmt(c)+'</button>')+'</div>';});
    fh+='<p class="seghint" style="margin:8px 0 0">Money raised goes to your focus cause: '+cause(F.focus).name.toLowerCase()+'. Reputation and influence raise more. Each event can run once every 6 months.</p>';}
   $('foundation').innerHTML=gh;$('fundraisers').innerHTML=fh;$('moonshots').innerHTML=moonHTML();}
+ if(curTab==='reports')$('reports').innerHTML=reportsHTML();
 
 
 
 
  /* statement */
  const line=(l,v,sign)=>'<span>'+l+'</span><span class="'+(Math.abs(v)<.5?'zero':sign<0?'neg':'pos')+'">'+(Math.abs(v)<.5?'—':(sign<0?'−':'+')+fmt(v).replace('−',''))+'</span>';
- $('stmt').innerHTML=line('Business profit'+(S.float?' (80% yours)':''),F.biz,F.biz<0?-1:1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Moonshot research',F.moon||0,-1)+line('Moonshot income',F.moonInc||0,1)+line('Dividends & bond interest',F.inv,1)+line('Family trust income',F.trustInc||0,1)+line('Under the table',F.shady||0,1)+line('Loan interest',F.interest,-1)+
+ $('stmt').innerHTML=line('Business income'+(S.float?' (80% yours)':''),F.bizRev||0,1)+line('Business running costs',F.bizCost||0,-1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Moonshot research',F.moon||0,-1)+line('Moonshot income',F.moonInc||0,1)+line('Dividends & bond interest',F.inv,1)+line('Family trust income',F.trustInc||0,1)+line('Under the table',F.shady||0,1)+line('Loan interest',F.interest,-1)+
   line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
   line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+line('Health care',F.health,-1)+line('Estate planning & insurance',F.estatePl||0,-1)+
   '<span class="tot">Net cash flow</span><span class="tot '+(F.net<0?'neg':'pos')+'">'+(F.net<0?'−':'+')+fmt(Math.abs(F.net))+'</span>';
