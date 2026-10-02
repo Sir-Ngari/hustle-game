@@ -101,7 +101,7 @@ canvas#chart{width:100%;height:170px;display:block}
 .q.big b{font-size:17px}
 .qgap{flex:1}
 @media (prefers-reduced-motion:no-preference){.q b.bump{animation:qb .7s ease}@keyframes qb{0%{background:var(--brass-soft)}100%{background:transparent}}}
-@media (max-width:640px){.qin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));}.qin .q:last-child{display:none}.qin{gap:4px 10px;padding-block:6px}.qgap{display:none}.q b,.q.big b{font-size:13px}.q small{font-size:9.5px;letter-spacing:.08em}}
+@media (max-width:640px){.qin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));}.qin .q:last-child,.qin .q:nth-last-child(4){display:none}.qin{gap:4px 10px;padding-block:6px}.qgap{display:none}.q b,.q.big b{font-size:13px}.q small{font-size:9.5px;letter-spacing:.08em}}
 .tour{position:fixed;inset:0;z-index:30}
 .tspot{position:fixed;border-radius:6px;box-shadow:0 0 0 9999px rgba(8,14,11,.66);outline:2px solid var(--brass);outline-offset:0;pointer-events:none}
 .tcard{position:fixed;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-top:4px solid var(--brass);border-radius:6px;padding:16px 18px 14px;box-shadow:0 18px 40px -12px rgba(0,0,0,.5)}
@@ -299,7 +299,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 footer.foot{justify-content:center;padding-top:6px}
 .tabpane{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px;align-items:start}
 .tabpane.single{grid-template-columns:minmax(0,1fr)}
-.meters{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;border-top:1px solid var(--line);padding-top:14px;position:relative}
+.meters{grid-column:1/-1;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;border-top:1px solid var(--line);padding-top:14px;position:relative}
 .mlabel{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .mlabel b{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .meter i{transition:width .4s ease}
@@ -423,7 +423,7 @@ footer.foot{justify-content:center;padding-top:6px}
 .svc .top span{font-size:12.5px;color:var(--muted)}
 .svc .seghint {margin:0}
 .svc .btn{align-self:flex-start}
-@media (max-width:900px){.tabpane{grid-template-columns:1fr}.note{grid-template-columns:1fr}.meters{grid-template-columns:repeat(2,minmax(0,1fr))}.meters .meterbox:last-child{grid-column:1/-1}}
+@media (max-width:900px){.tabpane{grid-template-columns:1fr}.note{grid-template-columns:1fr}.meters{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:620px){.sec{grid-template-columns:minmax(0,1fr) 84px 76px}.sec .acts{grid-column:1/-1;justify-content:flex-start}.mkt-head{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:620px){
  .note{padding:18px;gap:16px}
@@ -602,7 +602,7 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
   <span class="q big"><small>Net worth</small><b id="q-nw"></b></span><span class="q"><small>Cash</small><b id="q-cash"></b></span><span class="q"><small>Cash flow / mo</small><b id="q-flow"></b></span><span class="q"><small>Debt</small><b id="q-debt"></b></span>
   <span class="qgap"></span>
-  <span class="q"><small>Reputation</small><b id="q-rep"></b></span><span class="q"><small>Happiness</small><b id="q-hap"></b></span><span class="q"><small>Influence</small><b id="q-inf"></b></span><span class="q"><small>Mob heat</small><b id="q-heat"></b></span><span class="q"><small>Health</small><b id="q-hlth"></b></span>
+  <span class="q"><small>Reputation</small><b id="q-rep"></b></span><span class="q"><small>Happiness</small><b id="q-hap"></b></span><span class="q"><small>Influence</small><b id="q-inf"></b></span><span class="q"><small>Mob heat</small><b id="q-heat"></b></span><span class="q"><small>Police</small><b id="q-cop"></b></span><span class="q"><small>Health</small><b id="q-hlth"></b></span>
 </div></div>
 <div class="wrap"><div class="stagehead" aria-hidden="true"><b id="ch-city"></b><span><span id="ch-date"></span><small id="ch-eco"></small></span></div>
   <section class="note" aria-label="Your empire">
@@ -631,6 +631,7 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
       <div class="meterbox"><div class="mlabel"><span class="eyebrow">Happiness</span><b id="hap">60</b></div><div class="meter"><i id="hapm" style="background:var(--plum)"></i></div></div>
       <div class="meterbox"><div class="mlabel"><span class="eyebrow">Influence</span><b id="inf">10</b></div><div class="meter"><i id="infm" style="background:var(--brass)"></i></div></div>
       <div class="meterbox"><div class="mlabel"><span class="eyebrow">Mob heat</span><b id="heat">0</b></div><div class="meter"><i id="heatm" style="background:var(--red)"></i></div></div>
+      <div class="meterbox"><div class="mlabel"><span class="eyebrow">Police</span><b id="cop">0</b></div><div class="meter"><i id="copm" style="background:#4f8cff"></i></div></div>
       <div class="meterbox"><div class="mlabel"><span class="eyebrow">Health</span><b id="hlth">90</b></div><div class="meter"><i id="hlthm" style="background:var(--green)"></i></div></div>
     </div>
   </section>
@@ -1163,7 +1164,7 @@ const panelOf=id=>{const e=$(id);return e?(e.closest('.panel')||e.parentElement)
 const TOUR=[
  {t:'Welcome to Hustlempires',x:()=>'You are 24, with a small stake and a big idea. Your goal: grow it into a <b>'+(curLocal()?fmt(1e9):'$1 billion')+'</b> empire. This short tour shows you where everything is. Use <b>Next</b> or your arrow keys.'},
  {el:()=>document.querySelector('.note .head-l'),t:'Your scoreboard',x:()=>'<b>Net worth</b> is everything you own minus what you owe. Reach '+fmt(1e9)+' to win.<ul><li><b>Cash</b>: money you can spend right now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li><li><b>Debt</b>: interest on it eats your profit.</li></ul>'},
- {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
+ {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Police</b> attention rises with every Darkworld deal you take. Too much brings audits, raids, then arrest.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:()=>'Your net worth over time, and your progress to '+fmt(1e9)+'. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
  {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Each click of <b>Next month</b> collects profit, pays your bills, ages you a month and may bring a decision. <b>Auto-play</b> runs the months for you and pauses whenever a decision comes up. You can also press <b>N</b> on a keyboard.'},
  {el:()=>document.querySelector('.tabs'),t:'Nine sections',x:'The tabs hold everything you can do. Some are quiet at first and come alive as you get richer: sports teams, a foundation and political power. <b>News</b> keeps a record of every move you make.'},
@@ -1376,7 +1377,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='e8dfced729e1';let updShown=false;
+const APP_VER='521b3591610c';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -2012,7 +2013,7 @@ try{const h=(location.hash||'').slice(1);const t=TABS.includes(h)?h:localStorage
 function qset(id,txt,cls){const e=$(id);if(!e)return;if(e.textContent!==txt){if(e.textContent&&$('quick').classList.contains('on')){e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump');}e.textContent=txt;}e.classList.toggle('pos',cls==='pos');e.classList.toggle('neg',cls==='neg');}
 function paintQuick(){const nw=netWorth(),F=flows(false);
  qset('q-nw',$('nw').textContent);qset('q-cash',fmt(S.cash),S.cash<0?'neg':'');qset('q-flow',(F.net>=0?'+':'')+fmt(F.net),F.net>=0?'pos':'neg');qset('q-debt',fmt(S.debt),S.debt>0?'neg':'');
- qset('q-rep',String(Math.round(S.rep)));qset('q-hap',String(Math.round(S.happy)),S.happy<30?'neg':S.happy>70?'pos':'');qset('q-inf',String(Math.round(S.influence)));qset('q-heat',$('heat').textContent,S.heat>=50?'neg':'');qset('q-hlth',String(Math.round(S.health)),S.health<40?'neg':'');}
+ qset('q-rep',String(Math.round(S.rep)));qset('q-hap',String(Math.round(S.happy)),S.happy<30?'neg':S.happy>70?'pos':'');qset('q-inf',String(Math.round(S.influence)));qset('q-heat',$('heat').textContent,S.heat>=50?'neg':'');qset('q-cop',$('cop').textContent,S.law&&S.law.att>=45?'neg':'');qset('q-hlth',String(Math.round(S.health)),S.health<40?'neg':'');}
 function setQuick(on){const q=$('quick');if(!q||q.classList.contains('on')===on)return;q.classList.toggle('on',on);document.documentElement.style.setProperty('--qh',on?q.offsetHeight+'px':'0px');}
 if('IntersectionObserver' in window){const mt=document.querySelector('.meters');if(mt)new IntersectionObserver(es=>es.forEach(e=>setQuick(!e.isIntersecting&&e.boundingClientRect.top<0))).observe(mt);}
 window.addEventListener('resize',()=>{const q=$('quick');if(q&&q.classList.contains('on'))document.documentElement.style.setProperty('--qh',q.offsetHeight+'px');});
@@ -2614,6 +2615,7 @@ function render(){try{paintBC();}catch(e){}
  $('hap').textContent=Math.round(S.happy);$('hapm').style.width=clamp(S.happy,0,100)+'%';$('hap').className=S.happy<30?'neg':S.happy>70?'pos':'';
  $('inf').textContent=Math.round(S.influence);$('infm').style.width=clamp(S.influence,0,100)+'%';
  $('heat').textContent=S.protection>0?'Paying '+Math.round(S.protection*100)+'%':S.mobMet?Math.round(S.heat):'None';$('heatm').style.width=(S.protection>0?0:clamp(S.heat,0,100))+'%';$('heat').className=S.heat>=50?'neg':'';
+ {const a=S.law?Math.round(S.law.att):0;$('cop').textContent=jailed()?'In prison':hiding()?'In hiding':a;$('cop').className=a>=45?'neg':'';$('cop').title=attLabel(a);$('copm').style.width=clamp(a,0,100)+'%';$('copm').style.background=a>=70?'var(--red)':a>=45?'#ff8a2b':'#4f8cff';}
  $('hlth').textContent=Math.round(S.health);$('hlth').className=S.health<40?'neg':'';$('hlthm').style.width=clamp(S.health,0,100)+'%';$('hlthm').style.background=S.health<40?'var(--red)':S.health<60?'var(--brass)':'var(--green)';
  $('date').textContent=dateStr(S.month);
  renderToday();
@@ -3338,17 +3340,40 @@ const LAW_EVENTS=[
     choices:[{l:'Pay lawyers to clear the family name',d:'Costs '+fmt(c)+'. Police attention +5.',dis:!canPay(c),f(){S.cash-=c;lawOf().att=Math.min(100,lawOf().att+5);sibRel(x,5);return['Your lawyers cleared the family. '+x.name+' was not so lucky.','']}},
      {l:'Let '+x.name+' face it alone',d:'Police attention +15 while they dig.',f(){lawOf().att=Math.min(100,lawOf().att+15);sibRel(x,-25);addRep(-3);return['The detectives kept digging, into you this time.','bad']}}]};}}];
 EVENTS.push(...LAW_EVENTS);
-function toggleScheme(id){const L=lawOf(),x=SCHEMES.find(y=>y.id===id);if(!x||lawBlocked())return;
- if(!L.on[id]&&Math.max(0,netWorth())<x.min)return;L.on[id]=!L.on[id];if(L.on[id]){L.dirty=true;if(id==='bribes'||id==='tenders')L.bribed=true;}
+/* ---- Darkworld: shady schemes arrive as offers the player can take or refuse ---- */
+function dwStart(id){const L=lawOf(),x=SCHEMES.find(y=>y.id===id);L.on[id]=true;L.dirty=true;if(id==='bribes'||id==='tenders')L.bribed=true;log('Darkworld: you started to '+x.name.toLowerCase()+'.','bad');}
+function dwOffer(id,w,make){const x=SCHEMES.find(y=>y.id===id);return{id:'dw_'+id,cat:'Darkworld',w,
+ when:()=>{const L=lawOf();return!lawBlocked()&&!S.over&&S.inds.length>0&&S.month>=6&&!L.on[id]&&Math.max(0,netWorth())>=x.min&&S.month-(L.dwLast==null?-99:L.dwLast)>=6&&S.month-((L.dwSeen||{})[id]==null?-99:L.dwSeen[id])>=18;},
+ build(){const L=lawOf();L.dwLast=S.month;L.dwSeen=L.dwSeen||{};L.dwSeen[id]=S.month;const o=make(x,L);o.cat='Darkworld';return o;}};}
+const DW_ATT=x=>' Police attention +'+(Math.round(x.att*(lawyerOn()?.7:1)*10)/10)+' a month until you stop.';
+const DW_EVENTS=[
+ dwOffer('evasion',2,x=>({title:'Your accountant has a suggestion',text:'"Two sets of books, boss. One for us, one for the taxman. Nobody checks a business our size." She slides a folder across the desk.',
+  choices:[{l:'Keep two sets of books',d:'Keep 15% more of your business profit.'+DW_ATT(x),f(){dwStart('evasion');return['The second set of books lives in a locked drawer.','bad']}},
+   {l:'Keep the books clean',d:'Pay every cent you owe. Reputation +1.',f(){addRep(1);return['You told her to file it straight.','good']}}]})),
+ dwOffer('bribes',2,x=>({title:'An official wants "tea money"',text:'Your licence renewal has been "pending" for weeks. The officer smiles: it could be ready this afternoon, and every month after, for a small consideration.',
+  choices:[{l:'Pay him, every month',d:'Faster licences, fewer inspections: profit +8%.'+DW_ATT(x),f(){dwStart('bribes');return['An envelope changed hands. Your licence was ready by lunch.','bad']}},
+   {l:'Wait in line like everyone',d:'Slower paperwork, clean hands.',f(){addRep(1);return['You waited. The licence came, eventually.','']}},
+   {l:'Report him',d:'Reputation +3, but officials remember. Influence −3.',f(){addRep(3);S.influence=clamp(S.influence-3,0,100);return['He was suspended. His colleagues stopped returning your calls.','good']}}]})),
+ dwOffer('smuggle',1.8,x=>({title:'A trucker offers a sideline',text:'Your trucks come back from the border empty. A man at the port says they do not have to: untaxed goods, no questions, cash on delivery.',
+  choices:[{l:'Load the trucks',d:'Untaxed goods with fat, unpredictable margins.'+DW_ATT(x),f(){dwStart('smuggle');return['The first load came through without a single stop.','bad']}},
+   {l:'Send him away',d:'Your trucks stay clean.',f(){return['You sent him away. He said you would call him one day.','']}}]})),
+ dwOffer('tenders',1.8,x=>({title:'A ministry insider calls',text:'A big public contract is coming. He can make sure you win it, as long as the price is padded and he gets his share.',
+  choices:[{l:'Take the rigged tender',d:'Inflated public contracts: profit +12%.'+DW_ATT(x),f(){dwStart('tenders');return['You won the tender. Nobody else stood a chance.','bad']}},
+   {l:'Bid honestly',d:'You probably lose the contract. Reputation +1.',f(){addRep(1);return['You lost the tender to a company with friends in high places.','']}}]})),
+ dwOffer('launder',1.5,x=>({title:'A quiet man wants to invest',text:'He has bags of cash that need to come out clean through your businesses. He pays a big commission, and he does not like being told no.',
+  choices:[{l:'Clean his money',d:'A big commission, and the gangs learn your name. Mob heat rises.'+DW_ATT(x),f(){dwStart('launder');return['The cash arrived in sports bags. It left as invoices.','bad']}},
+   {l:'Decline politely',d:'He leaves unhappy. Mob heat +5.',f(){addHeat(5);return['He smiled, but it did not reach his eyes.','']}},
+   {l:'Tip off the police',d:'Reputation +3. The gang will not forget. Mob heat +15.',f(){addRep(3);addHeat(15);return['Detectives thanked you. Someone else sent you a funeral wreath.','bad']}}]}))];
+EVENTS.push(...DW_EVENTS);
+function toggleScheme(id){const L=lawOf(),x=SCHEMES.find(y=>y.id===id);if(!x||lawBlocked()||!L.on[id])return;L.on[id]=!L.on[id];if(L.on[id]){L.dirty=true;if(id==='bribes'||id==='tenders')L.bribed=true;}
  log(L.on[id]?'You started: '+x.name.toLowerCase()+'.':'You stopped: '+x.name.toLowerCase()+'.',L.on[id]?'bad':'');afterChange();}
-function lawHTML(){const L=lawOf(),a=Math.round(L.att);
- let h='<h4>Under the table</h4><div class="kv"><span>Police attention</span><span>'+a+' / 100 · '+attLabel(a)+'</span></div>'+meter(a,'--red')+
-  '<p class="seghint">Shady money is faster, but every scheme draws attention: audits, raids, then arrest. Stop and it slowly cools.'+(lawyerOn()?' Your law firm cuts the attention you draw by 30%.':' A top law firm on retainer would cut it by 30% and improve your odds in court.')+'</p>';
+function lawHTML(){const L=lawOf(),a=Math.round(L.att),run=SCHEMES.filter(x=>L.on[x.id]);
+ let h='<h4>Darkworld</h4><div class="kv"><span>Police attention</span><span>'+a+' / 100 · '+attLabel(a)+'</span></div>'+meter(a,'--red')+
+  '<p class="seghint">Shady offers come to you as business events, and you choose whether to say yes. Every deal you take draws police attention: audits, raids, then arrest. Stop and it slowly cools.'+(lawyerOn()?' Your law firm cuts the attention you draw by 30%.':' A top law firm on retainer would cut it by 30% and improve your odds in court.')+'</p>';
  if(jailed())h+='<p class="seghint"><b>You are in prison until '+dateStr(L.jail.until)+'.</b> You can sell, but nothing new can start.</p>';
  if(hiding())h+='<p class="seghint"><b>You are in hiding abroad.</b> The business runs at half speed until you return.</p>';
- SCHEMES.forEach(x=>{const on=!!L.on[x.id],lock=Math.max(0,netWorth())<x.min;
-  h+='<div class="row"><div class="t"><b>'+x.name+'</b><span>'+x.d+' Attention +'+x.att+' a month.'+(lock?' Needs a net worth of '+fmt(x.min)+'.':'')+'</span></div>'+
-   (lock?'<span class="pill">Locked</span>':'<button class="btn small'+(on?' ghost':'')+'" data-a="scheme" data-v="'+x.id+'"'+(lawBlocked()?' disabled':'')+'>'+(on?'Stop':'Start')+'</button>')+'</div>';});
+ if(!run.length)h+='<p class="seghint">You are not running any shady deals.</p>';
+ run.forEach(x=>{h+='<div class="row"><div class="t"><b>'+x.name+'</b><span>'+x.d+' Attention +'+x.att+' a month.</span></div><button class="btn small ghost" data-a="scheme" data-v="'+x.id+'"'+(lawBlocked()?' disabled':'')+'>Stop</button></div>';});
  if(L.att>=50&&!jailed())h+='<div class="row"><div class="t"><b>Buy a new life</b><span>Vanish with a new name in a new country. You keep '+fmt(vanishKeep())+'; everything and everyone else stays behind.</span></div><button class="btn small" data-a="vanishask">Disappear</button></div>';
  return h;}
 function statusLine(){if(jailed())return'In prison until '+dateStr(S.law.jail.until);if(hiding())return'In hiding abroad';if(inHosp())return'In hospital until '+dateStr(S.hosp.until);if(S.law&&S.law.att>=45)return'Police attention '+Math.round(S.law.att)+' · '+attLabel(S.law.att);return'';}
