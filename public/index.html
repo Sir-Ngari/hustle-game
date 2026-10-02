@@ -968,7 +968,7 @@ function coinBurst(n){if(!gm()||RM)return;const tgt=document.querySelector('.qui
 function rankUpFx(name,tier){if(!gm())return;scene.redraw();if(RM)return;document.querySelectorAll('.rankup').forEach(e=>e.remove());const d=document.createElement('div');d.className='rankup';d.dataset.tier=tier==null?5:tier;d.innerHTML='<div><small>New rank</small><b>'+esc(name)+'</b></div>';document.body.appendChild(d);setTimeout(()=>d.remove(),2700);coinBurst(10);}
 function confettiFx(){if(!gm()||RM)return;const cols=['#ffc53d','#3fd06b','#4f86e8','#ff6159','#c993ff','#fff'];for(let i=0;i<90;i++){const c=document.createElement('i');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];document.body.appendChild(c);
  c.animate([{transform:'translateY(0) rotate(0)'},{transform:'translateY('+(innerHeight+40)+'px) rotate('+(Math.random()*720-360)+'deg) translateX('+(Math.random()*120-60)+'px)'}],{duration:2200+Math.random()*1800,delay:Math.random()*600,easing:'ease-in'}).onfinish=()=>c.remove();}}
-function skinMenuHTML(){const v=skinGet();return'<h3 style="margin-top:18px">Look</h3><div class="seg" role="group" aria-label="Game look" style="grid-template-columns:1fr 1fr"><button data-a="skin" data-v="game" aria-pressed="'+(v==='game')+'">Game</button><button data-a="skin" data-v="classic" aria-pressed="'+(v!=='game')+'">Classic</button></div><p class="hint">Game shows your city skyline growing behind the empire, with animations. Classic is the calm, paper-style look.</p>'+'<h3 style="margin-top:18px">Sound</h3><div class="seg" role="group" aria-label="Money sounds" style="grid-template-columns:1fr 1fr"><button data-a="sound" data-v="on" aria-pressed="'+soundOn()+'">On</button><button data-a="sound" data-v="off" aria-pressed="'+!soundOn()+'">Off</button></div><p class="hint">A cha-ching when cash comes in, a soft whoosh when it goes out.</p>';}
+function skinMenuHTML(){const v=skinGet();return'<h3 style="margin-top:18px">Look</h3><div class="seg" role="group" aria-label="Game look" style="grid-template-columns:1fr 1fr"><button data-a="skin" data-v="game" aria-pressed="'+(v==='game')+'">Game</button><button data-a="skin" data-v="classic" aria-pressed="'+(v!=='game')+'">Classic</button></div><p class="hint">Game shows your city skyline growing behind the empire, with animations. Classic is the calm, paper-style look.</p>'+'<h3 style="margin-top:18px">Sound</h3><div class="seg" role="group" aria-label="Money sounds" style="grid-template-columns:1fr 1fr"><button data-a="sound" data-v="on" aria-pressed="'+soundOn()+'">On</button><button data-a="sound" data-v="off" aria-pressed="'+!soundOn()+'">Off</button></div><p class="hint">A cha-ching when cash comes in, a soft whoosh when it goes out. The speaker button by Next month mutes everything.</p>'+'<h3 style="margin-top:18px">Music</h3><div class="seg" role="group" aria-label="Music" style="grid-template-columns:1fr 1fr"><button data-a="music" data-v="on" aria-pressed="'+musicOn()+'">On</button><button data-a="music" data-v="off" aria-pressed="'+!musicOn()+'">Off</button></div><p class="hint">A soundtrack that follows your story: calm, happy, tough or sad.</p>';}
 scene.kick();
 
 
@@ -1444,7 +1444,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='3845721c6602';let updShown=false;
+const APP_VER='78119f5203b6';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -2689,7 +2689,7 @@ function evIconHTML(ev){const k=evIconKey(ev),x=EVI[k]||EVI.spark;return'<span c
 function openEvent(ev){current=ev;stopAuto();const m=$('modal');m.hidden=false;
  m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true" aria-labelledby="et">'+evIconHTML(ev)+'<span class="pill cat gold">'+ev.cat+'</span><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3 id="et">'+ev.title+'</h3><p>'+ev.text+'</p><div class="choices">'+
  ev.choices.map((c,i)=>'<button class="choice" data-a="choose" data-i="'+i+'"'+(c.dis?' disabled':'')+'><b>'+c.l+'</b><span>'+c.d+(c.dis?' Not enough cash.':'')+'</span></button>').join('')+'</div></div></div>';
- (m.querySelector('.choice:not(:disabled)')||m.querySelector('.choice')).focus();}
+ (m.querySelector('.choice:not(:disabled)')||m.querySelector('.choice')).focus();try{musicTick();}catch(e){}}
 /* ================= Industry risks: the dangers of each kind of business ================= */
 function riskBiz(ids){let best=null;ids.forEach(id=>{const b=BIZ.find(x=>x.id===id);if(b&&owned(id)>0&&(!best||b.cost>best.cost))best=b;});return best;}
 function riskClose(b,n,why){const k=Math.min(owned(b.id),n);if(k<=0)return'';S.owned[b.id]=owned(b.id)-k;log(why,'bad');return k===1?' One '+b.name.lc()+' was shut down for good.':' '+k+' of your '+b.name.lc()+' units were shut down for good.';}
@@ -2864,7 +2864,7 @@ function afterChange(){save();render();}
 /* ================= Money sounds: cha-ching when cash goes up, a soft whoosh when it goes down ================= */
 const SND={ctx:null,last:0,cash:null,S:null};
 function soundOn(){try{return localStorage.getItem('hustle-sound')!=='off';}catch(e){return true;}}
-function soundSet(v){try{localStorage.setItem('hustle-sound',v?'on':'off');}catch(e){}if(v)cashIn();paintSnd();if(typeof acctView!=='undefined'&&acctView)renderAccts();}
+function soundSet(v){try{localStorage.setItem('hustle-sound',v?'on':'off');}catch(e){}if(v){cashIn();if(typeof MUS!=='undefined'&&musicOn())setTimeout(()=>MUS.start(),100);}else if(typeof MUS!=='undefined')MUS.stop();paintSnd();if(typeof acctView!=='undefined'&&acctView)renderAccts();}
 function paintSnd(){const b=document.getElementById('sndbtn');if(!b)return;const on=soundOn();b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',on?'Mute sounds':'Turn sounds on');b.title=on?'Sound on: tap to mute':'Muted: tap for sound';
  b.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/>'+(on?'<path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>':'<path d="M17 9l5 6M22 9l-5 6"/>')+'</svg>';}
 function actx(){if(!SND.ctx){const A=window.AudioContext||window.webkitAudioContext;if(!A)return null;try{SND.ctx=new A();}catch(e){return null;}}if(SND.ctx.state==='suspended')SND.ctx.resume().catch(()=>{});return SND.ctx;}
@@ -2876,6 +2876,54 @@ function moneySound(){if(!S)return;if(SND.S!==S||SND.cash==null){SND.S=S;SND.cas
  if(!soundOn()||Math.abs(d)<.5||(typeof acctView!=='undefined'&&acctView))return;const now=performance.now();if(now-SND.last<140)return;SND.last=now;if(d>0)cashIn();else cashOut();}
 document.addEventListener('pointerdown',()=>{if(soundOn())actx();},{once:true});
 paintSnd();
+/* ================= Adaptive soundtrack: calm, happy, tough and sad, made live in the browser ================= */
+function musicOn(){try{return localStorage.getItem('hustle-music')!=='off';}catch(e){return true;}}
+function musicSet(v){try{localStorage.setItem('hustle-music',v?'on':'off');}catch(e){}if(v)MUS.start();else MUS.stop();if(typeof acctView!=='undefined'&&acctView)renderAccts();}
+const mf=n=>440*Math.pow(2,(n-69)/12);
+const MOODS={
+ calm:{bpm:76,ep:1,chords:[[48,64,67,71,74],[45,60,64,67,71],[41,57,60,64,67],[43,59,62,64,69]],bass:[0,null,null,null,0,null,null,null],arp:[null,null,null,null,null,null,null,null],arpOct:0,arpVol:0,pad:.022,drums:{k:[0,0,0,0,0,0,0,0],s:[0,0,0,0,0,0,0,0],h:[0,1,0,1,0,1,0,1]},hv:.008,lp:900,
+  mel:[[76,null,79,null,81,null,79,null],[76,null,null,74,72,null,null,null],[81,null,79,null,76,null,79,null],[74,null,null,null,76,null,74,null]]},
+ happy:{bpm:112,chords:[[48,55,64,67],[43,50,59,62],[45,52,60,64],[41,48,57,60]],bass:[0,null,0,null,0,null,0,1],arp:[0,1,2,3,2,1,0,1],arpOct:12,arpVol:.045,pad:.025,drums:{k:[1,0,0,0,1,0,0,0],s:[0,0,1,0,0,0,1,0],h:[1,1,1,1,1,1,1,1]},lp:2600},
+ tough:{bpm:96,chords:[[45,52,57,60],[46,53,58,62],[45,52,57,60],[40,47,56,59]],bass:[0,0,0,0,0,0,0,0],arp:[0,null,0,1,null,0,2,null],arpOct:12,arpVol:.04,pad:.03,drums:{k:[1,0,0,1,1,0,0,0],s:[0,0,0,0,0,0,1,0],h:[0,1,0,1,0,1,0,1]},lp:900,saw:1},
+ sad:{bpm:64,chords:[[45,52,60,64],[41,48,57,60],[48,55,64,67],[40,47,55,59]],bass:[0,null,null,null,null,null,null,null],arp:[2,null,null,1,null,null,0,null],arpOct:12,arpVol:.05,pad:.04,drums:null,lp:1100}};
+const MUS={mood:'calm',want:'calm',step:0,bar:0,next:0,timer:null,bus:null,noise:null,
+ ctx(){const c=actx();if(c&&!this.bus){this.bus=c.createGain();this.bus.gain.value=.0001;const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=6000;this.bus.connect(f);f.connect(c.destination);
+  const nb=c.createBuffer(1,c.sampleRate*.5,c.sampleRate),d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;this.noise=nb;const dl=c.createDelay(1),fb=c.createGain(),wet=c.createGain();dl.delayTime.value=.39;fb.gain.value=.32;wet.gain.value=.28;dl.connect(fb);fb.connect(dl);dl.connect(wet);wet.connect(this.bus);this.echo=dl;}return c;},
+ start(){if(this.timer||!musicOn()||!soundOn())return;const c=this.ctx();if(!c)return;this.next=c.currentTime+.1;this.step=0;this.bar=0;this.mood=this.want;
+  this.bus.gain.cancelScheduledValues(c.currentTime);this.bus.gain.setTargetAtTime(1,c.currentTime,.8);this.timer=setInterval(()=>this.tick(),40);},
+ stop(){if(!this.timer)return;clearInterval(this.timer);this.timer=null;const c=SND.ctx;if(c&&this.bus){this.bus.gain.cancelScheduledValues(c.currentTime);this.bus.gain.setTargetAtTime(.0001,c.currentTime,.2);}},
+ tick(){const c=SND.ctx;if(!c)return;while(this.next<c.currentTime+.15){this.play(this.next);const M=MOODS[this.mood];this.next+=60/M.bpm/2;this.step=(this.step+1)%8;
+   if(this.step===0){this.bar=(this.bar+1)%4;if(this.bar===0&&this.want!==this.mood){this.mood=this.want;}}}},
+ v(c,type,f,t,dur,vol,lp,att,echo){const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f,t);let out=g;
+  if(lp){const fl=c.createBiquadFilter();fl.type='lowpass';fl.frequency.value=lp;g.connect(fl);out=fl;}g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+(att||Math.min(.04,dur/4)));g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);out.connect(this.bus);if(echo&&this.echo)out.connect(this.echo);o.start(t);o.stop(t+dur+.05);},
+ ep(c,f,t,dur,vol){this.v(c,'sine',f,t,dur,vol,null,.006,1);this.v(c,'sine',f*2,t,dur*.35,vol*.35,null,.004,1);this.v(c,'triangle',f*3,t,.08,vol*.08,null,.002);},
+hit(c,kind,t,hv){if(kind==='k'){const o=c.createOscillator(),g=c.createGain();o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.0001,t+.18);o.connect(g);g.connect(this.bus);o.start(t);o.stop(t+.2);return;}
+  const n=c.createBufferSource();n.buffer=this.noise;const f=c.createBiquadFilter(),g=c.createGain();f.type=kind==='h'?'highpass':'bandpass';f.frequency.value=kind==='h'?7000:1800;
+  g.gain.setValueAtTime(kind==='h'?(hv||.025):.06,t);g.gain.exponentialRampToValueAtTime(.0001,t+(kind==='h'?.04:.12));n.connect(f);f.connect(g);g.connect(this.bus);n.start(t);n.stop(t+.15);},
+ play(t){const c=SND.ctx,M=MOODS[this.mood],ch=M.chords[this.bar],st=this.step,beat=60/M.bpm/2;
+  if(st===0&&this.bar===0)this.cyc=(this.cyc||0)+1;
+  if(M.ep){if(st===0)ch.slice(1).forEach((n,i)=>{this.v(c,'sine',mf(n),t,beat*8.6,M.pad,M.lp,.9);this.v(c,'triangle',mf(n)*1.003,t,beat*8.6,M.pad*.45,M.lp,1.1);});
+   const mn=M.mel[this.bar][st],sparse=this.cyc%2===0;if(mn!=null&&(!sparse||st===0||st===4))this.ep(c,mf(mn),t+(st%2?beat*.08:0),beat*3.2,sparse?.05:.06);
+   if(M.bass[st]!=null)this.v(c,'sine',mf(ch[0]-12),t,beat*3.5,.08,null,.03);if(M.drums.h[st])this.hit(c,'h',t,M.hv);return;}
+  if(st===0)ch.slice(0,3).forEach(n=>this.v(c,M.saw?'sawtooth':'triangle',mf(n+12),t,beat*8*.98,M.pad,M.lp));
+  const b=M.bass[st];if(b!=null)this.v(c,M.saw?'sawtooth':'sine',mf(ch[b]-12),t,beat*(M.saw?.9:3),M.saw?.05:.09,M.saw?500:null);
+  const a=M.arp[st];if(a!=null)this.v(c,'triangle',mf(ch[a]+M.arpOct+(st>=4&&this.mood!=='tough'?12:0)),t,beat*(this.mood==='sad'||this.mood==='calm'?3:1.2),M.arpVol,3500);
+  if(M.drums){['k','s','h'].forEach(k=>{if(M.drums[k][st])this.hit(c,k,t);});}}};
+function moodNow(){if(!S||!ACC||S.over)return'calm';
+ const ev=typeof current!=='undefined'&&current,cat=ev&&String(ev.cat||'');
+ if(cat){if(/Law|Darkworld|Street|Industry risk|crisis|Disaster|Your past|Explosion|Fire|accident|collapse|Cyber|Lawsuit|scandal|Security|First contact/i.test(cat))return'tough';
+  if(/Billionaire challenge|Daily bonus|Black Friday|Holiday|New year|result/i.test(cat)&&!/failed|lost/i.test(String(ev.title||'')))return'happy';}
+ const L=(S.log||[]).filter(l=>l.m>=S.month-2),recent=L.map(l=>l.t).join(' ');
+ if(/passed away|died|funeral|divorc|left you|mourn/i.test(recent)||S.happy<25||S.health<30)return'sad';
+ const law=S.law||{},F=S.last||{};
+ if((typeof jailed==='function'&&(jailed()||hiding()))||(law.att||0)>=50||S.heat>=60||(typeof crisisOf==='function'&&crisisOf())||(F.net<0&&S.cash<Math.abs(F.net)*6)||S.strikes>0)return'tough';
+ if(L.some(l=>l.k==='gold'&&l.m>0)||(S.happy>75&&F.net>0&&S.month>3))return'happy';
+ return'calm';}
+function musicTick(){MUS.want=moodNow();if(musicOn()&&soundOn()&&ACC&&!MUS.timer&&SND.ctx&&SND.ctx.state==='running')MUS.start();}
+document.addEventListener('pointerdown',()=>{if(musicOn()&&soundOn()&&typeof ACC!=='undefined'&&ACC){actx();setTimeout(()=>MUS.start(),50);}});
+document.addEventListener('visibilitychange',()=>{const c=SND.ctx;if(!c)return;if(document.hidden)c.suspend().catch(()=>{});else c.resume().catch(()=>{});});
+
 function flash(){const e=$('nw');e.classList.remove('flash');void e.offsetWidth;e.classList.add('flash');}
 
 /* ================= Actions ================= */
@@ -2921,7 +2969,7 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInter
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
- ({guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),sound:()=>soundSet(v==='on'),sndtoggle:()=>soundSet(!soundOn()),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},repper:()=>{repPeriod=v;render();},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),sound:()=>soundSet(v==='on'),sndtoggle:()=>soundSet(!soundOn()),music:()=>musicSet(v==='on'),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},repper:()=>{repPeriod=v;render();},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propctry:()=>{propShut[v]=!propShut[v];render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),venuebuild:()=>venueGet(v,false),venuebuy:()=>venueGet(v,true),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
@@ -2938,7 +2986,7 @@ document.addEventListener('keydown',e=>{if(e.key==='n'&&!tourOn&&!e.metaKey&&!e.
 
 /* ================= Render ================= */
 function meter(v,col){return'<div class="meter"><i style="width:'+clamp(v,0,100)+'%;background:var('+col+')"></i></div>';}
-function render(){try{moneySound();}catch(e){}try{paintBC();}catch(e){}
+function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
  const nw=netWorth(),F=flows(false);
  paintChip();
  $('fdn-title').textContent='The '+BR()+' Foundation';
