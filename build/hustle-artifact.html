@@ -2302,15 +2302,16 @@ function custUI(a){const mu=modelUI(a),opts=CUSTOM[a.id];if(!opts||!has(a.id))re
  return mu+h+'</div>';}
 
 /* ================= Foundation ================= */
+/* solving all eight causes costs $2 trillion: $250B per cause, mostly in the final stage */
 const CAUSES=[
- {id:'water',name:'Clean water',stages:[['Boreholes for 100 villages',1e6],['Clean water in every Kenyan school',3e7],['Safe water for 50 million Africans',8e8]]},
- {id:'malaria',name:'Malaria',stages:[['Bed nets for a whole county',5e5],['A malaria-free Kenya',5e7],['End malaria in Africa',1.5e9]]},
- {id:'education',name:'Girls\' education',stages:[['Scholarships for 1,000 girls',1e6],['A secondary school in every ward',4e7],['Free secondary school across East Africa',6e8]]},
- {id:'climate',name:'Climate & forests',stages:[['Plant a million trees',3e5],['Restore the Mau Forest',2e7],['Finish the Great Green Wall',1e9]]},
- {id:'hunger',name:'Hunger',stages:[['School meals for 50,000 children',8e5],['End child hunger in Kenya',6e7],['Zero hunger in the Horn of Africa',1.2e9]]},
- {id:'jobs',name:'Youth jobs',stages:[['Digital skills for 10,000 young people',1e6],['A million-jobs programme',8e7],['A pan-African startup fund',5e8]]},
- {id:'wildlife',name:'Wildlife',stages:[['Save the rhinos of Lewa',1e6],['Protect the Mara ecosystem',3e7],['Pan-African wildlife corridors',4e8]]},
- {id:'health',name:'Health care',stages:[['Free maternity care in a county',2e6],['A cancer centre for East Africa',8e7],['Primary care for every African',2e9]]}
+ {id:'water',name:'Clean water',stages:[['Boreholes for 100 villages',1e6],['Clean water in every Kenyan school',3e7],['Safe water for 50 million Africans',249969000000]]},
+ {id:'malaria',name:'Malaria',stages:[['Bed nets for a whole county',5e5],['A malaria-free Kenya',5e7],['End malaria in Africa',249949500000]]},
+ {id:'education',name:'Girls\' education',stages:[['Scholarships for 1,000 girls',1e6],['A secondary school in every ward',4e7],['Free secondary school across East Africa',249959000000]]},
+ {id:'climate',name:'Climate & forests',stages:[['Plant a million trees',3e5],['Restore the Mau Forest',2e7],['Finish the Great Green Wall',249979700000]]},
+ {id:'hunger',name:'Hunger',stages:[['School meals for 50,000 children',8e5],['End child hunger in Kenya',6e7],['Zero hunger in the Horn of Africa',249939200000]]},
+ {id:'jobs',name:'Youth jobs',stages:[['Digital skills for 10,000 young people',1e6],['A million-jobs programme',8e7],['A pan-African startup fund',249919000000]]},
+ {id:'wildlife',name:'Wildlife',stages:[['Save the rhinos of Lewa',1e6],['Protect the Mara ecosystem',3e7],['Pan-African wildlife corridors',249969000000]]},
+ {id:'health',name:'Health care',stages:[['Free maternity care in a county',2e6],['A cancer centre for East Africa',8e7],['Primary care for every African',249918000000]]}
 ];
 const FUNDRAISERS=[
  {id:'gala',name:'Charity gala dinner',desc:'Black tie, a live auction and every CEO in town.',need:()=>true,cost:()=>nwc(.002,3000),raise:()=>nwc(.012,30000)*(.5+S.rep/100)*(1+S.influence/150)},
