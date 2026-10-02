@@ -614,6 +614,8 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
 .result.good{background:var(--green-soft);color:var(--green)}.result.bad{background:var(--red-soft);color:var(--red)}
 .result small{font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}.result b{font-family:var(--display);font-size:40px;line-height:1.05}.result span{color:var(--ink);font-size:14px}
 .pill.good{color:var(--green)}.pill.bad{color:var(--red)}
+.venue{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
+.venue>b{font-size:14px}.venue .vsub{font-size:12.5px;color:var(--muted)}.venue .vsub b{font:inherit;font-weight:700;font-size:inherit;letter-spacing:0}.venue .chips{margin-top:2px}
 </style>
 
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
@@ -1395,7 +1397,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='5aee7f5fbfcb';let updShown=false;
+const APP_VER='943531443080';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -2119,11 +2121,39 @@ function raceCost(R){const k=rk(R),D=DRIVERS.find(d=>d.id===R.drivers);return(6e
 function raceSpon(R){const k=rk(R),D=DRIVERS.find(d=>d.id===R.drivers);return(1e6+(10-R.lastRank)*4e5+D.spon)*k;}
 function teamValue(T){const t=S.teams[T.id];return t?T.price*t.af:0;}
 function teamNet(T){const t=S.teams[T.id];if(!t)return 0;const v=teamValue(T);return v*(T.inc*(.6+t.strength/125)-T.wage*(.5+t.strength/100));}
-function sportsValue(){return TEAMS.reduce((a,T)=>a+teamValue(T),0)+raceValue();}
-function sportsNet(){return TEAMS.reduce((a,T)=>a+teamNet(T),0)+(S.race?raceSpon(S.race)-raceCost(S.race):0);}
+/* ---- Stadiums, arenas and the Grand Prix circuit: unlocked by winning, earn money once open ---- */
+const VENUES={
+ athletics:{name:'High-altitude training centre',what:'a track, gym and athlete lodges in Iten',cost:8e5,build:12,y:.010,need:3,race:1},
+ rugby:{name:'Sevens stadium',what:'a 12,000-seat stadium on the coast',cost:4e6,build:18,y:.009,need:15},
+ kpl:{name:'Football stadium',what:'a 25,000-seat stadium with your name on it',cost:1.2e7,build:24,y:.009,need:15},
+ basketball:{name:'Indoor arena',what:'a 15,000-seat arena for games, concerts and conferences',cost:3e7,build:24,y:.0095,need:15},
+ cricket:{name:'Cricket ground',what:'a 30,000-seat ground with floodlights',cost:6e7,build:24,y:.009,need:12},
+ football:{name:'New stadium',what:'a 60,000-seat stadium with hotel and museum',cost:5e8,build:36,y:.008,need:20},
+ circuit:{name:'Grand Prix circuit',what:'a 5 km Formula 1 track with grandstands and a racing school',cost:4e8,build:30,y:.0095,need:3,race:1}};
+const VBUY=1.3;
+function venueCost(k){return VENUES[k].cost*(S.reIdx||1);}
+function teamWins(k){if(k==='circuit'){const R=S.race;return R?(R.wins||0):0;}const t=S.teams[k];return t?(t.wins!=null?t.wins:(t.lg?t.lg.rows[0].w:0)):0;}
+function teamTitles(k){if(k==='circuit')return S.race&&S.race.series==='F1'?(S.race.titles||0):0;const t=S.teams[k];return t?t.titles||0:0;}
+function venueReady(k){if(k==='circuit'&&!(S.race&&S.race.series==='F1'))return false;if(k!=='circuit'&&!S.teams[k])return false;return teamWins(k)>=VENUES[k].need||teamTitles(k)>0;}
+function venueValue1(k){const v=(S.venues||{})[k];if(!v)return 0;return v.cost*v.af*(v.left>0?.6+.4*(1-v.left/v.total):1);}
+function venueIncome1(k){const v=(S.venues||{})[k];if(!v||v.left>0)return 0;const V=VENUES[k];let form;
+ if(k==='circuit'){const R=S.race;form=R&&R.series==='F1'?.85+(10-standing(R))*.04:.6;}else{const t=S.teams[k];form=t?.65+t.strength/200:.5;}
+ return v.cost*v.af*V.y*form;}
+function venuesValue(){return Object.keys(S.venues||{}).reduce((a,k)=>a+venueValue1(k),0);}
+function venuesNet(){return Object.keys(S.venues||{}).reduce((a,k)=>a+venueIncome1(k),0);}
+function venueGet(k,buy){const V=VENUES[k];if(!V||!venueReady(k)||lawBlocked())return;S.venues=S.venues||{};if(S.venues[k])return;const c=venueCost(k)*(buy?VBUY:1);if(S.cash<c)return;
+ S.cash-=c;S.venues[k]={cost:venueCost(k),af:1,left:buy?0:V.build,total:V.build,since:S.month};
+ if(buy){addRep(3);log('You bought '+(k==='circuit'?'a Grand Prix circuit':'a '+V.name.toLowerCase()+' for your '+TEAMS.find(T=>T.id===k).ref)+'. It is open and earning from day one.','gold');}
+ else log('Construction started on your '+V.name.toLowerCase()+': '+V.what+'. Opening in '+V.build+' months.','gold');afterChange();}
+function venueTick(){const VS=S.venues||{};Object.keys(VS).forEach(k=>{const v=VS[k],V=VENUES[k];
+ if(v.left>0){v.left--;if(!v.left){addRep(4);addHappy(4);log('Ribbon cut: your '+V.name.toLowerCase()+' is open. Match days, concerts and naming rights now bring in about '+fmt(venueIncome1(k))+' a month.','gold');}}
+ else v.af*=1.0015;});}
+function venueSellWith(k){const v=(S.venues||{})[k];if(!v)return 0;const val=venueValue1(k)*.9;delete S.venues[k];return val;}
+function sportsValue(){return TEAMS.reduce((a,T)=>a+teamValue(T),0)+raceValue()+venuesValue();}
+function sportsNet(){return TEAMS.reduce((a,T)=>a+teamNet(T),0)+(S.race?raceSpon(S.race)-raceCost(S.race):0)+venuesNet();}
 function sportsEffects(){let hap=0,inf=0;TEAMS.forEach(T=>{if(S.teams[T.id]){hap+=T.hap;inf+=T.inf;}});if(S.race){hap+=3;inf+=S.race.series==='F1'?.8:.2;}return{hap:Math.min(8,hap),inf:Math.min(1.5,inf)};}
 function buyTeam(id){const T=TEAMS.find(x=>x.id===id);if(S.teams[id]||S.cash<T.price)return;S.cash-=T.price;S.teams[id]={strength:T.id==='football'?55:50,af:1,tier:0,academy:false,last:'',titles:0};newLeague(T,S.teams[id]);addRep(T.rep);log('You bought a '+T.ref+'.','gold');afterChange();}
-function sellTeam(id){const T=TEAMS.find(x=>x.id===id);if(!S.teams[id])return;const v=teamValue(T)*.9;S.cash+=v;delete S.teams[id];log('You sold your '+T.ref+' for '+fmt(v)+'.','');afterChange();}
+function sellTeam(id){const T=TEAMS.find(x=>x.id===id);if(!S.teams[id])return;const v=teamValue(T)*.9,sv=venueSellWith(id);S.cash+=v+sv;delete S.teams[id];log('You sold your '+T.ref+' for '+fmt(v)+(sv?', and its stadium for '+fmt(sv):'')+'.','');afterChange();}
 function signPlayers(id){const T=TEAMS.find(x=>x.id===id),t=S.teams[id],c=teamValue(T)*.06;if(!t||S.cash<c||t.strength>=99)return;S.cash-=c;t.strength=Math.min(99,t.strength+10);log('New signings for your '+T.ref+'. Squad strength '+Math.round(t.strength)+'.','');afterChange();}
 function buildAcademy(id){const T=TEAMS.find(x=>x.id===id),t=S.teams[id],c=teamValue(T)*.1;if(!t||t.academy||S.cash<c)return;S.cash-=c;t.academy=true;addRep(2);log('You built a youth academy for your '+T.ref+'.','good');afterChange();}
 function teamSeason(T,t,pos,n){const v=teamValue(T);let res,prize=0,m=1,rp=0,hp=0;
@@ -2135,6 +2165,14 @@ function teamSeason(T,t,pos,n){const v=teamValue(T);let res,prize=0,m=1,rp=0,hp=
  S.cash+=v*prize;t.af*=m;addRep(rp);addHappy(hp);t.last=res;
  log('Your '+T.ref+' '+res+(prize?'. Prize money: '+fmt(v*prize):'')+'.',hp>0?'gold':hp<0?'bad':'');}
 let lgOpen={};
+function venueUI(k){const V=VENUES[k],v=(S.venues||{})[k],c=venueCost(k),wins=teamWins(k);
+ let h='<div class="venue"><span class="eyebrow">'+(k==='circuit'?'Home circuit':'Home ground')+'</span>';
+ if(v&&v.left>0)h+='<b>'+V.name+' · under construction</b><div class="mlabel"><span class="eyebrow">'+v.left+' month'+(v.left>1?'s':'')+' left</span><b>'+Math.round((1-v.left/v.total)*100)+'%</b></div><div class="meter"><i style="width:'+((1-v.left/v.total)*100)+'%;background:var(--brass)"></i></div><span class="vsub">Starts earning the day it opens.</span>';
+ else if(v)h+='<b>'+V.name+' <span class="pill good">In use</span></b><span class="vsub">Worth '+fmt(venueValue1(k))+' · earns <b class="pos">+'+fmt(venueIncome1(k))+'/mo</b> from match days, concerts and naming rights · '+(k==='circuit'?'home Grand Prix gives the car extra pace':'home advantage makes the team stronger')+'</span>';
+ else if(!venueReady(k)){const need=V.need;h+='<b>'+V.name+' <span class="pill">Locked</span></b><span class="vsub">'+(k==='circuit'&&!(S.race&&S.race.series==='F1')?'Move up to Formula 1 to build your own circuit.':'Win '+need+' '+(V.race?(need>1?'races':'race'):(need>1?'matches':'match'))+' or a title to unlock: '+V.what+'. Wins so far: '+Math.min(wins,need)+' of '+need+'.')+'</span><div class="meter"><i style="width:'+Math.min(100,wins/need*100)+'%;background:var(--brass)"></i></div>';}
+ else{const inc=c*V.y*(k==='circuit'?1:.95);h+='<b>'+V.name+' <span class="pill gold">Unlocked</span></b><span class="vsub">'+V.what.charAt(0).toUpperCase()+V.what.slice(1)+'. Earns about '+fmt(inc)+'/mo once open, and '+(k==='circuit'?'racing at home gives your car extra pace.':'home advantage makes your team stronger.')+'</span>'+
+  '<div class="chips"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="venuebuild" data-v="'+k+'" '+(S.cash<c?'disabled':'')+'>Build · '+fmt(c)+' · '+V.build+' mo</button><button class="btn small" data-a="venuebuy" data-v="'+k+'" '+(S.cash<c*VBUY?'disabled':'')+'>Buy one ready-made · '+fmt(c*VBUY)+'</button></div>';}
+ return h+'</div>';}
 function leagueUI(T,t){if(!t.lg||t.lg.tier!==(t.tier||0))newLeague(T,t);const c=lgCfg(T,t),open=!!lgOpen[T.id],pos=lgPos(t);
  let h='<div class="more" style="margin-top:4px"><button class="moretoggle" data-a="lgtoggle" data-v="'+T.id+'" aria-expanded="'+open+'"><span>'+c.comp+' · '+ord(pos)+' of '+t.lg.rows.length+'</span><span>'+(open?'Hide table':'Show table')+'</span></button>';
  if(open){const race=c.kind==='race',n=t.lg.rows.length;h+='<div class="tablewrap"><table class="lt small"><thead><tr><th>#</th><th>Team</th><th>P</th>'+(race?'<th>Wins</th>':'<th>W</th><th>D</th><th>L</th>')+'<th>Pts</th><th>Strength</th></tr></thead><tbody>'+
@@ -2162,13 +2200,13 @@ function newLeague(T,t){const c=lgCfg(T,t),pool=c.names.slice().sort(()=>rnd()-.
 const lgSorted=t=>t.lg.rows.slice().sort((a,b)=>b.pts-a.pts||b.w-a.w||a.l-b.l);
 const lgPos=t=>lgSorted(t).findIndex(r=>r.me)+1;
 const seasonStart=T=>(T.seasonMonth+4)%12;
-function lgRound(T,t){const c=lgCfg(T,t),R=t.lg.rows;R[0].s=t.strength;
+function lgRound(T,t){const c=lgCfg(T,t),R=t.lg.rows;if(t.wins==null)t.wins=R[0].w||0;const vo=S.venues&&S.venues[T.id]&&!S.venues[T.id].left;R[0].s=t.strength+(vo?4:0);
  if(c.kind==='race'){const res=R.map((r,i)=>({i,v:r.s+(rnd()-.5)*36})).sort((a,b)=>b.v-a.v);
-  res.forEach((x,pos)=>{const r=R[x.i];r.p++;if(pos<10)r.pts+=PTS[pos];if(pos===0)r.w++;if(r.me){r.form.push('P'+(pos+1));if(r.form.length>5)r.form.shift();}});return;}
+  res.forEach((x,pos)=>{const r=R[x.i];r.p++;if(pos<10)r.pts+=PTS[pos];if(pos===0){r.w++;if(r.me)t.wins++;}if(r.me){r.form.push('P'+(pos+1));if(r.form.length>5)r.form.shift();}});return;}
  const idx=R.map((_,i)=>i).sort(()=>rnd()-.5);
  for(let k=0;k+1<idx.length;k+=2){const a=R[idx[k]],b=R[idx[k+1]],pa=1/(1+Math.exp(-(a.s-b.s)/10)),pd=c.draw*(1-Math.abs(pa-.5)*1.2),x=rnd();
   const res=x<pd?'D':x<pd+(1-pd)*pa?'A':'B';a.p++;b.p++;
-  const put=(r,o)=>{if(o==='W'){r.w++;r.pts+=3;}else if(o==='D'){r.d++;r.pts+=1;}else r.l++;r.form.push(o);if(r.form.length>5)r.form.shift();};
+  const put=(r,o)=>{if(o==='W'){r.w++;r.pts+=3;if(r.me)t.wins++;}else if(o==='D'){r.d++;r.pts+=1;}else r.l++;r.form.push(o);if(r.form.length>5)r.form.shift();};
   if(res==='D'){put(a,'D');put(b,'D');}else if(res==='A'){put(a,'W');put(b,'L');}else{put(a,'L');put(b,'W');}}}
 function lgTick(T,t){const cm=S.month%12,st=seasonStart(T),idx=(cm-st+12)%12;if(!t.lg||t.lg.tier!==(t.tier||0))newLeague(T,t);
  if(idx>8)return;
@@ -2176,16 +2214,16 @@ function lgTick(T,t){const cm=S.month%12,st=seasonStart(T),idx=(cm-st+12)%12;if(
  const c=lgCfg(T,t);for(let i=0;i<c.per;i++)lgRound(T,t);
  if(cm===T.seasonMonth)teamSeason(T,t,lgPos(t),t.lg.rows.length);}
 
-function sportsTick(){const cm=S.month%12;
+function sportsTick(){const cm=S.month%12;venueTick();
  TEAMS.forEach(T=>{const t=S.teams[T.id];if(!t)return;t.strength=Math.max(20,t.strength-(t.academy?.2:.5));lgTick(T,t);});
  const R=S.race;if(!R)return;
  if(cm===2){R.pts=Array(10).fill(0);R.round=0;R.rivals.forEach(r=>r.perf=clamp(r.perf+(rnd()-.5)*3,74,94));const was=R.aero;R.aero=Math.max(1,R.aero-2);
   log(R.series+' season begins. Rivals improved over the winter, so your aero dropped from level '+was+' to '+R.aero+'.','');}
  const n=RACES[cm];if(!n)return;
- const my=carPerf(R),rel=carRel(R),nz=()=>(rnd()+rnd()+rnd()-1.5)*4;let best=99,got=0,dnf=0;
+ if(R.wins==null)R.wins=0;const my=carPerf(R)+(S.venues&&S.venues.circuit&&!S.venues.circuit.left&&R.series==='F1'?1.5:0),rel=carRel(R),nz=()=>(rnd()+rnd()+rnd()-1.5)*4;let best=99,got=0,dnf=0;
  for(let i=0;i<n;i++){R.round++;const cars=[{t:0,p:my+nz(),out:rnd()>rel},{t:0,p:my-1+nz(),out:rnd()>rel}];
   R.rivals.forEach((r,j)=>cars.push({t:j+1,p:r.perf+nz(),out:rnd()>.95},{t:j+1,p:r.perf-1+nz(),out:rnd()>.95}));
-  cars.filter(c=>!c.out).sort((a,b)=>b.p-a.p).forEach((c,pos)=>{if(pos<10)R.pts[c.t]+=PTS[pos];if(c.t===0){best=Math.min(best,pos+1);if(pos<10)got+=PTS[pos];}});
+  cars.filter(c=>!c.out).sort((a,b)=>b.p-a.p).forEach((c,pos)=>{if(pos<10)R.pts[c.t]+=PTS[pos];if(c.t===0){if(pos===0)R.wins++;best=Math.min(best,pos+1);if(pos<10)got+=PTS[pos];}});
   dnf+=cars.filter(c=>c.t===0&&c.out).length;}
  const rank=standing(R);
  R.lastRes=MONTHS[cm]+': '+n+' races, best finish '+(best<99?'P'+best:'none (both cars out)')+', '+got+' points'+(dnf?', '+dnf+' retirement'+(dnf>1?'s':''):'')+'. Championship: '+ord(rank)+'.';
@@ -2605,7 +2643,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
  ({guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]){S.conds[v].managed=true;log('You started treatment for '+CONDS[v].name.lc()+'.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},stoppay:stopPaying,
-  hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propctry:()=>{propShut[v]=!propShut[v];render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
+  hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propctry:()=>{propShut[v]=!propShut[v];render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),venuebuild:()=>venueGet(v,false),venuebuy:()=>venueGet(v,true),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
   askreset:()=>{$('reset').innerHTML='<span class="foot">Erase this life? <button class="btn small" data-a="reset">Yes, restart</button><button class="btn ghost small" data-a="noreset">Cancel</button></span>';},
   noreset:()=>{$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';},
@@ -2826,7 +2864,9 @@ function render(){try{paintBC();}catch(e){}
    rh+='<h4>Constructors\' championship</h4><div class="stand">'+order.map((o,pos)=>'<div class="'+(o.i===0?'me':'')+'"><span>'+(pos+1)+'</span><span>'+(o.i===0?''+BR()+' Racing (you)':R.rivals[o.i-1].name)+'</span><span class="num">'+o.p+'</span></div>').join('')+'</div>';
    if(R.lastRes)rh+='<p class="seghint" style="margin-top:8px">Latest: '+R.lastRes+'</p>';
    rh+='<div class="kv" style="margin-top:10px"><span>Running costs</span><span>'+fmt(raceCost(R))+'/mo</span><span>Sponsors</span><span>'+fmt(raceSpon(R))+'/mo</span><span>Net per month</span><span class="'+(net<0?'neg':'pos')+'">'+(net<0?'−':'+')+fmt(Math.abs(net))+'</span><span>Prize for '+ord(rank)+' at season end</span><span>'+fmt(PRIZE[R.series][rank-1])+'</span></div>';
+   rh+=venueUI('circuit');
    rh+='<div class="chips">'+(R.series==='F2'?'<button class="btn small '+(S.f1Offer?'primary':'')+'" data-a="buyrace" data-v="F1" '+(S.cash<RACE_PRICE.F1*(S.f1Offer?.8:1)-raceValue()*.9?'disabled':'')+'>Move up to Formula 1 · '+fmt(RACE_PRICE.F1*(S.f1Offer?.8:1)-raceValue()*.9)+'</button>':'')+'<button class="btn ghost small" data-a="sellrace">Sell the team · '+fmt(raceValue()*.9)+'</button></div>';}
+  if(!R&&S.venues&&S.venues.circuit)rh+=venueUI('circuit');
   $('racing').innerHTML=rh;
   let th='';const nt=sportsNet();
   th+='<div class="mbtot"><div><span class="eyebrow">Teams owned</span><b>'+(Object.keys(S.teams).length+(S.race?1:0))+'</b></div><div><span class="eyebrow">Net per month</span><b class="'+(nt<0?'neg':'pos')+'">'+(nt<0?'−':'+')+fmt(Math.abs(nt))+'</b></div><div><span class="eyebrow">Worth</span><b>'+fmt(sportsValue())+'</b></div></div>';
@@ -2840,7 +2880,7 @@ function render(){try{paintBC();}catch(e){}
     '<p class="seghint">'+(t.last?'Last season: '+t.last+'. ':'')+'Net '+(net<0?'−':'+')+fmt(Math.abs(net))+'/mo in wages and income.</p>'+
     '<div class="chips"><button class="btn small" data-a="sign" data-v="'+T.id+'" '+(S.cash<sc||t.strength>=99?'disabled':'')+'>Sign players · '+fmt(sc)+'</button>'+
     (!t.academy?'<button class="btn small" data-a="academy" data-v="'+T.id+'" '+(S.cash<ac?'disabled':'')+'>Build academy · '+fmt(ac)+'</button>':'<span class="pill good">Academy</span>')+
-    '<button class="btn ghost small" data-a="sellteam" data-v="'+T.id+'">Sell · '+fmt(v*.9)+'</button></div>'+leagueUI(T,t)+'</div>';});
+    '<button class="btn ghost small" data-a="sellteam" data-v="'+T.id+'">Sell · '+fmt(v*.9)+'</button></div>'+venueUI(T.id)+leagueUI(T,t)+'</div>';});
   if(hid)th+='<p class="seghint" style="margin:8px 0 0">'+hid+' more team'+(hid>1?'s':'')+' become available as your net worth grows.</p>';
   $('teams').innerHTML=th;}
 
@@ -3464,7 +3504,7 @@ function lawHTML(){const L=lawOf(),a=Math.round(L.att),run=SCHEMES.filter(x=>L.o
  if(L.att>=50&&!jailed())h+='<div class="row"><div class="t"><b>Buy a new life</b><span>Vanish with a new name in a new country. You keep '+fmt(vanishKeep())+'; everything and everyone else stays behind.</span></div><button class="btn small" data-a="vanishask">Disappear</button></div>';
  return h;}
 function statusLine(){if(jailed())return'In prison until '+dateStr(S.law.jail.until);if(hiding())return'In hiding abroad';if(inHosp())return'In hospital until '+dateStr(S.hosp.until);if(S.law&&S.law.att>=45)return'Police attention '+Math.round(S.law.att)+' · '+attLabel(S.law.att);return'';}
-const LAW_BLOCK=['deal','buy','abuy','up','borrow','upgradetoy','propbuy','propdev','buyrace','aero','engprog','engrd','buyteam','sign','academy','custbuy','openfdn','fundraise','enterind','rent','travel','sbuy','ord','hire','scheme'];
+const LAW_BLOCK=['deal','buy','abuy','up','borrow','upgradetoy','propbuy','propdev','buyrace','venuebuild','venuebuy','aero','engprog','engrd','buyteam','sign','academy','custbuy','openfdn','fundraise','enterind','rent','travel','sbuy','ord','hire','scheme'];
 /* ================= Succession planning ================= */
 const PLANS_EST={
  none:{name:'No will',tax:.35,cap:1e7,win:.5,how:'If you die now, the courts split your estate equally between your children and the eldest takes control. Court costs and duty take 35%.'},
