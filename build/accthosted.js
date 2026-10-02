@@ -31,7 +31,8 @@ function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:
 function queueSync(now){if(!ACC)return;syncState='saving';paintChip();clearTimeout(syncTimer);syncTimer=setTimeout(doSync,now?0:900);}
 async function doSync(){if(!ACC)return;if(syncBusy){syncAgain=true;return;}syncBusy=true;
  const evs=S.log.filter(l=>l.n&&l.n>(S.logSent||0)).slice(0,60).reverse(),maxN=evs.reduce((m,l)=>Math.max(m,l.n),S.logSent||0);
- try{await api('PUT','/api/save',{state:S,summary:summary(),events:evs});S.logSent=maxN;if(newGameFlag)pendingLife=null;newGameFlag=false;syncState='saved';}
+ const evq=(S.evq||[]).slice(0,200);
+ try{await api('PUT','/api/save',{state:S,summary:summary(),events:evs,evlog:evq});S.logSent=maxN;S.evq=(S.evq||[]).slice(evq.length);if(newGameFlag)pendingLife=null;newGameFlag=false;syncState='saved';}
  catch(e){if(e.status===402){setBill(e.data&&e.data.bill);syncState='locked';stopAuto();openPay();}
   else if(e.status===401){ACC=null;stopAuto();acctView='auth';authMode='login';authMsg='Your session ended. Log in again to keep playing. Your last moves are safe on this screen until you do.';renderAccts();}
   else{syncState='offline';clearTimeout(syncTimer);syncTimer=setTimeout(doSync,8000);}}
@@ -115,6 +116,7 @@ function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('res
  if(!refCode)try{refCode=localStorage.getItem('hs-ref')||'';}catch(e){}
  if(t||pr||rf)history.replaceState(null,'',u.pathname+u.search+u.hash);}catch(e){}
  if(refCode)api('GET','/api/invite/check?code='+encodeURIComponent(refCode)).then(d=>{refInfo=d&&d.ok?d:null;if(acctView==='auth')renderAccts();}).catch(()=>{});
+ api('GET','/api/tuning').then(t=>{if(t&&typeof t==='object')TUNE=Object.assign({freq:1,gap:2,w:{},cat:{}},t);}).catch(()=>{});
  if(resetToken){acctView='reset';authMsg='';renderAccts();return;}
  acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save,d.bill)).catch(e=>{if(e.status===401){acctView='auth';authMode='signup';}else{acctView='down';authMsg=e.message;}renderAccts();});}
 async function logout(){stopAuto();BILL=null;paintPass();if(ACC)try{await doSync();}catch(e){}try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}

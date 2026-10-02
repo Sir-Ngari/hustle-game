@@ -233,6 +233,14 @@ CREATE TABLE IF NOT EXISTS referrals(
   days_given INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS referrals_inviter ON referrals(inviter_id);
+CREATE TABLE IF NOT EXISTS ev_log(
+  ts INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  ev TEXT NOT NULL,
+  choice INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ev_log_ev ON ev_log(ev, ts);
+CREATE INDEX IF NOT EXISTS ev_log_ts ON ev_log(ts);
 """
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -779,6 +787,39 @@ def billing_overview(t):
     return k
 
 
+# ---- event tuning: how often each kind of event pops up ----
+EV_ID_RE = re.compile(r"^[a-z0-9_]{1,40}$")
+TUNE_DEFAULT = {"freq": 1, "gap": 2, "w": {}, "cat": {}}
+
+
+def tuning():
+    try:
+        t = json.loads(meta_get("tuning") or "null")
+    except ValueError:
+        t = None
+    return t if isinstance(t, dict) else dict(TUNE_DEFAULT)
+
+
+def clean_tuning(d):
+    def mult(v):
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            return None
+        return round(min(5.0, max(0.0, v)), 2)
+    try:
+        freq = round(min(3.0, max(0.25, float(d.get("freq", 1)))), 2)
+    except (TypeError, ValueError):
+        freq = 1
+    try:
+        gap = int(min(12, max(1, int(d.get("gap", 2)))))
+    except (TypeError, ValueError):
+        gap = 2
+    w = {k: mult(v) for k, v in (d.get("w") or {}).items() if isinstance(k, str) and EV_ID_RE.match(k) and mult(v) is not None and mult(v) != 1}
+    cat = {k[:40]: mult(v) for k, v in (d.get("cat") or {}).items() if isinstance(k, str) and mult(v) is not None and mult(v) != 1}
+    return {"freq": freq, "gap": gap, "w": dict(list(w.items())[:500]), "cat": dict(list(cat.items())[:60])}
+
+
 # ---- app version: lets open games know an update is ready ----
 _ver = {"mtime": None, "v": ""}
 
@@ -1024,6 +1065,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_season()
         if path == "/api/config":
             return self.send_json(200, {"mail": mail_ready()})
+        if path == "/api/tuning":
+            return self.send_json(200, tuning())
         if path == "/api/version":
             return self.send_json(200, {"v": app_version()})
         if path == "/api/billing":
@@ -1049,6 +1092,15 @@ class Handler(BaseHTTPRequestHandler):
                   "/api/billing/later": self.api_later, "/api/billing/gift": self.api_gift}
         if path in routes:
             return routes[path]()
+        if path == "/api/admin/tuning":
+            if not self.is_admin():
+                return self.error(401, "Log in as admin.")
+            d = self.read_json()
+            if d is None:
+                return
+            t = clean_tuning(d)
+            meta_set("tuning", json.dumps(t))
+            return self.send_json(200, {"ok": True, "tuning": t})
         m = re.match(r"^/api/admin/player/(\d+)/(disable|enable|reset|delete|password|gift)$", path)
         if m:
             return self.api_admin_action(int(m.group(1)), m.group(2))
@@ -1277,6 +1329,7 @@ class Handler(BaseHTTPRequestHandler):
         state = d.get("state")
         summary = d.get("summary") if isinstance(d.get("summary"), dict) else {}
         events = d.get("events") if isinstance(d.get("events"), list) else []
+        evlog = d.get("evlog") if isinstance(d.get("evlog"), list) else []
         if not isinstance(state, dict):
             return self.error(400, "Missing game state.")
         if BILLING_ON and not can_play(user):
@@ -1340,6 +1393,9 @@ class Handler(BaseHTTPRequestHandler):
                     continue
                 db.execute("INSERT OR IGNORE INTO events(user_id,ts,game,seq,game_month,kind,text) VALUES(?,?,?,?,?,?,?)",
                            (uid, t, game, seq, gm, clean_text(e.get("k"), 12), text))
+            for e in evlog[:200]:
+                if isinstance(e, list) and len(e) == 2 and isinstance(e[0], str) and EV_ID_RE.match(e[0]) and isinstance(e[1], int) and 0 <= e[1] < 10:
+                    db.execute("INSERT INTO ev_log(ts,user_id,ev,choice) VALUES(?,?,?,?)", (t, uid, e[0], e[1]))
             sea = summary.get("season")
             if isinstance(sea, dict) and season_ok(sea.get("id")):
                 pts = int(max(0, min(1e7, num(sea.get("pts")))))
@@ -1585,6 +1641,17 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(401, "Log in as admin.")
         if path == "/api/admin/overview":
             return self.admin_overview()
+        if path == "/api/admin/events":
+            t = now()
+            q("DELETE FROM ev_log WHERE ts<?", (t - 400 * 86400,))
+            rows = {}
+            for r in q("SELECT ev, COUNT(*) n, SUM(ts>?) n30, COUNT(DISTINCT user_id) players FROM ev_log GROUP BY ev", (t - 30 * 86400,)):
+                rows[r["ev"]] = {"all": r["n"], "d30": r["n30"] or 0, "players": r["players"], "choices": {}}
+            for r in q("SELECT ev, choice, COUNT(*) n FROM ev_log GROUP BY ev, choice"):
+                if r["ev"] in rows:
+                    rows[r["ev"]]["choices"][str(r["choice"])] = r["n"]
+            tot = q("SELECT COUNT(*) n, SUM(ts>?) n30, COUNT(DISTINCT user_id) p FROM ev_log", (t - 30 * 86400,), one=True)
+            return self.send_json(200, {"tuning": tuning(), "stats": rows, "total": tot["n"], "total30": tot["n30"] or 0, "players": tot["p"], "now": t})
         if path == "/api/admin/payments":
             rows = q("SELECT p.ref,p.plan,p.amount,p.currency,p.status,p.method,p.code,p.created,p.updated,p.user_id,u.name,u.username,u.color "
                      "FROM payments p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 200")
@@ -1710,7 +1777,7 @@ class Handler(BaseHTTPRequestHandler):
             tx(reset)
         elif action == "delete":
             def delete(db):
-                for table in ("sessions", "saves", "stats", "events", "snapshots", "activity_days", "resets", "subs", "lives", "season_scores", "referrals"):
+                for table in ("sessions", "saves", "stats", "events", "snapshots", "activity_days", "resets", "subs", "lives", "season_scores", "referrals", "ev_log"):
                     db.execute("DELETE FROM %s WHERE user_id=?" % table, (uid,))
                 db.execute("DELETE FROM users WHERE id=?", (uid,))
             tx(delete)

@@ -124,6 +124,15 @@ tbody tr:hover td{background:var(--brass-soft)}
 .frow{display:grid;grid-template-columns:minmax(150px,240px) minmax(0,1fr) 56px;gap:10px;align-items:center;font-size:13px}
 .fbar{height:16px;background:var(--grid);border-radius:3px;overflow:hidden}.fbar i{display:block;height:100%;background:var(--green);border-radius:3px}
 .frow.drop .fbar i{background:var(--brass)}
+.evpace{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:12px}
+.evpace label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.evpace select,.evtable select{padding:6px 8px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:13.5px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:600}
+.evest{font-size:14px;padding:6px 0}.evest b{font-family:var(--mono)}
+.evtable tbody tr.evcat{cursor:pointer}.evtable tbody tr.evcat td:first-child b::before{content:"▸ ";color:var(--muted)}.evtable tbody tr.evcat.open td:first-child b::before{content:"▾ "}
+.evtable tr.evrow td{background:var(--panel);font-size:12.5px;white-space:normal}.evtable tr.evrow td:first-child{padding-left:26px}
+.evtable tr.evrow small,.evtable tr.evcat small{display:block;color:var(--muted);font-size:11.5px}
+.evtable .off td{opacity:.5}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:0 5px;border-radius:2px;background:var(--brass-soft);color:var(--brass);margin-left:4px}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;background:var(--red-soft);color:var(--red);padding:8px 10px;border-radius:3px;font-weight:600}
 
 @media (max-width:1100px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -181,6 +190,19 @@ tbody tr:hover td{background:var(--brass-soft)}
       <div id="invites"></div>
       <h3 class="eyebrow" style="margin:16px 0 6px">Latest payments</h3>
       <div class="tablewrap"><table style="min-width:720px"><thead><tr><th>When</th><th>Player</th><th>Pass</th><th class="r">Amount</th><th>Status</th><th>Paid with</th><th>Reference</th></tr></thead><tbody id="payRows"></tbody></table></div>
+    </section>
+
+    <section class="panel" id="evPanel">
+      <h2>Events &amp; challenges</h2>
+      <p class="sub">Every question the game asks players, grouped by category. Set how often random events happen, and make any category or single event rarer, commoner or switch it off. Changes reach players within a few minutes, the next time their game loads.</p>
+      <div class="evpace">
+        <label>How often random events happen<select id="evFreq"><option value="0.5">Much less often</option><option value="0.75">Less often</option><option value="1">Normal</option><option value="1.25">More often</option><option value="1.5">Much more often</option><option value="2">Very often</option></select></label>
+        <label>Quiet months after each event<select id="evGap"><option value="1">1 month</option><option value="2">2 months</option><option value="3">3 months</option><option value="4">4 months</option><option value="6">6 months</option></select></label>
+        <div class="evest" id="evEst"></div>
+      </div>
+      <div class="tablewrap"><table class="evtable" style="min-width:760px"><thead><tr><th>Category · event</th><th class="r">Events · weight</th><th class="r">Share of random events</th><th class="r">Shown, 30 days</th><th class="r">Shown, all time</th><th>Setting</th></tr></thead><tbody id="evRows"></tbody></table></div>
+      <p class="sub" style="margin-top:8px">Shares are measured from simulated games: the chance that a random event is this one, for a typical player across a whole life. Events marked <b>if</b> only happen when their condition is met (owning a mine, being married, having children), shown as how much of a typical life they are possible. The <b>Shown</b> columns are what real players actually got. Events at 0% depend on choices simulated players rarely make (crime, sports teams, property deals) or on rare situations; real players will still see them. Billionaire challenges, world crises and disasters run on their own timers and are not in this draw.</p>
+      <div class="actions"><button class="btn primary" id="evSave" disabled>Save changes</button><button class="btn ghost" id="evReset">Reset everything to normal</button><span id="evMsg" style="font-size:13px;color:var(--muted)"></span></div>
     </section>
 
     <section class="panel">
@@ -257,7 +279,7 @@ $('logoutBtn').addEventListener('click',async()=>{try{await api('POST','/api/adm
 
 /* ---------- data ---------- */
 async function load(){try{const [ov,pl,pay]=await Promise.all([api('GET','/api/admin/overview'),api('GET','/api/admin/players'),api('GET','/api/admin/payments')]);
-  serverNow=pl.now;players=pl.players;payments=pay.payments;renderKpis(ov.kpis);renderBilling(ov.kpis.billing);renderInvites(ov.kpis.invites);renderDau(ov.days);renderFeed(ov.feed);renderPlayers();
+  serverNow=pl.now;players=pl.players;payments=pay.payments;loadEvents();renderKpis(ov.kpis);renderBilling(ov.kpis.billing);renderInvites(ov.kpis.invites);renderDau(ov.days);renderFeed(ov.feed);renderPlayers();
   $('updated').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   if(openId!=null&&!$('sheet').hidden)openPlayer(openId,true);}
  catch(e){if(e.status===401)showLogin('Your admin session ended. Log in again.');else $('updated').textContent='Could not refresh: '+e.message;}}
@@ -296,6 +318,32 @@ function renderBilling(b){billing=b;const pnl=$('billPanel');pnl.hidden=false;
 function renderInvites(v){const el=$('invites');if(!v){el.innerHTML='';return;}
  el.innerHTML='<p class="sub" style="margin:0 0 8px"><b>'+v.joined+'</b> players joined with a friend\'s link ('+v.joined7d+' this week), from <b>'+v.inviters+'</b> inviters. <b>'+v.active+'</b> came back on a second day and <b>'+v.paid+'</b> bought a pass.</p>'+
   (v.top.length?'<div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Top inviters</th><th class="r">Friends joined</th><th class="r">Came back</th><th class="r">Bought a pass</th></tr></thead><tbody>'+v.top.map(r=>'<tr data-open="'+r.user_id+'"><td><div class="pcell">'+avatar(r)+'<div><b>'+esc(r.name)+'</b><small>'+esc(r.company)+'</small></div></div></td><td class="r num">'+r.n+'</td><td class="r num">'+r.active+'</td><td class="r num">'+r.paid+'</td></tr>').join('')+'</tbody></table></div>':'');}
+
+/* ---------- events & challenges ---------- */
+let evCat=null,evStats=null,evTune=null,evOpen={},evDirty=false;
+const EVM=[[0,'Off'],[0.25,'Rare'],[0.5,'Less'],[1,'Normal'],[1.5,'More'],[2,'Lots'],[3,'Max']];
+const evSel=(val,attr)=>'<select '+attr+'>'+EVM.map(m=>'<option value="'+m[0]+'"'+(Math.abs(m[0]-val)<1e-9?' selected':'')+'>'+m[1]+(m[0]&&m[0]!==1?' ×'+m[0]:'')+'</option>').join('')+(EVM.some(m=>Math.abs(m[0]-val)<1e-9)?'':'<option value="'+val+'" selected>×'+val+'</option>')+'</select>';
+async function loadEvents(force){if(evDirty&&!force)return;try{const [c,st]=await Promise.all([evCat?Promise.resolve(evCat):fetch('/events-catalog.json',{cache:'no-store'}).then(r=>r.json()),api('GET','/api/admin/events')]);
+  evCat=c;evStats=st;evTune=JSON.parse(JSON.stringify(st.tuning||{freq:1,gap:2,w:{},cat:{}}));evTune.w=evTune.w||{};evTune.cat=evTune.cat||{};evDirty=false;renderEvents();}
+ catch(e){$('evRows').innerHTML='<tr><td colspan="6" class="empty">Could not load events: '+esc(e.message||'')+'</td></tr>';}}
+function evPerYear(){const p=Math.min(.95,.34*(+evTune.freq||1)),g=+evTune.gap||2;return 12/(g-1+1/p);}
+function renderEvents(){if(!evCat)return;const T=evTune,S=evStats.stats||{};$('evFreq').value=String(T.freq||1);$('evGap').value=String(T.gap||2);
+ const py=evPerYear();$('evEst').innerHTML='About <b>'+py.toFixed(1)+'</b> random events per game year for each player (one every <b>'+(12/py).toFixed(1)+'</b> game months)'+(evStats.total30?' · players answered <b>'+evStats.total30.toLocaleString('en-US')+'</b> questions in the last 30 days':'')+'.';
+ const evs=evCat.events,mult=e=>((T.w[e.id]==null?1:+T.w[e.id])*(T.cat[e.group]==null?1:+T.cat[e.group])),eff=e=>(e.p||0)*mult(e),tot=evs.reduce((t,e)=>t+eff(e),0)||1,shareOf=e=>eff(e)/tot;
+ const groups={};evs.forEach(e=>{(groups[e.group]=groups[e.group]||[]).push(e);});
+ const order=Object.keys(groups).sort((a,b)=>groups[b].reduce((t,e)=>t+eff(e),0)-groups[a].reduce((t,e)=>t+eff(e),0));
+ let h='';order.forEach(g=>{const list=groups[g],share=list.reduce((t,e)=>t+eff(e),0)/tot,d30=list.reduce((t,e)=>t+((S[e.id]||{}).d30||0),0),all=list.reduce((t,e)=>t+((S[e.id]||{}).all||0),0),cm=T.cat[g]==null?1:+T.cat[g];
+  h+='<tr class="evcat'+(evOpen[g]?' open':'')+(cm===0?' off':'')+'" data-g="'+esc(g)+'"><td><b>'+esc(g)+'</b></td><td class="r num">'+list.length+'</td><td class="r num">'+(share*100).toFixed(1)+'%'+(share>0?'<small>about '+(py*share).toFixed(2)+' a game year</small>':'')+'</td><td class="r num">'+d30+'</td><td class="r num">'+all+'</td><td>'+evSel(cm,'data-cat="'+esc(g)+'" aria-label="Setting for '+esc(g)+'"')+'</td></tr>';
+  if(evOpen[g])list.slice().sort((a,b)=>eff(b)-eff(a)).forEach(e=>{const st=S[e.id]||{},sh=shareOf(e),yrs=sh>0?1/(py*sh):0,wm=T.w[e.id]==null?1:+T.w[e.id];
+   const ch=st.choices||{},n=Object.values(ch).reduce((a,b)=>a+b,0);let top='';if(n){const best=Object.keys(ch).sort((a,b)=>ch[b]-ch[a])[0];top=Math.round(100*ch[best]/n)+'% chose “'+esc(e.choices[+best]||('answer '+(+best+1)))+'”';}
+   h+='<tr class="evrow'+(mult(e)===0?' off':'')+'"><td><b>'+esc(e.title)+'</b>'+(e.cond?'<span class="tag" title="Only happens when its condition is met">if</span>':'')+(e.w==null?'<span class="tag" title="Its weight changes with the player\'s situation">varies</span>':'')+'<small>'+esc(e.id)+(e.choices.length?' · answers: '+e.choices.map(esc).join(' / '):'')+'</small></td>'+
+    '<td class="r num">'+(e.w==null?'—':e.w)+'</td><td class="r num">'+(sh*100).toFixed(2)+'%<small>'+(mult(e)===0?'switched off':!(e.p>0)?'not seen in simulated games':yrs>=1?'about once every '+(yrs<10?yrs.toFixed(1):Math.round(yrs))+' game years':'several times a game year')+(e.cond?'<br>possible '+Math.round((e.possible||0)*100)+'% of the time':'')+'</small></td><td class="r num">'+(st.d30||0)+'</td><td class="r num">'+(st.all||0)+(top?'<small>'+top+'</small>':'')+'</td><td>'+evSel(wm,'data-ev="'+esc(e.id)+'" aria-label="Setting for '+esc(e.title)+'"')+'</td></tr>';});});
+ $('evRows').innerHTML=h;$('evSave').disabled=!evDirty;}
+$('evRows').addEventListener('click',e=>{if(e.target.closest('select'))return;const r=e.target.closest('tr.evcat');if(r){evOpen[r.dataset.g]=!evOpen[r.dataset.g];renderEvents();}});
+$('evRows').addEventListener('change',e=>{const s=e.target;if(s.dataset.cat){const v=+s.value;if(v===1)delete evTune.cat[s.dataset.cat];else evTune.cat[s.dataset.cat]=v;}if(s.dataset.ev){const v=+s.value;if(v===1)delete evTune.w[s.dataset.ev];else evTune.w[s.dataset.ev]=v;}evDirty=true;$('evMsg').textContent='Unsaved changes';renderEvents();});
+['evFreq','evGap'].forEach(id=>$(id).addEventListener('change',()=>{evTune.freq=+$('evFreq').value;evTune.gap=+$('evGap').value;evDirty=true;$('evMsg').textContent='Unsaved changes';renderEvents();}));
+$('evSave').addEventListener('click',async()=>{try{const r=await api('POST','/api/admin/tuning',evTune);evTune=r.tuning;evDirty=false;$('evMsg').textContent='Saved. Players get the new settings the next time their game loads.';renderEvents();}catch(e){$('evMsg').textContent='Could not save: '+e.message;}});
+$('evReset').addEventListener('click',()=>{evTune={freq:1,gap:2,w:{},cat:{}};evDirty=true;$('evMsg').textContent='Everything set back to normal. Press Save to apply.';renderEvents();});
 
 /* ---------- daily active chart (single series, bars) ---------- */
 function niceMax(v){if(v<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return(n<=2?2:n<=5?5:10)*p;}

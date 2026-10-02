@@ -2194,13 +2194,19 @@ const RISKS=[
  riskEv('mallfire',['retail','deptstore','fashionhouse','retailgroup'],.7,b=>{const s=b.cost*.2;return{cat:'Fire',title:'Fire at one of your stores',text:'An electrical fault started a fire in one of your '+b.name.lc()+' locations. Stock worth millions is gone and the mall is closed.',
   choices:[{l:'Rebuild with better wiring',d:'Spend '+fmt(s)+'. Profit ×0.85 in retail for 3 months.',dis:S.cash<s,f(){S.cash-=s;addBuff(.85,3,'Store rebuild','retail');return['The store reopened bigger and safer.','good'];}},
    {l:'Close that location',d:'No cost. You lose the store.',f(){const c=riskClose(b,1,'You closed a burnt-out '+b.name.lc()+' location.');return['You walked away from the site.'+c,'bad'];}}]};})];
-const W=e=>typeof e.w==='function'?e.w():e.w;
-function triggerRandom(){const pool=EVENTS.concat(RISKS).filter(e=>!e.when||e.when());let tot=pool.reduce((t,e)=>t+W(e),0),r=rnd()*tot,e=pool[0];
+/* event tuning: the admin page can make each event or category rarer, commoner or switch it off */
+let TUNE={freq:1,gap:2,w:{},cat:{}};
+const IND_CATS=['Retail & Fashion','Food & Agriculture','Transport & Logistics','Manufacturing','Real Estate & Construction','Technology & Finance','Hospitality & Tourism','Health & Education','Energy & Mining','Media & Entertainment'];
+function evGroup(e){return RISKS.includes(e)?'Industry risks':IND_CATS.includes(e.cat)?'Industries':(e.cat||'Other');}
+function tuneMult(e){const a=TUNE.w&&TUNE.w[e.id],b=TUNE.cat&&TUNE.cat[evGroup(e)];return(a==null?1:+a)*(b==null?1:+b);}
+const W=e=>(typeof e.w==='function'?e.w():e.w)*tuneMult(e);
+function triggerRandom(){const pool=EVENTS.concat(RISKS).filter(e=>(!e.when||e.when())&&W(e)>0);let tot=pool.reduce((t,e)=>t+W(e),0),r=rnd()*tot,e=pool[0];
+ if(!pool.length||!(tot>0))return;
  for(const x of pool){r-=W(x);if(r<=0){e=x;break}}
- if(e.build){openEvent(e.build());return;}
+ if(e.build){const ev=e.build();ev._id=e.id;openEvent(ev);return;}
  if(e.setup)e.setup();
- openEvent({cat:e.cat,title:typeof e.title==='function'?e.title(S):e.title,text:e.text(),choices:e.choices()});}
-function choose(i){const ev=current;const r=ev.choices[i].f();if(!/Daily bonus/.test(ev.cat||''))wkInc('events');log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else maybeTour();}
+ openEvent({_id:e.id,cat:e.cat,title:typeof e.title==='function'?e.title(S):e.title,text:e.text(),choices:e.choices()});}
+function choose(i){const ev=current;if(ev&&ev._id){S.evq=S.evq||[];S.evq.push([ev._id,i]);if(S.evq.length>200)S.evq.splice(0,S.evq.length-200);}const r=ev.choices[i].f();if(!/Daily bonus/.test(ev.cat||''))wkInc('events');log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else maybeTour();}
 function showCard(title,body,btns){stopAuto();const m=$('modal');m.hidden=false;
  m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true"><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3>'+title+'</h3><p>'+body+'</p><div class="choices">'+btns+'</div></div></div>';
  m.querySelector('button').focus();}
@@ -2303,7 +2309,7 @@ function nextMonth(){
  if(S.heat>=50&&S.month>=S.mobQuiet&&rnd()<S.heat/220){const ev=mobHitEvent();log(ev.log[0],'bad');afterChange();openEvent(ev);return;}
  if(S.happy<25&&rnd()<.2){openEvent(burnoutEvent());return;}
  if(S.health<15&&rnd()<.35){openEvent(icuEvent());return;}
- if(S.cool<=0&&S.month>=3&&rnd()<.34){S.cool=2;triggerRandom();}
+ if(S.cool<=0&&S.month>=3&&rnd()<Math.min(.95,.34*(+TUNE.freq||1))){S.cool=TUNE.gap!=null?+TUNE.gap:2;triggerRandom();}
 }
 function afterChange(){save();render();}
 function flash(){const e=$('nw');e.classList.remove('flash');void e.offsetWidth;e.classList.add('flash');}
@@ -2850,12 +2856,12 @@ function bcOf(){S.bc=S.bc||{next:null,active:null,done:[],failed:[],recent:[]};r
 const bcDef=id=>BC.find(x=>x.id===id);
 function bcOffer(d,first){const b=bcOf(),intro=first?'<p><b>The billion was the easy part.</b> From now on, billionaire challenges test whether you can keep it.</p>':'';
  b.recent=[d.id].concat(b.recent).slice(0,4);
- if(d.instant)return{cat:'Billionaire challenge',title:d.name,text:intro+d.ask(),choices:d.choices().map(ch=>({l:ch.l,d:ch.d,f(){const r=ch.f();b.next=S.month+12+Math.floor(rnd()*7);return r;}}))};
+ if(d.instant)return{_id:'bc_'+d.id,cat:'Billionaire challenge',title:d.name,text:intro+d.ask(),choices:d.choices().map(ch=>({l:ch.l,d:ch.d,f(){const r=ch.f();b.next=S.month+12+Math.floor(rnd()*7);return r;}}))};
  const len=d.months,start=()=>{const c={id:d.id,start:S.month,len,end:S.month+len};if(d.pre)d.pre(c);d.init(c);b.active=c;log('Billionaire challenge accepted: '+d.name+'. '+d.goal(c)+'.','gold');return c;};
  const ch=[{l:d.forced?'Fight it':'Accept the challenge',d:'Goal: '+(()=>{const c={len,start:S.month};if(d.pre)d.pre(c);const save=JSON.stringify({cash:S.cash,log:S.log.length});if(d.id==='ipo')return'raise monthly cash flow by 40% within '+len+' months. You get '+fmt(bcNW()*.06)+' now.';d.init(c);return d.goal(c);})()+'.',f(){start();return['Challenge on. Track it at the top of your Overview.','gold'];}}];
  if(d.alt)ch.push({l:d.alt.l,d:d.alt.d(),f(){const r=d.alt.f();b.next=S.month+12+Math.floor(rnd()*7);return[r,''];}});
  if(!d.forced)ch.push({l:d.dec||'Not now',d:'No reward, no risk. Another challenge comes along later.',f(){b.next=S.month+12;return['You passed on it, for now.',''];}});
- return{cat:'Billionaire challenge',title:d.name,text:intro+d.ask(),choices:ch};}
+ return{_id:'bc_'+d.id,cat:'Billionaire challenge',title:d.name,text:intro+d.ask(),choices:ch};}
 function bcResolve(c,won){const b=bcOf(),d=bcDef(c.id);b.active=null;b.next=S.month+10+Math.floor(rnd()*9);
  const msg=won?d.win(c):d.lose(c);(won?b.done:b.failed).push(c.id);if(won)addPts(150);
  log((won?'Billionaire challenge won: ':'Billionaire challenge failed: ')+d.name+'.',won?'gold':'bad');
