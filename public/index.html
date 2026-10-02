@@ -1377,7 +1377,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='521b3591610c';let updShown=false;
+const APP_VER='31776ae48c34';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -3365,6 +3365,56 @@ const DW_EVENTS=[
    {l:'Decline politely',d:'He leaves unhappy. Mob heat +5.',f(){addHeat(5);return['He smiled, but it did not reach his eyes.','']}},
    {l:'Tip off the police',d:'Reputation +3. The gang will not forget. Mob heat +15.',f(){addRep(3);addHeat(15);return['Detectives thanked you. Someone else sent you a funeral wreath.','bad']}}]}))];
 EVENTS.push(...DW_EVENTS);
+/* ---- Darkworld: one-off shady deals ---- */
+const dwN=n=>Math.round(n*(lawyerOn()?.7:1));
+function dwHit(n,bribe){const L=lawOf();L.att=clamp(L.att+dwN(n),0,100);L.dirty=true;if(bribe)L.bribed=true;}
+function dwOne(id,w,cond,make,minNW){return{id:'dw_'+id,cat:'Darkworld',w,
+ when:()=>{const L=lawOf();return!lawBlocked()&&!S.over&&S.inds.length>0&&S.month>=6&&Math.max(0,netWorth())>=(minNW||0)&&S.month-(L.dwLast==null?-99:L.dwLast)>=4&&S.month-((L.dwSeen||{})[id]==null?-99:L.dwSeen[id])>=24&&(!cond||cond(L));},
+ build(){const L=lawOf();L.dwLast=S.month;L.dwSeen=L.dwSeen||{};L.dwSeen[id]=S.month;const o=make(L);o.cat='Darkworld';return o;}};}
+const dwNo=(t,f)=>({l:t[0],d:t[1],f(){if(f)f();return[t[2],t[3]||'']}});
+const DW_DEALS=[
+ dwOne('fire',1,null,L=>{const pay=nwc(.04,3000);return{title:'"A fire would solve a lot"',text:'Your half-empty warehouse is insured for far more than it is worth. Your manager knows a man who can make it look like an electrical fault.',
+  choices:[{l:'Let it burn',d:'Collect about '+fmt(pay)+' from the insurers. Police attention +'+dwN(15)+'. If the investigators look closely, far worse.',f(){if(rnd()<.3){dwHit(40);addRep(-8);return['The insurance investigator found petrol traces. The payout was frozen and detectives want to talk.','bad'];}S.cash+=pay;dwHit(15);return['The insurers paid '+fmt(pay)+'. The fire chief called it bad wiring.','bad']}},
+   dwNo(['Tell him no','Keep the warehouse, keep your conscience.','You told your manager never to mention it again.',''])]};}),
+ dwOne('fakes',1,null,L=>{const c=nwc(.008,800),gain=c*2.5;return{title:'A container of "designer" goods',text:'A supplier offers a full container of fake designer handbags, shoes and watches. Perfect copies, he swears, at a tenth of the price.',
+  choices:[{l:'Sell the fakes in your shops',d:'Costs '+fmt(c)+', sells for about '+fmt(gain)+'. Police attention +'+dwN(10)+'. Customers may notice.',dis:!canPay(c),f(){S.cash-=c;dwHit(10);if(rnd()<.3){S.cash+=gain*.4;addRep(-6);return['A customer posted the stitching online. Half the stock was seized; you sold the rest.','bad'];}S.cash+=gain;return['The fakes flew off the shelves. Profit: '+fmt(gain-c)+'.','bad']}},
+   dwNo(['Turn him away','Real goods only.','He went to your competitor instead.',''])]};}),
+ dwOne('land',.9,null,L=>{const c=nwc(.01,1500),gain=nwc(.05,6000);return{title:'Public land, private papers',text:'A clerk at the land registry can put a prime plot of public land in your name. A developer is already waiting to buy it from you.',
+  choices:[{l:'Grab the land',d:'Pay the clerk '+fmt(c)+' and sell to the developer for about '+fmt(gain)+'. Police attention +'+dwN(20)+'.',dis:!canPay(c),f(){S.cash-=c;dwHit(20,true);if(rnd()<.2){addRep(-10);return['Residents protested on the plot with placards and cameras. The sale collapsed and your name is in the papers.','bad'];}S.cash+=gain;return['The title deed changed hands. So did '+fmt(gain)+'.','bad']}},
+   {l:'Expose the clerk',d:'Reputation +3. The land cartel will remember. Mob heat +6.',f(){addRep(3);addHeat(6);return['The clerk was fired. Someone slashed your car tyres that week.','']}},
+   dwNo(['Walk away','Leave public land to the public.','You walked away.',''])]};}),
+ dwOne('campaign',.9,null,L=>{const c=nwc(.02,2000);return{title:'A politician needs cash, off the books',text:'A rising politician needs campaign money that never appears in any report. In return, he promises you a seat at the table when he wins.',
+  choices:[{l:'Fund him in cash',d:'Costs '+fmt(c)+'. Influence +12. Police attention +'+dwN(12)+'.',dis:!canPay(c),f(){S.cash-=c;addInf(12);dwHit(12,true);return['Bags of cash, no receipts. He calls you "my friend" now.','bad']}},
+   {l:'Donate openly instead',d:'Costs '+fmt(c*.5)+' through proper channels. Influence +4.',dis:!canPay(c*.5),f(){S.cash-=c*.5;addInf(4);return['A legal donation. He was polite, but not grateful.','']}},
+   dwNo(['Stay out of politics','He will remember you said no. Influence −3.','He crossed you off his list.',''],()=>addInf(-3))]};}),
+ dwOne('rival',1,null,L=>{const c=nwc(.012,1200);return{title:'Your rival\'s permits could disappear',text:'A county officer says your biggest competitor\'s licences could be "lost" for a few months. Their customers would have to go somewhere.',
+  choices:[{l:'Make it happen',d:'Costs '+fmt(c)+'. Profit ×1.15 for 6 months. Police attention +'+dwN(10)+'.',dis:!canPay(c),f(){S.cash-=c;addBuff(1.15,6,'Rival shut down');dwHit(10,true);return['Your rival\'s doors were sealed on Monday. Their customers came to you.','bad']}},
+   dwNo(['Beat them fairly','Compete on price and service.','You decided to win the honest way.',''])]};}),
+ dwOne('casino',.8,null,L=>{const c=nwc(.015,1500);return{title:'An underground casino wants a partner',text:'A private gambling den in the basement of a hotel needs cash to expand. The owner promises to triple your money within months. Buying in raises mob heat by 6.',
+  choices:[{l:'Buy in',d:'Invest '+fmt(c)+'. Could pay back 3×, or be raided. Police attention +'+dwN(10)+'.',dis:!canPay(c),f(){S.cash-=c;addHeat(6);dwHit(10);if(rnd()<.55){S.cash+=c*3;return['The tables never stopped. Your share came back as '+fmt(c*3)+'.','bad'];}dwHit(15);return['Police raided the casino. Your money is in an evidence locker, and your name is on the books.','bad']}},
+   dwNo(['Not my game','Stay away from the tables.','You let someone else take that bet.',''])]};}),
+ dwOne('hacker',.8,null,L=>{const c=nwc(.008,800);return{title:'A hacker offers your rival\'s client list',text:'A young hacker has copied your competitor\'s entire customer list, prices and contracts. He wants payment in cash.',
+  choices:[{l:'Buy the data',d:'Costs '+fmt(c)+'. Profit ×1.1 for 6 months. Police attention +'+dwN(8)+'. It may be traced.',dis:!canPay(c),f(){S.cash-=c;addBuff(1.1,6,'Stolen client list');dwHit(8);if(rnd()<.2){dwHit(20);addRep(-5);return['The cyber crime unit traced the leak to your sales team.','bad'];}return['Your sales team started calling their customers the same afternoon.','bad']}},
+   {l:'Report him',d:'Reputation +2.',f(){addRep(2);return['The hacker was arrested. Your competitor sent a thank-you note.','good']}},
+   dwNo(['Ignore him','Delete the message.','You deleted the message.',''])]};}),
+ dwOne('customs',1,null,L=>{const c=nwc(.006,600),save=nwc(.02,1500);return{title:'Customs can wave your containers through',text:'A clearing agent says your imports could skip duty entirely. A few officers at the port need "appreciation".',
+  choices:[{l:'Pay the port officers',d:'Costs '+fmt(c)+', saves about '+fmt(save)+' in duty. Police attention +'+dwN(10)+'.',dis:!canPay(c),f(){S.cash+=save-c;dwHit(10,true);return['Your containers rolled out without a single inspection.','bad']}},
+   dwNo(['Pay full duty','The honest way.','You paid every cent of duty.',''])]};}),
+ dwOne('photos',.6,null,L=>({title:'Someone has photos of a minister',text:'A private investigator offers you compromising photos of a powerful minister. With them, the minister would do whatever you ask.',
+  choices:[{l:'Buy them and use them',d:'Influence +20. Police attention +'+dwN(15)+'. Mob heat +5. Powerful enemies.',f(){addInf(20);dwHit(15);addHeat(5);return['The minister returned your call within the hour. He has never been so helpful.','bad']}},
+   {l:'Leak them to the press',d:'Reputation +4, influence −5.',f(){addRep(4);addInf(-5);return['The minister resigned. Nobody knows it was you. Almost nobody.','']}},
+   dwNo(['Burn them','Stay clear of it.','You told the investigator to burn the photos.',''])]}),5e5),
+ dwOne('club',.8,null,L=>{const gain=nwc(.03,2000);return{title:'An "investment club" wants your name',text:'A slick group promises members 20% a month. They want a famous business name on the brochure, and pay well for it.',
+  choices:[{l:'Lend them your name',d:'They pay you about '+fmt(gain)+'. Police attention +'+dwN(12)+'. If it collapses, so does your reputation.',f(){S.cash+=gain;dwHit(12);if(rnd()<.4){addRep(-10);dwHit(15);return['The club collapsed and thousands lost their savings. Your face was on every brochure.','bad'];}return['Your photo smiles from every brochure. The fees are generous.','bad']}},
+   {l:'Warn the public',d:'Reputation +3.',f(){addRep(3);return['You called it a pyramid scheme on radio. Regulators took notice.','good']}},
+   dwNo(['Decline','Not worth the risk.','You declined.',''])]};}),
+ dwOne('witness',1.6,L=>L.att>=40,L=>{const c=nwc(.02,2500);return{title:'A witness could forget',text:'Your lawyer hints that the key witness in the case against you has money troubles. Help could be arranged, through a third party.',
+  choices:[{l:'Arrange the help',d:'Costs '+fmt(c)+'. Police attention −20. If it comes out, much worse.',dis:!canPay(c),f(){S.cash-=c;const L2=lawOf();L2.dirty=true;L2.bribed=true;if(rnd()<.3){L2.att=clamp(L2.att+25,0,100);addRep(-6);return['The witness told detectives about the money. Now it is witness tampering too.','bad'];}L2.att=Math.max(0,L2.att-20);return['The witness suddenly could not remember anything.','']}},
+   dwNo(['Let the case run','Trust your lawyers.','You let the lawyers do their work.',''])]};}),
+ dwOne('file',1.4,L=>L.att>=30,L=>{const c=nwc(.025,2000);return{title:'A clerk can lose your file',text:'Someone in the prosecutor\'s office says the file on you could be misplaced. For a price.',
+  choices:[{l:'Pay to lose the file',d:'Costs '+fmt(c)+'. Police attention −15.',dis:!canPay(c),f(){S.cash-=c;const L2=lawOf();L2.att=Math.max(0,L2.att-15);L2.bribed=true;L2.dirty=true;return['The file vanished from a locked cabinet. The detectives are furious.','']}},
+   dwNo(['Refuse','Bribing prosecutors is a step too far.','You refused.',''])]};})];
+EVENTS.push(...DW_DEALS);
 function toggleScheme(id){const L=lawOf(),x=SCHEMES.find(y=>y.id===id);if(!x||lawBlocked()||!L.on[id])return;L.on[id]=!L.on[id];if(L.on[id]){L.dirty=true;if(id==='bribes'||id==='tenders')L.bribed=true;}
  log(L.on[id]?'You started: '+x.name.toLowerCase()+'.':'You stopped: '+x.name.toLowerCase()+'.',L.on[id]?'bad':'');afterChange();}
 function lawHTML(){const L=lawOf(),a=Math.round(L.att),run=SCHEMES.filter(x=>L.on[x.id]);
