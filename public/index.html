@@ -1404,7 +1404,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='365e072d379a';let updShown=false;
+const APP_VER='e336390f576b';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -1726,10 +1726,12 @@ const EVENTS=[
   choices:()=>{const nw=netWorth();return[{l:'Take the package',d:'Get '+fmt(nw*.15)+'; only '+fmt(nw*.1)+' is added to debt.',f(){S.cash+=nw*.15;S.debt+=nw*.1;addRep(3);return['Impact fund package received.','good']}},
    {l:'Stay independent',d:'No strings attached.',f(){return['You declined the impact fund.','']}}]}},
  /* ---- Politics ---- */
- {id:'audit',cat:'Politics',w:.8,when:()=>S.month>6,title:'Tax audit',text:()=>'The revenue authority wants five years of records.'+(sv('book').lvl>=0?' Your bookkeeper has everything ready.':' Your records are a shoebox of receipts.')+(S.influence<20?' Word is someone in government asked for this audit.':''),
-  choices:()=>{const nw=Math.max(0,netWorth());const r=(sv('book').lvl>=0?.005:.04)*(S.influence<20?1.5:1);return[
-   {l:'Settle up',d:'Pay '+fmt(nw*r)+' in back taxes and penalties.',f(){S.cash-=nw*r;return['Audit settled for '+fmt(nw*r)+'.',sv('book').lvl>=0?'':'bad']}},
-   {l:'Hire a tax consultant',d:'Pay '+fmt(nw*.01)+'. '+(S.ups.legal?'70%':'50%')+' chance the case is dropped; otherwise pay '+fmt(nw*r*.75)+' more.',f(){S.cash-=nw*.01;if(rnd()<(S.ups.legal?.7:.5))return['The case was dropped.','good'];S.cash-=nw*r*.75;return['You still paid.','bad']}}]}},
+ {id:'audit',cat:'Politics',w:.8,when:()=>S.month>6,title:'Tax audit',text:()=>'The revenue authority wants five years of records.'+(sv('book').lvl>=0?' Your bookkeeper has everything ready.':' Your records are a shoebox of receipts.')+(S.law&&S.law.on&&S.law.on.evasion?' The trouble is the second set of books in the locked drawer.':'')+(S.influence<20?' Word is someone in government asked for this audit.':''),
+  choices:()=>{const nw=Math.max(0,netWorth()),ev=!!(S.law&&S.law.on&&S.law.on.evasion);const r=(sv('book').lvl>=0?.005:.04)*(S.influence<20?1.5:1)*(ev?2.5:1);
+   const a=Math.round((sv('book').lvl>=0?3:8)*(ev?2.5:1)*(lawyerOn()?.7:1)),a2=Math.round(a*1.5),att=n=>{const L=lawOf();L.att=clamp(L.att+n,0,100);};
+   return[
+   {l:'Settle up',d:'Pay '+fmt(nw*r)+' in back taxes and penalties. Back taxes put you on file: police attention +'+a+'.',f(){S.cash-=nw*r;att(a);if(ev){S.law.on.evasion=false;}return['Audit settled for '+fmt(nw*r)+'. The revenue authority flagged your file.'+(ev?' You shut down the second set of books.':''),sv('book').lvl>=0&&!ev?'':'bad']}},
+   {l:'Hire a tax consultant',d:'Pay '+fmt(nw*.01)+'. '+(S.ups.legal?'70%':'50%')+' chance the case is dropped. Otherwise pay '+fmt(nw*r*.75)+' more and police attention +'+a2+'.',f(){const fee=nw*.01;S.cash-=fee;if(rnd()<(S.ups.legal?.7:.5))return['Your tax consultant got the audit dropped. Your file stays clean.','good',dealCard('Audit dropped',true,'Tax consultant','Case dropped','You paid the consultant '+fmt(fee)+'. No back taxes, no penalties, and nothing on your file.','','Tax audit result')];const more=nw*r*.75;S.cash-=more;att(a2);return['The audit went against you. You paid '+fmt(more)+' more and the fight drew police attention.','bad',dealCard('The audit went against you',false,'Tax consultant','Lost','You paid the consultant '+fmt(fee)+' and still owed '+fmt(more)+' in back taxes and penalties. That is '+fmt(fee+more)+' in total.','Fighting it flagged your file: police attention +'+a2+'.','Tax audit result')]}}]}},
  {id:'tender',cat:'Politics',w:.9,title:'A government tender opens',text:()=>'The ministry needs a supplier for a national contract.'+(S.influence>=40?' Your friends in government say you are well placed.':''),
   choices:()=>{const c=pct(.06),ch=clamp(.3+S.influence/200,0,.8);return[{l:'Bid for it',d:'Spend '+fmt(c)+'. '+Math.round(ch*100)+'% chance of '+fmt(c*3.2)+' in 3 months (better odds with influence).',f(){S.cash-=c;S.pending.push({due:S.month+3,cash:c*3.2,chance:ch,inv:c,made:S.month,label:'The government tender',good:'You won the government tender.',bad:'The tender went to someone better connected.',xgood:'Reputation +4.',rep:4});return['Bid submitted.','']}},
    {l:'Skip it',d:'Keep your cash.',f(){return['You skipped the tender.','']}}]}},
@@ -2500,7 +2502,7 @@ const EVI={
 const EVCAT={'Business':'briefcase','Economy':'chart','Markets':'chart','Politics':'capitol','Social':'people','Health':'heart','Family':'family','Law':'gavel','Darkworld':'mask',
  'Luxury':'diamond','Lifestyle':'diamond','Property':'building','Sports':'trophy','Foundation':'handheart','Street':'knife','World crisis':'globe','Disaster':'storm','Environmental disaster':'water',
  'Billionaire challenge':'crown','Your past':'ghost','Daily bonus':'coins','Black Friday':'gift','Holiday season':'gift','New year':'spark','Valentine\'s Day':'heart','Mid-year sales':'gift',
- 'Investment result':'chart','Election result':'ballot','Deal result':'briefcase','Your profile':'user','Life':'user','Industry risk':'boom','Industries':'factory',
+ 'Investment result':'chart','Tax audit result':'tax','Election result':'ballot','Deal result':'briefcase','Your profile':'user','Life':'user','Industry risk':'boom','Industries':'factory',
  'Fire':'flame','Factory fire':'flame','Explosion':'boom','Mining accident':'pick','Building collapse':'building','Road accident':'car','Aviation incident':'plane','Cyber attack':'lock',
  'Food safety':'food','Medical scandal':'cross','Lawsuit':'gavel','Compliance':'tax','Security scare':'badge',
  'Retail & Fashion':'gift','Food & Agriculture':'food','Transport & Logistics':'car','Manufacturing':'factory','Real Estate & Construction':'building','Technology & Finance':'lock','Hospitality & Tourism':'plane','Health & Education':'cross','Energy & Mining':'pick','Media & Entertainment':'spark'};
@@ -2511,7 +2513,7 @@ const EVWORD=[[/\b(baby|pregnan|born|twins)\b/i,'baby'],[/\b(wedding|marr|propos
  [/\b(pandemic|virus|outbreak|epidemic)/i,'virus'],[/\b(crash(es)?|recession|slump)\b/i,'chartdown'],[/\b(strike|union)\b/i,'strike'],[/\b(hack|cyber)/i,'lock'],[/\b(mine|tunnel)/i,'pick'],
  [/\b(hospital|doctor|surgery|cancer|diagnos|heart attack|sick|ill)\b/i,'cross'],[/\b(gift|spoil|birthday|party)\b/i,'gift']];
 function evIconKey(ev){const cat=String(ev.cat||''),t=String(ev.title||'').replace(/<[^>]*>/g,'');
- if(['Your past','Daily bonus','Billionaire challenge','Investment result','Election result','Deal result','Darkworld','Your profile'].includes(cat))return EVCAT[cat];
+ if(['Tax audit result','Your past','Daily bonus','Billionaire challenge','Investment result','Election result','Deal result','Darkworld','Your profile'].includes(cat))return EVCAT[cat];
  if(EVCAT[cat]&&!EVGEN.includes(cat))return EVCAT[cat];
  for(const [re,k] of EVWORD)if(re.test(t))return k;
  if(EVCAT[cat])return EVCAT[cat];if(typeof IND_CATS!=='undefined'&&IND_CATS.includes(cat))return'factory';
