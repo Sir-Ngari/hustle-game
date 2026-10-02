@@ -1359,7 +1359,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  else if(acctView==='auth')h+='<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm();
  else if(acctView==='menu')h+='<div class="me">'+avatar(ACC,true)+'<div><h2>'+esc(ACC.name)+'</h2><p class="sub">@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
   '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
-  passMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div><h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+'<div class="regionbox">'+regionMenuHTML()+'</div>';
+  passMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div><h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
  else if(acctView==='installios')h+='<h2>Install the app</h2><p class="sub">Put the game on your home screen. It opens full-screen, like any other app.</p><ol class="iossteps"><li>At the bottom of Safari, tap the <b>Share</b> button (the square with an arrow pointing up).</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The game\'s icon appears on your home screen.</li></ol><div class="chips"><button class="btn primary" data-a="acctclose">Got it</button></div>';
  else if(acctView==='addemail')h+='<h2>Add your email</h2><p class="sub">If you ever forget your password, we\'ll send a reset link here. We don\'t use it for anything else.</p>'+emailForm('Save email',true);
  else if(acctView==='forgot')h+='<h2>Forgot your password?</h2>'+(forgotDone?'<p class="amsg">'+esc(forgotDone)+'</p><div class="chips"><button class="btn primary" data-a="backlogin">Back to log in</button></div>':
@@ -1383,7 +1383,17 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  wireRegionMenu();
  const ff=$('forgotform');if(ff){ff.addEventListener('submit',e=>{e.preventDefault();submitForgot();});$('fg-who').focus();}
  const rf=$('resetform');if(rf){rf.addEventListener('submit',e=>{e.preventDefault();submitReset();});$('rs-pass').focus();}
+ const cf=$('coform');if(cf)cf.addEventListener('submit',e=>{e.preventDefault();submitCompany();});
  const ef=$('emailform');if(ef){ef.addEventListener('submit',e=>{e.preventDefault();submitEmail();});if(acctView==='addemail')$('em-email').focus();}}
+function companyHTML(){if(ACC.renamed)return'<h3>Company name</h3><p class="sub">Your company is <b>'+esc(ACC.company)+'</b>. You have already used your one rename.</p>';
+ return'<h3>Company name</h3><p class="sub">Your company is <b>'+esc(ACC.company)+'</b>. It names your racing team, towers, foundation and more. You can rename it <b>once</b>.</p><form id="coform" class="aform" novalidate><label for="co-name">New company name</label><input id="co-name" maxlength="16" autocomplete="off" placeholder="e.g. Zuri" required><p class="hint">Up to 16 characters. You cannot change it again after this.</p><p class="aerr" id="co-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="co-submit">Rename company</button></div></form>';}
+async function submitCompany(){const v=$('co-name').value.trim().replace(/\s+/g,' '),btn=$('co-submit'),err=$('co-err'),bad=m=>{err.textContent=m;err.hidden=false;};
+ if(!v)return bad('Enter a company name.');if(v===ACC.company)return bad('That is already your company name.');
+ if(!confirm('Rename '+ACC.company+' to '+v+'? You can only do this once.'))return;
+ btn.disabled=true;const old=ACC.company;try{const d=await api('POST','/api/company',{company:v});ACC=d.user;
+  (S.props||[]).forEach(p=>{if(p.name)p.name=p.name.split(old).join(ACC.company);});
+  log('You renamed your company from '+old+' to '+ACC.company+'.','gold');if(typeof save==='function')save();render();renderAccts();}
+ catch(e){btn.disabled=false;bad(e.message);}}
 function emailForm(label,later){return'<form id="emailform" class="aform" novalidate><label for="em-email">Email</label><input id="em-email" type="email" maxlength="120" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" value="'+esc((ACC&&ACC.email)||'')+'" required>'+
  '<label for="em-pass">Your current password</label><input id="em-pass" type="password" maxlength="128" autocomplete="current-password" required><p class="hint">So nobody else can change it.</p>'+
  '<p class="aerr" id="acc-err" hidden></p><p class="amsg" id="em-ok" hidden></p><div class="chips"><button type="submit" class="btn primary" id="em-submit">'+label+'</button>'+(later?'<button type="button" class="btn ghost" data-a="skipemail">Not now</button>':'')+'</div></form>';}
@@ -1432,7 +1442,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='658d7107b4c7';let updShown=false;
+const APP_VER='56fb4c65a2aa';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}

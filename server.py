@@ -256,6 +256,8 @@ _db.execute("CREATE INDEX IF NOT EXISTS users_email ON users(email)")
 if "ref_code" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
     _db.execute("ALTER TABLE users ADD COLUMN ref_code TEXT NOT NULL DEFAULT ''")
 _db.execute("CREATE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)")
+if "company_renamed" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
+    _db.execute("ALTER TABLE users ADD COLUMN company_renamed INTEGER NOT NULL DEFAULT 0")
 _lock = threading.Lock()
 
 
@@ -431,7 +433,8 @@ def num(value, default=0.0):
 
 def user_public(u):
     return {"id": u["id"], "username": u["username"], "name": u["name"], "company": u["company"],
-            "town": u["town"], "bg": u["bg"], "color": u["color"], "email": u["email"]}
+            "town": u["town"], "bg": u["bg"], "color": u["color"], "email": u["email"],
+            "renamed": bool(u["company_renamed"]) if "company_renamed" in u.keys() else False}
 
 
 def clean_email(value):
@@ -1103,7 +1106,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlparse(self.path).path
         routes = {"/api/signup": self.api_signup, "/api/login": self.api_login, "/api/logout": self.api_logout,
-                  "/api/forgot": self.api_forgot, "/api/reset": self.api_reset, "/api/email": self.api_email,
+                  "/api/forgot": self.api_forgot, "/api/reset": self.api_reset, "/api/email": self.api_email, "/api/company": self.api_company,
                   "/api/admin/login": self.api_admin_login, "/api/admin/logout": self.api_admin_logout,
                   "/api/billing/checkout": self.api_checkout, "/api/billing/confirm": self.api_confirm,
                   "/api/billing/later": self.api_later, "/api/billing/gift": self.api_gift}
@@ -1246,6 +1249,29 @@ class Handler(BaseHTTPRequestHandler):
         q("UPDATE users SET email=? WHERE id=?", (email, user["id"]))
         q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
           (user["id"], now(), self.current_game(user["id"]), "Updated their email" if user["email"] else "Added an email"))
+        user = q("SELECT * FROM users WHERE id=?", (user["id"],), one=True)
+        self.send_json(200, {"user": user_public(user)})
+
+    def api_company(self):
+        """A logged-in player renames their company brand. Allowed once per account."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if rate_limited("company:%d" % user["id"], limit=10, window=3600):
+            return self.error(429, "Too many tries. Try again later.")
+        d = self.read_json()
+        if d is None:
+            return
+        if user["company_renamed"]:
+            return self.error(409, "You have already renamed your company once.")
+        company = clean_text(d.get("company"), 16)
+        if not company:
+            return self.error(400, "Enter a company name.")
+        if company == user["company"]:
+            return self.error(400, "That is already your company name.")
+        q("UPDATE users SET company=?, company_renamed=1 WHERE id=?", (company, user["id"]))
+        q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
+          (user["id"], now(), self.current_game(user["id"]), "Renamed their company from %s to %s" % (user["company"], company)))
         user = q("SELECT * FROM users WHERE id=?", (user["id"],), one=True)
         self.send_json(200, {"user": user_public(user)})
 
