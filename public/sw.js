@@ -1,6 +1,6 @@
 /* Hustlempires service worker: keeps the game's screens on the phone so the app opens instantly
    and shows a friendly message when offline. Game data (/api/) always goes to the server. */
-const CACHE = 'hustle-v4';
+const CACHE = 'hustle-v5';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/icons/favicon-48.png'];
 
 self.addEventListener('install', e => {
@@ -15,7 +15,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin')) return;
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin') || url.pathname.endsWith('.json')) return;
   if (req.mode === 'navigate') {
     // always try the network first, so players get new versions straight away
     e.respondWith(fetch(req).then(res => {
