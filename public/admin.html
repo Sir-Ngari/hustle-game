@@ -45,7 +45,7 @@ button{cursor:pointer}
 .panel h2{font-family:var(--display);font-weight:800;font-size:21px;letter-spacing:.05em;text-transform:uppercase;margin:0}
 .panel .sub{color:var(--muted);font-size:13px;margin:2px 0 12px}
 .pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 7px;border-radius:2px;background:var(--line);color:var(--ink);white-space:nowrap}
-.pill.good{background:var(--green-soft);color:var(--green)}.pill.bad{background:var(--red-soft);color:var(--red)}.pill.gold{background:var(--brass-soft);color:var(--brass)}
+.pill.good{background:var(--green-soft);color:var(--green)}.pill.bad{background:var(--red-soft);color:var(--red)}.pill.gold{background:var(--brass-soft);color:var(--brass)}.pill.idle{background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1px var(--line)}
 .pill.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:1px}
 .av{width:30px;height:30px;border-radius:50%;display:inline-grid;place-items:center;color:var(--panel);font-weight:700;font-size:12px;flex:none}
 .av.big{width:46px;height:46px;font-size:17px}
@@ -231,17 +231,18 @@ body.navhide .main{margin-left:0}
           <option value="all">All players</option>
           <option value="online">Online now</option>
           <option value="today">Active today</option>
+          <option value="yesterday">Active yesterday</option>
+          <option value="week">Active this week</option>
+          <option value="away">Not seen for a week or more</option>
           <option value="billion">Billionaires</option>
           <option value="bankrupt">Bankrupt</option>
           <option value="disabled">Disabled</option>
-          <option value="pass-paid">Pass: paying</option>
-          <option value="pass-trial">Pass: on trial or bonus days</option>
-          <option value="pass-locked">Pass: locked out</option>
+          <option value="died">Passed away</option>
         </select>
       </div>
       <div class="tablewrap">
         <table>
-          <thead><tr><th>Player</th><th>Company · town</th><th>Status</th><th>Pass</th><th>Rank</th><th class="r">Net worth</th><th class="r">Best</th><th>In-game date</th><th class="r">Months played</th><th class="r">Logins</th><th>Last active</th></tr></thead>
+          <thead><tr><th>Player</th><th>Company · town</th><th>Status</th><th>Rank</th><th class="r">Net worth</th><th class="r">Best</th><th>In-game date</th><th class="r">Months played</th><th class="r">Logins</th><th>Last active</th></tr></thead>
           <tbody id="players"></tbody>
         </table>
       </div>
@@ -343,9 +344,13 @@ const gameDate=m=>m==null?'—':'Year '+(Math.floor(m/12)+1)+' · '+MONTHS[m%12]
 function ago(ts){if(!ts)return'never';const s=Math.max(0,serverNow-ts);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';const d=Math.floor(s/86400);return d===1?'yesterday':d+' days ago';}
 const initials=n=>String(n||'').trim().split(/\s+/).slice(0,2).map(w=>w.charAt(0).toUpperCase()).join('')||'?';
 const avatar=(p,big)=>'<span class="av'+(big?' big':'')+'" style="background:'+AVCOL[p.color||0]+'" aria-hidden="true">'+esc(initials(p.name))+'</span>';
-function status(p){if(p.disabled)return['Disabled','bad'];const age=serverNow-p.last_seen;
- if(p.detail&&p.detail.died)return['Passed away','bad'];if(p.bankrupt)return['Bankrupt','bad'];if(p.billion_month!=null)return['Billionaire','gold'];
- if(age<300)return['Online now','good live'];if(age<86400)return['Active today','good'];if(age<7*86400)return['This week',''];return['Idle',''];}
+/* activity status: online now, active today, active yesterday, or how many days ago (calendar days, in your time zone) */
+function dayGap(ts){const d=x=>{const t=new Date(x*1000);return Date.UTC(t.getFullYear(),t.getMonth(),t.getDate())/86400000;};return Math.round(d(serverNow)-d(ts));}
+function actDays(p){return p.last_seen?dayGap(p.last_seen):99999;}
+function status(p){if(p.disabled)return['Disabled','bad'];const age=serverNow-p.last_seen,g=actDays(p);
+ if(age<300)return['Online now','good live'];if(g<=0)return['Active today','good'];if(g===1)return['Active yesterday',''];if(g<7)return[g+' days ago',''];return['Not seen for '+(g<60?Math.floor(g/7)+' week'+(g<14?'':'s'):Math.floor(g/30)+' months'),'idle'];}
+/* how the current game stands: shown under the rank */
+function gameTag(p){if(p.detail&&p.detail.died)return['Passed away','bad'];if(p.bankrupt)return['Bankrupt','bad'];if(p.billion_month!=null)return['Billionaire','gold'];return null;}
 
 async function api(method,path,body){let r;
  try{r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
@@ -525,13 +530,13 @@ function renderFeed(feed){$('feed').innerHTML=feed.length?feed.map(f=>'<li>'+ava
 /* ---------- players table ---------- */
 function renderPlayers(){const term=$('search').value.trim().toLowerCase(),sort=$('sortBy').value,filter=$('filterBy').value;
  let rows=players.filter(p=>!term||[p.name,p.username,p.email,p.company,p.town].some(x=>String(x||'').toLowerCase().includes(term)));
- rows=rows.filter(p=>filter==='all'||(filter==='online'&&!p.disabled&&serverNow-p.last_seen<300)||(filter==='today'&&serverNow-p.last_seen<86400)||(filter==='billion'&&p.billion_month!=null)||(filter==='bankrupt'&&p.bankrupt)||(filter==='disabled'&&p.disabled)||(filter==='pass-paid'&&p.pass&&p.pass.state==='paid')||(filter==='pass-trial'&&p.pass&&(p.pass.state==='trial'||p.pass.state==='bonus'))||(filter==='pass-locked'&&p.pass&&p.pass.state==='locked'));
+ rows=rows.filter(p=>filter==='all'||(filter==='online'&&!p.disabled&&serverNow-p.last_seen<300)||(filter==='today'&&actDays(p)<=0)||(filter==='yesterday'&&actDays(p)===1)||(filter==='week'&&actDays(p)<7)||(filter==='away'&&actDays(p)>=7)||(filter==='died'&&p.detail&&p.detail.died)||(filter==='billion'&&p.billion_month!=null)||(filter==='bankrupt'&&p.bankrupt)||(filter==='disabled'&&p.disabled)||(filter==='pass-paid'&&p.pass&&p.pass.state==='paid')||(filter==='pass-trial'&&p.pass&&(p.pass.state==='trial'||p.pass.state==='bonus'))||(filter==='pass-locked'&&p.pass&&p.pass.state==='locked'));
  rows.sort((a,b)=>(+b[sort]||0)-(+a[sort]||0));
  $('players').innerHTML=rows.length?rows.map(p=>{const [st,cls]=status(p);
   return'<tr data-open="'+p.id+'" tabindex="0"><td><div class="pcell">'+avatar(p)+'<div><b>'+esc(p.name)+'</b><small>@'+esc(p.username)+'</small></div></div></td><td>'+esc(p.company)+' · '+esc(p.town)+'<br><small style="color:var(--muted)">'+esc(BGNAME[p.bg]||p.bg)+'</small></td>'+
-   '<td><span class="pill '+cls+'">'+st+'</span></td><td>'+passPill(p.pass)+'</td><td>'+esc(p.rank||'—')+'</td><td class="r num">'+fmt(p.nw)+'</td><td class="r num">'+fmt(p.best)+'</td><td>'+gameDate(p.month)+(p.games>1?' <small style="color:var(--muted)">(game '+p.games+')</small>':'')+'</td>'+
+   '<td><span class="pill '+cls+'">'+st+'</span></td><td>'+esc(p.rank||'—')+((t=>t?'<br><span class="pill '+t[1]+'" style="margin-top:4px">'+t[0]+'</span>':'')(gameTag(p)))+'</td><td class="r num">'+fmt(p.nw)+'</td><td class="r num">'+fmt(p.best)+'</td><td>'+gameDate(p.month)+(p.games>1?' <small style="color:var(--muted)">(game '+p.games+')</small>':'')+'</td>'+
    '<td class="r num">'+(p.months_played||0)+'</td><td class="r num">'+(p.logins||0)+'</td><td>'+ago(p.last_seen)+'</td></tr>';}).join('')
-  :'<tr><td colspan="11" class="empty">'+(players.length?'No players match.':'No players yet. Share the game link to get your first sign-ups.')+'</td></tr>';}
+  :'<tr><td colspan="10" class="empty">'+(players.length?'No players match.':'No players yet. Share the game link to get your first sign-ups.')+'</td></tr>';}
 ['search','sortBy','filterBy'].forEach(id=>$(id).addEventListener('input',renderPlayers));
 document.addEventListener('click',e=>{const t=e.target.closest('[data-open]');if(t)openPlayer(+t.dataset.open);});
 $('players').addEventListener('keydown',e=>{if(e.key==='Enter'){const t=e.target.closest('[data-open]');if(t)openPlayer(+t.dataset.open);}});
