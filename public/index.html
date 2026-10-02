@@ -1377,7 +1377,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='31776ae48c34';let updShown=false;
+const APP_VER='bb73dd111478';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -3116,22 +3116,25 @@ function paintBC(){const p=$('bcpanel');if(!p)return;const b=S&&S.bc,c=b&&b.acti
 
 
 /* ================= Spoil your spouse: gifts and treats ================= */
-function giftList(){const wife=S.spouse&&S.spouse.g!=='m',get=(R&&R.getaway)||'the coast';
- return[['dinner','Flowers and a dinner date',120,4,'A table for two and a big bouquet.'],
-  ['getaway','A weekend away in '+get,1500,8,'Two nights, no phones.'],
-  wife?['handbag','A designer handbag',3000,10,'The Louis Vuitton she keeps showing you on Instagram.']:['watch','A luxury watch',5000,10,'The one he keeps stopping to look at.'],
-  wife?['salonday','A full day at the spa and salon',800,6,'Hair, nails, massage, the works.']:['suits','Bespoke suits from a top tailor',3000,8,'Three suits cut just for him.'],
-  ['party','A surprise birthday party',10000,12,'Friends, family, a live band and a cake taller than you.'],
-  wife?['shopping','A shopping spree in Dubai',50000,15,'Business class, the Dubai Mall and an open budget.']:['golftrip','A golf trip to Scotland',40000,14,'St Andrews with his friends.'],
-  wife?['diamonds','A diamond necklace',25000,14,'Something she will wear to every gala.']:['bike','A superbike',30000,12,'The one he has wanted since he was twenty.'],
-  ['honeymoon','A second honeymoon in the Maldives',60000,18,'Two weeks in a villa over the water.'],
-  ['car','A new car in '+(wife?'her':'his')+' name',150000,18,'A Range Rover with a big bow on the bonnet.'],
-  ['house','A home in '+(wife?'her':'his')+' name',1500000,25,'A house that is theirs, whatever happens.']];}
-function giftsHTML(){if(!S.spouse)return'';const nw=Math.max(0,netWorth()),G=S.gifts||{},list=giftList().filter(g=>g[2]<=Math.max(5000,nw*.6));
- return'<h4>Spoil your '+spW()+'</h4><p class="seghint">Gifts make '+esc(S.spouse.name)+' happier. The same gift twice in 6 months means half as much, and anything cheap for your wealth gets a polite smile.</p><div class="gifts">'+
-  list.map(g=>{const c=g[2],cool=G[g[0]]!=null&&S.month-G[g[0]]<6;return'<button class="gift" data-a="gift" data-v="'+g[0]+'"'+(S.cash<c||S.over?' disabled':'')+'><b>'+esc(g[1])+'</b><span>'+fmt(c)+' · +'+(cool||c<nw*.0002?Math.ceil(g[3]/2):g[3])+' '+spW()+' happiness'+(cool?' (given recently)':'')+'</span></button>';}).join('')+'</div>';}
+function giftList(){const wife=S.spouse&&S.spouse.g!=='m',get=(R&&R.getaway)||'the coast',nw=Math.max(0,netWorth());
+ // each gift costs its base price, or a share of net worth once the player is richer, so a billionaire's gifts cost like a billionaire's
+ const L=[['dinner','Flowers and a dinner date',120,4,'A table for two and a big bouquet.',.00005],
+  ['getaway','A weekend away in '+get,1500,8,'Two nights, no phones.',.0005],
+  wife?['handbag','A designer handbag',3000,10,'The Louis Vuitton she keeps showing you on Instagram.',.001]:['watch','A luxury watch',5000,10,'The one he keeps stopping to look at.',.0012],
+  wife?['salonday','A full day at the spa and salon',800,6,'Hair, nails, massage, the works.',.0003]:['suits','Bespoke suits from a top tailor',3000,8,'Three suits cut just for him.',.0008],
+  ['party','A surprise birthday party',10000,12,'Friends, family, a live band and a cake taller than you.',.003],
+  wife?['shopping','A shopping spree in Dubai',50000,15,'Business class, the Dubai Mall and an open budget.',.008]:['golftrip','A golf trip to Scotland',40000,14,'St Andrews with his friends.',.007],
+  wife?['diamonds','A diamond necklace',25000,14,'Something she will wear to every gala.',.006]:['bike','A superbike',30000,12,'The one he has wanted since he was twenty.',.005],
+  ['honeymoon','A second honeymoon in the Maldives',60000,18,'Two weeks in a villa over the water.',.012],
+  ['car','A new car in '+(wife?'her':'his')+' name',150000,18,'A Range Rover with a big bow on the bonnet.',.02],
+  ['house','A home in '+(wife?'her':'his')+' name',1500000,25,'A house that is theirs, whatever happens.',.05]];
+ const r=v=>{const p=Math.pow(10,Math.floor(Math.log10(Math.max(1,v)))-1);return Math.round(v/p)*p;};
+ return L.map(g=>{const c=Math.max(g[2],r(nw*g[5]));return[g[0],g[1],c,g[3],g[4]];});}
+function giftsHTML(){if(!S.spouse)return'';const nw=Math.max(0,netWorth()),G=S.gifts||{},list=giftList().filter(g=>g[2]<=Math.max(5000,nw*.6)).sort((x,y)=>x[2]-y[2]);
+ return'<h4>Spoil your '+spW()+'</h4><p class="seghint">Gifts make '+esc(S.spouse.name)+' happier. Prices rise with your wealth: the richer you are, the more it takes to impress. The same gift twice in 6 months means half as much.</p><div class="gifts">'+
+  list.map(g=>{const c=g[2],cool=G[g[0]]!=null&&S.month-G[g[0]]<6;return'<button class="gift" data-a="gift" data-v="'+g[0]+'"'+(S.cash<c||S.over?' disabled':'')+'><b>'+esc(g[1])+'</b><span>'+fmt(c)+' · +'+(cool||c<nw*.00004?Math.ceil(g[3]/2):g[3])+' '+spW()+' happiness'+(cool?' (given recently)':'')+'</span></button>';}).join('')+'</div>';}
 function giveGift(id){const g=giftList().find(x=>x[0]===id);if(!g||!S.spouse||S.cash<g[2]||S.over)return;S.gifts=S.gifts||{};
- const nw=Math.max(0,netWorth()),cool=S.gifts[id]!=null&&S.month-S.gifts[id]<6,cheap=g[2]<nw*.0002,gain=cool||cheap?Math.ceil(g[3]/2):g[3];
+ const nw=Math.max(0,netWorth()),cool=S.gifts[id]!=null&&S.month-S.gifts[id]<6,cheap=g[2]<nw*.00004,gain=cool||cheap?Math.ceil(g[3]/2):g[3];
  S.cash-=g[2];S.gifts[id]=S.month;addSH(gain);addHappy(Math.ceil(gain/4));
  if(id==='house'){S.assets=S.assets||{};}
  log('You gave '+S.spouse.name+' '+g[1].charAt(0).toLowerCase()+g[1].slice(1)+'. '+(cool?S.spouse.name+' liked it, but you gave the same thing recently.':cheap?S.spouse.name+' smiled politely. They know you can afford more.':S.spouse.name+' loved it.')+' +'+gain+' '+spW()+' happiness.',cool||cheap?'':'good');afterChange();}
