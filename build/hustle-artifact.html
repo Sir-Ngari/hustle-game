@@ -1282,6 +1282,15 @@ function fmt(n){const neg=n<0;n=Math.abs(n);let s;if(curLocal())n*=R.rate;const 
 function fmtFull(n){const v=curLocal()?n*R.rate:n;return v<1e7?curSym()+Math.round(v).toLocaleString('en-US'):fmt(n);}
 const dollars=t=>String(t).replace(/\$(\d[\d,]*(?:\.\d+)?)([KMBT]?)/g,(m,x,u)=>fmt(+x.replace(/,/g,'')*({'':1,K:1e3,M:1e6,B:1e9,T:1e12}[u])));
 const owned=id=>S.owned[id]||0, has=id=>S.assets[id]||0, af=id=>S.af[id]||1;
+/* fires and other mishaps hit a place the player really owns */
+const FIREPLACE={kiosk:'kiosk',mitumba:'stall',retail:'shop',deptstore:'flagship store',fashionhouse:'design studio',retailgroup:'distribution centre',mbogastand:'stand',poultry:'poultry houses',avocado:'packhouse',mill:'flour mill',foodproc:'processing plant',agribiz:'grain silos',
+ boda:'boda boda garage',matatu:'matatu depot',trucking:'truck yard',courier:'sorting centre',logistics:'warehouse',airline:'aircraft hangar',jua:'workshop',workshop:'tailoring workshop',furniture:'furniture factory',factory:'factory',steel:'steel mill',assembly:'assembly plant',
+ hardware:'hardware stall',fundi:'materials yard',construction:'equipment yard',developer:'site office',property:'tower',satcity:'show houses',cyber:'cyber café',agents:'head office',software:'office',saas:'data centre',fintech:'office',digitalbank:'data centre',
+ nyama:'kitchen',restaurant:'restaurant kitchen',hotel:'hotel',lodge:'safari lodge',resort:'beach resort',hotelgroup:'flagship hotel',chemist:'chemist',daycare:'daycare centre',clinic:'clinic',school:'school',hospital:'hospital wing',university:'university library',
+ gas:'cylinder store',petrol:'petrol station',solar:'stock warehouse',quarry:'quarry machinery shed',goldmine:'mine buildings',oilgas:'fuel depot',dj:'equipment store',studio:'recording studio',radio:'radio studio',tv:'TV studio',mediahouse:'printing press',streaming:'server room'};
+function fireBiz(rand){const L=BIZ.filter(b=>owned(b.id)>0);if(!L.length)return null;if(!rand)return L.reduce((a,b)=>bizValue(b)>bizValue(a)?b:a);
+ const tot=L.reduce((t,b)=>t+bizValue(b),0);let r=rnd()*tot;for(const b of L){r-=bizValue(b);if(r<=0)return b;}return L[L.length-1];}
+const firePlace=b=>b?(FIREPLACE[b.id]||b.name.lc()):'premises';
 const unitCost=(b,n)=>b.cost*Math.pow(1.12,n);
 const marketMult=()=>MARKETS.slice(0,S.market+1).reduce((a,m)=>a*m.mult,1);
 const upMult=()=>UPS.reduce((a,u)=>a*(S.ups[u.id]?u.m:1),1);
@@ -1455,8 +1464,9 @@ const EVENTS=[
  {id:'order',cat:'Business',w:1,title:'A big corporate order',text:()=>'A bank wants branded products for all its staff. You pay for materials upfront and get paid on delivery.',
   choices:()=>{const c=pct(.15);return[{l:'Accept the order',d:'Spend '+fmt(c)+' now. 90% chance of '+fmt(c*1.6)+' in 2 months.',f(){S.cash-=c;S.pending.push({due:S.month+2,cash:c*1.6,chance:.9,inv:c,made:S.month,label:'The corporate order',good:'The corporate client paid in full.',bad:'The client cancelled. The materials are wasted.'});return['Order accepted.','']}},
    {l:'Decline',d:'Too much cash tied up.',f(){return['You declined the corporate order.','']}}]}},
- {id:'fire',cat:'Business',w:.6,when:()=>bizAssets()>30000,title:'Fire at your warehouse',text:()=>'An electrical fault started a fire overnight.'+(S.ups.insure?' Insurance will cover most of it.':' You are not insured.'),
-  choices:()=>{const c=bizAssets()*.12*(S.ups.insure?.15:1);return[{l:'Rebuild',d:'Costs '+fmt(c)+'.',f(){S.cash-=c;return['You rebuilt after the fire for '+fmt(c)+'.','bad']}}]}},
+ {id:'fire',cat:'Business',w:.6,when:()=>bizAssets()>30000&&!!fireBiz(),setup(){this.B=fireBiz(true);},title(){return'Fire at your '+firePlace(this.B);},
+  text(){return'An electrical fault started a fire overnight at your '+firePlace(this.B)+'.'+(S.ups.insure?' Insurance will cover most of it.':' You are not insured.');},
+  choices(){const B=this.B,unit=bizValue(B)/Math.max(1,owned(B.id)),c=Math.min(bizAssets()*.12,unit*.6)*(S.ups.insure?.15:1);return[{l:'Rebuild',d:'Costs '+fmt(c)+'.',f(){S.cash-=c;return['You rebuilt your '+firePlace(B)+' after the fire for '+fmt(c)+'.','bad']}}]}},
  {id:'friend',cat:'Business',w:.8,title:'A friend\'s startup is raising',text:()=>'An old friend is building an app and asks you to back them. Most startups fail. Some don\'t.',
   choices:()=>{const c=pct(.05);return[{l:'Invest',d:'Put in '+fmt(c)+'. 25% chance it returns '+fmt(c*12)+' in a year.',f(){S.cash-=c;S.pending.push({due:S.month+12,cash:c*12,chance:.25,inv:c,made:S.month,label:'Your friend\'s startup',good:'A bigger company bought your friend\'s app.',bad:'Your friend\'s startup ran out of money and shut down.'});return['You backed the startup.','']}},
    {l:'Pass',d:'Stay focused.',f(){return['You passed on the startup.','']}}]}},
@@ -1776,7 +1786,7 @@ function divorce(share,msg,head){const sp=S.spouse;let owed=(Math.max(0,S.cash)+
 function mobHitEvent(){const targets=BIZ.filter(b=>b.tier<=4&&owned(b.id)>0);const b=targets.length?pick(targets):null;let lost=0,fam=rnd()<.35&&S.spouse;
  if(b){lost=Math.max(1,Math.floor(owned(b.id)*.25*(S.ups.insure?.5:1)));S.owned[b.id]-=lost;}
  if(fam){addHappy(-12);addSH(-15);}
- const text=(b?'Your '+b.name+(lost>1?' outlets were':' was')+' torched overnight. You lost '+lost+' unit'+(lost>1?'s':'')+'.':'Your warehouse was vandalised.')+(fam?' Someone also followed '+S.spouse.name+' home from work.':'')+' The message is clear.';
+ const text=(b?'Your '+b.name+(lost>1?' outlets were':' was')+' torched overnight. You lost '+lost+' unit'+(lost>1?'s':'')+'.':'Your '+firePlace(fireBiz())+' was vandalised.')+(fam?' Someone also followed '+S.spouse.name+' home from work.':'')+' The message is clear.';
  const c=nwc(.03,1000),ch=clamp(.15+S.influence/120,0,.85);
  const ch2=[{l:'Pay them off',d:'Pay '+fmt(c)+' now and 8% of profit monthly. Heat drops to 0.',f(){S.cash-=c;S.protection=.08;S.heat=0;return['You paid the mob off.','bad']}},
   {l:'Report to the police',d:Math.round(ch*100)+'% chance of a crackdown that ends it (better with influence). Otherwise, heat rises.',f(){if(rnd()<ch){S.heat=0;S.protection=0;S.mobQuiet=S.month+36;S.mobMet=false;addRep(5);return['Police crushed the gang. The streets are quiet for now.','good']}addHeat(20);addHappy(-10);return['The police did nothing. The mob knows you talked.','bad']}},
@@ -3269,7 +3279,7 @@ function dwStart(id){const L=lawOf(),x=SCHEMES.find(y=>y.id===id);L.on[id]=true;
 /* dirty money is most tempting when you are broke; every yes is remembered */
 function dwEarly(){const nw=Math.max(0,netWorth());return nw<2e5?1.8:nw<5e6?1.3:1;}
 const DWLBL={evasion:'kept two sets of books to cheat the taxman',bribes:'paid an official "tea money" every month',smuggle:'ran contraband through your trucks',tenders:'rigged a government tender',launder:'cleaned money for a gang',
- fire:'burned your own warehouse for the insurance',fakes:'sold fake designer goods in your shops',land:'grabbed public land with forged papers',campaign:'funded a politician with bags of cash',rival:'paid an officer to shut down a rival',casino:'bought into an underground casino',
+ fire:'set fire to your own business for the insurance',fakes:'sold fake designer goods in your shops',land:'grabbed public land with forged papers',campaign:'funded a politician with bags of cash',rival:'paid an officer to shut down a rival',casino:'bought into an underground casino',
  hacker:'bought a stolen client list',customs:'bribed port officers to skip duty',photos:'blackmailed a minister with photos',club:'fronted a pyramid scheme that ruined savers',witness:'paid a witness to forget',file:'paid to make a prosecutor\'s file disappear'};
 const DWHEAVY=['fire','land','launder','witness','file','photos','club','smuggle','tenders'];
 function dwRecord(id){const L=lawOf();L.past=L.past||[];L.past.push({id,m:S.month,done:false});if(L.past.length>25)L.past.shift();}
@@ -3305,9 +3315,9 @@ function dwOne(id,w,cond,make,minNW){return{id:'dw_'+id,cat:'Darkworld',w:()=>w*
  build(){const L=lawOf();L.dwLast=S.month;L.dwSeen=L.dwSeen||{};L.dwSeen[id]=S.month;const o=make(L);o.cat='Darkworld';return dwWrap(o,id);}};}
 const dwNo=(t,f)=>({l:t[0],d:t[1],f(){if(f)f();return[t[2],t[3]||'']}});
 const DW_DEALS=[
- dwOne('fire',1,null,L=>{const pay=nwc(.04,3000);return{title:'"A fire would solve a lot"',text:'Your half-empty warehouse is insured for far more than it is worth. Your manager knows a man who can make it look like an electrical fault.',
+ dwOne('fire',1,null,L=>{const pay=nwc(.04,3000);const fb=fireBiz();return{title:'"A fire would solve a lot"',text:'Your half-empty '+firePlace(fb)+' is insured for far more than it is worth. Your manager knows a man who can make it look like an electrical fault.',
   choices:[{l:'Let it burn',d:'Collect about '+fmt(pay)+' from the insurers. Police attention +'+dwN(15)+'. If the investigators look closely, far worse.',f(){if(rnd()<.3){dwHit(40);addRep(-8);return['The insurance investigator found petrol traces. The payout was frozen and detectives want to talk.','bad'];}S.cash+=pay;dwHit(15);return['The insurers paid '+fmt(pay)+'. The fire chief called it bad wiring.','bad']}},
-   dwNo(['Tell him no','Keep the warehouse, keep your conscience.','You told your manager never to mention it again.',''])]};}),
+   dwNo(['Tell him no','Keep the building, keep your conscience.','You told your manager never to mention it again.',''])]};}),
  dwOne('fakes',1,null,L=>{const c=nwc(.008,800),gain=c*2.5;return{title:'A container of "designer" goods',text:'A supplier offers a full container of fake designer handbags, shoes and watches. Perfect copies, he swears, at a tenth of the price.',
   choices:[{l:'Sell the fakes in your shops',d:'Costs '+fmt(c)+', sells for about '+fmt(gain)+'. Police attention +'+dwN(10)+'. Customers may notice.',dis:!canPay(c),f(){S.cash-=c;dwHit(10);if(rnd()<.3){S.cash+=gain*.4;addRep(-6);return['A customer posted the stitching online. Half the stock was seized; you sold the rest.','bad'];}S.cash+=gain;return['The fakes flew off the shelves. Profit: '+fmt(gain-c)+'.','bad']}},
    dwNo(['Turn him away','Real goods only.','He went to your competitor instead.',''])]};}),
