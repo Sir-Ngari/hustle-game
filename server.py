@@ -841,7 +841,7 @@ def clean_tuning(d):
         out["crisis"] = crisis
     dd = d.get("death") if isinstance(d.get("death"), dict) else {}
     death = {}
-    for k in ("natural", "illness", "road", "jet", "hit"):
+    for k in DEATH_TUNABLE:
         if mult(dd.get(k)) is not None and mult(dd.get(k)) != 1:
             death[k] = mult(dd.get(k))
     try:
@@ -861,7 +861,21 @@ def clean_tuning(d):
     return out
 
 
-DEATH_KINDS = [("bankrupt", ("creditors", "bankrupt")), ("hit", ("gunmen", "mob had warned")), ("jet", ("jet went down",)),
+DEATH_TUNABLE = ("natural", "illness", "road", "jet", "hit",
+                 "lungc", "pancc", "bloodc", "colonc", "sexc", "liverf", "kidneyf", "heartf", "als", "alz",
+                 "burnout", "stress", "despair", "overdose", "kidnap", "poison", "spouse", "yacht", "heli",
+                 "raid", "cartel", "prison", "rocket", "selftest", "adventure")
+
+DEATH_KINDS = [("lungc", ("lung cancer",)), ("pancc", ("pancreatic cancer",)), ("bloodc", ("leukaemia",)),
+               ("colonc", ("colon cancer",)), ("sexc", ("breast cancer", "prostate cancer")), ("liverf", ("liver failure",)),
+               ("kidneyf", ("kidney failure",)), ("heartf", ("heart failure",)), ("als", ("motor neurone",)),
+               ("alz", ("alzheimer",)), ("burnout", ("board meeting",)), ("stress", ("massive stroke",)),
+               ("despair", ("loneliness and unhappiness",)), ("overdose", ("overdose",)), ("kidnap", ("kidnappers",)),
+               ("poison", ("found poison",)), ("spouse", ("gunman police caught",)), ("yacht", ("caught your yacht",)),
+               ("heli", ("helicopter came down",)), ("raid", ("raided your home",)), ("cartel", ("cartel you once",)),
+               ("prison", ("prison fight",)), ("rocket", ("riding your own rocket",)), ("selftest", ("ageing treatment on yourself",)),
+               ("adventure", ("everest", "shark cage", "walking safari", "desert rally")),
+               ("bankrupt", ("creditors", "bankrupt")), ("hit", ("gunmen", "mob had warned")), ("jet", ("jet went down",)),
                ("road", ("ran a red light", "road")), ("aliens", ("mars", "ships arrived")),
                ("illness", ("second heart attack", "spread too far", "could not save you", "in hospital", "at home, surrounded")),
                ("maxage", ("you lived to",)), ("natural", ("heart gave out", "short illness", "collapsed at your desk"))]

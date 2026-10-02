@@ -443,18 +443,50 @@ $('evReset').addEventListener('click',()=>{evTune={freq:1,gap:2,w:{},cat:{},cris
 
 /* ---------- deaths ---------- */
 let deStats=null;
-const DEATHS=[['natural','Old age & health','From age 55, a monthly chance that rises with age and falls with good health.'],
+const DEATHS=[['#','Age, health and bankruptcy'],
+ ['natural','Old age & health','From age 55, a monthly chance that rises with age and falls with good health.'],
  ['illness','Ignored or critical illness','Ignoring a heart attack (15%), an untreated growth (35%), and not surviving intensive care (10 to 60% by hospital).'],
  ['bankrupt','Bankruptcy heart attack','When creditors seize the empire. Set the chance above.'],
+ ['maxage','Reached the age limit','Everyone dies at the oldest age set above, unless longevity research removes the limit.'],
+ ['#','Terminal illness (the player is diagnosed, chooses treatment, and lives or dies months later)'],
+ ['lungc','Lung cancer','From 45. Odds: 45% treated at home, 70% abroad. Better with regular check-ups.'],
+ ['pancc','Pancreatic cancer','From 50. The deadliest: 15% at home, 35% abroad.'],
+ ['bloodc','Leukaemia','Can strike from 25. 50% at home, 80% abroad.'],
+ ['colonc','Colon cancer','From 45. 60% at home, 85% abroad.'],
+ ['sexc','Breast or prostate cancer','From 45 (breast for women, prostate for men). 70% at home, 90% abroad.'],
+ ['liverf','Liver failure','From 40, more likely in hustle mode. A transplant abroad gives the best odds.'],
+ ['kidneyf','Kidney failure','From 45, three times more likely with diabetes. A transplant abroad gives the best odds.'],
+ ['heartf','Heart failure','From 55, far more likely after a heart attack or untreated blood pressure.'],
+ ['als','Motor neurone disease (ALS)','From 40, rare. No cure: care only buys time.'],
+ ['alz','Alzheimer\'s disease','From 70, more likely after memory decline. No cure: care only buys time.'],
+ ['#','Lifestyle and stress'],
+ ['burnout','Burnout heart attack','Hustle mode with health below 20: about 1.5% a month. The doctor warns first.'],
+ ['stress','Stroke from stress','Missed payments or negative cash (0.4% a month), or very unhappy over 45.'],
+ ['despair','Years of unhappiness','Happiness below 12 for 18 months in a row: 0.5% a month.'],
+ ['overdose','Party overdose','Rich, under 60, unhappy and not in family mode. Very rare.'],
+ ['adventure','Adventure trips','The player chooses Everest, a shark dive, a walking safari or a desert rally. Everest 2%, the rest under 1%.'],
+ ['#','Wealth and danger'],
+ ['kidnap','Kidnapping','Worth 50M+ with no security team: about 1.8% a year. Police warn first.'],
+ ['poison','Poisoned by a rival','Worth 200M+ with mob heat 40+.'],
+ ['spouse','Killed by the spouse','A marriage in ruins, with no prenup and a fortune to inherit.'],
  ['road','Road accident','Very rare: about 1 in 1,400 a year.'],
  ['jet','Private jet crash','Only players who own a jet: about 1 in 1,000 a year.'],
+ ['heli','Helicopter crash','Only players who own a helicopter.'],
+ ['yacht','Yacht lost at sea','Only players who own a yacht.'],
+ ['#','Darkworld and the law'],
  ['hit','Mob hit','Only when mob heat is 70+ and the player pays no protection: about 4% a month.'],
- ['maxage','Reached the age limit','Everyone dies at the oldest age set above, unless longevity research removes the limit.'],
- ['aliens','The end of the world','A successful Mars mission. See the Moonshots.'],['other','Other','Anything else.']];
+ ['raid','Killed in a police raid','Police attention 90+ and not in prison or hiding: 1% a month.'],
+ ['cartel','Killed by a cartel','A player with dirty deals who cannot pay their debts.'],
+ ['prison','Killed in prison','In prison with mob heat 40+ or police attention 60+.'],
+ ['#','Billionaire moonshots'],
+ ['rocket','Died on their own rocket','While the space programme is past its first stage.'],
+ ['selftest','Self-tested ageing treatment','While longevity research is past its second stage.'],
+ ['aliens','The end of the world','A successful Mars mission. See the Moonshots.'],
+ ['#','Everything else'],['other','Other','Anything else.']];
 async function loadDeaths(){try{deStats=await api('GET','/api/admin/deaths');renderDeaths();}catch(e){}}
 function renderDeaths(){if(!evTune)return;const D=evTune.death=evTune.death||{},C=(deStats&&deStats.counts)||{},tot=(deStats&&deStats.total)||0;
  $('deBank').value=String(D.bankrupt==null?1:D.bankrupt);$('deMax').value=String(D.maxAge||100);
- $('deRows').innerHTML=DEATHS.map(([k,n,how])=>{const tun=['natural','illness','road','jet','hit'].includes(k),v=D[k]==null?1:+D[k],c=C[k]||0;
+ $('deRows').innerHTML=DEATHS.map(([k,n,how])=>{if(k==='#')return'<tr><td colspan="4" style="padding-top:16px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700">'+n+'</td></tr>';const tun=!['bankrupt','maxage','aliens','other'].includes(k),v=D[k]==null?1:+D[k],c=C[k]||0;
   return'<tr'+(tun&&v===0?' class="off"':'')+'><td><b>'+n+'</b></td><td style="white-space:normal;font-size:12.5px;color:var(--muted)">'+how+'</td><td class="r num">'+c+(tot?' <small style="color:var(--muted)">('+Math.round(c/tot*100)+'%)</small>':'')+'</td><td>'+(tun?evSel(v,'data-de="'+k+'"'):'<small style="color:var(--muted)">'+(k==='bankrupt'?'Set above':k==='maxage'?'Set above':'—')+'</small>')+'</td></tr>';}).join('');
  const R=(deStats&&deStats.recent)||[];$('deRecent').innerHTML=R.length?'<ul class="events">'+R.map(r=>'<li class="k-bad"><small>'+ago(r.when)+' · '+esc(r.name)+(r.age?' · aged '+r.age:'')+'</small>'+esc(r.cause)+'</li>').join('')+'</ul>':'<p class="sub">No player has died yet.</p>';
  $('deSave').disabled=!evDirty;}

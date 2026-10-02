@@ -1453,7 +1453,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='e9a52cacf3ca';let updShown=false;
+const APP_VER='47ba9841dd68';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -1828,6 +1828,83 @@ function ageMult(){let f=stage()[2];if(f<1&&sv('exec').lvl>=0)f=1-(1-f)*.6;retur
 function DT(){return Object.assign({natural:1,illness:1,road:1,jet:1,hit:1,bankrupt:1,maxAge:100},(typeof TUNE!=='undefined'&&TUNE.death)||{});}
 const dill=p=>Math.min(1,p*DT().illness);
 function deathRisk(){const a=age()-(typeof lifeX==='function'?lifeX():0);return(a<55?0:.00012*Math.exp((a-55)/7)*Math.pow(2-S.health/100,2))*(typeof eternal==='function'&&eternal()?.1:1)*DT().natural;}
+/* ================= Terminal illness and other ways to die. Each cause has its own admin setting (admin → Deaths) ================= */
+const dm=k=>{const d=(typeof TUNE!=='undefined'&&TUNE.death)||{};return d[k]==null?1:+d[k];};
+const ILLS=[
+ {id:'lungc',name:'lung cancer',age:45,r:.00022,home:.45,abroad:.7,months:10,cancer:1},
+ {id:'pancc',name:'pancreatic cancer',age:50,r:.00009,home:.15,abroad:.35,months:6,cancer:1},
+ {id:'bloodc',name:'leukaemia',age:25,r:.00007,home:.5,abroad:.8,months:12,cancer:1},
+ {id:'colonc',name:'colon cancer',age:45,r:.00018,home:.6,abroad:.85,months:12,cancer:1},
+ {id:'sexc',name:()=>S.g==='f'?'breast cancer':'prostate cancer',age:45,r:.00022,home:.7,abroad:.9,months:12,cancer:1},
+ {id:'liverf',name:'liver failure',age:40,r:.00007,home:.3,abroad:.6,months:9,organ:1,x:()=>S.mode==='hustle'?1.8:1},
+ {id:'kidneyf',name:'kidney failure',age:45,r:.00008,home:.4,abroad:.7,months:12,organ:1,x:()=>(S.conds||{}).diab?3:1},
+ {id:'heartf',name:'heart failure',age:55,r:.0001,home:.4,abroad:.65,months:12,x:()=>(S.conds||{}).heart?4:(S.conds||{}).bp?1.8:1},
+ {id:'als',name:'motor neurone disease (ALS)',age:40,r:.00003,home:0,abroad:.03,months:30,incurable:1},
+ {id:'alz',name:'Alzheimer\'s disease',age:70,r:.0003,home:0,abroad:0,months:60,incurable:1,x:()=>(S.conds||{}).mem?3:1}];
+const illOf=id=>ILLS.find(I=>I.id===id);
+const illName=I=>typeof I.name==='function'?I.name():I.name;
+const cureStage=()=>{const m=S.moon&&S.moon.cancer;return m?m.stage:0;};
+function illRate(I){const a=age();if(a<I.age||(I.id==='sexc'&&!S.g))return 0;return I.r*.35*(1+(a-I.age)/10)*(S.health<50?1.6:1)*(I.x?I.x():1)*dm(I.id)*(eternal()?.1:1);}
+function illDie(I,how){if(I.id==='alz')return'Alzheimer\'s disease slowly took your memories, and then it took you.';
+ if(how==='none')return'You chose to spend your last months with the people you love. In the end, '+illName(I)+' took you peacefully.';
+ return'You fought '+illName(I)+' with everything you had, but it could not be beaten.';}
+function illCh(I,second){const early=!second&&(S.care||0)>=2,bonus=early?.1:0,cs=cureStage(),cured=I.cancer&&cs>=6,cap=p=>Math.min(.97,p);
+ const k=second?.55:1,n=illName(I),out=[];
+ const start=(how,p,mo,f,lab)=>{S.ill={id:I.id,how,p:cap(p),until:S.month+mo,since:S.ill&&S.ill.since||S.month,second:!!second};if(f)addBuff(f,Math.min(mo,8),lab);};
+ if(cured){const c=nwc(.002,2000);out.push({l:'Take the cure your own institute found',d:'Spend '+fmt(c)+'. Near certain recovery.',dis:!canPay(c),f(){S.cash-=c;start('cure',.97,3,.95,'Treatment');return['You are taking the cure your own money paid for.','life']}});}
+ if(I.incurable){const c=nwc(.02,20000);
+  out.push({l:'The best care in the world',d:'Spend '+fmt(c)+'. Profit ×0.8 for 8 months. There is no cure, but you get more time'+(I.abroad?' and a tiny chance an experimental drug works':'')+'.',dis:!canPay(c),f(){S.cash-=c;start('abroad',I.abroad,Math.round(I.months*1.4),.8,'Specialist care');addHappy(-4);return['The best specialists in the world are now caring for you.','life']}});
+  out.push({l:'Care at home with family',d:'No cost. +8 happiness. Less time.',f(){start('none',0,I.months);addHappy(8);return['You chose to be cared for at home, surrounded by family.','life']}});
+  return out;}
+ const ca=nwc(I.organ?.06:.04,I.organ?60000:40000),ch=nwc(.01,6000);
+ out.push({l:I.organ?'A transplant at a top hospital abroad':'The best specialists abroad',d:'Spend '+fmt(ca)+'. Profit ×0.75 for '+Math.min(I.months,8)+' months. Odds: '+pc(cap((I.organ?I.abroad+.15:I.abroad)*k+bonus))+'.',dis:!canPay(ca),
+  f(){S.cash-=ca;start('abroad',(I.organ?I.abroad+.15:I.abroad)*k+bonus,I.months,.75,'Treatment abroad');addHealth(-6);return['You flew out for treatment. The fight has begun.','life']}});
+ out.push({l:'Treatment at home',d:'Spend '+fmt(ch)+'. Profit ×0.85 for '+Math.min(I.months,8)+' months. Odds: '+pc(cap(I.home*k+bonus))+'.',dis:!canPay(ch),
+  f(){S.cash-=ch;start('home',I.home*k+bonus,I.months,.85,'Treatment');addHealth(-6);return['You started treatment at home.','life']}});
+ if(I.cancer&&!cured&&cs>=3){const c=nwc(.003,3000);out.push({l:'Join your own institute\'s cancer trial',d:'Spend '+fmt(c)+'. An unproven drug, but your own scientists run it. Odds: '+pc(cap(I.abroad*k+.12+bonus))+'.',dis:!canPay(c),
+  f(){S.cash-=c;start('trial',I.abroad*k+.12+bonus,I.months,.85,'Cancer trial');return['You joined the trial your own money paid for.','life']}});}
+ out.push({l:second?'Stop treatment and go home':'Refuse treatment and live fully',d:'No cost. +10 happiness. You will not survive this.',f(){start('none',0,Math.max(3,Math.round(I.months*.6)));addHappy(10);return['You chose time with family over hospitals.','life']}});
+ return out;}
+const pc=p=>Math.round(p*100)+'%';
+function illEvent(I){const n=illName(I),early=(S.care||0)>=2;
+ return{cat:'Health',title:'Diagnosed with '+n,text:(I.incurable?'The doctors were gentle, but clear. '+n.charAt(0).toUpperCase()+n.slice(1)+' has no cure. What matters now is how you spend the time you have.':
+  'The tests came back. It is '+n+'. '+(early?'Your regular check-ups caught it early, which improves your chances.':'It was found late, because you had no regular check-ups.')+(I.cancer&&cureStage()>=6?' But your own institute found the cure.':'')),choices:illCh(I,false)};}
+function illRelapse(I){return{cat:'Health',title:'The '+illName(I)+' came back',text:'The first treatment did not work. The doctors can try again, but the odds are lower this time.',choices:illCh(I,true)};}
+function illRemission(I){return dealCard('In remission',true,'Your fight with '+illName(I),'You beat it','The doctors say you are clear. Your health took a hit, but you are alive.','','Health');}
+/* monthly: returns true when the player died */
+function illTick(){
+ if(S.ill){const I=illOf(S.ill.id);if(!I){S.ill=null;return false;}addHealth(S.ill.how==='none'?-2.5:-1.5);
+  if(S.month>=S.ill.until){if(rnd()<S.ill.p){S.ill=null;S.illAt=S.month;addHealth(-8);S.illQ=['ok',I.id];log('You beat '+illName(I)+'.','life');return false;}
+   if(S.ill.how!=='none'&&!S.ill.second&&!I.incurable){S.illQ=['back',I.id];S.ill.until=S.month+99;return false;}
+   die(illDie(I,S.ill.how));return true;}
+  return false;}
+ if(S.illQ||S.month-(S.illAt==null?-99:S.illAt)<24)return false;
+ for(const I of ILLS){if(rnd()<illRate(I)){S.illQ=['new',I.id];S.illAt=S.month;break;}}
+ return false;}
+function illNext(){if(!S.illQ)return null;const[k,id]=S.illQ,I=illOf(id);S.illQ=null;if(!I)return null;return k==='new'?illEvent(I):k==='back'?illRelapse(I):illRemission(I);}
+function illLine(){if(!S.ill)return'';const I=illOf(S.ill.id);if(!I)return'';const left=S.ill.until-S.month;
+ return'<p class="seghint"><b>'+illName(I).charAt(0).toUpperCase()+illName(I).slice(1)+'.</b> '+(S.ill.how==='none'?'You chose not to treat it.':'In treatment. The doctors will know more in '+Math.max(1,left)+' month'+(left===1?'':'s')+'.')+'</p>';}
+/* sudden and lifestyle deaths, checked every month */
+const FATAL=[
+ {id:'burnout',risk:()=>S.mode==='hustle'&&S.health<20?.015:0,text:()=>'You collapsed in the middle of a board meeting. Years of eighteen-hour days finally stopped your heart.'},
+ {id:'stress',risk:()=>age()>=35&&(S.strikes>0||S.cash<0)?.004:age()>=45&&S.happy<20?.001:0,text:()=>'The stress of it all brought on a massive stroke. You never woke up.'},
+ {id:'despair',risk:()=>(S.lowHap||0)>=18?.005:0,text:()=>'Years of loneliness and unhappiness wore you down. You passed away after a long illness.'},
+ {id:'overdose',risk:()=>rank()>=3&&age()<60&&S.happy<35&&S.mode!=='family'?.0004:0,text:()=>'A wild night at a private party ended in an overdose. Help came too late.'},
+ {id:'kidnap',risk:()=>netWorth()>=5e7&&!S.ups.security&&!custEffects().sec&&!jailed()?.0015:0,text:()=>'Kidnappers seized you outside your gate. The ransom talks collapsed, and you never came home.'},
+ {id:'poison',risk:()=>netWorth()>=2e8&&S.heat>=40?.0008:0,text:()=>'You fell ill after a business dinner and died two days later. Doctors found poison. A rival was suspected but never charged.'},
+ {id:'spouse',risk:()=>S.spouse&&S.spouse.happy<10&&!S.spouse.prenup&&netWorth()>=1e7?.003:0,text:()=>'Your marriage had turned to hatred. The gunman police caught was later traced back to '+S.spouse.name+'.'},
+ {id:'yacht',risk:()=>has('yacht')||has('superyacht')?.00005:0,text:()=>'A sudden storm caught your yacht far from shore. The crew survived. You did not.'},
+ {id:'heli',risk:()=>has('car6')?.00006:0,text:()=>'Your helicopter came down in thick fog on the way to a meeting. There were no survivors.'},
+ {id:'raid',risk:()=>S.law&&S.law.att>=90&&!jailed()&&!hiding()?.01:0,text:()=>'Armed police raided your home at dawn. In the confusion, shots were fired. You did not survive.'},
+ {id:'cartel',risk:()=>S.law&&S.law.dirty&&(S.strikes>0||S.cash<0)?.012:0,text:()=>'The cartel you once did business with came to collect a debt you could not pay.'},
+ {id:'prison',risk:()=>jailed()&&(S.heat>=40||S.law.att>=60)?.006:0,text:()=>'You were stabbed in a prison fight. Someone on the outside had paid for it.'},
+ {id:'rocket',risk:()=>{const m=S.moon&&S.moon.space;return m&&m.tier>0&&m.stage>=1&&m.stage<5?.0008:0;},text:()=>'You insisted on riding your own rocket on its test flight. It exploded two minutes after lift-off.'},
+ {id:'selftest',risk:()=>{const m=S.moon&&S.moon.life;return m&&m.tier>0&&m.stage>=2&&!m.eternal?.0006:0;},text:()=>'You tested your own unapproved ageing treatment on yourself. Your body rejected it.'}];
+function fatalTick(){S.lowHap=S.happy<12?(S.lowHap||0)+1:0;
+ if(S.mode==='hustle'&&S.health<30&&S.month%6===0)log('Your doctor warns you: keep working like this and it will kill you. Switch to a balanced life or get better care.','bad');
+ if(netWorth()>=5e7&&!S.ups.security&&!custEffects().sec&&!S.kidWarn){S.kidWarn=1;log('Police warn that kidnap gangs are watching wealthy families. A security team would protect you.','bad');}
+ for(const F of FATAL){const r=F.risk();if(r>0&&rnd()<r*dm(F.id)){die(F.text());return true;}}
+ return false;}
 function addHealth(d){S.health=clamp(S.health+d,0,100);}
 function addCond(id,managed){S.conds=S.conds||{};S.conds[id]={managed,since:S.month};}
 function outlook(){const r=deathRisk()*12;return age()<55?(S.health>=60?['Excellent','good']:['Fair','']):r<.01?['Good','good']:r<.03?['Fair','']:r<.08?['Worrying','bad']:['Grave','bad'];}
@@ -1976,6 +2053,10 @@ const EVENTS=[
  {id:'memory',cat:'Health',w:.3,when:()=>age()>=72&&!(S.conds||{}).mem,title:'You forgot a meeting with the President',text:()=>'Names slip away, and yesterday feels far away. The doctor mentions early memory decline.',
   choices:()=>[{l:'Specialist care and a chief of staff',d:fmt(1500)+' a month. Managed: −3 to long-term health.',f(){addCond('mem',true);return['You now have a chief of staff and specialist care.','life']}},
    {l:'Keep it quiet',d:'−7 to long-term health. −4 reputation.',f(){addCond('mem',false);addRep(-4);return['People are starting to notice.','bad']}}]},
+ {id:'adventure',cat:'Lifestyle',w:.5,when:()=>netWorth()>=5e6&&age()>=25&&age()<70&&!lawBlocked(),setup(){this.a=pick([['Climb Mount Everest','Everest',.02,.05,15,'A guided expedition to the top of the world.'],['Cage-dive with great white sharks','shark dive',.004,.004,6,'Off the coast of Cape Town, face to face with the ocean\'s top hunter.'],['A walking safari in lion country','walking safari',.003,.003,6,'On foot, with a ranger and a rifle, through the Maasai Mara.'],['Ride in a desert car rally','desert rally',.008,.006,9,'Three weeks across the Sahara at full speed.']]);},
+  title(){return'An invitation: '+this.a[0].charAt(0).toLowerCase()+this.a[0].slice(1);},text(){return this.a[5]+' Friends say it will be the trip of a lifetime.';},
+  choices(){const[l,n,risk,cs,hp]=this.a,c=nwc(cs,8000);return[{l,d:'Spend '+fmt(c)+'. +'+hp+' happiness. A small but real risk of dying.',dis:!canPay(c),f(){S.cash-=c;if(rnd()<risk*dm('adventure')){S.deathDue={Everest:'You reached the summit of Everest, but a storm caught you on the way down.','shark dive':'The shark cage gave way on your dive. The crew could not reach you in time.','walking safari':'A lion charged your group on the walking safari. The ranger fired too late.','desert rally':'Your car rolled at full speed on the desert rally.'}[n];return['','bad'];}addHappy(hp);return['The '+n+' was the adventure of a lifetime.','good'];}},
+   {l:'Say no, it is too risky',d:'No cost.',f(){return['You stayed home. Your friends sent photos.','']}}];}},
  {id:'fitcheck',cat:'Health',w:.4,when:()=>age()>=45&&(S.care||0)>=2&&S.health>=65,title:'Your doctor has good news',text:()=>'Your yearly tests are the best they have been in a decade. "Whatever you are doing, keep doing it."',
   choices:()=>[{l:'Celebrate with the family',d:'+4 health, +4 happiness.',f(){addHealth(4);addHappy(4);addSH(3);return['A clean bill of health.','good']}}]},
  /* ---- Family ---- */
@@ -2239,6 +2320,7 @@ function showTab(t,scroll){if(!TABS.includes(t))return;curTab=t;if(t==='reports'
 function attention(F){const A=[],L=lifestyle();
  if(S.strikes)A.push(['bad','You have missed '+S.strikes+' of 3 payments. Borrow or sell something now, or you go bankrupt.','money','Go to bank']);
  if(F.net<0)A.push(['bad','You are losing '+fmt(-F.net)+' a month. Check the statement.',null,null]);
+ if(S.ill){const I=illOf(S.ill.id);if(I)A.push(['bad','You are fighting '+illName(I)+'.'+(S.ill.how==='none'?' You chose not to treat it.':''),'life','Health']);}
  if(S.health<40)A.push(['bad','Your health is poor ('+Math.round(S.health)+'/100). Get better care or slow down, before it costs you your life.','life','Health']);
  Object.keys(S.conds||{}).filter(k=>!S.conds[k].managed).forEach(k=>A.push(['warn','Untreated: '+CONDS[k].name.lc()+'. It is wearing down your health.','life','Treat']));
  SERVICES.forEach(d=>{const i=svcInfo(d);if(i.behind)A.push([i.late?'bad':'warn',(i.late?'Paying penalties: you need a ':'Hire within '+i.grace+' month'+(i.grace===1?'':'s')+': ')+d.levels[i.req][1].lc()+'.','power','Hire']);});
@@ -2834,6 +2916,7 @@ function nextMonth(){
   if(rnd()<.00006*D.road){die('A truck ran a red light on a busy road in '+city+'. You died at the scene.');return;}
   if(hasJet()&&rnd()<.00008*D.jet){die('Your private jet went down in bad weather. There were no survivors.');return;}
   if(S.mobMet&&S.heat>=70&&!(S.protection>0)&&rnd()<.004*D.hit){die('Gunmen ambushed your car outside your home. The mob had warned you.');return;}}
+ if(fatalTick()||illTick())return;
  /* cash crisis */
  if(S.cash<0){const room=creditLimit()-S.debt;
   if(room>=-S.cash){S.debt+=-S.cash;log('The bank covered a '+fmt(-S.cash)+' shortfall. It was added to your debt.','bad');S.cash=0;S.strikes=0;}
@@ -2861,6 +2944,7 @@ function nextMonth(){
  afterChange();
  /* forced events first */
  if(S.resultQ&&S.resultQ.length){openEvent(resultEvent(S.resultQ.shift()));return;}
+ {const ie=illNext();if(ie){openEvent(ie);return;}}
  if(moonDue()){openEvent(moonPickEvent());return;}
  if(!S.g){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
@@ -3264,8 +3348,8 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  /* life */
  const st=stage(),am=ageMult(),ol=outlook(),cn=Object.keys(S.conds||{});
  let lh='<div class="kv"><span>Age</span><span>'+age()+' · '+st[1]+'</span><span>Your happiness</span><span>'+Math.round(S.happy)+'</span></div>'+meter(S.happy,'--plum')+
-  '<h4>Age &amp; health</h4><div class="kv"><span>Health</span><span>'+Math.round(S.health)+' / 100 <span class="pill '+ol[1]+'">Outlook: '+ol[0]+'</span></span><span>Age effect on profit</span><span class="'+(am<1?'neg':am>1?'pos':'')+'">×'+am.toFixed(2)+'</span></div>'+meter(S.health,S.health<40?'--red':'--green')+
-  '<p class="seghint">'+st[3]+' '+(age()<55?'From 55, your health decides how long you live. Nobody lives past 100.':'Every year from here carries a real risk of death, lower when you stay healthy. Nobody lives past 100.')+(stage()[2]<1&&sv('exec').lvl<0?' An executive team would soften the slowdown.':'')+'</p>'+
+  '<h4>Age &amp; health</h4><div class="kv"><span>Health</span><span>'+Math.round(S.health)+' / 100 <span class="pill '+ol[1]+'">Outlook: '+ol[0]+'</span></span><span>Age effect on profit</span><span class="'+(am<1?'neg':am>1?'pos':'')+'">×'+am.toFixed(2)+'</span></div>'+meter(S.health,S.health<40?'--red':'--green')+illLine()+
+  '<p class="seghint">'+st[3]+' '+(age()<55?'From 55, your health decides how long you live. Nobody lives past '+(DT().maxAge+lifeX())+'.':'Every year from here carries a real risk of death, lower when you stay healthy. Nobody lives past '+(DT().maxAge+lifeX())+'.')+(stage()[2]<1&&sv('exec').lvl<0?' An executive team would soften the slowdown.':'')+'</p>'+
   (cn.length?'<div class="conds">'+cn.map(k=>{const c=CONDS[k],m=S.conds[k].managed;return'<div class="person"><div><b>'+c.name+'</b><br><span>'+(m?'Managed · '+fmt(c.cost)+'/mo':'Untreated · −'+c.hit+' to long-term health')+'</span></div>'+(m?'<span class="pill good">Treated</span>':'<button class="btn small" data-a="treat" data-v="'+k+'">Treat · '+fmt(c.cost)+'/mo</button>')+'</div>';}).join('')+'</div>':'')+
   '<h4>Health care</h4><div class="seg" style="grid-template-columns:repeat(4,1fr)" role="group" aria-label="Health care">'+CARE.map((c,i)=>'<button data-a="care" data-v="'+i+'" aria-pressed="'+((S.care||0)===i)+'">'+c.short+'</button>').join('')+'</div>'+
   '<p class="seghint"><b>'+CARE[S.care||0].name+'</b>: '+CARE[S.care||0].d+' '+(CARE[S.care||0].fee?fmt(CARE[S.care||0].fee)+' a month, +'+CARE[S.care||0].h+' to long-term health.':'Free, but your health declines faster as you age.')+'</p>';
