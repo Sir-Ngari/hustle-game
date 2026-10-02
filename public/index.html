@@ -621,6 +621,7 @@ html.gm .crisis b{font-family:var(--display);font-size:20px;text-transform:upper
 .result small{font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}.result b{font-family:var(--display);font-size:40px;line-height:1.05}.result span{color:var(--ink);font-size:14px}
 .pill.good{color:var(--green)}.pill.bad{color:var(--red)}
 .venue{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
+.pastl{margin:4px 0 6px;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px}.pastl b{margin-right:4px}
 .venue>b{font-size:14px}.venue .vsub{font-size:12.5px;color:var(--muted)}.venue .vsub b{font:inherit;font-weight:700;font-size:inherit;letter-spacing:0}.venue .chips{margin-top:2px}
 </style>
 
@@ -1403,7 +1404,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='170a1374ab89';let updShown=false;
+const APP_VER='c26fd76dd50f';let updShown=false;
 function checkVersion(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER)showUpdate();}).catch(()=>{});}
 function showUpdate(){if(updShown)return;updShown=true;const b=document.createElement('div');b.className='updbar';b.setAttribute('role','status');
  b.innerHTML='<span><b>A new update is ready</b><small>Get the latest features and fixes. Your empire is saved.</small></span><button class="btn primary small" data-a="appupdate">Update now</button>';document.body.appendChild(b);}
@@ -2484,10 +2485,11 @@ const EVI={
  user:['#94a3b8','<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4-7 8-7s7 2.5 8 7"/>'],
  tax:['#36b37e','<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15l6 4M15 15l-6 4"/>'],
  strike:['#f0a030','<path d="M7 22V11M7 11c0-4 1-7 5-7s5 3 5 7v4M17 15h-10"/><path d="M3 22h18"/>'],
+ ghost:['#c4b5fd','<path d="M5 21V10a7 7 0 0 1 14 0v11l-2.5-2-2.3 2-2.2-2-2.2 2-2.3-2z"/><path d="M9.5 11h.01M14.5 11h.01"/>'],
  spark:['#ffd36b','<path d="M12 2l2.5 7H22l-6 4.5 2.5 7.5L12 16.5 5.5 21 8 13.5 2 9h7.5z"/>']};
 const EVCAT={'Business':'briefcase','Economy':'chart','Markets':'chart','Politics':'capitol','Social':'people','Health':'heart','Family':'family','Law':'gavel','Darkworld':'mask',
  'Luxury':'diamond','Lifestyle':'diamond','Property':'building','Sports':'trophy','Foundation':'handheart','Street':'knife','World crisis':'globe','Disaster':'storm','Environmental disaster':'water',
- 'Billionaire challenge':'crown','Daily bonus':'coins','Black Friday':'gift','Holiday season':'gift','New year':'spark','Valentine\'s Day':'heart','Mid-year sales':'gift',
+ 'Billionaire challenge':'crown','Your past':'ghost','Daily bonus':'coins','Black Friday':'gift','Holiday season':'gift','New year':'spark','Valentine\'s Day':'heart','Mid-year sales':'gift',
  'Investment result':'chart','Election result':'ballot','Deal result':'briefcase','Your profile':'user','Life':'user','Industry risk':'boom','Industries':'factory',
  'Fire':'flame','Factory fire':'flame','Explosion':'boom','Mining accident':'pick','Building collapse':'building','Road accident':'car','Aviation incident':'plane','Cyber attack':'lock',
  'Food safety':'food','Medical scandal':'cross','Lawsuit':'gavel','Compliance':'tax','Security scare':'badge',
@@ -2499,7 +2501,7 @@ const EVWORD=[[/\b(baby|pregnan|born|twins)\b/i,'baby'],[/\b(wedding|marr|propos
  [/\b(pandemic|virus|outbreak|epidemic)/i,'virus'],[/\b(crash(es)?|recession|slump)\b/i,'chartdown'],[/\b(strike|union)\b/i,'strike'],[/\b(hack|cyber)/i,'lock'],[/\b(mine|tunnel)/i,'pick'],
  [/\b(hospital|doctor|surgery|cancer|diagnos|heart attack|sick|ill)\b/i,'cross'],[/\b(gift|spoil|birthday|party)\b/i,'gift']];
 function evIconKey(ev){const cat=String(ev.cat||''),t=String(ev.title||'').replace(/<[^>]*>/g,'');
- if(['Daily bonus','Billionaire challenge','Investment result','Election result','Deal result','Darkworld','Your profile'].includes(cat))return EVCAT[cat];
+ if(['Your past','Daily bonus','Billionaire challenge','Investment result','Election result','Deal result','Darkworld','Your profile'].includes(cat))return EVCAT[cat];
  if(EVCAT[cat]&&!EVGEN.includes(cat))return EVCAT[cat];
  for(const [re,k] of EVWORD)if(re.test(t))return k;
  if(EVCAT[cat])return EVCAT[cat];if(typeof IND_CATS!=='undefined'&&IND_CATS.includes(cat))return'factory';
@@ -2561,7 +2563,7 @@ const RISKS=[
 /* event tuning: the admin page can make each event or category rarer, commoner or switch it off */
 let TUNE={freq:1,gap:2,w:{},cat:{}};
 const IND_CATS=['Retail & Fashion','Food & Agriculture','Transport & Logistics','Manufacturing','Real Estate & Construction','Technology & Finance','Hospitality & Tourism','Health & Education','Energy & Mining','Media & Entertainment'];
-function evGroup(e){return RISKS.includes(e)?'Industry risks':IND_CATS.includes(e.cat)?'Industries':(e.cat||'Other');}
+function evGroup(e){return e.cat==='Your past'?'Darkworld':RISKS.includes(e)?'Industry risks':IND_CATS.includes(e.cat)?'Industries':(e.cat||'Other');}
 function tuneMult(e){const a=TUNE.w&&TUNE.w[e.id],b=TUNE.cat&&TUNE.cat[evGroup(e)];return(a==null?1:+a)*(b==null?1:+b);}
 const W=e=>(typeof e.w==='function'?e.w():e.w)*tuneMult(e);
 function triggerRandom(){const pool=EVENTS.concat(RISKS).filter(e=>(!e.when||e.when())&&W(e)>0);let tot=pool.reduce((t,e)=>t+W(e),0),r=rnd()*tot,e=pool[0];
@@ -3499,9 +3501,17 @@ const LAW_EVENTS=[
 EVENTS.push(...LAW_EVENTS);
 /* ---- Darkworld: shady schemes arrive as offers the player can take or refuse ---- */
 function dwStart(id){const L=lawOf(),x=SCHEMES.find(y=>y.id===id);L.on[id]=true;L.dirty=true;if(id==='bribes'||id==='tenders')L.bribed=true;log('Darkworld: you started to '+x.name.toLowerCase()+'.','bad');}
-function dwOffer(id,w,make){const x=SCHEMES.find(y=>y.id===id);return{id:'dw_'+id,cat:'Darkworld',w,
- when:()=>{const L=lawOf();return!lawBlocked()&&!S.over&&S.inds.length>0&&S.month>=6&&!L.on[id]&&Math.max(0,netWorth())>=x.min&&S.month-(L.dwLast==null?-99:L.dwLast)>=6&&S.month-((L.dwSeen||{})[id]==null?-99:L.dwSeen[id])>=18;},
- build(){const L=lawOf();L.dwLast=S.month;L.dwSeen=L.dwSeen||{};L.dwSeen[id]=S.month;const o=make(x,L);o.cat='Darkworld';return o;}};}
+/* dirty money is most tempting when you are broke; every yes is remembered */
+function dwEarly(){const nw=Math.max(0,netWorth());return nw<2e5?1.8:nw<5e6?1.3:1;}
+const DWLBL={evasion:'kept two sets of books to cheat the taxman',bribes:'paid an official "tea money" every month',smuggle:'ran contraband through your trucks',tenders:'rigged a government tender',launder:'cleaned money for a gang',
+ fire:'burned your own warehouse for the insurance',fakes:'sold fake designer goods in your shops',land:'grabbed public land with forged papers',campaign:'funded a politician with bags of cash',rival:'paid an officer to shut down a rival',casino:'bought into an underground casino',
+ hacker:'bought a stolen client list',customs:'bribed port officers to skip duty',photos:'blackmailed a minister with photos',club:'fronted a pyramid scheme that ruined savers',witness:'paid a witness to forget',file:'paid to make a prosecutor\'s file disappear'};
+const DWHEAVY=['fire','land','launder','witness','file','photos','club','smuggle','tenders'];
+function dwRecord(id){const L=lawOf();L.past=L.past||[];L.past.push({id,m:S.month,done:false});if(L.past.length>25)L.past.shift();}
+function dwWrap(o,id){const c=o.choices[0],f0=c.f;c.f=function(){const r=f0.apply(this,arguments);dwRecord(id);return r;};return o;}
+function dwOffer(id,w,make){const x=SCHEMES.find(y=>y.id===id);return{id:'dw_'+id,cat:'Darkworld',w:()=>w*dwEarly(),
+ when:()=>{const L=lawOf();return!lawBlocked()&&!S.over&&S.inds.length>0&&S.month>=3&&!L.on[id]&&Math.max(0,netWorth())>=x.min&&S.month-(L.dwLast==null?-99:L.dwLast)>=6&&S.month-((L.dwSeen||{})[id]==null?-99:L.dwSeen[id])>=18;},
+ build(){const L=lawOf();L.dwLast=S.month;L.dwSeen=L.dwSeen||{};L.dwSeen[id]=S.month;const o=make(x,L);o.cat='Darkworld';return dwWrap(o,id);}};}
 const DW_ATT=x=>' Police attention +'+(Math.round(x.att*(lawyerOn()?.7:1)*10)/10)+' a month until you stop.';
 const DW_EVENTS=[
  dwOffer('evasion',2,x=>({title:'Your accountant has a suggestion',text:'"Two sets of books, boss. One for us, one for the taxman. Nobody checks a business our size." She slides a folder across the desk.',
@@ -3525,9 +3535,9 @@ EVENTS.push(...DW_EVENTS);
 /* ---- Darkworld: one-off shady deals ---- */
 const dwN=n=>Math.round(n*(lawyerOn()?.7:1));
 function dwHit(n,bribe){const L=lawOf();L.att=clamp(L.att+dwN(n),0,100);L.dirty=true;if(bribe)L.bribed=true;}
-function dwOne(id,w,cond,make,minNW){return{id:'dw_'+id,cat:'Darkworld',w,
- when:()=>{const L=lawOf();return!lawBlocked()&&!S.over&&S.inds.length>0&&S.month>=6&&Math.max(0,netWorth())>=(minNW||0)&&S.month-(L.dwLast==null?-99:L.dwLast)>=4&&S.month-((L.dwSeen||{})[id]==null?-99:L.dwSeen[id])>=24&&(!cond||cond(L));},
- build(){const L=lawOf();L.dwLast=S.month;L.dwSeen=L.dwSeen||{};L.dwSeen[id]=S.month;const o=make(L);o.cat='Darkworld';return o;}};}
+function dwOne(id,w,cond,make,minNW){return{id:'dw_'+id,cat:'Darkworld',w:()=>w*dwEarly(),
+ when:()=>{const L=lawOf();return!lawBlocked()&&!S.over&&S.inds.length>0&&S.month>=3&&Math.max(0,netWorth())>=(minNW||0)&&S.month-(L.dwLast==null?-99:L.dwLast)>=4&&S.month-((L.dwSeen||{})[id]==null?-99:L.dwSeen[id])>=24&&(!cond||cond(L));},
+ build(){const L=lawOf();L.dwLast=S.month;L.dwSeen=L.dwSeen||{};L.dwSeen[id]=S.month;const o=make(L);o.cat='Darkworld';return dwWrap(o,id);}};}
 const dwNo=(t,f)=>({l:t[0],d:t[1],f(){if(f)f();return[t[2],t[3]||'']}});
 const DW_DEALS=[
  dwOne('fire',1,null,L=>{const pay=nwc(.04,3000);return{title:'"A fire would solve a lot"',text:'Your half-empty warehouse is insured for far more than it is worth. Your manager knows a man who can make it look like an electrical fault.',
@@ -3572,6 +3582,30 @@ const DW_DEALS=[
   choices:[{l:'Pay to lose the file',d:'Costs '+fmt(c)+'. Police attention −15.',dis:!canPay(c),f(){S.cash-=c;const L2=lawOf();L2.att=Math.max(0,L2.att-15);L2.bribed=true;L2.dirty=true;return['The file vanished from a locked cabinet. The detectives are furious.','']}},
    dwNo(['Refuse','Bribing prosecutors is a step too far.','You refused.',''])]};})];
 EVENTS.push(...DW_DEALS);
+/* ---- Your past: old Darkworld deals come back once you are rich and famous ---- */
+const pastOpen=()=>((S.law&&S.law.past)||[]).filter(x=>!x.done&&S.month-x.m>=36);
+function pastPick(heavy){const l=pastOpen().filter(x=>!heavy||DWHEAVY.includes(x.id));return l.length?l[Math.floor(rnd()*l.length)]:null;}
+function pastW(){const n=Math.min(4,pastOpen().length),nw=Math.max(0,netWorth());return n*(nw>=1e9?2.2:nw>=3e8?1.4:1);}
+function pastWhen(heavy){return()=>{const L=S.law;return!!L&&!lawBlocked()&&!S.over&&Math.max(0,netWorth())>=1e8&&S.month-(L.pastLast==null?-99:L.pastLast)>=8&&!!pastPick(heavy);};}
+const yrOf=m=>'Year '+(Math.floor(m/12)+1);
+function pastEv(id,heavy,make){return{id,cat:'Your past',w:()=>pastW()*(heavy?.7:1),when:pastWhen(heavy),build(){const L=lawOf(),x=pastPick(heavy);L.pastLast=S.month;const o=make(x,DWLBL[x.id]||'did something shady',yrOf(x.m));o.cat='Your past';return o;}};}
+const PAST_EVENTS=[
+ pastEv('past_press',false,(x,what,yr)=>{const c=nwc(.012,5e5);return{title:'A journalist is digging into your past',text:'An investigative reporter has found out that back in '+yr+', when you were still hustling, you '+what+'. The story runs on Sunday, across every front page.',
+  choices:[{l:'Pay to kill the story',d:'Costs '+fmt(c)+' in "advertising". It usually works.',dis:!canPay(c),f(){S.cash-=c;if(rnd()<.7){x.done=true;return['The editor found a different front page. The story never ran.','']}addRep(-10);lawOf().att=clamp(lawOf().att+15,0,100);x.done=true;return['The reporter quit and published it online anyway, along with the bribe.','bad']}},
+   {l:'Come clean first',d:'Give an interview and apologise. Reputation −6, police attention +10, but it is over.',f(){addRep(-6);addHappy(-4);lawOf().att=clamp(lawOf().att+10,0,100);x.done=true;return['You told the whole story yourself. Some people respected the honesty.','']}},
+   {l:'Deny everything',d:'Half the time it blows over. Otherwise: reputation −15, police attention +25.',f(){x.done=true;if(rnd()<.5)return['Your lawyers threatened to sue. The story faded in a week.',''];addRep(-15);lawOf().att=clamp(lawOf().att+25,0,100);return['Then the documents leaked. Your denial made it worse.','bad']}}]};}),
+ pastEv('past_partner',false,(x,what,yr)=>{const c=nwc(.006,2e5),fee=nwc(.003,1e5);return{title:'An old partner remembers',text:'The man who helped you when you '+what+' in '+yr+' is broke now, and he has kept every message. He wants '+fmt(c)+' to keep it that way.',
+  choices:[{l:'Pay him',d:'Costs '+fmt(c)+'. He may come back for more.',dis:!canPay(c),f(){S.cash-=c;if(rnd()<.75)x.done=true;return[x.done?'He took the money and moved to the coast.':'He took the money. Something tells you he will be back.','']}},
+   {l:'Let your lawyers handle him',d:'Costs '+fmt(fee)+'. Mob heat +4.',dis:!canPay(fee),f(){S.cash-=fee;addHeat(4);x.done=true;return['Your lawyers made it very clear what a lawsuit would cost him. He went quiet.','']}},
+   {l:'Refuse',d:'Call his bluff. If he goes to the police: attention +30, reputation −8.',f(){x.done=true;if(rnd()<.55){lawOf().att=clamp(lawOf().att+30,0,100);addRep(-8);return['He walked into a police station with a box of evidence.','bad'];}return['He was bluffing. You never heard from him again.','good']}}]};}),
+ pastEv('past_case',true,(x,what,yr)=>{const fine=nwc(.03,1e6),fee=nwc(.01,4e5);return{title:'Prosecutors reopen a cold case',text:'New evidence has surfaced: in '+yr+' you '+what+'. The case was never closed, and a young prosecutor wants to make her name on someone as rich as you.',
+  choices:[{l:'Settle quietly',d:'Pay a '+fmt(fine)+' fine and admit nothing. Reputation −4.',dis:!canPay(fine),f(){S.cash-=fine;addRep(-4);x.done=true;return['The case was closed with a settlement and a short press release.','']}},
+   {l:'Fight it in court',d:'Costs '+fmt(fee)+'. '+(lawyerOn()?'Your law firm gives you a good chance.':'Without a top law firm the odds are against you.')+' Lose and you go to prison.',dis:!canPay(fee),f(){S.cash-=fee;x.done=true;if(rnd()<(lawyerOn()?.65:.45)){addRep(-2);return['Not guilty. The evidence was too old to stand up.','good'];}startJail(12+Math.floor(rnd()*25),'a crime from '+yr);return['Guilty. Your past finally caught up with you.','bad']}},
+   {l:'Leave the country',d:'Go into hiding abroad before they can charge you.',f(){x.done=true;startHide();return['You were on a private jet before the warrant was signed.','bad']}}]};}),
+ pastEv('past_rival',false,(x,what,yr)=>{const c=nwc(.004,2e5);return{title:'A rival leaks your past',text:'Right before your biggest deal of the year, a rival tells the press that in '+yr+' you '+what+'. Partners are getting nervous.',
+  choices:[{l:'Sue for defamation',d:'Costs '+fmt(c)+'. Half the time you win and look stronger. Otherwise profit ×0.85 for 6 months.',dis:!canPay(c),f(){S.cash-=c;x.done=true;if(rnd()<.5){addRep(2);return['The court sided with you. Your rival had to apologise in print.','good'];}addBuff(.85,6,'Old scandal');addRep(-4);return['You lost, and the trial put the story in the news for weeks.','bad']}},
+   {l:'Ride it out',d:'Profit ×0.85 for 6 months while it blows over.',f(){addBuff(.85,6,'Old scandal');addRep(-3);x.done=true;return['Some partners walked away. Most came back.','']}}]};})];
+EVENTS.push(...PAST_EVENTS);
 function toggleScheme(id){const L=lawOf(),x=SCHEMES.find(y=>y.id===id);if(!x||lawBlocked()||!L.on[id])return;L.on[id]=!L.on[id];if(L.on[id]){L.dirty=true;if(id==='bribes'||id==='tenders')L.bribed=true;}
  log(L.on[id]?'You started: '+x.name.toLowerCase()+'.':'You stopped: '+x.name.toLowerCase()+'.',L.on[id]?'bad':'');afterChange();}
 function lawHTML(){const L=lawOf(),a=Math.round(L.att),run=SCHEMES.filter(x=>L.on[x.id]);
@@ -3580,6 +3614,7 @@ function lawHTML(){const L=lawOf(),a=Math.round(L.att),run=SCHEMES.filter(x=>L.o
  if(jailed())h+='<p class="seghint"><b>You are in prison until '+dateStr(L.jail.until)+'.</b> You can sell, but nothing new can start.</p>';
  if(hiding())h+='<p class="seghint"><b>You are in hiding abroad.</b> The business runs at half speed until you return.</p>';
  if(!run.length)h+='<p class="seghint">You are not running any shady deals.</p>';
+ {const P=(L.past||[]).filter(x=>!x.done);if(P.length)h+='<div class="kv"><span>Skeletons in your closet</span><span>'+P.length+'</span></div><ul class="pastl">'+P.slice(-6).reverse().map(x=>'<li><b>'+yrOf(x.m)+'</b> You '+esc(DWLBL[x.id]||'did something shady')+'.</li>').join('')+'</ul><p class="seghint">Nobody cares while you are small. Once you are worth $100M or more, journalists, old partners, rivals and prosecutors will come looking.</p>';}
  run.forEach(x=>{h+='<div class="row"><div class="t"><b>'+x.name+'</b><span>'+x.d+' Attention +'+x.att+' a month.</span></div><button class="btn small ghost" data-a="scheme" data-v="'+x.id+'"'+(lawBlocked()?' disabled':'')+'>Stop</button></div>';});
  if(L.att>=50&&!jailed())h+='<div class="row"><div class="t"><b>Buy a new life</b><span>Vanish with a new name in a new country. You keep '+fmt(vanishKeep())+'; everything and everyone else stays behind.</span></div><button class="btn small" data-a="vanishask">Disappear</button></div>';
  return h;}
