@@ -236,6 +236,17 @@ CREATE TABLE IF NOT EXISTS referrals(
   days_given INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS referrals_inviter ON referrals(inviter_id);
+CREATE TABLE IF NOT EXISTS visitors(
+  vid TEXT PRIMARY KEY,
+  first INTEGER NOT NULL,
+  last INTEGER NOT NULL,
+  visits INTEGER NOT NULL DEFAULT 1,
+  stage TEXT NOT NULL DEFAULT 'landed',
+  user_id INTEGER NOT NULL DEFAULT 0,
+  src TEXT NOT NULL DEFAULT '',
+  device TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS visitors_first ON visitors(first);
 CREATE TABLE IF NOT EXISTS ev_log(
   ts INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
@@ -899,6 +910,57 @@ DEATH_KINDS = [("lungc", ("lung cancer",)), ("pancc", ("pancreatic cancer",)), (
                ("maxage", ("you lived to",)), ("natural", ("heart gave out", "short illness", "collapsed at your desk"))]
 
 
+# ---- visitors: people who open the game, whether or not they create an account ----
+VID_RE = re.compile(r"^[A-Za-z0-9]{12,40}$")
+STAGE_RANK = {"landed": 0, "form": 1, "login": 2, "signed": 3}
+
+
+def visit_mark(vid, stage, src="", device="", user_id=0):
+    """Record an anonymous visit. A visit more than 30 minutes after the last one counts as a new visit.
+    Existing players are never counted: a browser that logs in is marked 'login' and left out of every visitor number."""
+    if not isinstance(vid, str) or not VID_RE.match(vid) or stage not in STAGE_RANK:
+        return
+    t = now()
+    r = q("SELECT stage, last FROM visitors WHERE vid=?", (vid,), one=True)
+    if not r:
+        q("INSERT OR IGNORE INTO visitors(vid,first,last,visits,stage,user_id,src,device) VALUES(?,?,?,1,?,?,?,?)",
+          (vid, t, t, stage, user_id, src[:40], device[:10]))
+        return
+    st = stage if STAGE_RANK[stage] > STAGE_RANK.get(r["stage"], 0) else r["stage"]
+    q("UPDATE visitors SET last=?, visits=visits+?, stage=?, user_id=CASE WHEN ?>0 THEN ? ELSE user_id END WHERE vid=?",
+      (t, 1 if t - r["last"] > 1800 else 0, st, user_id, user_id, vid))
+
+
+def src_of(ref):
+    """Where a visitor came from, as a short name: whatsapp, facebook, google... or direct."""
+    h = (urlparse(ref).hostname or "").lower() if isinstance(ref, str) and ref else ""
+    if not h or (SITE_DOMAIN and h.endswith(SITE_DOMAIN.split(":")[0])):
+        return "direct"
+    for k in ("whatsapp", "facebook", "instagram", "tiktok", "twitter", "t.co", "x.com", "google", "linkedin", "youtube", "telegram", "bing"):
+        if k in h:
+            return {"t.co": "x", "x.com": "x", "twitter": "x"}.get(k, k)
+    return h[4:] if h.startswith("www.") else h
+
+
+def visitors_overview(t):
+    def span(since):
+        r = q("SELECT COUNT(*) n, SUM(stage='signed') signed, SUM(stage='login') login, SUM(stage='form') form, SUM(stage='landed') landed "
+              "FROM visitors WHERE first>? AND stage<>'login'", (since,), one=True)
+        return {k: (r[k] or 0) for k in ("n", "signed", "login", "form", "landed")}
+    days = []
+    for i in range(13, -1, -1):
+        d0 = (t // 86400 - i) * 86400
+        r = q("SELECT COUNT(*) n, SUM(stage='signed') signed, SUM(stage IN ('landed','form')) lft FROM visitors WHERE first>=? AND first<? AND stage<>'login'",
+              (d0, d0 + 86400), one=True)
+        days.append({"day": time.strftime("%Y-%m-%d", time.gmtime(d0)), "n": r["n"] or 0, "signed": r["signed"] or 0, "left": r["lft"] or 0})
+    srcs = [dict(r) for r in q("SELECT src, COUNT(*) n, SUM(stage='signed') signed FROM visitors WHERE first>? AND stage<>'login' GROUP BY src ORDER BY n DESC LIMIT 8",
+                               (t - 30 * 86400,))]
+    dev = {r["device"] or "?": r["n"] for r in q("SELECT device, COUNT(*) n FROM visitors WHERE first>? AND stage IN ('landed','form') GROUP BY device",
+                                                  (t - 30 * 86400,))}
+    since = q("SELECT MIN(first) m FROM visitors", one=True)["m"]
+    return {"d1": span(t - 86400), "d7": span(t - 7 * 86400), "d30": span(t - 30 * 86400), "all": span(0), "days": days, "srcs": srcs, "leftDevice": dev, "since": since}
+
+
 def death_kind(cause):
     c = (cause or "").lower()
     for k, words in DEATH_KINDS:
@@ -1174,7 +1236,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        routes = {"/api/signup": self.api_signup, "/api/login": self.api_login, "/api/logout": self.api_logout,
+        routes = {"/api/visit": self.api_visit, "/api/signup": self.api_signup, "/api/login": self.api_login, "/api/logout": self.api_logout,
                   "/api/forgot": self.api_forgot, "/api/reset": self.api_reset, "/api/email": self.api_email, "/api/company": self.api_company,
                   "/api/admin/login": self.api_admin_login, "/api/admin/logout": self.api_admin_logout,
                   "/api/billing/checkout": self.api_checkout, "/api/billing/confirm": self.api_confirm,
@@ -1201,6 +1263,19 @@ class Handler(BaseHTTPRequestHandler):
         self.error(404, "Not found.")
 
     # ---------- player API ----------
+    def api_visit(self):
+        """Someone opened the game without being logged in (or started filling in the form). No personal data is kept."""
+        if rate_limited("visit:" + self.client_ip(), limit=60, window=3600):
+            return self.send_json(200, {"ok": True})
+        d = self.read_json()
+        if d is None:
+            return
+        ua = (self.headers.get("User-Agent") or "").lower()
+        device = "phone" if any(k in ua for k in ("iphone", "android", "mobile")) else "tablet" if "ipad" in ua else "computer"
+        stage = d.get("stage") if d.get("stage") in ("landed", "form") else "landed"
+        visit_mark(d.get("vid"), stage, src_of(d.get("ref")), device)
+        self.send_json(200, {"ok": True})
+
     def api_signup(self):
         if rate_limited("signup:" + self.client_ip(), limit=8, window=3600):
             return self.error(429, "Too many new accounts from your network. Try again later.")
@@ -1257,6 +1332,10 @@ class Handler(BaseHTTPRequestHandler):
         except sqlite3.IntegrityError:
             return self.error(409, "That username is taken. Try another.")
         user = q("SELECT * FROM users WHERE id=?", (uid,), one=True)
+        try:
+            visit_mark(d.get("vid"), "signed", user_id=uid)
+        except Exception as e:
+            print("Visit record failed: %s" % e, flush=True)
         self.send_json(201, {"user": user_public(user), "save": None, "ver": 0, "bill": bill_status(user)},
                        [self.make_cookie("hs", token, PLAYER_SESSION_SECONDS)])
 
@@ -1284,6 +1363,10 @@ class Handler(BaseHTTPRequestHandler):
         q("INSERT INTO sessions(token,user_id,is_admin,created,expires) VALUES(?,?,0,?,?)",
           (token, user["id"], t, t + PLAYER_SESSION_SECONDS))
         q("UPDATE users SET logins=logins+1 WHERE id=?", (user["id"],))
+        try:
+            visit_mark(d.get("vid"), "login", user_id=user["id"])
+        except Exception as e:
+            print("Visit record failed: %s" % e, flush=True)
         q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'login','Logged in')",
           (user["id"], t, self.current_game(user["id"])))
         self.touch(user["id"])
@@ -1862,6 +1945,11 @@ class Handler(BaseHTTPRequestHandler):
         }
         k["retention"] = retention(t)
         k["billing"] = billing_overview(t)
+        try:
+            k["visitors"] = visitors_overview(t)
+        except Exception as e:
+            print("Visitor summary failed: %s" % e, flush=True)
+            k["visitors"] = None
         k["invites"] = {"joined": q("SELECT COUNT(*) c FROM referrals", one=True)["c"],
                         "joined7d": q("SELECT COUNT(*) c FROM referrals WHERE created>?", (t - 7 * 86400,), one=True)["c"],
                         "active": q("SELECT COUNT(*) c FROM referrals WHERE active_at>0", one=True)["c"],
