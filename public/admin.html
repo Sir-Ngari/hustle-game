@@ -140,6 +140,20 @@ tbody tr:hover td{background:var(--brass-soft)}
 .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:0 5px;border-radius:2px;background:var(--brass-soft);color:var(--brass);margin-left:4px}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;background:var(--red-soft);color:var(--red);padding:8px 10px;border-radius:3px;font-weight:600}
 
+/* marketing */
+.mform{display:grid;grid-template-columns:1.4fr 1fr 1fr .8fr;gap:10px;align-items:end}
+.mform label{display:flex;flex-direction:column;gap:4px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.mform input,.mform select,.mtools select{padding:8px 10px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:14px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;width:100%}
+.mform .wide{grid-column:1/-1}.mform .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;grid-column:1/-1}
+.mtools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.mtools select{width:auto}
+.linkcell{display:flex;align-items:center;gap:6px;margin-top:3px}.linkcell code{font-family:var(--mono);font-size:12px;color:var(--brass);word-break:break-all}
+.btn.xs{padding:2px 8px;font-size:12px}
+.mmsg{font-size:13px;color:var(--muted);min-height:1.2em;margin:0}
+tr.arch td{opacity:.55}
+#mKpis{grid-template-columns:repeat(6,minmax(0,1fr))}@media (max-width:1100px){#mKpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:560px){#mKpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mtip{font-size:13px;color:var(--muted);border-left:3px solid var(--brass);padding:4px 0 4px 10px;margin:0 0 12px}
+@media (max-width:760px){.mform{grid-template-columns:1fr 1fr}}
+
 /* side menu */
 .side{position:fixed;top:0;left:0;bottom:0;width:236px;z-index:12;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) 10px 14px;overflow-y:auto;transition:transform .2s ease}
 .side .brand{font-family:var(--display);font-weight:900;font-size:21px;letter-spacing:.05em;text-transform:uppercase;line-height:1.05;padding:4px 10px 16px}
@@ -188,7 +202,7 @@ body.navhide .main{margin-left:0}
 <div id="appView" hidden>
   <aside class="side" id="side" aria-label="Admin sections">
     <div class="brand">Hustlempires<span>Admin</span><button class="sideclose" id="sideClose" aria-label="Close the menu">×</button></div>
-    <nav><button class="navi" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3zM13 21h8V11h-8zM13 3v6h8V3zM3 21h8v-6H3z"/></svg><span>Overview</span></button><div class="navlbl">Players</div><button class="navi" data-view="players"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c2 .6 3.2 2.5 3.6 5.5"/></svg><span>Players</span><span class="cnt" id="cntPlayers" hidden></span></button><button class="navi" data-view="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Live activity</span></button><div class="navlbl">Money</div><button class="navi" data-view="pass"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M2.5 10h19M6.5 15h4"/></svg><span>Tips</span><span class="cnt" id="cntPaid" hidden></span></button><button class="navi" data-view="invites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 20V7M12 7H8a2.5 2.5 0 1 1 0-5c3 0 4 5 4 5zM12 7h4a2.5 2.5 0 1 0 0-5c-3 0-4 5-4 5z"/></svg><span>Invites</span><span class="cnt" id="cntInv" hidden></span></button><div class="navlbl">Game</div><button class="navi" data-view="events"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="19" cy="19" r="2"/></svg><span>Events</span></button><button class="navi" data-view="crises"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.2v.3"/></svg><span>Crises</span></button><button class="navi" data-view="deaths"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a7 7 0 0 0-7 7v4l2 2v4h10v-4l2-2v-4a7 7 0 0 0-7-7z"/><path d="M9.5 11h.01M14.5 11h.01M10 16h4"/></svg><span>Deaths</span></button></nav>
+    <nav><button class="navi" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3zM13 21h8V11h-8zM13 3v6h8V3zM3 21h8v-6H3z"/></svg><span>Overview</span></button><div class="navlbl">Players</div><button class="navi" data-view="players"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c2 .6 3.2 2.5 3.6 5.5"/></svg><span>Players</span><span class="cnt" id="cntPlayers" hidden></span></button><button class="navi" data-view="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Live activity</span></button><div class="navlbl">Growth</div><button class="navi" data-view="marketing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h3l6 4V6L6 10z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg><span>Marketing</span><span class="cnt" id="cntMkt" hidden></span></button><div class="navlbl">Money</div><button class="navi" data-view="pass"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M2.5 10h19M6.5 15h4"/></svg><span>Tips</span><span class="cnt" id="cntPaid" hidden></span></button><button class="navi" data-view="invites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 20V7M12 7H8a2.5 2.5 0 1 1 0-5c3 0 4 5 4 5zM12 7h4a2.5 2.5 0 1 0 0-5c-3 0-4 5-4 5z"/></svg><span>Invites</span><span class="cnt" id="cntInv" hidden></span></button><div class="navlbl">Game</div><button class="navi" data-view="events"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="19" cy="19" r="2"/></svg><span>Events</span></button><button class="navi" data-view="crises"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.2v.3"/></svg><span>Crises</span></button><button class="navi" data-view="deaths"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a7 7 0 0 0-7 7v4l2 2v4h10v-4l2-2v-4a7 7 0 0 0-7-7z"/><path d="M9.5 11h.01M14.5 11h.01M10 16h4"/></svg><span>Deaths</span></button></nav>
     <div class="foot">Press the menu button at the top to hide this menu.</div>
   </aside>
   <div class="sideshade" id="sideShade" hidden></div>
@@ -288,6 +302,52 @@ body.navhide .main{margin-left:0}
         <p class="sub">The latest moves across every player.</p>
         <ul class="feed" id="feed"></ul>
       </section>
+    </div>
+
+    <div class="view" id="view-marketing" hidden>
+    <div class="mtools"><label class="eyebrow" for="mDays">Period</label><select id="mDays"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select><span class="mmsg" id="mLoad"></span></div>
+    <div class="kpis" id="mKpis"></div>
+    <section class="panel">
+      <h2>Campaign links</h2>
+      <p class="sub">Make one link for every place you post: each TikTok or Instagram bio, each creator, each poster. Everyone who opens the game from that link is counted under it, even when TikTok or Instagram hide where the visitor came from.</p>
+      <p class="mtip">Short links look like <b class="num" id="mExample">hustlempires.com/go/tiktok</b>. Put them in bios, captions, QR codes and creator briefs. Enter what you spent so the table can show the cost of each new player.</p>
+      <form class="mform" id="mForm" novalidate>
+        <label>Campaign name<input id="mName" maxlength="60" placeholder="e.g. TikTok bio, or Creator: Wanjiku"></label>
+        <label>Where it's posted<select id="mChan"></select></label>
+        <label>Link code<input id="mCode" maxlength="30" placeholder="e.g. tiktok" autocapitalize="none" spellcheck="false"></label>
+        <label>Spend so far (KSh)<input id="mCost" type="number" min="0" step="100" inputmode="numeric" placeholder="0"></label>
+        <label class="wide">Note (optional)<input id="mNote" maxlength="120" placeholder="e.g. 3 videos, KSh 5,000 each"></label>
+        <div class="acts"><button class="btn primary" type="submit" id="mSave">Create link</button><button class="btn ghost" type="button" id="mCancel" hidden>Cancel</button><p class="mmsg" id="mMsg" role="status"></p></div>
+      </form>
+      <div class="tablewrap" style="margin-top:14px"><table style="min-width:1040px"><thead><tr><th>Campaign</th><th class="r">Visitors</th><th class="r">New players</th><th class="r">Sign-up rate</th><th class="r">Came back next day</th><th class="r">Came back after a week</th><th class="r">Playing this week</th><th class="r">Tips</th><th class="r">Spend</th><th class="r">Cost per player</th><th></th></tr></thead><tbody id="mCamps"></tbody></table></div>
+      <label class="toggle" style="margin-top:8px"><input type="checkbox" id="mShowArch"> Show archived links</label>
+    </section>
+    <section class="panel" id="adsPanel">
+      <h2>Facebook &amp; Instagram ads</h2>
+      <p class="sub" id="adsSub">Loading…</p>
+      <div class="mtools" style="margin-bottom:10px"><button class="btn" type="button" id="adsSync">Refresh from Meta now</button><span class="mmsg" id="adsMsg" role="status"></span></div>
+      <div id="adsBody">
+      <div class="kpis" id="adsKpis"></div>
+      <h3 class="eyebrow" style="margin:16px 0 6px">Ad spend per day</h3>
+      <div class="chart" id="adsChart"></div>
+      <h3 class="eyebrow" style="margin:16px 0 6px">Ad campaigns</h3>
+      <p class="mtip">Point each ad's website link at one of your campaign links (for example <b class="num">hustlempires.com/go/fb-kiosk</b>) and the game matches it automatically. You can also choose the link by hand in the Game link column.</p>
+      <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>Ad campaign</th><th class="r">Spend</th><th class="r">Reach</th><th class="r">Link clicks</th><th class="r">Cost per click</th><th>Game link</th><th class="r">Visitors</th><th class="r">New players</th><th class="r">Came back next day</th><th class="r">Cost per player</th></tr></thead><tbody id="adsRows"></tbody></table></div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Where new players come from</h2>
+      <p class="sub" id="mSrcSub">Every new player in the period, by the first thing that brought them: a campaign link, a friend's invite link, or the website that sent them.</p>
+      <div class="chart" id="mChart"></div>
+      <div class="legend" style="display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:6px 0 14px"><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--brass);margin-right:6px"></i>Campaign links</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:6px"></i>Friend's invite</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--muted);margin-right:6px"></i>Other or untracked</span></div>
+      <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Source</th><th class="r">Visitors</th><th class="r">New players</th><th class="r">Share</th><th class="r">Came back next day</th><th class="r">Came back after a week</th><th class="r">Tips</th></tr></thead><tbody id="mSrc"></tbody></table></div>
+    </section>
+    <section class="panel">
+      <h2>#HustlempiresChallenge check</h2>
+      <p class="sub">Each player's net worth on the day their character turned 40, for lives that reached 40 in the chosen month. Use it to confirm the screenshots people post before you announce winners. Amounts are in dollars, the game's base currency; players see the same amount in their own currency.</p>
+      <div class="mtools" style="margin-bottom:10px"><select id="cMonth" aria-label="Month"><option value="0">This month</option><option value="1">Last month</option><option value="2">2 months ago</option></select><select id="cRegion" aria-label="Country"></select><span class="mmsg" id="cSub"></span></div>
+      <div class="tablewrap"><table style="min-width:620px"><thead><tr><th class="r">#</th><th>Player</th><th>Country</th><th class="r">Net worth at 40</th><th>Reached 40</th></tr></thead><tbody id="cRows"></tbody></table></div>
+    </section>
     </div>
 
     <div class="view" id="view-pass" hidden>
@@ -403,7 +463,8 @@ $('logoutBtn').addEventListener('click',async()=>{try{await api('POST','/api/adm
 async function load(){try{const [ov,pl,pay]=await Promise.all([api('GET','/api/admin/overview'),api('GET','/api/admin/players'),api('GET','/api/admin/payments')]);
   serverNow=pl.now;players=pl.players;payments=pay.payments;loadEvents();renderKpis(ov.kpis);renderVisitors(ov.kpis.visitors);renderDrop(ov.kpis.dropoff);renderPush(ov.kpis.push);renderBilling(ov.kpis.billing);renderInvites(ov.kpis.invites);renderDau(ov.days);renderFeed(ov.feed);renderPlayers();navCounts(ov.kpis);
   $('updated').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  if(openId!=null&&!$('sheet').hidden)openPlayer(openId,true);}
+  if(openId!=null&&!$('sheet').hidden)openPlayer(openId,true);
+  if(view==='marketing')loadMarketing(true);}
  catch(e){if(e.status===401)showLogin('Your admin session ended. Log in again.');else $('updated').textContent='Could not refresh: '+e.message;}}
 function startTimer(){stopTimer();if($('autoRefresh').checked)timer=setInterval(load,30000);}
 function stopTimer(){if(timer){clearInterval(timer);timer=null;}}
@@ -437,6 +498,112 @@ function renderVisitors(v){const pnl=$('visPanel');if(!v){pnl.hidden=true;return
  s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+(pt+ih)+'" y2="'+(pt+ih)+'" stroke="var(--line)" stroke-width="1"/></svg>';box.innerHTML=s;
  const SRC={direct:'Typed the address or a saved link',whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',tiktok:'TikTok',x:'X (Twitter)',google:'Google',linkedin:'LinkedIn',youtube:'YouTube',telegram:'Telegram',bing:'Bing'};
  const rows=v.srcs||[];$('visSrc').innerHTML=rows.length?rows.map(r=>'<tr><td>'+esc(SRC[r.src]||r.src||'Unknown')+'</td><td class="r num">'+r.n+'</td><td class="r num">'+(r.signed||0)+'</td><td class="r num">'+(r.n?Math.round(100*(r.signed||0)/r.n)+'%':'—')+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">No visitors yet.</td></tr>';}
+
+/* ---------- Marketing: campaign links, sources, challenge ---------- */
+const CHAN={tiktok:'TikTok',instagram:'Instagram',facebook:'Facebook',whatsapp:'WhatsApp',x:'X (Twitter)',youtube:'YouTube',creator:'Creator / influencer',poster:'Poster, flyer or QR code',ads:'Paid ads',other:'Other'};
+const SRCNAME={direct:'No link: typed the address or an untracked link',unknown:'Before tracking started',whatsapp:'WhatsApp (untracked link)',facebook:'Facebook (untracked link)',instagram:'Instagram (untracked link)',tiktok:'TikTok (untracked link)',x:'X (untracked link)',google:'Google search',linkedin:'LinkedIn',youtube:'YouTube (untracked link)',telegram:'Telegram',bing:'Bing search'};
+let mkt=null,mEdit=null,mLoading=false,chal=null;
+const pct=(a,b)=>b?Math.round(100*a/b)+'%':'—';
+const backCell=(b,e)=>'<td class="r num" title="'+b+' of '+e+' players old enough to count">'+pct(b,e)+'</td>';
+function slug(x){return String(x||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,30);}
+function shortLink(code){return((mkt&&mkt.site)||'hustlempires.com')+'/go/'+code;}
+async function loadMarketing(quiet){if(mLoading)return;mLoading=true;if(!quiet)$('mLoad').textContent='Loading…';
+ try{mkt=await api('GET','/api/admin/marketing?days='+$('mDays').value);serverNow=mkt.now;renderMarketing();$('mLoad').textContent='';}
+ catch(e){if(e.status===401)showLogin('Your admin session ended. Log in again.');else $('mLoad').textContent='Could not load: '+e.message;}
+ mLoading=false;loadAds();if(!chal||!quiet)loadChallenge();}
+function renderMarketing(){const m=mkt,T=m.totals,per=m.days===365?'last year':'last '+m.days+' days';
+ if(!$('mChan').options.length)$('mChan').innerHTML=m.channels.map(c=>'<option value="'+c+'">'+esc(CHAN[c]||c)+'</option>').join('');
+ $('mExample').textContent=m.site+'/go/tiktok';
+ const spentPlayers=m.campaigns.filter(c=>!c.archived&&c.cost>0).reduce((a,c)=>a+c.playersAll,0);
+ const tiles=[['New players',T.players,per,'lead'],['From campaign links',T.camp,pct(T.camp,T.players)+' of new players'],['From friends\' invites',T.invite,pct(T.invite,T.players)+' of new players'],
+  ['Came back next day',pct(T.b1,T.e1),T.b1+' of '+T.e1+' new players'],['Cost per player',T.spend&&spentPlayers?KES(T.spend/spentPlayers):'—',T.spend?KES(T.spend)+' spent on active links, all time':'enter spend on your links'],
+  ['Tips from new players',KES(T.tips),per]];
+ $('mKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):t[1])+'</b><small>'+esc(t[2])+'</small></div>').join('');
+ const arch=$('mShowArch').checked,C=m.campaigns.filter(c=>arch||!c.archived);
+ $('mCamps').innerHTML=C.length?C.map(c=>'<tr class="'+(c.archived?'arch':'')+'"><td><b>'+esc(c.name)+'</b> <span class="pill">'+esc(CHAN[c.channel]||c.channel)+'</span>'+(c.known?'':' <span class="pill bad" title="Someone used this code but it is not one of your links">Unknown code</span>')+(c.archived?' <span class="pill idle">Archived</span>':'')+
+   '<div class="linkcell"><code>'+esc(shortLink(c.code))+'</code><button class="btn xs ghost" type="button" data-mcopy="'+esc(c.code)+'">Copy</button></div>'+(c.note?'<small style="color:var(--muted)">'+esc(c.note)+'</small>':'')+'</td>'+
+   '<td class="r num">'+c.visitors+'</td><td class="r num"><b>'+c.players+'</b></td><td class="r num">'+pct(c.players,c.visitors)+'</td>'+backCell(c.b1,c.e1)+backCell(c.b7,c.e7)+'<td class="r num">'+c.active7+'</td><td class="r num">'+(c.tips?KES(c.tips):'—')+'</td>'+
+   '<td class="r num">'+(c.cost?KES(c.cost):'—')+'</td><td class="r num" title="Spend divided by all '+c.playersAll+' players this link has ever brought">'+(c.cost&&c.playersAll?KES(c.cost/c.playersAll):'—')+'</td>'+
+   '<td style="white-space:nowrap">'+(c.known?'<button class="btn xs" type="button" data-medit="'+esc(c.code)+'">Edit</button> <button class="btn xs ghost" type="button" data-march="'+esc(c.code)+'" data-v="'+(c.archived?0:1)+'">'+(c.archived?'Restore':'Archive')+'</button>':'<button class="btn xs" type="button" data-madd="'+esc(c.code)+'">Add as a link</button>')+'</td></tr>').join('')
+  :'<tr><td colspan="11" class="empty">No campaign links yet. Create your first one above, for example "TikTok bio" with the code tiktok.</td></tr>';
+ const lbl=k=>k==='invite'?"Friend's invite link":k.startsWith('c:')?((m.campaigns.find(c=>'c:'+c.code===k)||{}).name||k.slice(2))+' <small style="color:var(--muted)">campaign link</small>':esc(SRCNAME[k.slice(2)]||k.slice(2));
+ const S=m.sources.filter(r=>r.players||r.visitors);
+ $('mSrc').innerHTML=S.length?S.map(r=>'<tr><td>'+lbl(r.key)+'</td><td class="r num">'+(r.key==='invite'?'—':r.visitors)+'</td><td class="r num"><b>'+r.players+'</b></td><td class="r num">'+pct(r.players,T.players)+'</td>'+backCell(r.b1,r.e1)+backCell(r.b7,r.e7)+'<td class="r num">'+(r.tips?KES(r.tips):'—')+'</td></tr>').join('')
+  :'<tr><td colspan="7" class="empty">No new players or visitors in this period.</td></tr>';
+ $('mSrcSub').textContent='Every new player in the '+per+', by the first thing that brought them: a campaign link, a friend\'s invite link, or the website that sent them. Players who joined before tracking started show as "Before tracking started".';
+ const days=m.daily||[],box=$('mChart'),W=Math.max(280,box.clientWidth||600),H=180,pl=34,pr=8,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb;
+ const max=niceMax(Math.max(1,...days.map(d=>d.camp+d.invite+d.other))),band=iw/Math.max(1,days.length),bw=Math.min(22,band*.62),y=v=>pt+ih-(v/max)*ih;
+ let s='<svg viewBox="0 0 '+W+' '+H+'" height="'+H+'" role="img" aria-label="New players per day by source">';
+ for(let i=0;i<=4;i++){const v=max*i/4,yy=y(v);s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+yy+'" y2="'+yy+'" stroke="var(--grid)" stroke-width="1"/><text class="axis" x="'+(pl-6)+'" y="'+(yy+3.5)+'" text-anchor="end">'+Math.round(v)+'</text>';}
+ const lab=Math.max(1,Math.ceil(days.length/Math.max(3,Math.floor(iw/64))));
+ days.forEach((d,i)=>{const cx=pl+band*i+band/2,x0=cx-bw/2;let base=pt+ih;
+  [['camp','var(--brass)'],['invite','var(--green)'],['other','var(--muted)']].forEach(([k,c])=>{const h=ih*(d[k]/max);if(h>0){base-=h;s+='<rect x="'+x0+'" y="'+base+'" width="'+bw+'" height="'+h+'" fill="'+c+'"/>';}});
+  if(i===days.length-1||(days.length-1-i)%lab===0){const dt=new Date(d.day+'T00:00:00Z');s+='<text class="axis" x="'+cx+'" y="'+(H-8)+'" text-anchor="middle">'+(i===days.length-1?'Today':dt.getUTCDate()+' '+MONTHS[dt.getUTCMonth()])+'</text>';}
+  s+='<rect x="'+(pl+band*i)+'" y="'+pt+'" width="'+band+'" height="'+ih+'" fill="transparent"><title>'+d.day+': '+d.camp+' from campaign links, '+d.invite+' from invites, '+d.other+' other</title></rect>';});
+ s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+(pt+ih)+'" y2="'+(pt+ih)+'" stroke="var(--line)" stroke-width="1"/></svg>';box.innerHTML=s;
+ const n=m.campaigns.filter(c=>!c.archived&&c.known).length;const e=$('cntMkt');e.hidden=!n;e.textContent=n;}
+function mReset(){mEdit=null;$('mForm').reset();$('mCode').dataset.touched='';$('mCode').disabled=false;$('mSave').textContent='Create link';$('mCancel').hidden=true;}
+$('mName').addEventListener('input',()=>{if(!mEdit&&!$('mCode').dataset.touched)$('mCode').value=slug($('mName').value);});
+$('mCode').addEventListener('input',()=>{$('mCode').dataset.touched=$('mCode').value?'1':'';});
+$('mForm').addEventListener('submit',async e=>{e.preventDefault();const code=slug($('mCode').value||$('mName').value);
+ if(!$('mName').value.trim()){$('mMsg').textContent='Give the campaign a name first.';$('mName').focus();return;}
+ if(!code){$('mMsg').textContent='Type a link code: small letters, numbers and dashes.';$('mCode').focus();return;}
+ $('mSave').disabled=true;$('mMsg').textContent='Saving…';
+ try{await api('POST','/api/admin/campaign',{new:!mEdit,code,name:$('mName').value.trim(),channel:$('mChan').value,cost:$('mCost').value,note:$('mNote').value.trim()});
+  $('mMsg').textContent=(mEdit?'Saved. ':'Link ready: ')+shortLink(code);mReset();$('mCode').dataset.touched='';await loadMarketing(true);}
+ catch(err){$('mMsg').textContent=err.message;}$('mSave').disabled=false;});
+$('mCancel').addEventListener('click',()=>{mReset();$('mMsg').textContent='';});
+$('mDays').addEventListener('change',()=>loadMarketing());$('mShowArch').addEventListener('change',renderMarketing);
+$('mCamps').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.mcopy!=null){const link='https://'+shortLink(b.dataset.mcopy);try{await navigator.clipboard.writeText(link);b.textContent='Copied';}catch(x){window.prompt('Copy this link',link);}setTimeout(()=>b.textContent='Copy',1500);return;}
+ if(b.dataset.medit!=null||b.dataset.madd!=null){const code=b.dataset.medit||b.dataset.madd,c=mkt.campaigns.find(x=>x.code===code)||{};mEdit=b.dataset.medit?code:null;
+  $('mName').value=c.known?c.name:'';$('mChan').value=c.channel||'other';$('mCode').value=code;$('mCode').disabled=!!mEdit;$('mCost').value=c.cost||'';$('mNote').value=c.note||'';
+  $('mSave').textContent=mEdit?'Save changes':'Create link';$('mCancel').hidden=false;$('mMsg').textContent=mEdit?'Editing '+code+'. The link stays the same.':'';$('mName').focus();$('mForm').scrollIntoView({block:'center'});return;}
+ if(b.dataset.march!=null){b.disabled=true;try{await api('POST','/api/admin/campaign',{code:b.dataset.march,archive:b.dataset.v==='1'});await loadMarketing(true);}catch(err){$('mMsg').textContent=err.message;b.disabled=false;}}});
+/* ---------- Meta ads ---------- */
+let ads=null;
+const ST={ACTIVE:['Running','good'],PAUSED:['Paused','idle'],CAMPAIGN_PAUSED:['Paused','idle'],ARCHIVED:['Archived','idle'],DELETED:['Deleted','bad'],IN_PROCESS:['Starting',''],WITH_ISSUES:['Has issues','bad']};
+async function loadAds(){try{ads=await api('GET','/api/admin/ads?days='+$('mDays').value);renderAds();}catch(e){if(e.status!==401)$('adsSub').textContent='Could not load ad results: '+e.message;}}
+function renderAds(){const a=ads,sy=a.sync||{},tk=a.token||{},cur=sy.currency||'',M=n=>(cur==='KES'?'KSh ':cur?cur+' ':'')+(+n||0).toLocaleString('en-US',{maximumFractionDigits:cur==='KES'?0:2});
+ $('adsSync').hidden=!a.ready;$('adsBody').hidden=!a.ready||!sy.at;
+ if(!a.ready){$('adsSub').innerHTML='Not connected yet. The server needs the Meta token and ad account, added with the "Connect Meta ads" console step.';return;}
+ const exp=tk.expires?Math.ceil((tk.expires-serverNow)/86400):null;
+ let sub=sy.at?'Connected to <b>'+esc(sy.name||'ad account '+a.account)+'</b>'+(cur?' ('+esc(cur)+')':'')+'. Refreshed '+ago(sy.at)+'; it refreshes every hour.':'Connected to ad account '+esc(a.account)+'. The first refresh runs a minute after the server starts.';
+ if(exp!=null)sub+=exp<=7?' <b style="color:var(--red)">The Meta token expires in '+Math.max(0,exp)+' day'+(exp===1?'':'s')+': make a new one in Business Settings and run the "Connect Meta ads" step again.</b>':' The token expires in '+exp+' days.';
+ if(sy.error&&(!sy.at||sy.errorAt>sy.at))sub+=' <b style="color:var(--red)">Last refresh failed: '+esc(sy.error)+'</b>';
+ $('adsSub').innerHTML=sub;if(!sy.at)return;
+ const T=a.totals||{},C=a.campaigns||[],per=a.days===365?'last year':'last '+a.days+' days';
+ const tiles=[['Ad spend',M(T.spend),per,'lead'],['Reach',(T.reach||0).toLocaleString('en-US'),'people, summed per ad and day'],['Link clicks',(T.link_clicks||0).toLocaleString('en-US'),T.link_clicks?M(T.spend/T.link_clicks)+' per click':'no clicks yet'],
+  ['New players from ads',a.linkedPlayers||0,'from ad campaigns with a game link'],['Cost per new player',a.linkedPlayers?M(a.linkedSpend/a.linkedPlayers):'—',a.linkedPlayers?M(a.linkedSpend)+' spent on linked campaigns':'link your ad campaigns below']];
+ $('adsKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):t[1])+'</b><small>'+esc(t[2])+'</small></div>').join('');
+ const days=a.daily||[],box=$('adsChart'),W=Math.max(280,box.clientWidth||600),H=150,pl=48,pr=8,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb;
+ const max=niceMax(Math.max(1,...days.map(d=>d.spend))),band=iw/Math.max(1,days.length),bw=Math.min(22,band*.62),y=v=>pt+ih-(v/max)*ih,lab=Math.max(1,Math.ceil(days.length/Math.max(3,Math.floor(iw/64))));
+ let g='<svg viewBox="0 0 '+W+' '+H+'" height="'+H+'" role="img" aria-label="Ad spend per day">';
+ for(let i=0;i<=4;i++){const v=max*i/4,yy=y(v);g+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+yy+'" y2="'+yy+'" stroke="var(--grid)" stroke-width="1"/><text class="axis" x="'+(pl-6)+'" y="'+(yy+3.5)+'" text-anchor="end">'+Math.round(v).toLocaleString('en-US')+'</text>';}
+ days.forEach((d,i)=>{const cx=pl+band*i+band/2,h=ih*(d.spend/max);if(h>0)g+='<rect x="'+(cx-bw/2)+'" y="'+(pt+ih-h)+'" width="'+bw+'" height="'+h+'" fill="var(--brass)"/>';
+  if(i===days.length-1||(days.length-1-i)%lab===0){const dt=new Date(d.day+'T00:00:00Z');g+='<text class="axis" x="'+cx+'" y="'+(H-8)+'" text-anchor="middle">'+(i===days.length-1?'Today':dt.getUTCDate()+' '+MONTHS[dt.getUTCMonth()])+'</text>';}
+  g+='<rect x="'+(pl+band*i)+'" y="'+pt+'" width="'+band+'" height="'+ih+'" fill="transparent"><title>'+d.day+': '+M(d.spend)+', '+d.clicks+' link clicks</title></rect>';});
+ box.innerHTML=g+'<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+(pt+ih)+'" y2="'+(pt+ih)+'" stroke="var(--line)" stroke-width="1"/></svg>';
+ const opts=(sel)=>'<option value="">Not linked</option>'+(a.links||[]).map(l=>'<option value="'+esc(l.code)+'"'+(l.code===sel?' selected':'')+'>'+esc(l.name)+' ('+esc(l.code)+')</option>').join('')+(sel&&!(a.links||[]).some(l=>l.code===sel)?'<option value="'+esc(sel)+'" selected>'+esc(sel)+'</option>':'');
+ $('adsRows').innerHTML=C.length?C.map(c=>{const st=ST[c.status]||[c.status?c.status.toLowerCase():'—',''];return'<tr><td><b>'+esc(c.name||c.campaign_id)+'</b> <span class="pill '+st[1]+'">'+esc(st[0])+'</span><small style="display:block;color:var(--muted)">'+c.ads+' ad'+(c.ads===1?'':'s')+'</small></td>'+
+  '<td class="r num">'+M(c.spend)+'</td><td class="r num">'+(c.reach||0).toLocaleString('en-US')+'</td><td class="r num">'+(c.link_clicks||0).toLocaleString('en-US')+'</td><td class="r num">'+(c.link_clicks?M(c.spend/c.link_clicks):'—')+'</td>'+
+  '<td><select data-adlink="'+esc(c.campaign_id)+'" aria-label="Game link for '+esc(c.name)+'" style="padding:5px 6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px;max-width:220px">'+opts(c.code)+'</select>'+(c.code&&!c.manual?'<small style="display:block;color:var(--muted)">found in the ad link</small>':'')+'</td>'+
+  '<td class="r num">'+(c.code?c.visitors:'—')+'</td><td class="r num"><b>'+(c.code?c.players:'—')+'</b></td>'+(c.code?backCell(c.b1,c.e1):'<td class="r num">—</td>')+'<td class="r num">'+(c.code&&c.players?M(c.spend/c.players):'—')+'</td></tr>';}).join('')
+  :'<tr><td colspan="10" class="empty">No ad spend in this period.</td></tr>';}
+$('adsRows').addEventListener('change',async e=>{const s=e.target.closest('select[data-adlink]');if(!s)return;s.disabled=true;
+ try{await api('POST','/api/admin/ads/link',{campaign_id:s.dataset.adlink,code:s.value});await loadAds();$('adsMsg').textContent='Saved.';}catch(err){$('adsMsg').textContent=err.message;s.disabled=false;}});
+$('adsSync').addEventListener('click',async()=>{const b=$('adsSync');b.disabled=true;$('adsMsg').textContent='Asking Meta for the latest numbers…';
+ try{await api('POST','/api/admin/ads/sync',{});$('adsMsg').textContent='Up to date.';await loadAds();}catch(e){$('adsMsg').textContent=e.message;}b.disabled=false;});
+
+const COUNTRY=(()=>{try{const d=new Intl.DisplayNames(['en'],{type:'region'});return c=>{try{return c?d.of(c):'Unknown';}catch(e){return c;}};}catch(e){return c=>c||'Unknown';}})();
+async function loadChallenge(){const reg=$('cRegion').value||'KE';
+ try{chal=await api('GET','/api/admin/challenge?m='+$('cMonth').value+'&region='+encodeURIComponent(reg));}catch(e){$('cSub').textContent='Could not load: '+e.message;return;}
+ const R=Object.assign({},chal.regions);R[reg]=R[reg]||0;const keys=Object.keys(R).filter(k=>k).sort((a,b)=>R[b]-R[a]);
+ $('cRegion').innerHTML=keys.map(k=>'<option value="'+esc(k)+'"'+(k===reg?' selected':'')+'>'+esc(COUNTRY(k))+' ('+R[k]+')</option>').join('');
+ const [y,mo]=chal.month.split('-');$('cSub').textContent=chal.entries+' player'+(chal.entries===1?'':'s')+' in '+COUNTRY(reg)+' reached 40 in '+MONTHS[+mo-1]+' '+y+'.';
+ $('cRows').innerHTML=chal.rows.length?chal.rows.map((r,i)=>'<tr data-open="'+r.user_id+'"><td class="r num">'+(i+1)+'</td><td><div class="pcell">'+avatar(r)+'<div><b>'+esc(r.name)+'</b><small>@'+esc(r.username)+' · '+esc(r.company)+'</small></div></div></td><td>'+esc(COUNTRY(r.region))+'</td><td class="r num"><b>'+fmt(r.nw)+'</b></td><td>'+new Date(r.when*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</td></tr>').join('')
+  :'<tr><td colspan="5" class="empty">Nobody in '+esc(COUNTRY(reg))+' reached age 40 in this month yet.</td></tr>';}
+$('cMonth').addEventListener('change',loadChallenge);$('cRegion').addEventListener('change',loadChallenge);
 
 /* ---------- Where players stop ---------- */
 let dropCat=null;
@@ -685,7 +852,7 @@ function drawNW(pts){const box=$('nwChart');if(!box)return;box._pts=pts;
  $('nwHit').addEventListener('mousemove',move);$('nwHit').addEventListener('mouseleave',leave);$('nwHit').addEventListener('touchmove',move,{passive:true});}
 
 /* ---------- side menu ---------- */
-const VIEWS={overview:'Overview',players:'Players',activity:'Live activity',pass:'Tips',invites:'Invites',events:'Events & challenges',crises:'Nature & world crises',deaths:'What makes players die'};
+const VIEWS={overview:'Overview',players:'Players',activity:'Live activity',marketing:'Marketing',pass:'Tips',invites:'Invites',events:'Events & challenges',crises:'Nature & world crises',deaths:'What makes players die'};
 let view='overview';
 const narrow=()=>window.matchMedia('(max-width:900px)').matches;
 function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
@@ -700,6 +867,7 @@ function showView(v,push){if(!VIEWS[v])v='overview';view=v;
  if(push!==false&&location.hash!=='#'+v)history.replaceState(null,'','#'+v);
  if(v==='overview'){const b=$('dauChart');if(b._days)renderDau(b._days);}
  if(v==='deaths')loadDeaths();
+ if(v==='marketing')loadMarketing();
  if(narrow())setNav(false);window.scrollTo(0,0);}
 function navCounts(k){const set=(id,n)=>{const e=$(id);if(!e)return;e.hidden=!(n>0);e.textContent=n;};
  set('cntPlayers',k.players);set('cntPaid',k.billing?(k.billing.on?k.billing.paid:k.billing.tipN30||0):0);set('cntInv',k.invites?k.invites.joined:0);}

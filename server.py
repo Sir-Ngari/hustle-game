@@ -24,6 +24,7 @@ Settings come from environment variables (see deploy/hustle.env.example):
   HUSTLE_PRICE_WEEK / HUSTLE_PRICE_MONTH / HUSTLE_PRICE_YEAR   pass prices in Kenya shillings (70 / 250 / 2000)
 """
 import base64
+import calendar
 import hashlib
 import hmac
 import json
@@ -74,6 +75,12 @@ def env_int(name, default):
 # ---- Hustle Pass (subscription) settings ----
 # The Hustle Pass was retired: the game is free for everyone, and players can tip the developers instead.
 BILLING_ON = False
+# Meta (Facebook and Instagram) ads: read-only ad results, pulled every hour into the admin Marketing tab
+META_TOKEN = os.environ.get("HUSTLE_META_TOKEN", "").strip()
+META_ACCOUNT = re.sub(r"[^0-9]", "", os.environ.get("HUSTLE_META_ACCOUNT", ""))
+META_APP_SECRET = os.environ.get("HUSTLE_META_APP_SECRET", "").strip()
+META_API = os.environ.get("HUSTLE_META_API", "v25.0").strip() or "v25.0"
+META_URL = os.environ.get("HUSTLE_META_URL", "https://graph.facebook.com").strip().rstrip("/")
 PESAPAL_KEY = os.environ.get("HUSTLE_PESAPAL_KEY", "").strip()
 PESAPAL_SECRET = os.environ.get("HUSTLE_PESAPAL_SECRET", "").strip()
 PESAPAL_ENV = "sandbox" if os.environ.get("HUSTLE_PESAPAL_ENV", "").strip().lower() == "sandbox" else "live"
@@ -248,6 +255,46 @@ CREATE TABLE IF NOT EXISTS visitors(
   device TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS visitors_first ON visitors(first);
+CREATE TABLE IF NOT EXISTS meta_daily(
+  day TEXT NOT NULL,
+  ad_id TEXT NOT NULL,
+  campaign_id TEXT NOT NULL DEFAULT '',
+  campaign_name TEXT NOT NULL DEFAULT '',
+  adset_name TEXT NOT NULL DEFAULT '',
+  ad_name TEXT NOT NULL DEFAULT '',
+  spend REAL NOT NULL DEFAULT 0,
+  impressions INTEGER NOT NULL DEFAULT 0,
+  reach INTEGER NOT NULL DEFAULT 0,
+  clicks INTEGER NOT NULL DEFAULT 0,
+  link_clicks INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(day, ad_id)
+);
+CREATE INDEX IF NOT EXISTS meta_daily_camp ON meta_daily(campaign_id, day);
+CREATE TABLE IF NOT EXISTS meta_ads(
+  ad_id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT '',
+  code TEXT NOT NULL DEFAULT '',
+  updated INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS meta_campaigns(
+  campaign_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT '',
+  code TEXT NOT NULL DEFAULT '',
+  manual INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS campaigns(
+  code TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  channel TEXT NOT NULL DEFAULT 'other',
+  cost REAL NOT NULL DEFAULT 0,
+  note TEXT NOT NULL DEFAULT '',
+  created INTEGER NOT NULL,
+  archived INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS ev_log(
   ts INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
@@ -372,6 +419,13 @@ if "ver" not in [r[1] for r in _db.execute("PRAGMA table_info(saves)").fetchall(
     _db.execute("ALTER TABLE saves ADD COLUMN ver INTEGER NOT NULL DEFAULT 0")
 if "company_renamed" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
     _db.execute("ALTER TABLE users ADD COLUMN company_renamed INTEGER NOT NULL DEFAULT 0")
+# marketing: which campaign link brought each visitor and player
+if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
+    _db.execute("ALTER TABLE users ADD COLUMN camp TEXT NOT NULL DEFAULT ''")
+if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(visitors)").fetchall()]:
+    _db.execute("ALTER TABLE visitors ADD COLUMN camp TEXT NOT NULL DEFAULT ''")
+_db.execute("CREATE INDEX IF NOT EXISTS users_camp ON users(camp)")
+_db.execute("CREATE INDEX IF NOT EXISTS visitors_camp ON visitors(camp)")
 _lock = threading.Lock()
 
 
@@ -1444,7 +1498,7 @@ VID_RE = re.compile(r"^[A-Za-z0-9]{12,40}$")
 STAGE_RANK = {"landed": 0, "form": 1, "login": 2, "signed": 3}
 
 
-def visit_mark(vid, stage, src="", device="", user_id=0):
+def visit_mark(vid, stage, src="", device="", user_id=0, camp=""):
     """Record an anonymous visit. A visit more than 30 minutes after the last one counts as a new visit.
     Existing players are never counted: a browser that logs in is marked 'login' and left out of every visitor number."""
     if not isinstance(vid, str) or not VID_RE.match(vid) or stage not in STAGE_RANK:
@@ -1452,9 +1506,11 @@ def visit_mark(vid, stage, src="", device="", user_id=0):
     t = now()
     r = q("SELECT stage, last FROM visitors WHERE vid=?", (vid,), one=True)
     if not r:
-        q("INSERT OR IGNORE INTO visitors(vid,first,last,visits,stage,user_id,src,device) VALUES(?,?,?,1,?,?,?,?)",
-          (vid, t, t, stage, user_id, src[:40], device[:10]))
+        q("INSERT OR IGNORE INTO visitors(vid,first,last,visits,stage,user_id,src,device,camp) VALUES(?,?,?,1,?,?,?,?,?)",
+          (vid, t, t, stage, user_id, src[:40], device[:10], camp))
         return
+    if camp:
+        q("UPDATE visitors SET camp=? WHERE vid=? AND camp=''", (camp, vid))
     st = stage if STAGE_RANK[stage] > STAGE_RANK.get(r["stage"], 0) else r["stage"]
     q("UPDATE visitors SET last=?, visits=visits+?, stage=?, user_id=CASE WHEN ?>0 THEN ? ELSE user_id END WHERE vid=?",
       (t, 1 if t - r["last"] > 1800 else 0, st, user_id, user_id, vid))
@@ -1488,6 +1544,314 @@ def visitors_overview(t):
                                                   (t - 30 * 86400,))}
     since = q("SELECT MIN(first) m FROM visitors", one=True)["m"]
     return {"d1": span(t - 86400), "d7": span(t - 7 * 86400), "d30": span(t - 30 * 86400), "all": span(0), "days": days, "srcs": srcs, "leftDevice": dev, "since": since}
+
+
+# ---- marketing: campaign links and where players come from ----
+CAMP_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,29}$")
+CHANNELS = ["tiktok", "instagram", "facebook", "whatsapp", "x", "youtube", "creator", "poster", "ads", "other"]
+
+
+def clean_camp(v):
+    v = (v if isinstance(v, str) else "").strip().lower()
+    return v if CAMP_RE.match(v) else ""
+
+
+def marketing_report(t, days):
+    """Sign-ups, return rates and tips by where players came from, over the last `days` days."""
+    since = t - days * 86400
+    camps = {r["code"]: dict(r) for r in q("SELECT * FROM campaigns")}
+    users = q("SELECT u.id, u.created, u.last_seen, u.camp, "
+              "(SELECT 1 FROM referrals r WHERE r.user_id=u.id) AS invited, "
+              "(SELECT v.src FROM visitors v WHERE v.user_id=u.id ORDER BY v.first LIMIT 1) AS src "
+              "FROM users u WHERE u.created>?", (since,))
+    ids = [u["id"] for u in users]
+    act, tips = {}, {}
+    if ids:
+        for r in q("SELECT a.user_id, a.day FROM activity_days a JOIN users u ON u.id=a.user_id WHERE u.created>?", (since,)):
+            act.setdefault(r["user_id"], []).append(r["day"])
+        for r in q("SELECT p.user_id, SUM(p.amount) a FROM payments p JOIN users u ON u.id=p.user_id "
+                   "WHERE u.created>? AND p.status='paid' AND p.plan='tip' GROUP BY p.user_id", (since,)):
+            tips[r["user_id"]] = r["a"] or 0
+
+    def source(u):
+        if u["invited"]:
+            return "invite"
+        if u["camp"]:
+            return "c:" + u["camp"]
+        return "r:" + (u["src"] or "unknown")
+
+    def back(u, n):
+        if u["created"] > t - n * 86400:
+            return None
+        cut = time.strftime("%Y-%m-%d", time.gmtime(u["created"] + n * 86400))
+        return any(d >= cut for d in act.get(u["id"], []))
+
+    rows = {}
+    for u in users:
+        k = source(u)
+        r = rows.setdefault(k, {"key": k, "players": 0, "e1": 0, "b1": 0, "e7": 0, "b7": 0, "active7": 0, "tips": 0.0, "tippers": 0, "visitors": 0})
+        r["players"] += 1
+        for n in (1, 7):
+            b = back(u, n)
+            if b is not None:
+                r["e%d" % n] += 1
+                r["b%d" % n] += 1 if b else 0
+        if u["last_seen"] > t - 7 * 86400:
+            r["active7"] += 1
+        if tips.get(u["id"]):
+            r["tips"] += tips[u["id"]]
+            r["tippers"] += 1
+    for v in q("SELECT camp, src, COUNT(*) n FROM visitors WHERE first>? AND stage<>'login' GROUP BY camp, src", (since,)):
+        k = ("c:" + v["camp"]) if v["camp"] else ("r:" + (v["src"] or "unknown"))
+        r = rows.setdefault(k, {"key": k, "players": 0, "e1": 0, "b1": 0, "e7": 0, "b7": 0, "active7": 0, "tips": 0.0, "tippers": 0, "visitors": 0})
+        r["visitors"] += v["n"]
+    # campaigns with no traffic yet still get a row
+    for c in camps.values():
+        if not c["archived"]:
+            rows.setdefault("c:" + c["code"], {"key": "c:" + c["code"], "players": 0, "e1": 0, "b1": 0, "e7": 0, "b7": 0, "active7": 0, "tips": 0.0, "tippers": 0, "visitors": 0})
+    out_c, out_s = [], []
+    for k, r in rows.items():
+        if k.startswith("c:"):
+            c = camps.get(k[2:])
+            r.update({"code": k[2:], "name": c["name"] if c else k[2:], "channel": c["channel"] if c else "other",
+                      "cost": c["cost"] if c else 0, "note": c["note"] if c else "", "created": c["created"] if c else 0,
+                      "archived": c["archived"] if c else 0, "known": bool(c)})
+            # all-time numbers for the cost per player, since spend is entered as a total
+            r["playersAll"] = q("SELECT COUNT(*) c FROM users WHERE camp=?", (k[2:],), one=True)["c"]
+            out_c.append(r)
+        out_s.append(r)
+    out_c.sort(key=lambda r: (r["archived"], -r["players"], -r["created"]))
+    out_s.sort(key=lambda r: -r["players"])
+    daily = []
+    for i in range(min(days, 30) - 1, -1, -1):
+        d0 = (t // 86400 - i) * 86400
+        n = {"camp": 0, "invite": 0, "other": 0}
+        for u in users:
+            if d0 <= u["created"] < d0 + 86400:
+                k = source(u)
+                n["invite" if k == "invite" else "camp" if k.startswith("c:") else "other"] += 1
+        daily.append(dict(n, day=time.strftime("%Y-%m-%d", time.gmtime(d0))))
+    tot = {"players": len(users), "camp": sum(1 for u in users if source(u).startswith("c:")),
+           "invite": sum(1 for u in users if u["invited"]),
+           "e1": sum(1 for u in users if back(u, 1) is not None), "b1": sum(1 for u in users if back(u, 1)),
+           "tips": sum(tips.values()), "spend": sum(c["cost"] for c in camps.values() if not c["archived"]),
+           "visitors": sum(r["visitors"] for r in rows.values())}
+    return {"days": days, "campaigns": out_c, "sources": out_s, "daily": daily, "totals": tot, "channels": CHANNELS,
+            "site": SITE_DOMAIN or "hustlempires.com", "now": t}
+
+
+def challenge_report(t, month_offset, region):
+    """The #HustlempiresChallenge check: each player's best net worth at age 40 (game month 192) in a calendar month."""
+    g = time.gmtime(t)
+    y, m = g.tm_year, g.tm_mon - month_offset
+    while m < 1:
+        m += 12
+        y -= 1
+    start = int(calendar.timegm((y, m, 1, 0, 0, 0)))
+    end = int(calendar.timegm((y + (m == 12), m % 12 + 1, 1, 0, 0, 0)))
+    best = {}
+    for r in q("SELECT s.user_id, s.game, s.nw, s.month, s.ts FROM snapshots s WHERE s.month BETWEEN 189 AND 192 AND s.ts>=? AND s.ts<? "
+               "AND NOT EXISTS (SELECT 1 FROM snapshots x WHERE x.user_id=s.user_id AND x.game=s.game AND x.month>s.month AND x.month<=192)",
+               (start, end)):
+        b = best.get(r["user_id"])
+        if not b or r["nw"] > b["nw"]:
+            best[r["user_id"]] = dict(r)
+    regions = {}
+    rows = []
+    for uid, b in best.items():
+        u = q("SELECT u.id, u.name, u.username, u.company, u.color, u.disabled, s.detail FROM users u LEFT JOIN stats s ON s.user_id=u.id WHERE u.id=?", (uid,), one=True)
+        if not u or u["disabled"]:
+            continue
+        try:
+            reg = (json.loads(u["detail"] or "{}") or {}).get("region") or ""
+        except (TypeError, ValueError):
+            reg = ""
+        regions[reg] = regions.get(reg, 0) + 1
+        if region and reg != region:
+            continue
+        rows.append({"user_id": uid, "name": u["name"], "username": u["username"], "company": u["company"], "color": u["color"],
+                     "region": reg, "nw": b["nw"], "when": b["ts"], "game": b["game"]})
+    rows.sort(key=lambda r: -r["nw"])
+    return {"month": "%04d-%02d" % (y, m), "region": region, "regions": regions, "rows": rows[:25], "entries": len(rows), "now": t}
+
+
+# ---- Meta ads: pull spend and results from the Marketing API (read only) ----
+META_LOCK = threading.Lock()
+LINK_CODE_RES = [re.compile(r"/go/([A-Za-z0-9-]{1,30})"), re.compile(r"[?&]c=([A-Za-z0-9-]{1,30})")]
+
+
+def meta_ready():
+    return bool(META_TOKEN and META_ACCOUNT)
+
+
+def graph_get(path, params=None, url=None):
+    """One read-only Graph API call. The token never appears in errors or logs."""
+    if url is None:
+        params = dict(params or {})
+        params["access_token"] = META_TOKEN
+        if META_APP_SECRET:
+            params["appsecret_proof"] = hmac.new(META_APP_SECRET.encode(), META_TOKEN.encode(), hashlib.sha256).hexdigest()
+        url = "%s/%s/%s?%s" % (META_URL, META_API, path.lstrip("/"), urllib.parse.urlencode(params))
+    req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Hustlempires/1"})
+    try:
+        with urllib.request.urlopen(req, timeout=40) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            err = (json.loads(e.read().decode("utf-8")) or {}).get("error") or {}
+        except Exception:
+            err = {}
+        msg = err.get("message") or ("HTTP %s" % e.code)
+        if META_TOKEN:
+            msg = msg.replace(META_TOKEN, "[token]")
+        raise RuntimeError("Meta said: %s (code %s)" % (msg[:300], err.get("code", e.code)))
+    except urllib.error.URLError as e:
+        raise RuntimeError("Could not reach Meta: %s" % getattr(e, "reason", e))
+
+
+def graph_all(path, params):
+    """Follow Meta's pages of results (at most 40 pages)."""
+    out, d, n = [], graph_get(path, params), 0
+    while True:
+        out.extend(d.get("data") or [])
+        nxt = ((d.get("paging") or {}).get("next"))
+        n += 1
+        if not nxt or n >= 40:
+            return out
+        d = graph_get(None, url=nxt)
+
+
+def link_code(blob):
+    for rx in LINK_CODE_RES:
+        m = rx.search(blob or "")
+        if m:
+            c = clean_camp(m.group(1).lower())
+            if c:
+                return c
+    return ""
+
+
+def meta_sync(full=False):
+    """Fetch the last days of ad results (90 days the first time) and which campaign link each ad points to."""
+    if not meta_ready():
+        return False
+    if not META_LOCK.acquire(blocking=False):
+        return False
+    t = now()
+    try:
+        acct = "act_" + META_ACCOUNT
+        info = graph_get(acct, {"fields": "name,currency,timezone_name,account_status"})
+        last = q("SELECT MAX(day) d FROM meta_daily", one=True)["d"]
+        back = 90 if full or not last else 4
+        since = time.strftime("%Y-%m-%d", time.gmtime(t - back * 86400))
+        until = time.strftime("%Y-%m-%d", time.gmtime(t + 86400))
+        rows = graph_all(acct + "/insights", {
+            "level": "ad", "time_increment": 1, "limit": 500,
+            "fields": "campaign_id,campaign_name,adset_name,ad_id,ad_name,spend,impressions,reach,clicks,inline_link_clicks",
+            "time_range": json.dumps({"since": since, "until": until})})
+        ads = graph_all(acct + "/ads", {"limit": 200, "fields": "id,name,campaign_id,effective_status,creative{object_story_spec,asset_feed_spec,url_tags}"})
+        camps = graph_all(acct + "/campaigns", {"limit": 200, "fields": "id,name,effective_status"})
+
+        def write(db):
+            db.execute("DELETE FROM meta_daily WHERE day>=?", (since,))
+            for r in rows:
+                n = lambda k: int(float(r.get(k) or 0))
+                db.execute("INSERT OR REPLACE INTO meta_daily(day,ad_id,campaign_id,campaign_name,adset_name,ad_name,spend,impressions,reach,clicks,link_clicks) "
+                           "VALUES(?,?,?,?,?,?,?,?,?,?,?)", (r.get("date_start", "")[:10], str(r.get("ad_id", "")), str(r.get("campaign_id", "")),
+                           (r.get("campaign_name") or "")[:120], (r.get("adset_name") or "")[:120], (r.get("ad_name") or "")[:120],
+                           float(r.get("spend") or 0), n("impressions"), n("reach"), n("clicks"), n("inline_link_clicks")))
+            for a in ads:
+                code = link_code(json.dumps(a.get("creative") or {}))
+                db.execute("INSERT INTO meta_ads(ad_id,campaign_id,name,status,code,updated) VALUES(?,?,?,?,?,?) ON CONFLICT(ad_id) DO UPDATE SET "
+                           "campaign_id=excluded.campaign_id,name=excluded.name,status=excluded.status,code=excluded.code,updated=excluded.updated",
+                           (str(a.get("id", "")), str(a.get("campaign_id", "")), (a.get("name") or "")[:120], a.get("effective_status") or "", code, t))
+            for c in camps:
+                cid = str(c.get("id", ""))
+                codes = [r["code"] for r in db.execute("SELECT code FROM meta_ads WHERE campaign_id=? AND code<>''", (cid,)).fetchall()]
+                auto = max(set(codes), key=codes.count) if codes else ""
+                db.execute("INSERT INTO meta_campaigns(campaign_id,name,status,code,updated) VALUES(?,?,?,?,?) ON CONFLICT(campaign_id) DO UPDATE SET "
+                           "name=excluded.name,status=excluded.status,updated=excluded.updated,code=CASE WHEN meta_campaigns.manual=1 THEN meta_campaigns.code ELSE excluded.code END",
+                           (cid, (c.get("name") or "")[:120], c.get("effective_status") or "", auto, t))
+        tx(write)
+        meta_set("meta_sync", json.dumps({"at": t, "ok": True, "rows": len(rows), "name": info.get("name") or "", "currency": info.get("currency") or "",
+                                           "tz": info.get("timezone_name") or "", "status": info.get("account_status")}))
+        try:
+            dbg = graph_get("debug_token", {"input_token": META_TOKEN}).get("data") or {}
+            meta_set("meta_token", json.dumps({"expires": dbg.get("expires_at") or 0, "valid": dbg.get("is_valid"), "scopes": dbg.get("scopes") or []}))
+        except Exception:
+            pass
+        return True
+    except Exception as e:
+        old = meta_get_state()
+        old.update({"errorAt": t, "error": str(e)[:400]})
+        meta_set("meta_sync", json.dumps(old))
+        print("Meta ads sync failed: %s" % e, flush=True)
+        return False
+    finally:
+        META_LOCK.release()
+
+
+def meta_get_state():
+    try:
+        return json.loads(meta_get("meta_sync") or "{}")
+    except (TypeError, ValueError):
+        return {}
+
+
+def meta_sweeper():
+    """Pull ad results shortly after start, then every hour."""
+    time.sleep(20)
+    first = True
+    while True:
+        if meta_ready():
+            meta_sync(full=first)
+            first = False
+        time.sleep(3600)
+
+
+def ads_report(t, days):
+    st = meta_get_state()
+    try:
+        tok = json.loads(meta_get("meta_token") or "{}")
+    except (TypeError, ValueError):
+        tok = {}
+    out = {"ready": meta_ready(), "account": META_ACCOUNT, "sync": st, "token": tok, "days": days, "now": t,
+           "links": [dict(r) for r in q("SELECT code, name FROM campaigns WHERE archived=0 ORDER BY name")]}
+    if not meta_ready():
+        return out
+    since_day = time.strftime("%Y-%m-%d", time.gmtime(t - (days - 1) * 86400))
+    since_ts = t - days * 86400
+    camps = []
+    for c in q("SELECT d.campaign_id, MAX(d.campaign_name) name, SUM(d.spend) spend, SUM(d.impressions) impressions, SUM(d.reach) reach, "
+               "SUM(d.clicks) clicks, SUM(d.link_clicks) link_clicks, COUNT(DISTINCT d.ad_id) ads FROM meta_daily d WHERE d.day>=? "
+               "GROUP BY d.campaign_id ORDER BY spend DESC", (since_day,)):
+        r = dict(c)
+        m = q("SELECT name, status, code, manual FROM meta_campaigns WHERE campaign_id=?", (c["campaign_id"],), one=True)
+        r.update({"status": m["status"] if m else "", "code": m["code"] if m else "", "manual": bool(m and m["manual"])})
+        if m and m["name"]:
+            r["name"] = m["name"]
+        if r["code"]:
+            u = q("SELECT COUNT(*) n FROM users WHERE camp=? AND created>?", (r["code"], since_ts), one=True)["n"]
+            v = q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND first>? AND stage<>'login'", (r["code"], since_ts), one=True)["n"]
+            back = 0
+            elig = 0
+            for x in q("SELECT id, created FROM users WHERE camp=? AND created>? AND created<=?", (r["code"], since_ts, t - 86400)):
+                elig += 1
+                cut = time.strftime("%Y-%m-%d", time.gmtime(x["created"] + 86400))
+                if q("SELECT 1 FROM activity_days WHERE user_id=? AND day>=?", (x["id"], cut), one=True):
+                    back += 1
+            r.update({"players": u, "visitors": v, "b1": back, "e1": elig})
+        camps.append(r)
+    daily = []
+    for i in range(min(days, 30) - 1, -1, -1):
+        d = time.strftime("%Y-%m-%d", time.gmtime(t - i * 86400))
+        x = q("SELECT COALESCE(SUM(spend),0) s, COALESCE(SUM(link_clicks),0) c FROM meta_daily WHERE day=?", (d,), one=True)
+        daily.append({"day": d, "spend": x["s"], "clicks": x["c"]})
+    tot = q("SELECT COALESCE(SUM(spend),0) spend, COALESCE(SUM(impressions),0) impressions, COALESCE(SUM(reach),0) reach, "
+            "COALESCE(SUM(link_clicks),0) link_clicks FROM meta_daily WHERE day>=?", (since_day,), one=True)
+    out.update({"campaigns": camps, "daily": daily, "totals": dict(tot),
+                "linkedPlayers": sum(c.get("players", 0) for c in camps), "linkedSpend": sum(c["spend"] for c in camps if c.get("code"))})
+    return out
 
 
 def death_kind(cause):
@@ -1733,6 +2097,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.serve_file("admin.html")
         if path == "/healthz":
             return self.send_json(200, {"ok": True})
+        m = re.match(r"^/go/([A-Za-z0-9-]{1,30})/?$", path)
+        if m:
+            # short campaign link for bios and posters: /go/tiktok opens the game as /?c=tiktok
+            code = clean_camp(m.group(1))
+            self.send_response(302)
+            self.send_header("Location", "/?c=" + code if code else "/")
+            self.send_header("Content-Length", "0")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
         if path == "/api/me":
             return self.api_me()
         if path == "/api/save/ver":
@@ -1792,6 +2166,10 @@ class Handler(BaseHTTPRequestHandler):
                   "/api/xchg/settle": self.api_xchg_settle}
         if path in routes:
             return routes[path]()
+        if path == "/api/admin/campaign":
+            return self.api_admin_campaign()
+        if path in ("/api/admin/ads/sync", "/api/admin/ads/link"):
+            return self.api_admin_ads(path)
         if path == "/api/admin/tuning":
             if not self.is_admin():
                 return self.error(401, "Log in as admin.")
@@ -1822,7 +2200,7 @@ class Handler(BaseHTTPRequestHandler):
         ua = (self.headers.get("User-Agent") or "").lower()
         device = "phone" if any(k in ua for k in ("iphone", "android", "mobile")) else "tablet" if "ipad" in ua else "computer"
         stage = d.get("stage") if d.get("stage") in ("landed", "form") else "landed"
-        visit_mark(d.get("vid"), stage, src_of(d.get("ref")), device)
+        visit_mark(d.get("vid"), stage, src_of(d.get("ref")), device, camp=clean_camp(d.get("camp")))
         self.send_json(200, {"ok": True})
 
     def api_signup(self):
@@ -1839,6 +2217,10 @@ class Handler(BaseHTTPRequestHandler):
         bg = d.get("bg") if d.get("bg") in BACKGROUNDS else "hustler"
         email = clean_email(d.get("email"))
         inviter = inviter_by_code(d.get("ref")) if d.get("ref") else None
+        camp = clean_camp(d.get("camp"))
+        if not camp and VID_RE.match(str(d.get("vid") or "")):
+            r = q("SELECT camp FROM visitors WHERE vid=?", (d.get("vid"),), one=True)
+            camp = r["camp"] if r else ""
         try:
             color = max(0, min(5, int(d.get("color", 0))))
         except (TypeError, ValueError):
@@ -1858,8 +2240,8 @@ class Handler(BaseHTTPRequestHandler):
         token = secrets.token_urlsafe(32)
 
         def create(db):
-            cur = db.execute("INSERT INTO users(username,pw_salt,pw_hash,name,company,town,bg,color,created,last_seen,logins,email) "
-                             "VALUES(?,?,?,?,?,?,?,?,?,?,1,?)", (username, salt, digest, name, company, town, bg, color, t, t, email))
+            cur = db.execute("INSERT INTO users(username,pw_salt,pw_hash,name,company,town,bg,color,created,last_seen,logins,email,camp) "
+                             "VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?)", (username, salt, digest, name, company, town, bg, color, t, t, email, camp))
             uid = cur.lastrowid
             db.execute("INSERT INTO stats(user_id, updated) VALUES(?,?)", (uid, t))
             db.execute("INSERT INTO sessions(token,user_id,is_admin,created,expires) VALUES(?,?,0,?,?)",
@@ -2927,6 +3309,60 @@ class Handler(BaseHTTPRequestHandler):
         q("DELETE FROM sessions WHERE expires<?", (t,))
         self.send_json(200, {"ok": True}, [self.make_cookie("ha", token, ADMIN_SESSION_SECONDS)])
 
+    def api_admin_campaign(self):
+        """Add, edit, archive or restore a campaign link."""
+        if not self.is_admin():
+            return self.error(401, "Log in as admin.")
+        d = self.read_json()
+        if d is None:
+            return
+        code = clean_camp(d.get("code"))
+        if not code:
+            return self.error(400, "Link codes are 1 to 30 characters: small letters, numbers and dashes.")
+        old = q("SELECT * FROM campaigns WHERE code=?", (code,), one=True)
+        if d.get("archive") is not None:
+            if not old:
+                return self.error(404, "No such campaign.")
+            q("UPDATE campaigns SET archived=? WHERE code=?", (1 if d.get("archive") else 0, code))
+            return self.send_json(200, {"ok": True})
+        if d.get("new") and old:
+            return self.error(409, "That link code is already used. Pick another.")
+        name = clean_text(d.get("name"), 60) or (old["name"] if old else code)
+        channel = d.get("channel") if d.get("channel") in CHANNELS else (old["channel"] if old else "other")
+        note = clean_text(d.get("note"), 120) if d.get("note") is not None else (old["note"] if old else "")
+        try:
+            cost = max(0.0, min(1e9, float(d.get("cost")))) if d.get("cost") not in (None, "") else (old["cost"] if old else 0.0)
+        except (TypeError, ValueError):
+            return self.error(400, "Spend must be a number of shillings.")
+        q("INSERT INTO campaigns(code,name,channel,cost,note,created) VALUES(?,?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET "
+          "name=excluded.name, channel=excluded.channel, cost=excluded.cost, note=excluded.note", (code, name, channel, cost, note, now()))
+        self.send_json(200, {"ok": True, "code": code})
+
+    def api_admin_ads(self, path):
+        if not self.is_admin():
+            return self.error(401, "Log in as admin.")
+        d = self.read_json()
+        if d is None:
+            return
+        if not meta_ready():
+            return self.error(400, "Meta ads aren't connected on the server yet.")
+        if path.endswith("sync"):
+            if rate_limited("metasync", limit=6, window=3600):
+                return self.error(429, "Meta limits how often we can ask. Try again in a few minutes.")
+            ok = meta_sync(full=bool(d.get("full")))
+            st = meta_get_state()
+            return self.send_json(200 if ok else 502, {"ok": ok, "error": "" if ok else (st.get("error") or "The sync is already running. Wait a minute.")})
+        cid = re.sub(r"[^0-9]", "", str(d.get("campaign_id") or ""))[:30]
+        if not cid or not q("SELECT 1 FROM meta_campaigns WHERE campaign_id=?", (cid,), one=True):
+            return self.error(404, "No such ad campaign.")
+        code = clean_camp(d.get("code"))
+        if code:
+            q("UPDATE meta_campaigns SET code=?, manual=1 WHERE campaign_id=?", (code, cid))
+        else:
+            codes = [r["code"] for r in q("SELECT code FROM meta_ads WHERE campaign_id=? AND code<>''", (cid,))]
+            q("UPDATE meta_campaigns SET code=?, manual=0 WHERE campaign_id=?", (max(set(codes), key=codes.count) if codes else "", cid))
+        self.send_json(200, {"ok": True})
+
     def api_admin_logout(self):
         token = self.cookie("ha")
         if token:
@@ -2938,6 +3374,27 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(401, "Log in as admin.")
         if path == "/api/admin/overview":
             return self.admin_overview()
+        if path == "/api/admin/ads":
+            try:
+                days = int((parse_qs(urlparse(self.path).query).get("days") or ["30"])[0])
+            except ValueError:
+                days = 30
+            return self.send_json(200, ads_report(now(), days if days in (7, 30, 90, 365) else 30))
+        if path in ("/api/admin/marketing", "/api/admin/challenge"):
+            qs = parse_qs(urlparse(self.path).query)
+            t = now()
+            if path.endswith("marketing"):
+                try:
+                    days = int((qs.get("days") or ["30"])[0])
+                except ValueError:
+                    days = 30
+                return self.send_json(200, marketing_report(t, days if days in (7, 30, 90, 365) else 30))
+            try:
+                mo = max(0, min(12, int((qs.get("m") or ["0"])[0])))
+            except ValueError:
+                mo = 0
+            region = re.sub(r"[^A-Z]", "", ((qs.get("region") or ["KE"])[0] or "").upper())[:3]
+            return self.send_json(200, challenge_report(t, mo, region))
         if path == "/api/admin/events":
             t = now()
             q("DELETE FROM ev_log WHERE ts<?", (t - 400 * 86400,))
@@ -3126,6 +3583,8 @@ def main():
         print("Free to play. Tips through Pesapal %s: %s" % (PESAPAL_ENV, "ready" if pesapal_ready() else "NOT SET (add the key, secret and site domain)"), flush=True)
     threading.Thread(target=payment_sweeper, daemon=True).start()
     threading.Thread(target=push_sweeper, daemon=True).start()
+    threading.Thread(target=meta_sweeper, daemon=True).start()
+    print("Meta ads: %s" % ("connected to ad account %s, refreshed every hour" % META_ACCOUNT if meta_ready() else "not connected"), flush=True)
     try:
         backfill_friends()
     except Exception as e:
