@@ -719,6 +719,11 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
           <p class="sub">Shares rise and fall with the economy and pay dividends. Bonds pay steady interest, but their prices fall when the Central Bank raises rates. The broker charges 1% on every trade.</p>
           <div id="exchange"></div>
         </section>
+        <section class="panel" id="xcPanel" hidden>
+          <h2>Players' exchange</h2>
+          <p class="sub">Real players' companies. The share price follows the founder's net worth: when their empire grows, so does your money. List your own company to raise money from other players.</p>
+          <div id="xcbody"></div>
+        </section>
       </div>
       <div class="col">
         <section class="panel">
@@ -1402,7 +1407,7 @@ function bizValue(b){if(!owned(b.id))return 0;return b.profit*owned(b.id)*policy
 function bizAssets(){return BIZ.reduce((a,b)=>a+bizValue(b),0);}
 function assetPrice(a){if(MODELS[a.id]&&!has(a.id))return a.price*genMult(a.id);return a.price*af(a.id)*(a.stack?Math.pow(1.06,has(a.id)):1);}
 function lifeAssets(){return ASSETS.reduce((t,a)=>t+a.price*af(a.id)*has(a.id),0);}
-function assets(){return bizAssets()+lifeAssets()+portValue()+sportsValue()+propValue()+(typeof subValue==='function'?subValue():0);}
+function assets(){return bizAssets()+lifeAssets()+portValue()+sportsValue()+propValue()+(typeof subValue==='function'?subValue():0)+(S.xcv||0);}
 /* ================= Takeovers: buy control of listed companies ================= */
 const TK_CAP={SIMU:2e9,TAUSI:1.5e9,MAVUNO:3e8,KILIMA:6e8,NURU:4e8,PESA:8e8};
 const TK_IND={SIMU:'media',TAUSI:'tech',MAVUNO:'food',KILIMA:'realestate',NURU:'energy',PESA:'tech'};
@@ -3449,6 +3454,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  xh+='<h4>Shares</h4>'+SECS.filter(x=>!x.bond).map((x,i)=>secRow(x,i===0)).join('');
  xh+='<h4>Bonds · price per 100</h4>'+SECS.filter(x=>x.bond).map((x,i)=>secRow(x,i===0)).join('');
  $('exchange').innerHTML=xh;
+ if(typeof xcHTML==='function'){const xp=$('xcPanel'),xb=xcHTML();if(xp){xp.hidden=xb===null;if(xb!==null)$('xcbody').innerHTML=xb;}}
 
  $('ups').innerHTML=UPS.map(u=>'<div class="row"><div class="t"><b>'+u.name+'</b><span>'+u.desc+'</span></div>'+
   (S.ups[u.id]?'<span class="done">Owned</span>':'<button class="btn small '+(S.cash>=u.cost?'primary':'')+'" data-a="up" data-v="'+u.id+'" '+(S.cash<u.cost?'disabled':'')+'>'+fmt(u.cost)+'</button>')+'</div>').join('');
@@ -4013,7 +4019,7 @@ function lawHTML(){const L=lawOf(),a=Math.round(L.att),run=SCHEMES.filter(x=>L.o
  if(L.att>=50&&!jailed())h+='<div class="row"><div class="t"><b>Buy a new life</b><span>Vanish with a new name in a new country. You keep '+fmt(vanishKeep())+'; everything and everyone else stays behind.</span></div><button class="btn small" data-a="vanishask">Disappear</button></div>';
  return h;}
 function statusLine(){if(jailed())return'In prison until '+dateStr(S.law.jail.until);if(hiding())return'In hiding abroad';if(inHosp())return'In hospital until '+dateStr(S.hosp.until);if(S.law&&S.law.att>=45)return'Police attention '+Math.round(S.law.att)+' · '+attLabel(S.law.att);return'';}
-const LAW_BLOCK=['tkbid','tkgo','polrun','polgo','polpower','deal','buy','abuy','up','borrow','upgradetoy','propbuy','bankbuy','mklist','mkpost','mkbuy','propdev','buyrace','venuebuild','venuebuy','aero','engprog','engrd','buyteam','sign','academy','custbuy','openfdn','fundraise','enterind','rent','travel','sbuy','ord','hire','scheme'];
+const LAW_BLOCK=['xcbuy','xcgo','xclist','tkbid','tkgo','polrun','polgo','polpower','deal','buy','abuy','up','borrow','upgradetoy','propbuy','bankbuy','mklist','mkpost','mkbuy','propdev','buyrace','venuebuild','venuebuy','aero','engprog','engrd','buyteam','sign','academy','custbuy','openfdn','fundraise','enterind','rent','travel','sbuy','ord','hire','scheme'];
 /* ================= Succession planning ================= */
 const PLANS_EST={
  none:{name:'No will',tax:.35,cap:1e7,win:.5,how:'If you die now, the courts split your estate equally between your children and the eldest takes control. Court costs and duty take 35%.'},

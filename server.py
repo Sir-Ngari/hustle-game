@@ -287,6 +287,36 @@ CREATE TABLE IF NOT EXISTS market(
 );
 CREATE INDEX IF NOT EXISTS market_open ON market(status, expires);
 CREATE INDEX IF NOT EXISTS market_seller ON market(seller_id, status);
+CREATE TABLE IF NOT EXISTS xc_list(
+  user_id INTEGER PRIMARY KEY,
+  float_pct REAL NOT NULL,
+  sold REAL NOT NULL DEFAULT 0,
+  created INTEGER NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS xc_hold(
+  investor_id INTEGER NOT NULL,
+  company_id INTEGER NOT NULL,
+  shares REAL NOT NULL,
+  cost REAL NOT NULL,
+  PRIMARY KEY(investor_id, company_id)
+);
+CREATE INDEX IF NOT EXISTS xc_hold_co ON xc_hold(company_id);
+CREATE TABLE IF NOT EXISTS xc_px(
+  user_id INTEGER NOT NULL,
+  day TEXT NOT NULL,
+  px REAL NOT NULL,
+  PRIMARY KEY(user_id, day)
+);
+CREATE TABLE IF NOT EXISTS xc_pay(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  amount REAL NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  ts INTEGER NOT NULL,
+  paid INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS xc_pay_user ON xc_pay(user_id, paid);
 CREATE TABLE IF NOT EXISTS friends(
   user_id INTEGER NOT NULL,
   friend_id INTEGER NOT NULL,
@@ -1181,6 +1211,39 @@ def market_row(r, t):
     return d
 
 
+XC_SHARES = 1_000_000
+XC_MIN_NW = 1e7
+XC_FEE = 0.02
+
+
+def xc_price(nw, bankrupt=0):
+    return 0.0 if bankrupt or not nw or nw <= 0 else round(nw / XC_SHARES, 4)
+
+
+def xc_companies(t):
+    """Every listed player company with today's price; records one price a day for the 7-day change."""
+    rows = q("SELECT l.user_id, l.float_pct, l.sold, l.created, u.name, u.company, u.color, u.disabled, COALESCE(s.nw,0) nw, "
+             "COALESCE(s.bankrupt,0) bankrupt, COALESCE(s.detail,'{}') detail FROM xc_list l JOIN users u ON u.id=l.user_id "
+             "LEFT JOIN stats s ON s.user_id=l.user_id WHERE l.active=1")
+    day, wk = today(), time.strftime("%Y-%m-%d", time.gmtime(t - 7 * 86400))
+    out = []
+    for r in rows:
+        px = 0.0 if r["disabled"] else xc_price(r["nw"], r["bankrupt"])
+        q("INSERT OR IGNORE INTO xc_px(user_id, day, px) VALUES(?,?,?)", (r["user_id"], day, px))
+        old = q("SELECT px FROM xc_px WHERE user_id=? AND day<=? ORDER BY day DESC LIMIT 1", (r["user_id"], wk), one=True) or \
+            q("SELECT px FROM xc_px WHERE user_id=? ORDER BY day ASC LIMIT 1", (r["user_id"],), one=True)
+        try:
+            region = (json.loads(r["detail"] or "{}") or {}).get("region") or ""
+        except ValueError:
+            region = ""
+        avail = max(0.0, r["float_pct"] * XC_SHARES - r["sold"])
+        out.append({"id": r["user_id"], "company": r["company"], "founder": (r["name"] or "").split(" ")[0], "color": r["color"],
+                    "region": region, "px": px, "chg": (px / old["px"] - 1) if old and old["px"] > 0 else 0,
+                    "cap": px * XC_SHARES, "float": r["float_pct"], "avail": avail, "since": r["created"]})
+    out.sort(key=lambda c: -c["cap"])
+    return out
+
+
 FRIEND_MAX = 100
 GIFTS_PER_DAY = 5
 
@@ -1700,6 +1763,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_bank_lots()
         if path == "/api/market":
             return self.api_market()
+        if path == "/api/xchg":
+            return self.api_xchg()
         if path == "/api/market/mine":
             return self.api_market_mine()
         if path == "/api/push/key":
@@ -1722,7 +1787,9 @@ class Handler(BaseHTTPRequestHandler):
                   "/api/friends/remove": self.api_friend_remove, "/api/friends/gift": self.api_friend_gift,
                   "/api/friends/claim": self.api_gift_claim, "/api/bank/list": self.api_bank_list, "/api/bank/buy": self.api_bank_buy,
                   "/api/market/list": self.api_market_list, "/api/market/buy": self.api_market_buy,
-                  "/api/market/cancel": self.api_market_cancel, "/api/market/settle": self.api_market_settle}
+                  "/api/market/cancel": self.api_market_cancel, "/api/market/settle": self.api_market_settle,
+                  "/api/xchg/list": self.api_xchg_list, "/api/xchg/buy": self.api_xchg_buy, "/api/xchg/sell": self.api_xchg_sell,
+                  "/api/xchg/settle": self.api_xchg_settle}
         if path in routes:
             return routes[path]()
         if path == "/api/admin/tuning":
@@ -2092,6 +2159,138 @@ class Handler(BaseHTTPRequestHandler):
         sold, back = tx(take)
         self.send_json(200, {"sold": [dict(market_row(r, t), net=round(r["price"] * (1 - MARKET_FEE))) for r in sold],
                              "back": [market_row(r, t) for r in back]})
+
+    def api_xchg(self):
+        """The players' exchange: listed player companies, my holdings and my own listing."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        t = now()
+        cos = xc_companies(t)
+        byid = {c["id"]: c for c in cos}
+        mine = []
+        for h in q("SELECT company_id, shares, cost FROM xc_hold WHERE investor_id=? AND shares>0", (user["id"],)):
+            c = byid.get(h["company_id"])
+            px = c["px"] if c else 0.0
+            mine.append({"id": h["company_id"], "company": c["company"] if c else "Delisted company", "shares": h["shares"], "cost": h["cost"],
+                         "px": px, "value": h["shares"] * px})
+        me = byid.get(user["id"])
+        st = q("SELECT nw FROM stats WHERE user_id=?", (user["id"],), one=True)
+        holders = q("SELECT COUNT(*) c FROM xc_hold WHERE company_id=? AND shares>0", (user["id"],), one=True)["c"] if me else 0
+        raised = q("SELECT COALESCE(SUM(amount),0) a FROM xc_pay WHERE user_id=? AND note='raised'", (user["id"],), one=True)["a"]
+        self.send_json(200, {"companies": [c for c in cos if c["id"] != user["id"]], "holdings": mine, "me": me, "holders": holders,
+                             "raised": raised, "canList": (st["nw"] if st else 0) >= XC_MIN_NW, "minNw": XC_MIN_NW, "fee": XC_FEE})
+
+    def api_xchg_list(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        try:
+            fl = float(d.get("float"))
+        except (TypeError, ValueError):
+            fl = 0
+        if fl not in (0.1, 0.2, 0.3):
+            return self.error(400, "Choose 10%, 20% or 30%.")
+        st = q("SELECT nw, bankrupt FROM stats WHERE user_id=?", (user["id"],), one=True)
+        if not st or st["nw"] < XC_MIN_NW or st["bankrupt"]:
+            return self.error(409, "Your empire must be worth at least $10M to list on the exchange.")
+        ex = q("SELECT active, float_pct, sold FROM xc_list WHERE user_id=?", (user["id"],), one=True)
+        if ex and ex["active"]:
+            if fl * XC_SHARES < ex["sold"]:
+                return self.error(409, "You have already sold more shares than that.")
+            q("UPDATE xc_list SET float_pct=? WHERE user_id=?", (max(fl, ex["float_pct"]), user["id"]))
+        else:
+            q("INSERT OR REPLACE INTO xc_list(user_id, float_pct, sold, created, active) VALUES(?,?,0,?,1)", (user["id"], fl, now()))
+        self.send_json(200, {"ok": True})
+
+    def api_xchg_buy(self):
+        """Buy new shares in another player's company. The money goes to the founder as capital raised."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if rate_limited("xcbuy:%d" % user["id"], limit=60, window=3600):
+            return self.error(429, "Too many trades. Try again later.")
+        d = self.read_json()
+        if d is None:
+            return
+        cid = int(d.get("id") or 0)
+        try:
+            amt = float(d.get("amount"))
+        except (TypeError, ValueError):
+            amt = 0
+        if cid == user["id"]:
+            return self.error(400, "You cannot buy shares in your own company here.")
+        t = now()
+        co = next((c for c in xc_companies(t) if c["id"] == cid), None)
+        if not co or co["px"] <= 0:
+            return self.error(409, "That company is not trading.")
+        if not (0 < amt < 1e16):
+            return self.error(400, "Choose an amount.")
+        px = co["px"]
+
+        def take(db):
+            l = db.execute("SELECT * FROM xc_list WHERE user_id=? AND active=1", (cid,)).fetchone()
+            avail = max(0.0, l["float_pct"] * XC_SHARES - l["sold"]) if l else 0
+            sh = min(amt / px, avail)
+            if sh <= 0:
+                return None
+            cost = sh * px
+            db.execute("UPDATE xc_list SET sold=sold+? WHERE user_id=?", (sh, cid))
+            db.execute("INSERT INTO xc_hold(investor_id, company_id, shares, cost) VALUES(?,?,?,?) "
+                       "ON CONFLICT(investor_id, company_id) DO UPDATE SET shares=shares+excluded.shares, cost=cost+excluded.cost",
+                       (user["id"], cid, sh, cost))
+            db.execute("INSERT INTO xc_pay(user_id, amount, note, ts) VALUES(?,?,?,?)", (cid, cost * (1 - XC_FEE), "raised", t))
+            return sh, cost
+        r = tx(take)
+        if not r:
+            return self.error(409, "No shares left for sale in that company.")
+        self.send_json(200, {"ok": True, "shares": r[0], "cost": r[1], "px": px})
+
+    def api_xchg_sell(self):
+        """Sell shares back to the market at today's price, less the fee."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        cid = int(d.get("id") or 0)
+        try:
+            frac = min(1.0, max(0.0, float(d.get("frac"))))
+        except (TypeError, ValueError):
+            frac = 0
+        t = now()
+        co = next((c for c in xc_companies(t) if c["id"] == cid), None)
+        px = co["px"] if co else 0.0
+
+        def take(db):
+            h = db.execute("SELECT * FROM xc_hold WHERE investor_id=? AND company_id=?", (user["id"], cid)).fetchone()
+            if not h or h["shares"] <= 0 or frac <= 0:
+                return None
+            sh = h["shares"] * frac
+            db.execute("UPDATE xc_hold SET shares=shares-?, cost=cost*? WHERE investor_id=? AND company_id=?", (sh, 1 - frac, user["id"], cid))
+            db.execute("UPDATE xc_list SET sold=MAX(0, sold-?) WHERE user_id=?", (sh, cid))
+            return sh
+        sh = tx(take)
+        if not sh:
+            return self.error(409, "You do not own shares in that company.")
+        self.send_json(200, {"ok": True, "shares": sh, "amount": sh * px * (1 - XC_FEE), "px": px})
+
+    def api_xchg_settle(self):
+        """Founders collect the money investors put into their company."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+
+        def take(db):
+            rows = db.execute("SELECT id, amount FROM xc_pay WHERE user_id=? AND paid=0", (user["id"],)).fetchall()
+            for r in rows:
+                db.execute("UPDATE xc_pay SET paid=? WHERE id=?", (now(), r["id"]))
+            return sum(r["amount"] for r in rows)
+        self.send_json(200, {"ok": True, "amount": tx(take)})
 
     def api_friends(self):
         """My friends, how they are doing, who added me, and gifts waiting for me."""

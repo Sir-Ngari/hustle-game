@@ -23,7 +23,7 @@ async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
 function startWith(user,save,bill,ver){try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);const away0=S.seen||0;migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
- signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}bankLots=null;mkData={local:null,world:null,mine:null};mkMsg='';setTimeout(bankFlush,2000);mkSettleTries=0;setTimeout(mkSettle,6000);if(!awayWelcome(away0))startEvents();giftTries=0;setTimeout(giftCheck,4000);rivalStart();
+ signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}bankLots=null;mkData={local:null,world:null,mine:null};mkMsg='';setTimeout(bankFlush,2000);mkSettleTries=0;setTimeout(mkSettle,6000);xcData=null;setTimeout(()=>{xcSettle();xcLoad(true);},7000);if(!awayWelcome(away0))startEvents();giftTries=0;setTimeout(giftCheck,4000);rivalStart();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
@@ -259,6 +259,38 @@ async function mkSettle(){if(!ACC||!S||S.over)return;if(current||!$('modal').hid
  (r.back||[]).forEach(it=>{const nm=it.k==='a'&&mkWho(it)?mkWho(it).name:it.name;mkGive(it.k,it,true);log(nm+' did not sell in 7 days and is back in your empire.','');lines.push('<li><span>↩️</span><span><b>'+esc(nm)+' did not sell</b>It is back in your empire. Try a lower price.</span></li>');});
  if(!lines.length)return;afterChange();render();save();
  const show=()=>{if(current||!$('modal').hidden){setTimeout(show,3000);return;}showCard('Marketplace news','While you were away:<ul class="awaylist">'+lines.join('')+'</ul>','<button class="choice" data-a="closecard"><b>Great</b></button>');};show();}
+/* ---------- Players' exchange: buy shares in other players' companies ---------- */
+let xcData=null,xcT=0,xcBusy=false,xcMsg='';
+async function xcLoad(force){if(!ACC||xcBusy)return;if(!force&&xcData&&Date.now()-xcT<60000)return;xcT=Date.now();xcBusy=true;
+ try{xcData=await api('GET','/api/xchg');S.xcv=(xcData.holdings||[]).reduce((t,h)=>t+h.value,0);}catch(e){if(!xcData)xcData={companies:[],holdings:[],me:null};}
+ xcBusy=false;if(typeof curTab!=='undefined'&&curTab==='money')render();}
+const xcPx=p=>p>=100?fmt(p):curSym()+(curLocal()?p*R.rate:p).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+function xcHTML(){if(!ACC||!S||!S.inds.length)return null;if(!xcData){xcLoad(true);return'<p class="seghint">Loading the exchange…</p>';}xcLoad();
+ const d=xcData,me=d.me,fee=Math.round((d.fee||.02)*100);let h=xcMsg?'<p class="amsg" style="margin:0 0 10px">'+xcMsg+'</p>':'';
+ h+='<h4>Your company</h4>';
+ if(me){const sold=Math.round(100*(me.float*1e6-me.avail)/1e6*10)/10;
+  h+='<div class="pcbox on"><b>'+esc(ACC.company)+' is listed</b><span>Share price '+xcPx(me.px)+' · company value '+fmt(me.cap)+' · '+(me.chg>=0?'+':'')+(me.chg*100).toFixed(1)+'% this week</span><span>'+sold+'% of the company sold to '+d.holders+' investor'+(d.holders===1?'':'s')+' · '+Math.round(me.float*100)+'% for sale in total · you have raised '+fmt(d.raised||0)+'</span>'+
+   (me.float<.3?'<div class="chips" style="margin-top:6px">'+[.2,.3].filter(f=>f>me.float).map(f=>'<button class="btn ghost small" data-a="xclist" data-v="'+f+'">Offer '+Math.round(f*100)+'% in total</button>').join('')+'</div>':'')+'</div>';}
+ else if(d.canList)h+='<p class="seghint" style="margin:0 0 8px">List '+esc(ACC.company)+' and let other players buy a piece of it. Their money comes straight to you (less a '+fee+'% fee) and your share price follows your net worth.</p><div class="chips">'+[.1,.2,.3].map(f=>'<button class="btn small'+(f===.1?' primary':'')+'" data-a="xclist" data-v="'+f+'">Sell '+Math.round(f*100)+'% to the public</button>').join('')+'</div>';
+ else h+='<p class="seghint" style="margin:0">You can list your company once your empire is worth '+fmt(d.minNw||1e7)+'.</p>';
+ if(d.holdings&&d.holdings.length){h+='<h4>Your shares</h4>'+d.holdings.map(x=>{const g=x.value-x.cost;return'<div class="sec"><div class="nm"><b>'+esc(x.company)+'</b><span class="hold">Worth '+fmt(x.value)+' <span class="'+(g>=0?'pos':'neg')+'">'+(g>=0?'+':'−')+fmt(Math.abs(g))+' ('+(x.cost?(g>=0?'+':'')+Math.round(g/x.cost*100)+'%':'—')+')</span></span></div><div class="acts"><button class="btn ghost small" data-a="xcsell" data-v="'+x.id+'" data-f=".5">Sell ½</button><button class="btn ghost small" data-a="xcsell" data-v="'+x.id+'" data-f="1">Sell all</button></div></div>';}).join('');}
+ const C=d.companies||[];h+='<h4>Listed companies'+(C.length?' ('+C.length+')':'')+'</h4>';
+ if(!C.length)h+='<p class="seghint" style="margin:0">No player companies are listed yet. Be the first.</p>';
+ else h+=C.slice(0,40).map(c=>{const ctry=(countryRow(c.region)||{name:''}).name,av=Math.round(c.avail/1e6*1000)/10;
+  return'<div class="sec"><div class="nm"><b>'+esc(c.company)+'</b><span>'+esc(c.founder)+(ctry?' · '+esc(ctry):'')+' · worth '+fmt(c.cap)+'</span><span>'+(av>0?av+'% of the company for sale':'Sold out')+'</span></div><div class="px">'+xcPx(c.px)+'<small class="'+(c.chg>=0?'pos':'neg')+'">'+(c.chg>=0?'+':'')+(c.chg*100).toFixed(1)+'% wk</small></div><div class="acts"><button class="btn small" data-a="xcbuy" data-v="'+c.id+'"'+(av>0&&c.px>0&&S.cash>10?'':' disabled')+'>Buy</button></div></div>';}).join('');
+ return h;}
+function xcBuyCard(id){const c=(xcData&&xcData.companies||[]).find(x=>x.id===id);if(!c)return;const max=c.avail*c.px;
+ const opts=[.05,.1,.25].map(f=>Math.min(Math.max(0,S.cash)*f,max)).filter((v,i,a)=>v>=1&&a.indexOf(v)===i);
+ showCard('Buy shares in '+esc(c.company),'Founded by '+esc(c.founder)+'. Company worth '+fmt(c.cap)+', share price '+xcPx(c.px)+', '+(c.chg>=0?'up ':'down ')+Math.abs(c.chg*100).toFixed(1)+'% this week. Up to '+fmt(max)+' of shares are for sale. Your money goes to the founder. If their empire grows, your shares grow with it; if they go bankrupt, your shares are worth nothing.',
+  opts.map(v=>'<button class="choice" data-a="xcgo" data-v="'+id+':'+Math.floor(v)+'"><b>Invest '+fmt(v)+'</b><span>'+(v>=max-1?'Every share that is left.':Math.round(v/Math.max(1,S.cash)*100)+'% of your cash.')+'</span></button>').join('')+'<button class="choice" data-a="closecard"><b>Not now</b><span>Keep your money.</span></button>');}
+async function xcBuy(v){closeModal();const [id,amt]=String(v).split(':').map(Number);if(!(amt>0)||S.cash<amt)return;xcMsg='';
+ try{const r=await api('POST','/api/xchg/buy',{id,amount:amt});S.cash-=r.cost;const c=(xcData.companies||[]).find(x=>x.id===id);log('You invested '+fmt(r.cost)+' in '+(c?c.company:'a player company')+'.','gold');xcMsg='Done. You invested '+fmt(r.cost)+'.';save();}
+ catch(e){xcMsg=esc(e.message);}await xcLoad(true);afterChange();render();}
+async function xcSell(id,frac){xcMsg='';try{const r=await api('POST','/api/xchg/sell',{id,frac});S.cash+=r.amount;log('You sold shares for '+fmt(r.amount)+'.',r.amount>0?'good':'bad');xcMsg='Sold for '+fmt(r.amount)+' after the fee.';save();}
+ catch(e){xcMsg=esc(e.message);}await xcLoad(true);afterChange();render();}
+async function xcList(f){xcMsg='';try{await api('POST','/api/xchg/list',{float:+f});log(ACC.company+' is now listed on the players\' exchange.','gold');xcMsg=esc(ACC.company)+' is listed. Other players can now buy up to '+Math.round(f*100)+'% of it.';}
+ catch(e){xcMsg=esc(e.message);}await xcLoad(true);render();}
+async function xcSettle(){if(!ACC||!S||S.over)return;try{const r=await api('POST','/api/xchg/settle',{});if(r.amount>0){S.cash+=r.amount;log('Investors bought shares in '+ACC.company+'. You raised '+fmt(r.amount)+'.','gold');try{toast('<b>💹 Investors backed '+esc(ACC.company)+'</b><span>You raised '+fmt(r.amount)+' on the players\' exchange.</span>','');}catch(e){}afterChange();render();save();}}catch(e){}}
 function hideSplash(){const sp=document.getElementById('splash');if(!sp||sp.classList.contains('gone'))return;sp.classList.add('gone');setTimeout(()=>sp.remove(),400);}
 function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustlempires</div>';
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
