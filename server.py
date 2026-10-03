@@ -355,7 +355,29 @@ def clean_life(d):
     out["billionAge"] = int(ba) if isinstance(ba, (int, float)) and not isinstance(ba, bool) and 0 < ba < 200 else None
     if out.get("end") not in ("died", "bankrupt", "restarted", "vanished"):
         out["end"] = "restarted"
+    ob = clean_obit(d.get("ob"))
+    if ob:
+        out["ob"] = ob
     return out
+
+
+OBIT_TEXT = {"name": 60, "dek": 200, "role": 120, "lead": 600, "surv": 300}
+
+
+def clean_obit(o):
+    """Keep the obituary written when a life ended, so it can be read and downloaded later."""
+    if not isinstance(o, dict):
+        return None
+    out = {k: clean_text(o.get(k), n) for k, n in OBIT_TEXT.items() if isinstance(o.get(k), str)}
+    for k, many, n in (("high", 6, 160), ("ach", 8, 60)):
+        v = o.get(k)
+        if isinstance(v, list):
+            out[k] = [clean_text(x, n) for x in v[:many] if isinstance(x, str)]
+    for k in ("bornY", "diedY", "years"):
+        v = o.get(k)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and -100000 < v < 100000:
+            out[k] = int(v)
+    return out or None
 
 
 def life_from_records(db, uid, game, st=None):
