@@ -45,6 +45,8 @@ rep(".acctbrand{",""".authtabs{display:grid;grid-template-columns:1fr 1fr;border
 .about-ic{font-size:24px;line-height:1}
 .about-cta{margin-top:6px;padding:16px;border:2px solid var(--brass);border-radius:12px;background:var(--brass-soft);display:flex;flex-direction:column;gap:12px}
 .about-cta .hook-big{font-size:24px}
+.hook-cta{margin:2px 0 6px}
+.hook-cta .btn.primary{font-size:17px;padding:12px 20px}
 .about-fine{margin:-4px 0 0;font-size:13.5px;color:var(--muted)}
 .about h3{text-transform:none!important;font-size:24px!important;line-height:1.15}
 .updbar{position:fixed;z-index:44;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));width:min(480px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-radius:14px;background:#14261f;color:#fff;border:2px solid #ffd36b;box-shadow:0 14px 36px rgba(0,0,0,.4)}
