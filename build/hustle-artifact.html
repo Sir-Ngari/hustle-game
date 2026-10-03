@@ -520,6 +520,7 @@ html.gm .stagehead small.boom{color:#ffd36b}html.gm .stagehead small.bust{color:
 .obit-mast span:last-child{color:#8a5a12}
 .obit h2,.obit h3,.obit-nums dd,html.gm .obit h2,html.gm .obit h3{text-shadow:none!important}
 .obit-btns{margin-top:6px}
+.obit-must{margin:0 0 12px;color:#ffd36b;text-align:center;font-weight:800;font-size:16px}
 .life-btns{margin-top:4px}
 .obit h2{font-size:36px;line-height:1.1;margin:0;text-align:center;font-family:Georgia,"Times New Roman",serif;text-transform:none;letter-spacing:0;color:#14110c}
 .obit-years{text-align:center;font-style:italic;margin:6px 0 4px;font-size:15px}
@@ -1464,7 +1465,7 @@ function worldEnd(){S.over=true;S.died=true;S.deathDue=null;S.worldEnded=true;
  S.deathCause='Your Mars mission found something under the ice, and it found us back. The ships arrived three months later. Nobody survived.';checkAch();
  log('The end of the world. '+S.deathCause,'bad');save();render();
  showCard('The end of the world','Your crew landed on Mars and drilled into the ice. They found a signal, old and waiting. It answered.<br><br>Three months later the sky over every city filled with ships. Your empire, worth <b>'+fmt(netWorth())+'</b>, your family and every human on Earth were gone in a single night.<br><br>You did what nobody else could. That was the problem.',
-  '<button class="btn primary" data-a="obit">Read your obituary</button><button class="btn primary" data-a="reset">Start a new world</button><button class="btn" data-a="lives">Past lives</button>');}
+  '<button class="btn primary" data-a="obit">Read your obituary</button><button class="btn primary" data-a="reset">Start a new world</button><button class="btn" data-a="lives">Past lives</button>');obitMust();}
 function moonTest(M,m){const st=M.stages[m.stage],ch=moonChance(M,m),ok=rnd()<ch,loss=moonCost(M,m)*2*(st[3]&&st[3].mars?2:1);m.prog=0;
  if(ok&&st[3]&&st[3].mars){m.stage++;m.wins++;m.tier=0;addRep(40);addHappy(20);log('Space programme: humans walked on Mars. The whole world watched.','gold');
   return{cat:'First contact',title:'Humans on Mars',text:'<div class="result good"><small>Space programme</small><b>Mars</b><span>After '+m.fails+' failure'+(m.fails===1?'':'s')+' and '+fmt(m.spent)+', your crew stepped onto Mars. Eight billion people watched live.</span></div>Two weeks later, the drill team hit something hard under the ice. It is not rock. It is warm, and it is humming.',
@@ -1692,7 +1693,7 @@ function die(cause){S.over=true;S.died=true;S.deathDue=null;S.deathCause=cause;c
  showCard('You passed away at '+a,cause+' You leave behind an empire worth <b>'+fmt(nw)+'</b>, built over '+Math.floor(S.month/12)+' years from '+fmt(S.hist[0])+'. '+
   (S.won?'You reached a billion. Your name will be remembered. ':'You never reached the billion. ')+(S.spouse?S.spouse.name+' and ':'')+(kids.length?'your children '+kids.join(', ')+' ':S.spouse?'your family ':'')+(S.spouse||kids.length?'mourn you. ':'')+(S.fdn?'The '+BR()+' Foundation carries on your work.':'')+
   (S.noHeir?'<br><br>The creditors took everything. There is nothing left to pass on.':S.kids.length?'<br><br>Your empire can pass to one of your children.':'<br><br>With no children, the '+familyName()+' line ends here. Have children in your next life to pass your empire on.'),
-  '<button class="btn primary" data-a="obit">Read your obituary</button>'+(S.kids.length&&!S.noHeir?'<button class="btn primary" data-a="heirpick">Choose your heir</button><button class="btn" data-a="reset">Start a new family</button>':'<button class="btn primary" data-a="reset">Start a new life</button>')+'<button class="btn" data-a="lives">Past lives</button>');}
+  '<button class="btn primary" data-a="obit">Read your obituary</button>'+(S.kids.length&&!S.noHeir?'<button class="btn primary" data-a="heirpick">Choose your heir</button><button class="btn" data-a="reset">Start a new family</button>':'<button class="btn primary" data-a="reset">Start a new life</button>')+'<button class="btn" data-a="lives">Past lives</button>');obitMust();}
 
 const dateStr=m=>'Year '+(Math.floor(m/12)+1)+' · '+MONTHS[m%12];
 function titleIdx(nw){let i=0;TITLES.forEach((t,j)=>{if(nw>=t[0])i=j});return i;}
@@ -3943,7 +3944,7 @@ function estate(){const P=PLANS_EST[planOf().type],nw=Math.max(0,netWorth()),n=M
 const eldest=()=>S.kids.reduce((b,k,i)=>b<0||kidAge(k)>kidAge(S.kids[b])?i:b,-1);
 function familyInd(){let best=null,v=-1;(S.inds||[]).forEach(id=>{const t=BIZ.filter(b=>b.ind===id).reduce((a,b)=>a+bizValue(b),0);if(t>v){v=t;best=id;}});return best;}
 function heirAge(k){return Math.max(18,Math.floor(kidAge(k)/12));}
-function heirCard(){if(!S.kids.length)return;const e=estate(),fi=familyInd(),ind=fi&&IND[fi];
+function heirCard(){if(obitBlock())return;if(!S.kids.length)return;const e=estate(),fi=familyInd(),ind=fi&&IND[fi];
  const pl=planOf(),el=eldest(),me=mentee();const body='You died with <b>'+PLANS_EST[pl.type].name.toLowerCase()+'</b>. Your estate is worth <b>'+fmt(e.nw)+'</b>. '+(pl.type==='none'?'Court costs and duty take ':'Estate duty and legal fees take ')+fmt(e.tax)+(e.spouse?', '+esc(S.spouse.name)+' keeps '+fmt(e.spouse):'')+(S.kids.length>1?', and your other children take their shares':'')+'. '+
   (pl.type==='none'?'With no will, the estate is split equally and the court gives control to your eldest. ':'')+'Your heir inherits <b>'+fmt(e.cash)+'</b>'+(pl.ins?' plus '+fmt(pl.ins)+' from your life insurance':'')+(e.trust>0?(pl.type==='ftrust'?' and a monthly income of '+fmt(Math.min(2e5,e.trust*.002))+' from the family trust':' to run the business (another '+fmt(e.trust)+' stays locked away)'):'')+(pl.type==='ltrust'?', every outlet of the family business':'')+', the '+esc(BR())+' name'+(ind?', the family '+ind.name.lc()+' business':'')+(S.fdn?' and the '+esc(BR())+' Foundation':'')+'. Who takes over?';
  showCard('Choose your heir',body,S.kids.map((k,i)=>{const a=Math.floor(kidAge(k)/12),sc=SCHOOLS[k.best||0]||SCHOOLS[0];
@@ -3957,7 +3958,7 @@ function applyHeir(h){S.gnum=h.gen;S.who=/\s/.test(h.name.trim())?h.name.trim():
  if(h.ind&&IND[h.ind]){S.inds=[h.ind];const b=BIZ.filter(x=>x.ind===h.ind).sort((a,c)=>a.tier-c.tier)[0];if(b)S.owned[b.id]=1;}
  S.health=clamp(95-Math.max(0,h.age-30)*.7,40,95);S.parent=h.parent;S.sibs=makeSibs(h.sibs||[]);
  S.log=[{m:0,t:'You are '+S.who+', '+h.age+'. '+h.parent+' passed away at '+h.parentAge+' and left you '+fmt(h.cash)+(h.ind?' and the family business':'')+'. Generation '+h.gen+' of the '+familyName()+' family begins.',k:'gold'}];applyPlan(h);}
-function newLife(hi){stopAuto();closeModal();current=null;const yEnd=(S.y0||new Date().getFullYear())+Math.floor((S.month||0)/12);if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur,keep={daily:S.daily,sea:S.sea,wk:S.wk,calSeen:S.calSeen};if(S.month>0)recordLife(lifeRecord());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;Object.assign(S,JSON.parse(JSON.stringify(keep)));if(S.wk)S.wk.base=Math.max(1000,S.cash);useRegion(S.region);S.pcOpen=[PCITIES[0].id];S.y0=new Date().getFullYear();if(heir){applyHeir(heir);S.y0=yEnd;}if(pendingVanish){applyVanish(pendingVanish);pendingVanish=null;S.y0=yEnd;}$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
+function newLife(hi){if(obitBlock())return;stopAuto();closeModal();current=null;const yEnd=(S.y0||new Date().getFullYear())+Math.floor((S.month||0)/12);if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur,keep={daily:S.daily,sea:S.sea,wk:S.wk,calSeen:S.calSeen};if(S.month>0)recordLife(lifeRecord());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;Object.assign(S,JSON.parse(JSON.stringify(keep)));if(S.wk)S.wk.base=Math.max(1000,S.cash);useRegion(S.region);S.pcOpen=[PCITIES[0].id];S.y0=new Date().getFullYear();if(heir){applyHeir(heir);S.y0=yEnd;}if(pendingVanish){applyVanish(pendingVanish);pendingVanish=null;S.y0=yEnd;}$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
 
 /* ================= Legacy: families and achievements ================= */
 const ACH=[
@@ -4024,7 +4025,7 @@ function obitData(){const L=lifeSummary(),name=(S.who||(ACC&&ACC.name)||'The fou
  const y0=S.y0||new Date().getFullYear(),bornY=y0-a0,diedY=y0+Math.floor(S.month/12);
  const firstBiz=(BIZ.filter(b=>b.ind===S.inds[0]).sort((p,q)=>unitCost(p,0)-unitCost(q,0))[0]||{name:'small business'}).name.lc();
  const dek=(S.gnum||1)>1?'Took over '+brand+' and grew it into a '+fmt(L.best)+' empire.':L.best<1e5?'Opened a '+firstBiz+(town?' in '+town:'')+' and never stopped hustling.':'Built a '+fmt(L.best)+' empire from a '+firstBiz+(town?' in '+town:'')+'.';
- return{dek,bornY,diedY,name,role,born:a0,age:a,cause:L.cause||'',lead,surv,high:high.slice(0,4),ach:achNames.slice(0,6),nw:L.nw,best:L.best,rank:(TITLES[S.peak||0]||TITLES[0])[1],years:Math.floor(S.month/12),gen:S.gnum||1};}
+ return{dek,bornY,diedY,name,role,born:a0,age:a,cause:L.cause||'',lead,surv,high:high.slice(0,4),ach:achNames.slice(0,6),nw:L.nw,best:L.best,rank:(TITLES[S.peak||0]||TITLES[0])[1],years:Math.floor(S.month/12),gen:S.gnum||1,mine:true};}
 function obitFromLife(l){if(!l)return obitData();if(l.live)return Object.assign(obitData(),{end:l.end});
  const o=l.ob||{},age=l.age||24,yrs=o.years!=null?o.years:Math.floor((l.months||0)/12),endY=o.diedY||(new Date(l.ts||Date.now()).getFullYear()+yrs),name=String(o.name||l.who||(ACC&&ACC.name)||'The founder').trim(),first=name.split(/\s+/)[0];
  const high=o.high||[l.billionAge?'Became a billionaire at '+l.billionAge:'',l.fdn?'Founded a charitable foundation':'',l.teams?'Owned '+l.teams+' sports team'+(l.teams>1?'s':''):'',l.props?'Built a portfolio of '+l.props+' propert'+(l.props>1?'ies':'y'):'',l.inds>1?'Ran businesses in '+l.inds+' industries':'',l.jailed?'Served time in prison':''].filter(Boolean).slice(0,4);
@@ -4043,8 +4044,12 @@ function obitHTML(d){return'<article class="obit"><div class="obit-mast"><span>T
  (d.ach.length?'<h3>Achievements unlocked</h3><ul class="obit-ach">'+d.ach.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'')+
  '<p class="obit-surv">'+esc(d.surv)+'</p><p class="obit-foot">Build your own empire · '+esc(obitLink())+'</p></article>';}
 let obitCur=null;
+function obitPending(){return!!(S&&S.over&&S.died&&!S.obitDone&&S.month>0);}
+function obitMust(){if(obitPending())setTimeout(()=>openObit(),350);}
+function obitBlock(){if(!obitPending())return false;openObit();obitNote('Download or share your obituary first. Then you can carry on.');return true;}
+function obitMark(d){if(!d||!d.mine||!obitPending())return;S.obitDone=true;try{save();}catch(e){}const o=$('obitview');if(o&&!o.hidden){const m=$('obitmsg'),t=m&&!m.hidden?m.textContent:'';openObit();if(t)obitNote(t);}}
 function openObit(d){obitCur=d||null;let o=$('obitview');if(!o){o=document.createElement('div');o.id='obitview';o.className='shade obitshade';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.setAttribute('aria-label','Obituary');document.body.appendChild(o);}
- const paint=()=>{const d=obitCur||obitData();o.innerHTML='<div class="obitwrap">'+obitHTML(d)+'<div class="chips obit-btns"><button class="btn primary" data-a="obitshare">Share</button><button class="btn" data-a="obitsave">Save image</button><button class="btn ghost" data-a="obitclose">Close</button></div><p class="obit-msg" id="obitmsg" hidden></p></div>';};
+ const paint=()=>{const d=obitCur||obitData(),must=!obitCur&&obitPending();o.innerHTML='<div class="obitwrap">'+(must?'<p class="obit-must">Your story is written. Download it or share it to carry on.</p>':'')+obitHTML(d)+'<div class="chips obit-btns">'+(must?'<button class="btn primary" data-a="obitsave">Download obituary</button><button class="btn primary" data-a="obitshare">Share</button>':'<button class="btn primary" data-a="obitshare">Share</button><button class="btn" data-a="obitsave">Save image</button><button class="btn ghost" data-a="obitclose">'+(S&&S.died&&!obitCur?'Continue':'Close')+'</button>')+'</div><p class="obit-msg" id="obitmsg" hidden></p></div>';};
  paint();o.hidden=false;o.scrollTop=0;
  if(typeof api==='function'&&typeof inviteData!=='undefined'&&!inviteData&&ACC)api('GET','/api/invite').then(x=>{inviteData=x;if(!o.hidden)paint();}).catch(()=>{});}
 function closeObit(){const o=$('obitview');if(o)o.hidden=true;}
@@ -4076,11 +4081,11 @@ function obitCanvas(d){d=d||obitData();const W=1080,H=1350,c=document.createElem
 async function obitBlob(d){try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}const c=obitCanvas(d);return await new Promise(r=>c.toBlob(r,'image/png'));}
 function obitNote(t){const m=$('obitmsg');if(m){m.textContent=t;m.hidden=false;}}
 function obitFile(d){return'hustlempires-'+(obitKind(d)==='Obituary'?'obituary':'life-story')+'-'+String(d.name||'').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.png';}
-async function obitSave(d){d=d||obitCur||obitData();const b=await obitBlob(d);if(!b)return obitNote('Could not make the image on this device.');const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=obitFile(d);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);obitNote('Image saved. Share it on WhatsApp status, TikTok or Instagram.');}
+async function obitSave(d){d=d||obitCur||obitData();const b=await obitBlob(d);if(!b)return obitNote('Could not make the image on this device.');const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=obitFile(d);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);obitNote('Image saved. Share it on WhatsApp status, TikTok or Instagram.');obitMark(d);}
 async function obitShare(d){d=d||obitCur||obitData();const text=d.name+', '+d.bornY+'–'+d.diedY+'. '+d.dek+' Can you build a bigger empire? '+(obitLink().indexOf('ref=')>0?'https://':'https://')+obitLink();
  try{const b=await obitBlob(d);const f=b&&new File([b],obitFile(d),{type:'image/png'});
-  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text,title:'Hustlempires obituary'});return;}
-  if(navigator.share){await navigator.share({text,title:'Hustlempires obituary'});return;}}catch(e){if(e&&e.name==='AbortError')return;}
+  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text,title:'Hustlempires obituary'});obitMark(d);return;}
+  if(navigator.share){await navigator.share({text,title:'Hustlempires obituary'});obitMark(d);return;}}catch(e){if(e&&e.name==='AbortError')return;}
  obitSave();try{await navigator.clipboard.writeText(text);obitNote('Image saved and the message copied. Paste it with the image in any chat.');}catch(e){}}
 let LIVES_SHOWN=[];
 function lifeCard(l,label){const ix=LIVES_SHOWN.push(l)-1;const c=countryRow(l.region)||{name:'Kenya'},y=Math.floor((l.months||0)/12),mo=(l.months||0)%12;
