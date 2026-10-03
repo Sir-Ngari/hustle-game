@@ -256,6 +256,22 @@ CREATE TABLE IF NOT EXISTS ev_log(
 );
 CREATE INDEX IF NOT EXISTS ev_log_ev ON ev_log(ev, ts);
 CREATE INDEX IF NOT EXISTS ev_log_ts ON ev_log(ts);
+CREATE TABLE IF NOT EXISTS friends(
+  user_id INTEGER NOT NULL,
+  friend_id INTEGER NOT NULL,
+  created INTEGER NOT NULL,
+  PRIMARY KEY(user_id, friend_id)
+);
+CREATE INDEX IF NOT EXISTS friends_friend ON friends(friend_id);
+CREATE TABLE IF NOT EXISTS gifts(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_id INTEGER NOT NULL,
+  to_id INTEGER NOT NULL,
+  ts INTEGER NOT NULL,
+  claimed INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS gifts_to ON gifts(to_id, claimed);
+CREATE INDEX IF NOT EXISTS gifts_from ON gifts(from_id, ts);
 CREATE TABLE IF NOT EXISTS push_subs(
   endpoint TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL,
@@ -1076,6 +1092,37 @@ def push_sweeper():
         time.sleep(600)
 
 
+FRIEND_MAX = 100
+GIFTS_PER_DAY = 5
+
+
+def befriend(a, b, t=None):
+    """Make two players friends both ways (used for invites)."""
+    if a and b and a != b:
+        t = t or now()
+        q("INSERT OR IGNORE INTO friends(user_id, friend_id, created) VALUES(?,?,?)", (a, b, t))
+        q("INSERT OR IGNORE INTO friends(user_id, friend_id, created) VALUES(?,?,?)", (b, a, t))
+
+
+def backfill_friends():
+    """Everyone who joined with an invite link becomes friends with the person who invited them."""
+    if meta_get("friends_backfill") == "1":
+        return
+    for r in q("SELECT user_id, inviter_id, created FROM referrals"):
+        befriend(r["user_id"], r["inviter_id"], r["created"])
+    meta_set("friends_backfill", "1")
+
+
+def seen_label(last, t):
+    a = t - (last or 0)
+    if a < 600:
+        return "Playing now"
+    if a < 86400 and time.strftime("%Y-%m-%d", time.gmtime(last + 3 * 3600)) == time.strftime("%Y-%m-%d", time.gmtime(t + 3 * 3600)):
+        return "Played today"
+    d = max(1, int(a // 86400))
+    return "Played yesterday" if d == 1 else "Played %d days ago" % d
+
+
 def push_overview(t):
     since = t - 7 * 86400
     s7 = q("SELECT COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>?", (since,), one=True)
@@ -1558,6 +1605,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_invite_check()
         if path == "/api/pesapal/ipn":
             return self.api_pesapal_ipn()
+        if path == "/api/friends":
+            return self.api_friends()
         if path == "/api/push/key":
             return self.send_json(200, {"on": push_on(), "key": b64u(vapid_keys()[1]) if push_on() else ""})
         if path.startswith("/api/admin/"):
@@ -1574,7 +1623,9 @@ class Handler(BaseHTTPRequestHandler):
                   "/api/billing/checkout": self.api_checkout, "/api/billing/confirm": self.api_confirm,
                   "/api/billing/later": self.api_later, "/api/billing/gift": self.api_gift,
                   "/api/push/subscribe": self.api_push_sub, "/api/push/unsubscribe": self.api_push_unsub, "/api/push/open": self.api_push_open,
-                  "/api/admin/push": self.api_admin_push}
+                  "/api/admin/push": self.api_admin_push, "/api/friends/add": self.api_friend_add,
+                  "/api/friends/remove": self.api_friend_remove, "/api/friends/gift": self.api_friend_gift,
+                  "/api/friends/claim": self.api_gift_claim}
         if path in routes:
             return routes[path]()
         if path == "/api/admin/tuning":
@@ -1654,6 +1705,8 @@ class Handler(BaseHTTPRequestHandler):
             db.execute("INSERT OR IGNORE INTO activity_days(user_id, day) VALUES(?,?)", (uid, today()))
             if inviter:
                 db.execute("INSERT OR IGNORE INTO referrals(user_id,inviter_id,created) VALUES(?,?,?)", (uid, inviter["id"], t))
+                db.execute("INSERT OR IGNORE INTO friends(user_id,friend_id,created) VALUES(?,?,?)", (uid, inviter["id"], t))
+                db.execute("INSERT OR IGNORE INTO friends(user_id,friend_id,created) VALUES(?,?,?)", (inviter["id"], uid, t))
                 db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,1,'account',?)",
                            (uid, t, "Joined with an invite from %s" % inviter["name"]))
                 ig = db.execute("SELECT games FROM stats WHERE user_id=?", (inviter["id"],)).fetchone()
@@ -1737,6 +1790,113 @@ class Handler(BaseHTTPRequestHandler):
           (user["id"], now(), self.current_game(user["id"]), "Updated their email" if user["email"] else "Added an email"))
         user = q("SELECT * FROM users WHERE id=?", (user["id"],), one=True)
         self.send_json(200, {"user": user_public(user)})
+
+    def api_friends(self):
+        """My friends, how they are doing, who added me, and gifts waiting for me."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        uid, t = user["id"], now()
+        sid = season_now()
+        day0 = t - 20 * 3600
+        rows = q("SELECT u.id, u.username, u.name, u.company, u.color, u.last_seen, COALESCE(s.nw,0) nw, COALESCE(s.best,0) best, "
+                 "COALESCE(s.month,0) month, COALESCE(s.rank,'') rank, COALESCE(ss.pts,0) pts, "
+                 "(SELECT COUNT(*) FROM gifts g WHERE g.from_id=? AND g.to_id=u.id AND g.ts>?) gifted "
+                 "FROM friends f JOIN users u ON u.id=f.friend_id LEFT JOIN stats s ON s.user_id=u.id "
+                 "LEFT JOIN season_scores ss ON ss.user_id=u.id AND ss.season=? WHERE f.user_id=? AND u.disabled=0",
+                 (uid, day0, sid, uid))
+        mine = q("SELECT COALESCE(s.nw,0) nw, COALESCE(ss.pts,0) pts FROM users u LEFT JOIN stats s ON s.user_id=u.id "
+                 "LEFT JOIN season_scores ss ON ss.user_id=u.id AND ss.season=? WHERE u.id=?", (sid, uid), one=True)
+        sent_today = q("SELECT COUNT(*) c FROM gifts WHERE from_id=? AND ts>?", (uid, day0), one=True)["c"]
+        friends = [{"id": r["id"], "username": r["username"], "name": r["name"], "company": r["company"], "color": r["color"],
+                    "nw": r["nw"], "best": r["best"], "month": r["month"], "rank": r["rank"], "pts": r["pts"],
+                    "seen": seen_label(r["last_seen"], t), "online": t - (r["last_seen"] or 0) < 600,
+                    "canGift": not r["gifted"] and sent_today < GIFTS_PER_DAY} for r in rows]
+        friends.sort(key=lambda f: -f["nw"])
+        added = [dict(r) for r in q("SELECT u.id, u.username, u.name, u.company, u.color FROM friends f JOIN users u ON u.id=f.user_id "
+                                    "WHERE f.friend_id=? AND u.disabled=0 AND NOT EXISTS (SELECT 1 FROM friends x WHERE x.user_id=? AND x.friend_id=f.user_id) "
+                                    "ORDER BY f.created DESC LIMIT 20", (uid, uid))]
+        gifts = [dict(r) for r in q("SELECT g.id, u.name, u.color, u.company, g.ts FROM gifts g JOIN users u ON u.id=g.from_id "
+                                    "WHERE g.to_id=? AND g.claimed=0 ORDER BY g.id LIMIT 20", (uid,))]
+        self.send_json(200, {"friends": friends, "added": added, "gifts": gifts, "me": {"nw": mine["nw"] if mine else 0, "pts": mine["pts"] if mine else 0},
+                             "giftsLeft": max(0, GIFTS_PER_DAY - sent_today)})
+
+    def api_friend_add(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if rate_limited("friendadd:%d" % user["id"], limit=30, window=3600):
+            return self.error(429, "Too many tries. Try again later.")
+        d = self.read_json()
+        if d is None:
+            return
+        name = str(d.get("username") or "").strip().lower().lstrip("@")
+        f = q("SELECT id, name FROM users WHERE (username=? OR id=?) AND disabled=0", (name, int(d.get("id") or 0)), one=True)
+        if not f:
+            return self.error(404, "No player with that username. Check the spelling: it is the name they log in with.")
+        if f["id"] == user["id"]:
+            return self.error(400, "That is you.")
+        if q("SELECT COUNT(*) c FROM friends WHERE user_id=?", (user["id"],), one=True)["c"] >= FRIEND_MAX:
+            return self.error(409, "You already have %d friends, the most allowed." % FRIEND_MAX)
+        q("INSERT OR IGNORE INTO friends(user_id, friend_id, created) VALUES(?,?,?)", (user["id"], f["id"], now()))
+        self.send_json(200, {"ok": True, "name": f["name"]})
+
+    def api_friend_remove(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        q("DELETE FROM friends WHERE user_id=? AND friend_id=?", (user["id"], int(d.get("id") or 0)))
+        self.send_json(200, {"ok": True})
+
+    def api_friend_gift(self):
+        """Send a friend a gift: once a day per friend, a few a day in total. Their phone gets a nudge."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        fid, t = int(d.get("id") or 0), now()
+        if not q("SELECT 1 FROM friends WHERE user_id=? AND friend_id=?", (user["id"], fid), one=True):
+            return self.error(404, "You can only send gifts to your friends.")
+        day0 = t - 20 * 3600
+        if q("SELECT 1 FROM gifts WHERE from_id=? AND to_id=? AND ts>?", (user["id"], fid, day0), one=True):
+            return self.error(409, "You already sent them a gift today.")
+        if q("SELECT COUNT(*) c FROM gifts WHERE from_id=? AND ts>?", (user["id"], day0), one=True)["c"] >= GIFTS_PER_DAY:
+            return self.error(409, "That is all your gifts for today. More tomorrow.")
+        q("INSERT INTO gifts(from_id, to_id, ts) VALUES(?,?,?)", (user["id"], fid, t))
+        first = (user["name"] or "A friend").split(" ")[0]
+        if push_on():
+            def nudge():
+                try:
+                    tz = (q("SELECT tz FROM push_subs WHERE user_id=? LIMIT 1", (fid,), one=True) or {"tz": ""})["tz"]
+                    if PUSH_HOURS[0] <= local_hour(tz, t) < PUSH_HOURS[1]:
+                        push_to_user(fid, "gift", "%s sent you a gift" % first, "Open Hustlempires to collect it, and send one back.")
+                except Exception as e:
+                    print("Gift notification failed: %s" % e, flush=True)
+            threading.Thread(target=nudge, daemon=True).start()
+        self.send_json(200, {"ok": True})
+
+    def api_gift_claim(self):
+        """Collect waiting gifts. The game turns each one into a month of the player's own profit."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+
+        def take(db):
+            rows = db.execute("SELECT g.id, u.name FROM gifts g JOIN users u ON u.id=g.from_id WHERE g.to_id=? AND g.claimed=0 "
+                              "ORDER BY g.id LIMIT 5", (user["id"],)).fetchall()
+            for r in rows:
+                db.execute("UPDATE gifts SET claimed=? WHERE id=?", (now(), r["id"]))
+            return [(r["name"] or "").split(" ")[0] for r in rows]
+        names = tx(take)
+        self.send_json(200, {"ok": True, "n": len(names), "from": names})
 
     def api_push_sub(self):
         """A player said yes to notifications on this device."""
@@ -2465,6 +2625,10 @@ def main():
         print("Free to play. Tips through Pesapal %s: %s" % (PESAPAL_ENV, "ready" if pesapal_ready() else "NOT SET (add the key, secret and site domain)"), flush=True)
     threading.Thread(target=payment_sweeper, daemon=True).start()
     threading.Thread(target=push_sweeper, daemon=True).start()
+    try:
+        backfill_friends()
+    except Exception as e:
+        print("Friends backfill skipped: %s" % e, flush=True)
     print("Notifications: %s" % ("ready" if push_ready() else "off (install python3-cryptography to switch them on)"), flush=True)
     try:
         backfill_lives()

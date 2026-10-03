@@ -23,7 +23,7 @@ async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
 function startWith(user,save,bill,ver){try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);const away0=S.seen||0;migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
- signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}if(!awayWelcome(away0))startEvents();
+ signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}if(!awayWelcome(away0))startEvents();giftTries=0;setTimeout(giftCheck,4000);rivalStart();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
@@ -135,13 +135,53 @@ function awayWelcome(seen){if(!S||S.over||!S.inds.length||S.month<1||!seen)retur
  Promise.race([api('GET','/api/season?scope=country&region='+encodeURIComponent(S.region||'')),new Promise(r=>setTimeout(()=>r(null),2500))]).then(d=>{if(d)seasonCache=d;paint(d);}).catch(()=>paint(null));
  return true;}
 function awayCollect(){closeModal();if(awayAmt>0){S.cash+=awayAmt;log('While you were away, your businesses earned '+fmt(awayAmt)+'.','good');try{coinBurst(14);}catch(e){}awayAmt=0;render();save();}startEvents();}
+/* ---------- Friends: see how they are doing, send a daily gift ---------- */
+let friendsData=null,friendMsg='';
+async function openFriends(){stopAuto();closeModal();acctView='friends';friendMsg='';renderAccts();
+ try{friendsData=await api('GET','/api/friends');}catch(e){friendMsg=esc(e.message);}if(acctView==='friends')renderAccts();}
+function friendsHTML(){const d=friendsData;let h='<h2>Friends</h2><p class="sub">See how your friends are doing and send each one a gift every day. A gift is worth a month of their profit, and their phone gets a nudge.</p>';
+ h+='<form id="friendform" class="aform frform" novalidate><label for="fr-user">Add a friend by username</label><div class="frrow"><input id="fr-user" maxlength="21" autocapitalize="none" spellcheck="false" placeholder="e.g. wanjiku_k"><button type="submit" class="btn primary">Add</button></div></form>';
+ if(friendMsg)h+='<p class="amsg">'+friendMsg+'</p>';
+ if(!d)return h+'<p class="sub">Loading…</p><div class="chips"><button class="btn" data-a="acctclose">Back to my game</button></div>';
+ if(d.added&&d.added.length)h+='<h3>Added you</h3><ul class="invlist">'+d.added.map(f=>'<li>'+avatar(f)+'<span class="ameta"><b>'+esc(f.name)+'</b><span>@'+esc(f.username)+' · '+esc(f.company)+'</span></span><button class="btn small" data-a="friendaddid" data-v="'+f.id+'">Add back</button></li>').join('')+'</ul>';
+ h+='<h3>Your friends'+(d.friends.length?' ('+d.friends.length+')':'')+'</h3>';
+ if(!d.friends.length)h+='<p class="sub">No friends yet. Add someone by their username above, or invite friends: anyone who joins with your link becomes your friend.</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div>';
+ else{h+='<p class="sub">'+(d.giftsLeft?d.giftsLeft+' gift'+(d.giftsLeft>1?'s':'')+' left to send today.':'All gifts sent for today. More tomorrow.')+'</p><ul class="invlist frlist">'+d.friends.map(f=>{const diff=f.nw-(d.me.nw||0);
+  return'<li>'+avatar(f)+'<span class="ameta"><b>'+esc(f.name)+(f.online?' <i class="frdot" title="Playing now"></i>':'')+'</b><span>'+esc(f.company)+' · '+esc(f.seen)+'</span><span>'+fmt(f.nw)+' · '+esc(f.rank||'')+(f.nw>0?' · <em class="'+(diff>0?'frup':'frdn')+'">'+(diff>0?fmt(diff)+' ahead of you':fmt(-diff)+' behind you')+'</em>':'')+'</span></span>'+
+   '<span class="frbtns"><button class="btn small'+(f.canGift?' primary':'')+'" data-a="friendgift" data-v="'+f.id+'"'+(f.canGift?'':' disabled')+'>'+(f.canGift?'🎁 Gift':'Sent')+'</button><button class="btn ghost small" data-a="friendrm" data-v="'+f.id+'" aria-label="Remove '+esc(f.name)+'">✕</button></span></li>';}).join('')+'</ul>';}
+ return h+'<div class="chips"><button class="btn" data-a="acctclose">Back to my game</button><button class="btn ghost" data-a="leaderboard">Leaderboard</button></div>';}
+async function friendAct(kind,v){try{if(kind==='add'){const u=v||($('fr-user')||{}).value||'';if(!u.trim()){friendMsg='Type their username first.';renderAccts();return;}const r=await api('POST','/api/friends/add',typeof v==='number'?{id:v}:{username:u});friendMsg=esc(r.name)+' is now your friend.';}
+ else if(kind==='gift'){await api('POST','/api/friends/gift',{id:v});friendMsg='Gift sent. They will get a nudge on their phone.';try{coinBurst(10);}catch(e){}}
+ else if(kind==='rm'){await api('POST','/api/friends/remove',{id:v});friendMsg='Removed.';}
+ friendsData=await api('GET','/api/friends');}catch(e){friendMsg=esc(e.message);}renderAccts();}
+document.addEventListener('submit',e=>{if(e.target&&e.target.id==='friendform'){e.preventDefault();friendAct('add');}});
+let giftTries=0,giftPending=null;
+async function giftCheck(){if(!ACC||!S||S.over)return;if(current||!$('modal').hidden||acctView){if(++giftTries<20)setTimeout(giftCheck,3000);return;}
+ let d;try{d=await api('GET','/api/friends');}catch(e){return;}friendsData=d;if(!d.gifts||!d.gifts.length)return;
+ if(current||!$('modal').hidden||acctView){if(++giftTries<20)setTimeout(giftCheck,3000);return;}
+ const g=d.gifts.slice(0,5),names=[...new Set(g.map(x=>(x.name||'A friend').split(' ')[0]))],each=Math.max(100,Math.round(flows(false).net)),amt=each*g.length;giftPending=amt;
+ showCard('🎁 '+(g.length>1?g.length+' gifts':'A gift')+' from your friends',esc(names.length>1?names.slice(0,-1).join(', ')+' and '+names[names.length-1]:names[0])+' sent you '+(g.length>1?'gifts':'a gift')+'. Each one is worth a month of your profit.',
+  '<button class="choice" data-a="giftclaim"><b>Collect '+fmt(amt)+'</b><span>Then send one back from Friends.</span></button>');}
+async function giftClaim(){closeModal();try{const r=await api('POST','/api/friends/claim',{});if(r.n){const each=Math.max(100,Math.round(flows(false).net)),amt=each*r.n;S.cash+=amt;log('Gifts from '+r.from.join(', ')+': '+fmt(amt)+'.','good');try{coinBurst(14);}catch(e){}render();save();
+  showCard('Say thanks','Send a gift back. It only takes a tap, and it lands on their phone.','<button class="choice" data-a="friends"><b>Open Friends</b><span>Send gifts back.</span></button><button class="choice" data-a="closecard"><b>Later</b><span>Back to my empire.</span></button>');}}catch(e){}}
+/* ---------- Live rivals: you passed someone, or someone passed you ---------- */
+let rivalPrev=null,rivalT=null;
+function toast(html,act){let t=$('hstoast');if(!t){t=document.createElement('button');t.id='hstoast';t.className='hstoast';document.body.appendChild(t);}
+ t.innerHTML=html;t.dataset.a=act||'';t.hidden=false;t.classList.remove('out');clearTimeout(toast.h);toast.h=setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.hidden=true,400);},6000);}
+async function rivalCheck(){if(!ACC||!S||S.over||acctView||document.hidden)return;let d;try{d=await api('GET','/api/season?scope=country&region='+encodeURIComponent(S.region||''));}catch(e){return;}
+ seasonCache=d;const me=d&&d.me;if(!me)return;const now={id:d.season,r:me.rankRegion,ahead:me.ahead&&me.ahead.name};
+ if(rivalPrev&&rivalPrev.id===now.id&&!current&&$('modal').hidden){
+  if(now.r<rivalPrev.r)toast('<b>🏆 You passed '+esc(rivalPrev.ahead||'a rival')+'!</b><span>You are now #'+now.r+' in your country this season.'+(me.ahead?' Next up: '+esc(me.ahead.name)+', '+me.ahead.gap.toLocaleString('en-US')+' points ahead.':' Nobody is ahead of you.')+'</span>','leaderboard');
+  else if(now.r>rivalPrev.r)toast('<b>⚠️ '+esc(now.ahead||'A rival')+' just passed you</b><span>You dropped to #'+now.r+' in your country. They are '+(me.ahead?me.ahead.gap.toLocaleString('en-US'):'a few')+' points ahead. Take it back.</span>','leaderboard');}
+ rivalPrev=now;}
+function rivalStart(){clearInterval(rivalT);rivalPrev=null;setTimeout(rivalCheck,6000);rivalT=setInterval(rivalCheck,90000);}
 function hideSplash(){const sp=document.getElementById('splash');if(!sp||sp.classList.contains('gone'))return;sp.classList.add('gone');setTimeout(()=>sp.remove(),400);}
 function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustlempires</div>';
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
  else if(acctView==='down')h+='<h2>Can\'t connect</h2><p class="sub">'+esc(authMsg)+'</p><div class="chips"><button class="btn primary" data-a="retryboot">Try again</button></div>';
  else if(acctView==='auth')h+=authHook()+(authMode==='about'?'<div class="chips hook-cta"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">Log in</button></div>'+authTabs()+aboutGame():'<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm()+'<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="about">New to Hustlempires? Read what the game is about →</button></p>');
  else if(acctView==='menu')h+='<div class="me">'+avatar(playerAcc(),true)+'<div><h2>'+esc(playerName())+'</h2><p class="sub">'+((S&&S.gnum>1)?'Generation '+S.gnum+' of the '+esc(familyName())+' family · ':'')+'@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
-  '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
+  '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button><button class="btn" data-a="friends">Friends</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
   passMenuHTML()+pushMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div><h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
  else if(acctView==='installios')h+='<h2>Install the app</h2><p class="sub">Put the game on your home screen. It opens full-screen, like any other app.</p><ol class="iossteps"><li>At the bottom of Safari, tap the <b>Share</b> button (the square with an arrow pointing up).</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The game\'s icon appears on your home screen.</li></ol><div class="chips"><button class="btn primary" data-a="acctclose">Got it</button></div>';
  else if(acctView==='addemail')h+='<h2>Add your email</h2><p class="sub">If you ever forget your password, we\'ll send a reset link here. We don\'t use it for anything else.</p>'+emailForm('Save email',true);
@@ -155,6 +195,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  else if(acctView==='tip')h+=tipViewHTML();
  else if(acctView==='pay'||acctView==='gift'||acctView==='payleft'||acctView==='paid')h+=payViewHTML();
  else if(acctView==='invite')h+=inviteHTML();
+ else if(acctView==='friends')h+=friendsHTML();
  else if(acctView==='lives'){h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire you have built.</p>'+(livesData===null?'<p class="sub">Loading…</p>':legacyHTML()+trophiesHTML()+livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
  else if(acctView==='board'){const cn=(countryRow(S.region||'')||{name:'your country'}).name;
   h+='<h2>Leaderboard</h2><div class="authtabs" role="tablist" style="grid-template-columns:1fr 1fr 1fr"><button role="tab" aria-selected="'+(lbTab==='season-country')+'" data-a="boardtab" data-v="season-country">'+esc(cn)+'</button><button role="tab" aria-selected="'+(lbTab==='season-world')+'" data-a="boardtab" data-v="season-world">World</button><button role="tab" aria-selected="'+(lbTab==='alltime')+'" data-a="boardtab" data-v="alltime">All time</button></div>'+
