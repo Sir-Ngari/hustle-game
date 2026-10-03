@@ -256,6 +256,37 @@ CREATE TABLE IF NOT EXISTS ev_log(
 );
 CREATE INDEX IF NOT EXISTS ev_log_ev ON ev_log(ev, ts);
 CREATE INDEX IF NOT EXISTS ev_log_ts ON ev_log(ts);
+CREATE TABLE IF NOT EXISTS bank_lots(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  seller_id INTEGER NOT NULL,
+  region TEXT NOT NULL DEFAULT '',
+  data TEXT NOT NULL,
+  value REAL NOT NULL,
+  price REAL NOT NULL,
+  created INTEGER NOT NULL,
+  expires INTEGER NOT NULL,
+  buyer_id INTEGER NOT NULL DEFAULT 0,
+  sold INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS bank_lots_open ON bank_lots(region, sold, expires);
+CREATE TABLE IF NOT EXISTS market(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  seller_id INTEGER NOT NULL,
+  region TEXT NOT NULL DEFAULT '',
+  g TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL,
+  data TEXT NOT NULL,
+  value REAL NOT NULL,
+  price REAL NOT NULL,
+  created INTEGER NOT NULL,
+  expires INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',
+  buyer_id INTEGER NOT NULL DEFAULT 0,
+  sold_ts INTEGER NOT NULL DEFAULT 0,
+  settled INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS market_open ON market(status, expires);
+CREATE INDEX IF NOT EXISTS market_seller ON market(seller_id, status);
 CREATE TABLE IF NOT EXISTS friends(
   user_id INTEGER NOT NULL,
   friend_id INTEGER NOT NULL,
@@ -1092,6 +1123,64 @@ def push_sweeper():
         time.sleep(600)
 
 
+BANK_TYPES = {"serviced", "logistics", "apartments", "resort", "mall", "hotel", "office", "supertall"}
+BANK_CITIES = {"nairobi", "mombasa", "kigali", "zanzibar", "cairo", "lagos", "joburg", "dubai", "mumbai", "maldives", "miami",
+               "singapore", "tokyo", "paris", "london", "newyork"}
+BANK_DAYS = 14
+
+
+def clean_lot(d):
+    """Only the known fields of a seized building, within sane limits."""
+    if not isinstance(d, dict) or d.get("type") not in BANK_TYPES or d.get("city") not in BANK_CITIES:
+        return None
+    try:
+        value = float(d.get("value"))
+        af = float(d.get("af"))
+        occ = float(d.get("occ", 0.9))
+        total = int(d.get("total", 18))
+    except (TypeError, ValueError):
+        return None
+    if not (0 < value < 1e16 and 0 < af < 1e4 and 0 <= occ <= 1.5 and 0 < total < 1000):
+        return None
+    return {"type": d["type"], "city": d["city"], "name": clean_text(d.get("name"), 60) or "A building", "af": af, "occ": occ,
+            "total": total, "value": round(value)}
+
+
+MARKET_ITEMS = {"car1", "car2", "car3", "car4", "car5", "car6", "jet", "h0", "h1", "h2", "h3", "h4", "h5", "h6", "a1", "a2", "a3",
+                "shoes", "bags", "wardrobe", "birkin", "jewels", "watch", "horses", "villa", "art", "yacht", "vineyard", "golfclub",
+                "island", "superyacht", "trophyhotel", "masterpiece"}
+HOME_CITIES = {"nairobi", "mombasa"}
+MARKET_DAYS = 7
+MARKET_FEE = 0.05
+MARKET_OPEN_MAX = 20
+
+
+def clean_item(kind, d):
+    if kind == "p":
+        return clean_lot(d)
+    if kind == "a" and isinstance(d, dict) and d.get("id") in MARKET_ITEMS:
+        try:
+            value, af = float(d.get("value")), float(d.get("af", 1))
+            gen = int(d.get("gen") or 0)
+        except (TypeError, ValueError):
+            return None
+        if 0 < value < 1e16 and 0 < af < 1e4 and 0 <= gen < 50:
+            return {"id": d["id"], "name": clean_text(d.get("name"), 60) or "An item", "af": af, "gen": gen, "value": round(value)}
+    return None
+
+
+def market_row(r, t):
+    try:
+        d = json.loads(r["data"])
+    except ValueError:
+        return None
+    d.update({"lid": r["id"], "k": r["kind"], "value": r["value"], "price": r["price"], "region": r["region"], "g": r["g"],
+              "daysLeft": max(0, int((r["expires"] - t) // 86400)), "status": r["status"]})
+    if "seller" in r.keys():
+        d["from"] = (r["seller"] or "").split(" ")[0]
+    return d
+
+
 FRIEND_MAX = 100
 GIFTS_PER_DAY = 5
 
@@ -1607,6 +1696,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_pesapal_ipn()
         if path == "/api/friends":
             return self.api_friends()
+        if path == "/api/bank/lots":
+            return self.api_bank_lots()
+        if path == "/api/market":
+            return self.api_market()
+        if path == "/api/market/mine":
+            return self.api_market_mine()
         if path == "/api/push/key":
             return self.send_json(200, {"on": push_on(), "key": b64u(vapid_keys()[1]) if push_on() else ""})
         if path.startswith("/api/admin/"):
@@ -1625,7 +1720,9 @@ class Handler(BaseHTTPRequestHandler):
                   "/api/push/subscribe": self.api_push_sub, "/api/push/unsubscribe": self.api_push_unsub, "/api/push/open": self.api_push_open,
                   "/api/admin/push": self.api_admin_push, "/api/friends/add": self.api_friend_add,
                   "/api/friends/remove": self.api_friend_remove, "/api/friends/gift": self.api_friend_gift,
-                  "/api/friends/claim": self.api_gift_claim}
+                  "/api/friends/claim": self.api_gift_claim, "/api/bank/list": self.api_bank_list, "/api/bank/buy": self.api_bank_buy,
+                  "/api/market/list": self.api_market_list, "/api/market/buy": self.api_market_buy,
+                  "/api/market/cancel": self.api_market_cancel, "/api/market/settle": self.api_market_settle}
         if path in routes:
             return routes[path]()
         if path == "/api/admin/tuning":
@@ -1790,6 +1887,211 @@ class Handler(BaseHTTPRequestHandler):
           (user["id"], now(), self.current_game(user["id"]), "Updated their email" if user["email"] else "Added an email"))
         user = q("SELECT * FROM users WHERE id=?", (user["id"],), one=True)
         self.send_json(200, {"user": user_public(user)})
+
+    def api_bank_list(self):
+        """The game reports buildings the bank seized from this player; they go up for auction to others in the same country."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if rate_limited("banklist:%d" % user["id"], limit=20, window=3600):
+            return self.error(429, "Too many auctions. Try again later.")
+        d = self.read_json()
+        if d is None:
+            return
+        region = re.sub(r"[^A-Z]", "", str(d.get("region") or "").upper())[:3]
+        lots = [x for x in (clean_lot(l) for l in (d.get("lots") or [])[:30]) if x]
+        st = q("SELECT best FROM stats WHERE user_id=?", (user["id"],), one=True)
+        cap = max(5e7, (st["best"] if st else 0) * 3)
+        lots = [l for l in lots if l["value"] <= cap]
+        t = now()
+        for l in lots:
+            q("INSERT INTO bank_lots(seller_id, region, data, value, price, created, expires) VALUES(?,?,?,?,?,?,?)",
+              (user["id"], region, json.dumps(l), l["value"], round(l["value"] * 0.7), t, t + BANK_DAYS * 86400))
+        self.send_json(200, {"ok": True, "listed": len(lots)})
+
+    def api_bank_lots(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        region = re.sub(r"[^A-Z]", "", ((parse_qs(urlparse(self.path).query).get("region") or [""])[0]).upper())[:3]
+        t = now()
+        rows = q("SELECT b.id, b.data, b.value, b.price, b.created, b.expires, u.name FROM bank_lots b JOIN users u ON u.id=b.seller_id "
+                 "WHERE b.region=? AND b.sold=0 AND b.expires>? AND b.seller_id<>? ORDER BY b.price ASC LIMIT 40", (region, t, user["id"]))
+        lots = []
+        for r in rows:
+            try:
+                d = json.loads(r["data"])
+            except ValueError:
+                continue
+            d.update({"id": r["id"], "value": r["value"], "price": r["price"], "from": (r["name"] or "").split(" ")[0],
+                      "daysLeft": max(1, int((r["expires"] - t) // 86400))})
+            lots.append(d)
+        recent = q("SELECT COUNT(*) c FROM bank_lots WHERE region=? AND sold>?", (region, t - 7 * 86400), one=True)["c"]
+        self.send_json(200, {"lots": lots, "soldWeek": recent})
+
+    def api_bank_buy(self):
+        """First come, first served: the lot goes to whoever asks first."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        lid, t = int(d.get("id") or 0), now()
+
+        def take(db):
+            r = db.execute("SELECT * FROM bank_lots WHERE id=?", (lid,)).fetchone()
+            if not r or r["sold"] or r["expires"] <= t:
+                return None, "Too late: someone else bought it, or the auction ended."
+            if r["seller_id"] == user["id"]:
+                return None, "You cannot buy back your own seized building."
+            db.execute("UPDATE bank_lots SET sold=?, buyer_id=? WHERE id=?", (t, user["id"], lid))
+            return r, ""
+        r, err = tx(take)
+        if not r:
+            return self.error(409, err)
+        lot = json.loads(r["data"])
+        lot.update({"id": r["id"], "price": r["price"], "value": r["value"]})
+        self.send_json(200, {"ok": True, "lot": lot})
+
+    def api_market_list(self):
+        """A player puts a building or a luxury item up for sale. The game has already taken it out of their empire."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if rate_limited("mklist:%d" % user["id"], limit=30, window=3600):
+            return self.error(429, "Too many listings. Try again later.")
+        d = self.read_json()
+        if d is None:
+            return
+        kind = d.get("k")
+        item = clean_item(kind, d.get("item"))
+        if not item:
+            return self.error(400, "That item cannot be sold here.")
+        try:
+            price = float(d.get("price"))
+        except (TypeError, ValueError):
+            return self.error(400, "Choose a price.")
+        if not (item["value"] * 0.5 - 1 <= price <= item["value"] * 1.5 + 1):
+            return self.error(400, "The price must be between half and one and a half times what it is worth.")
+        st = q("SELECT best FROM stats WHERE user_id=?", (user["id"],), one=True)
+        if item["value"] > max(5e7, (st["best"] if st else 0) * 3):
+            return self.error(400, "That is worth more than your empire. It cannot be listed.")
+        if q("SELECT COUNT(*) c FROM market WHERE seller_id=? AND status='open'", (user["id"],), one=True)["c"] >= MARKET_OPEN_MAX:
+            return self.error(409, "You already have %d items for sale. Wait for some to sell, or cancel one." % MARKET_OPEN_MAX)
+        region = re.sub(r"[^A-Z]", "", str(d.get("region") or "").upper())[:3]
+        g = "f" if d.get("g") == "f" else "m" if d.get("g") == "m" else ""
+        t = now()
+        lid = tx(lambda db: db.execute("INSERT INTO market(seller_id, region, g, kind, data, value, price, created, expires) VALUES(?,?,?,?,?,?,?,?,?)",
+                                       (user["id"], region, g, kind, json.dumps(item), item["value"], round(price), t, t + MARKET_DAYS * 86400)).lastrowid)
+        self.send_json(200, {"ok": True, "id": lid})
+
+    def api_market(self):
+        """Items for sale. Local: your own country. World: every country (buildings in home cities stay local)."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        qs = parse_qs(urlparse(self.path).query)
+        scope = "world" if (qs.get("scope") or [""])[0] == "world" else "local"
+        region = re.sub(r"[^A-Z]", "", ((qs.get("region") or [""])[0]).upper())[:3]
+        t = now()
+        sql = ("SELECT m.*, u.name seller FROM market m JOIN users u ON u.id=m.seller_id WHERE m.status='open' AND m.expires>? "
+               "AND m.seller_id<>? AND u.disabled=0 ")
+        args = [t, user["id"]]
+        if scope == "local":
+            sql += "AND m.region=? "
+            args.append(region)
+        sql += "ORDER BY m.created DESC LIMIT 200"
+        out = []
+        for r in q(sql, tuple(args)):
+            d = market_row(r, t)
+            if not d:
+                continue
+            if scope == "world" and d["k"] == "p" and d.get("city") in HOME_CITIES and r["region"] != region:
+                continue
+            out.append(d)
+            if len(out) >= 60:
+                break
+        self.send_json(200, {"items": out, "scope": scope, "fee": MARKET_FEE})
+
+    def api_market_mine(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        t = now()
+        rows = q("SELECT * FROM market WHERE seller_id=? AND (status='open' OR (status='sold' AND sold_ts>?)) ORDER BY id DESC LIMIT 60",
+                 (user["id"], t - 14 * 86400))
+        self.send_json(200, {"items": [x for x in (market_row(r, t) for r in rows) if x], "fee": MARKET_FEE})
+
+    def api_market_buy(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        lid, t = int(d.get("id") or 0), now()
+
+        def take(db):
+            r = db.execute("SELECT * FROM market WHERE id=?", (lid,)).fetchone()
+            if not r or r["status"] != "open" or r["expires"] <= t:
+                return None, "Too late: it has been sold or taken off the market."
+            if r["seller_id"] == user["id"]:
+                return None, "That is your own listing."
+            db.execute("UPDATE market SET status='sold', buyer_id=?, sold_ts=? WHERE id=?", (user["id"], t, lid))
+            return r, ""
+        r, err = tx(take)
+        if not r:
+            return self.error(409, err)
+        item = market_row(r, t)
+        first = (user["name"] or "A player").split(" ")[0]
+        if push_on():
+            def nudge():
+                try:
+                    push_to_user(r["seller_id"], "sold", "%s sold" % item.get("name", "Your item"),
+                                 "%s bought it. Open Hustlempires to collect your money." % first)
+                except Exception as e:
+                    print("Sale notification failed: %s" % e, flush=True)
+            threading.Thread(target=nudge, daemon=True).start()
+        self.send_json(200, {"ok": True, "item": item})
+
+    def api_market_cancel(self):
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        lid = int(d.get("id") or 0)
+
+        def take(db):
+            r = db.execute("SELECT * FROM market WHERE id=? AND seller_id=? AND status='open'", (lid, user["id"])).fetchone()
+            if r:
+                db.execute("UPDATE market SET status='cancel', settled=1 WHERE id=?", (lid,))
+            return r
+        r = tx(take)
+        if not r:
+            return self.error(409, "It has already been sold, or is no longer for sale.")
+        self.send_json(200, {"ok": True, "item": market_row(r, now())})
+
+    def api_market_settle(self):
+        """Pay the seller for items that sold (minus the fee) and hand back items that did not sell in time."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        t = now()
+
+        def take(db):
+            sold = db.execute("SELECT * FROM market WHERE seller_id=? AND status='sold' AND settled=0", (user["id"],)).fetchall()
+            back = db.execute("SELECT * FROM market WHERE seller_id=? AND status='open' AND expires<=?", (user["id"], t)).fetchall()
+            for r in sold:
+                db.execute("UPDATE market SET settled=1 WHERE id=?", (r["id"],))
+            for r in back:
+                db.execute("UPDATE market SET status='expired', settled=1 WHERE id=?", (r["id"],))
+            return sold, back
+        sold, back = tx(take)
+        self.send_json(200, {"sold": [dict(market_row(r, t), net=round(r["price"] * (1 - MARKET_FEE))) for r in sold],
+                             "back": [market_row(r, t) for r in back]})
 
     def api_friends(self):
         """My friends, how they are doing, who added me, and gifts waiting for me."""

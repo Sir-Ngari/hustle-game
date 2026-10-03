@@ -454,7 +454,7 @@ async function renderDrop(d){const pnl=$('dropPanel');if(!d){pnl.hidden=true;ret
  const L=d.lastEv||[];$('dropLast').innerHTML=L.length?L.map(x=>{const e=E[x.ev];return'<tr><td>'+esc(e?e.title:x.ev)+'</td><td>'+esc(e&&e.choices&&e.choices[x.choice]!=null?e.choices[x.choice]:'Choice '+(x.choice+1))+'</td><td class="r num">'+x.n+'</td></tr>';}).join(''):'<tr><td colspan="3" class="empty">No decisions recorded for quiet players yet.</td></tr>';}
 
 /* ---------- Notifications ---------- */
-const PUSHKIND={streak:'Daily streak about to break',heir:'Choose your heir',health:'Doctor is waiting',milestone:'Close to the next milestone',rival:'A rival is just ahead',team:'Your club needs its owner',away1:'Away 3 days',away2:'Away a week',away3:'Away 2 weeks',away4:'Away a month',away0:'Away 1 day',test:'Test message',gift:'Gift from a friend'};
+const PUSHKIND={streak:'Daily streak about to break',heir:'Choose your heir',health:'Doctor is waiting',milestone:'Close to the next milestone',rival:'A rival is just ahead',team:'Your club needs its owner',away1:'Away 3 days',away2:'Away a week',away3:'Away 2 weeks',away4:'Away a month',away0:'Away 1 day',test:'Test message',gift:'Gift from a friend',sold:'Your item sold'};
 let pushInfo=null;
 function renderPush(p){const pnl=$('pushPanel');if(!p){pnl.hidden=true;return;}pnl.hidden=false;pushInfo=p;
  $('pushSub').innerHTML=!p.ready?'<b>Not available yet:</b> the server needs the python3-cryptography package. The update installs it.':

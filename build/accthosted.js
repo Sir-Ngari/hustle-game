@@ -23,7 +23,7 @@ async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
 function startWith(user,save,bill,ver){try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);const away0=S.seen||0;migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
- signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}if(!awayWelcome(away0))startEvents();giftTries=0;setTimeout(giftCheck,4000);rivalStart();
+ signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}bankLots=null;mkData={local:null,world:null,mine:null};mkMsg='';setTimeout(bankFlush,2000);mkSettleTries=0;setTimeout(mkSettle,6000);if(!awayWelcome(away0))startEvents();giftTries=0;setTimeout(giftCheck,4000);rivalStart();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
@@ -175,6 +175,90 @@ async function rivalCheck(){if(!ACC||!S||S.over||acctView||document.hidden)retur
   else if(now.r>rivalPrev.r)toast('<b>⚠️ '+esc(now.ahead||'A rival')+' just passed you</b><span>You dropped to #'+now.r+' in your country. They are '+(me.ahead?me.ahead.gap.toLocaleString('en-US'):'a few')+' points ahead. Take it back.</span>','leaderboard');}
  rivalPrev=now;}
 function rivalStart(){clearInterval(rivalT);rivalPrev=null;setTimeout(rivalCheck,6000);rivalT=setInterval(rivalCheck,90000);}
+/* ---------- Bank auctions: seized buildings other players can buy ---------- */
+let bankLots=null,bankT=0,bankMsg='',bankBusy=false;
+function bankPost(lots){if(!S)return;S.bankOut=(S.bankOut||[]).concat(lots).slice(-60);bankFlush();}
+let bankFlushing=false;
+async function bankFlush(){if(bankFlushing||!ACC||!S||!S.bankOut||!S.bankOut.length)return;bankFlushing=true;const L=S.bankOut.splice(0,30);
+ try{await api('POST','/api/bank/list',{region:S.region||'',lots:L});}catch(e){S.bankOut=L.concat(S.bankOut||[]);}
+ bankFlushing=false;save();if(S.bankOut&&S.bankOut.length)setTimeout(bankFlush,1500);}
+async function bankLoad(force){if(!ACC||bankBusy)return;if(!force&&Date.now()-bankT<60000)return;bankT=Date.now();bankBusy=true;
+ try{const d=await api('GET','/api/bank/lots?region='+encodeURIComponent(S.region||''));bankLots=d.lots||[];}catch(e){if(bankLots===null)bankLots=[];}
+ bankBusy=false;if(typeof curTab!=='undefined'&&curTab==='property')render();}
+function bankRowsHTML(){if(bankLots===null){bankLoad(true);return'<p class="seghint">Checking with the bank…</p>';}bankLoad();
+ let h=bankMsg?'<p class="amsg" style="margin-bottom:10px">'+bankMsg+'</p>':'';
+ if(!bankLots.length)return h;
+ return h+bankLots.map(l=>{const t=ptype(l.type),c=pcity(l.city);if(!t||!c)return'';const open=cityOpen(c),afford=S.cash>=l.price;
+  return'<div class="ptype banklot"><div class="top">'+picon(l.type)+'<div class="ptx"><b>'+esc(l.name)+'</b><span>'+t.name+' · '+esc(c.name)+' · worth '+fmt(l.value)+'</span><span class="bankmeta"><em>30% off</em> · seized from '+esc(l.from||'a player')+' · '+l.daysLeft+' day'+(l.daysLeft>1?'s':'')+' left</span></div></div>'+
+   '<div class="chips"><button class="btn small '+(open&&afford?'primary':'')+'" data-a="bankbuy" data-v="'+l.id+'"'+(open&&afford?'':' disabled')+'>'+(open?'Buy · '+fmt(l.price):'Unlock '+esc(c.name)+' first')+'</button></div></div>';}).join('');}
+async function bankBuy(id){const l=(bankLots||[]).find(x=>x.id===id);if(!l)return;const t=ptype(l.type),c=pcity(l.city);
+ if(!t||!c||!cityOpen(c)||S.cash<l.price||S.over)return;bankMsg='';
+ try{const r=await api('POST','/api/bank/buy',{id});const L=r.lot;S.cash-=L.price;S.props=S.props||[];
+  S.props.push({type:L.type,city:L.city,name:propName(t,c),af:L.af,left:0,total:L.total||t.build,occ:L.occ||.9,anchor:0,was:L.name});
+  propUnlockCheck();log('You bought '+L.name+' at a bank auction for '+fmt(L.price)+'. It is worth '+fmt(L.value)+'.','gold');
+  bankMsg='Yours. You picked up a '+fmt(L.value)+' building for '+fmt(L.price)+'.';try{coinBurst(14);}catch(e){}
+  bankLots=bankLots.filter(x=>x.id!==id);afterChange();}
+ catch(e){bankMsg=esc(e.message);bankT=0;bankLoad(true);}render();}
+/* ---------- Marketplace: players sell buildings and luxury items to each other ---------- */
+let mkTab='local',mkData={local:null,world:null,mine:null},mkT={},mkBusy={},mkMsg='',mkPending=null,mkFee=.05;
+const MK_ICON={car1:'🚗',car2:'🚙',car3:'🚙',car4:'🚘',car5:'🚘',car6:'🚁',jet:'✈️',a1:'🏢',a2:'🏢',a3:'🏢',shoes:'👠',bags:'👜',wardrobe:'👗',birkin:'👜',jewels:'💎',watch:'⌚',horses:'🐎',villa:'🏖️',art:'🖼️',yacht:'🛥️',vineyard:'🍇',golfclub:'⛳',island:'🏝️',superyacht:'🛳️',trophyhotel:'🏨',masterpiece:'🖼️'};
+function mkIcon(d){return d.k==='p'||d.type?picon(d.type):'<span class="mkicon" aria-hidden="true">'+(MK_ICON[d.id]||(/^h\d/.test(d.id)?'🏠':'💎'))+'</span>';}
+async function mkLoad(tab,force){if(!ACC||mkBusy[tab])return;if(!force&&mkData[tab]&&Date.now()-(mkT[tab]||0)<45000)return;mkT[tab]=Date.now();mkBusy[tab]=true;
+ try{const d=await api('GET',tab==='mine'?'/api/market/mine':'/api/market?scope='+tab+'&region='+encodeURIComponent(S.region||''));mkData[tab]=d.items||[];if(d.fee!=null)mkFee=d.fee;}catch(e){if(!mkData[tab])mkData[tab]=[];}
+ mkBusy[tab]=false;if(typeof curTab!=='undefined'&&curTab==='property')render();}
+function mkWho(d){const a=d.k==='a'?ASSETS.find(x=>x.id===d.id):null;return a;}
+function mkRow(d){const pr=d.price,v=d.value,off=Math.round(100*(1-pr/v));let title=d.name,sub='',btn='';
+ if(d.k==='p'){const t=ptype(d.type),c=pcity(d.city);if(!t||!c)return'';sub=t.name+' · '+esc(c.name);
+  btn=!cityOpen(c)?'<button class="btn small" disabled>Unlock '+esc(c.name)+' first</button>':'<button class="btn small '+(S.cash>=pr?'primary':'')+'" data-a="mkbuy" data-v="'+d.lid+'"'+(S.cash>=pr?'':' disabled')+'>Buy · '+fmt(pr)+'</button>';}
+ else{const a=mkWho(d);if(!a)return'';if(a.g&&S.g&&a.g!==S.g)return'';title=a.name;sub=a.kind;
+  btn=(!a.stack&&has(a.id))?'<button class="btn small" disabled>You already own one</button>':'<button class="btn small '+(S.cash>=pr?'primary':'')+'" data-a="mkbuy" data-v="'+d.lid+'"'+(S.cash>=pr?'':' disabled')+'>Buy · '+fmt(pr)+'</button>';}
+ return'<div class="ptype banklot mklot"><div class="top">'+mkIcon(d)+'<div class="ptx"><b>'+esc(title)+'</b><span>'+sub+' · worth '+fmt(v)+'</span><span class="bankmeta">'+(off>0?'<em>'+off+'% below value</em>':off<0?'<em class="mkup">'+(-off)+'% above value</em>':'<em class="mkeq">at value</em>')+' · sold by '+esc(d.from||'a player')+(mkTab==='world'&&d.region?' in '+esc((countryRow(d.region)||{name:d.region}).name):'')+' · '+Math.max(1,d.daysLeft)+' day'+(d.daysLeft>1?'s':'')+' left</span></div></div><div class="chips">'+btn+'</div></div>';}
+function mkMineRow(d){const net=d.price*(1-mkFee);
+ return'<div class="ptype mklot"><div class="top">'+mkIcon(d)+'<div class="ptx"><b>'+esc(d.k==='a'&&mkWho(d)?mkWho(d).name:d.name)+'</b><span>Asking '+fmt(d.price)+' · worth '+fmt(d.value)+'</span><span class="bankmeta">'+(d.status==='sold'?'<em>Sold</em> · you get '+fmt(net)+' after the '+Math.round(mkFee*100)+'% fee':'For sale · '+Math.max(1,d.daysLeft)+' day'+(d.daysLeft>1?'s':'')+' left · you would get '+fmt(net))+'</span></div></div>'+
+  (d.status==='open'?'<div class="chips"><button class="btn ghost small" data-a="mkcancel" data-v="'+d.lid+'">Take it back</button></div>':'')+'</div>';}
+function bankLotsHTML(){if(!ACC||!S||!S.inds.length)return null;
+ const tabs='<div class="authtabs mktabs" role="tablist" style="grid-template-columns:1fr 1fr 1fr">'+[['local','Local'],['world','Worldwide'],['mine','My listings']].map(x=>'<button role="tab" aria-selected="'+(mkTab===x[0])+'" data-a="mktab" data-v="'+x[0]+'">'+x[1]+'</button>').join('')+'</div>';
+ let h=tabs+(mkMsg?'<p class="amsg" style="margin:10px 0 0">'+mkMsg+'</p>':'')+(bankMsg?'<p class="amsg" style="margin:10px 0 0">'+bankMsg+'</p>':'');
+ const L=mkData[mkTab];if(L===null){mkLoad(mkTab,true);return h+'<p class="seghint">Loading…</p>';}mkLoad(mkTab);
+ if(mkTab==='mine'){const open=L.filter(x=>x.status==='open').length;
+  return h+'<p class="seghint">'+(open?'You have '+open+' item'+(open>1?'s':'')+' for sale. ':'Nothing for sale yet. ')+'To sell, press <b>List for players</b> on a building (Property tab) or a luxury item, car or home (Life tab). You get the price minus a '+Math.round(mkFee*100)+'% fee. Unsold items come back after 7 days.</p>'+L.map(mkMineRow).join('');}
+ let rows=L.map(mkRow).join('');
+ if(mkTab==='local'){const b=bankRowsHTML();rows=(bankLots&&bankLots.length?'<h4 class="mkh">Bank auctions · 30% off</h4>'+b:'')+(rows?'<h4 class="mkh">From players in your country</h4>'+rows:'');}
+ return h+(rows||'<p class="seghint">'+(mkTab==='local'?'Nothing for sale in your country right now. Be the first: press <b>List for players</b> on anything you own.':'Nothing for sale around the world right now.')+'</p>');}
+function mkList(v){if(!S||S.over)return;const k=v[0],ref=v.slice(1);let name,value,obj=null;
+ if(k==='p'){obj=S.props[+ref];if(!obj||obj.left>0)return;name=obj.name;value=propValue1(obj);}
+ else{const a=ASSETS.find(x=>x.id===ref);if(!a||!has(ref))return;name=a.name;value=a.price*af(ref);}
+ mkPending={k,ref,obj,name,value};const P=[[.7,'Quick sale'],[.9,'Priced to sell'],[1,'At value'],[1.15,'A little above value'],[1.3,'Premium'],[1.5,'Top price']];
+ showCard('Sell to other players',esc(name)+' is worth <b>'+fmt(value)+'</b>. Pick your asking price. Players in your country'+(k==='p'&&['nairobi','mombasa'].includes(obj.city)?'':' and around the world')+' can buy it. When it sells you get the price minus a '+Math.round(mkFee*100)+'% market fee. It leaves your empire while it is for sale; you can take it back any time, and if nobody buys it in 7 days it comes back to you.',
+  P.map(x=>'<button class="choice" data-a="mkpost" data-v="'+x[0]+'"><b>Ask '+fmt(value*x[0])+'</b><span>'+x[1]+(x[0]!==1?' · '+Math.round(Math.abs(x[0]-1)*100)+'% '+(x[0]<1?'below':'above')+' value':'')+' · you get '+fmt(value*x[0]*(1-mkFee))+'</span></button>').join('')+'<button class="choice" data-a="closecard"><b>Keep it</b><span>Not now.</span></button>');}
+function mkTakeAsset(id){const a=ASSETS.find(x=>x.id===id);S.assets[id]--;S.cust=S.cust||{};S.cust[id]=[];
+ if(a.kind==='Homes'&&homeTier()<0){S.rent=a.tier;log('You now rent a '+a.name.lc()+' instead.','');}if(a.jet&&S.travel===4)S.travel=3;}
+function mkGive(k,d,restore){if(k==='p'){const t=ptype(d.type),c=pcity(d.city);if(!t||!c)return;S.props=S.props||[];S.props.push({type:d.type,city:d.city,name:restore?d.name:propName(t,c),af:d.af,left:0,total:d.total||t.build,occ:d.occ||.9,anchor:0});propUnlockCheck();return;}
+ const a=ASSETS.find(x=>x.id===d.id);if(!a)return;if(!a.stack&&has(a.id)){S.cash+=d.value*.9;log(a.name+' came back, but you already own one, so it was sold for '+fmt(d.value*.9)+'.','');return;}
+ S.assets[a.id]=has(a.id)+1;S.af=S.af||{};if(restore||!S.af[a.id])S.af[a.id]=d.af||1;if(MODELS[a.id]){S.gen=S.gen||{};S.gen[a.id]=d.gen||0;}
+ if(!restore&&a.lux&&a.rep)addRep(a.rep);if(a.kind==='Homes'&&S.rent>=0&&a.tier>=S.rent)S.rent=-1;}
+async function mkPost(pct){const P=mkPending;closeModal();if(!P||!S)return;pct=+pct;let k=P.k,data;
+ if(k==='p'){const i=S.props.indexOf(P.obj);if(i<0)return;data=bankLot(P.obj);S.props.splice(i,1);}
+ else{if(!has(P.ref))return;data={id:P.ref,name:P.name,af:af(P.ref),gen:(S.gen||{})[P.ref]||0,value:Math.round(P.value)};mkTakeAsset(P.ref);}
+ const price=Math.round(P.value*pct);mkPending=null;afterChange();
+ try{await api('POST','/api/market/list',{k,item:data,price,region:S.region||'',g:S.g||''});log('You put '+P.name+' up for sale at '+fmt(price)+'.','');mkMsg='Listed. '+esc(P.name)+' is for sale at '+fmt(price)+'.';mkTab='mine';mkData.mine=null;save();}
+ catch(e){mkGive(k,data,true);showCard('Could not list it',esc(e.message),'<button class="choice" data-a="closecard"><b>OK</b></button>');}
+ afterChange();render();}
+function mkFind(lid){for(const t of['local','world','mine']){const x=(mkData[t]||[]).find(d=>d.lid===lid);if(x)return x;}return null;}
+async function mkBuy(lid){const d=mkFind(lid);if(!d||!S||S.over||S.cash<d.price)return;mkMsg='';bankMsg='';
+ try{const r=await api('POST','/api/market/buy',{id:lid});const it=r.item;S.cash-=it.price;mkGive(it.k,it,false);
+  const nm=it.k==='a'&&mkWho(it)?mkWho(it).name:it.name;log('You bought '+nm+' from '+(it.from||'a player')+' for '+fmt(it.price)+'.','gold');
+  mkMsg='Yours: '+esc(nm)+' for '+fmt(it.price)+'.';try{coinBurst(14);}catch(e){}save();}
+ catch(e){mkMsg=esc(e.message);}mkData.local=mkData.world=null;afterChange();render();}
+async function mkCancel(lid){try{const r=await api('POST','/api/market/cancel',{id:lid});const it=r.item;mkGive(it.k,it,true);log('You took '+(it.k==='a'&&mkWho(it)?mkWho(it).name:it.name)+' off the market.','');mkMsg='Taken off the market and back in your empire.';save();}
+ catch(e){mkMsg=esc(e.message);}mkData.mine=null;afterChange();render();}
+let mkSettleTries=0;
+async function mkSettle(){if(!ACC||!S||S.over)return;if(current||!$('modal').hidden||acctView){if(++mkSettleTries<20)setTimeout(mkSettle,3000);return;}
+ let r;try{r=await api('POST','/api/market/settle',{});}catch(e){return;}const lines=[];
+ (r.sold||[]).forEach(it=>{const nm=it.k==='a'&&mkWho(it)?mkWho(it).name:it.name;S.cash+=it.net;log('Sold on the marketplace: '+nm+'. You received '+fmt(it.net)+' after the fee.','good');lines.push('<li><span>💰</span><span><b>'+esc(nm)+' sold</b>You received '+fmt(it.net)+' after the '+Math.round(mkFee*100)+'% fee.</span></li>');});
+ (r.back||[]).forEach(it=>{const nm=it.k==='a'&&mkWho(it)?mkWho(it).name:it.name;mkGive(it.k,it,true);log(nm+' did not sell in 7 days and is back in your empire.','');lines.push('<li><span>↩️</span><span><b>'+esc(nm)+' did not sell</b>It is back in your empire. Try a lower price.</span></li>');});
+ if(!lines.length)return;afterChange();render();save();
+ const show=()=>{if(current||!$('modal').hidden){setTimeout(show,3000);return;}showCard('Marketplace news','While you were away:<ul class="awaylist">'+lines.join('')+'</ul>','<button class="choice" data-a="closecard"><b>Great</b></button>');};show();}
 function hideSplash(){const sp=document.getElementById('splash');if(!sp||sp.classList.contains('gone'))return;sp.classList.add('gone');setTimeout(()=>sp.remove(),400);}
 function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustlempires</div>';
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
