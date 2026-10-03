@@ -1161,7 +1161,7 @@ function renderToday(){const el=$('today');if(!el)return;if(!S.inds.length||S.ov
 let tourOn=false,tourI=0;
 const panelOf=id=>{const e=$(id);return e?(e.closest('.panel')||e.parentElement):null;};
 const TOUR=[
- {t:'Welcome to Hustlempires',x:()=>'You are 24, with a small stake and a big idea. Your goal: grow it into a <b>'+(curLocal()?fmt(1e9):'$1 billion')+'</b> empire. This short tour shows you where everything is. Use <b>Next</b> or your arrow keys.'},
+ {t:'Welcome to Hustlempires',x:()=>'You are 24, with a small stake and a big idea. Your first goal: <b>'+(curLocal()?fmt(1e6):'$1 million')+'</b>. Then a billion, a trillion and beyond. This short tour shows you where everything is. Use <b>Next</b> or your arrow keys.'},
  {el:()=>document.querySelector('.note .head-l'),t:'Your scoreboard',x:()=>'<b>Net worth</b> is everything you own minus what you owe. Reach '+fmt(1e9)+' to win.<ul><li><b>Cash</b>: money you can spend right now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li><li><b>Debt</b>: interest on it eats your profit.</li></ul>'},
  {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Police</b> attention rises with every Darkworld deal you take. Too much brings audits, raids, then arrest.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:()=>'Your net worth over time, and your progress to '+fmt(1e9)+'. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
@@ -1225,6 +1225,7 @@ function genMarket(){const px={},pxh={};const common=[];for(let t=0;t<24;t++)com
 let S=fresh();
 function migrate(){
 if(!S.y0)S.y0=new Date().getFullYear();
+if(S.mile==null)S.mile=S.month>0?mileLevel(Math.max(0,...(S.hist||[0]))):-1;
 /* foundation causes now cost $250B each to solve: reopen causes solved under the old, cheaper goals, keeping what was given */
 if(S.fdn&&!S.fdn.c2t){const F=S.fdn,old={water:8e8,malaria:1.5e9,education:6e8,climate:1e9,hunger:1.2e9,jobs:5e8,wildlife:4e8,health:2e9};let n=0;
  F.stage=F.stage||{};F.prog=F.prog||{};
@@ -1584,6 +1585,19 @@ function condTick(){const U=condUntreated();if(!U.length)return false;addHealth(
  if(S.month%3===0)log('Untreated '+U.map(k=>CONDS[k].name.toLowerCase()).join(' and ')+' cost you '+(COND_DROP*U.length)+' health this month. Treating it now costs '+fmt(condFix(U[0]))+'.','bad');
  return false;}
 const UNTREATED_D='Untreated: health −'+5+' every month until you treat it. Treating it later costs over a third of everything you own, and left alone it can kill you.';
+/* ================= Milestones: every ×10 from a million to a quadrillion gets its own celebration, and points to the next one ================= */
+const MILES=[1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13,1e14,1e15];
+const MILE_LINE=['Your first million. The days of counting coins are behind you.','Ten million. People in town now ask you for advice.','A hundred million. Banks call you, not the other way round.',
+ 'A billion. You made the list.','Ten billion. Presidents take your calls.','A hundred billion. Your empire is bigger than some countries.','A trillion. One of the richest people who ever lived.',
+ 'Ten trillion. Economists write papers about you.','A hundred trillion. There is barely anything left to buy.','A quadrillion. Nobody in history has come close.'];
+const mileLevel=nw=>{let i=-1;MILES.forEach((m,j)=>{if(nw>=m)i=j;});return i;};
+function mileCheck(nw){if(S.mile==null)S.mile=-1;const lv=mileLevel(nw);if(lv<=S.mile)return null;S.mile=lv;addPts(10*(lv+1));
+ const y=Math.floor(S.month/12),mo=S.month%12,next=MILES[lv+1];
+ const fam=S.spouse?'married to '+S.spouse.name:S.exes?'divorced':'single';
+ const body='<b>Congratulations!</b> '+MILE_LINE[lv]+' You built a '+fmt(nw)+' empire in '+(y?y+' year'+(y>1?'s':'')+(mo?' and ':''):'')+(mo||!y?mo+' month'+(mo===1?'':'s'):'')+', from '+(S.gnum>1?'an inheritance of '+fmt(S.hist[0]):fmt(S.hist[0]||1000))+'. You are '+age()+', '+fam+', with happiness at '+Math.round(S.happy)+' out of 100.'+
+  (next?'<br><br><b>Next milestone: '+fmt(next)+'.</b> Keep building.':'<br><br><b>There is no higher milestone.</b> You are the richest person in the history of the game.');
+ log('Milestone: your empire passed '+fmt(MILES[lv])+'.','gold');return['You hit '+fmt(MILES[lv]),body];}
+function mileBar(nw){const lv=mileLevel(nw),lo=lv<0?1e3:MILES[lv],hi=MILES[lv+1]||MILES[MILES.length-1]*10;return{lo,hi,p:clamp((Math.log10(Math.max(nw,lo))-Math.log10(lo))/(Math.log10(hi)-Math.log10(lo)),0,1)};}
 function careFee(){return CARE[S.care||0].fee+Object.keys(S.conds||{}).reduce((t,k)=>t+(S.conds[k].managed&&CONDS[k]?condFee(k):0),0);}
 function healthTarget(){const a=age();let t=92-Math.max(0,a-30)*.75+CARE[S.care||0].h+({hustle:-10-Math.max(0,a-45)*.3,balanced:0,family:5})[S.mode]+(S.happy-55)/5-S.heat/12;
  Object.keys(S.conds||{}).forEach(k=>{t-=S.conds[k].managed?CONDS[k].mhit:CONDS[k].hit;});t+=(typeof lifeX==='function'?lifeX():0)*.6;return clamp(t,3,100);}
@@ -2726,11 +2740,8 @@ function nextMonth(){
  const ti=titleIdx(nw);if(ti>S.title){addPts(5*(ti-S.title)*ti);wkInc('ranks',ti-S.title);S.title=ti;rankUpFx(TITLES[ti][1],ti);S.lifeSince=S.month;S.lifePending=true;log('New rank: '+TITLES[ti][1]+'.','gold');flash();}
  if(ti<S.title)S.title=ti;
  if(ti>S.peak){const before=SLOTS[S.peak];S.peak=ti;if(SLOTS[ti]>before)S.indPending=true;}
- if(nw>=1e9&&!S.won){S.won=true;setTimeout(confettiFx,200);addPts(S.gnum>1||S.headstart?50:100);checkAch();save();render();
-  const y=Math.floor(S.month/12),mo=S.month%12;
-  const fam=S.spouse?'Married to '+S.spouse.name+' (your '+spW()+')':S.exes?'Divorced '+(S.exes>1?S.exes+' times':'once'):'Single';
-  showCard('You are a billionaire','You built a '+fmt(nw)+' empire in '+y+' years and '+mo+' months, from '+(S.gnum>1?'an inheritance of '+fmt(S.hist[0]):fmt(S.hist[0]||1000)+' and a '+(R?R.biz.kiosk[0].lc():'street kiosk'))+'. You are '+age()+'. '+fam+', '+S.kids.length+' child'+(S.kids.length===1?'':'ren')+', happiness '+Math.round(S.happy)+' out of 100. Keep going, or start again and beat your time.',
-   '<button class="btn primary" data-a="close">Keep building</button><button class="btn" data-a="reset">New game</button>');return;}
+ if(nw>=1e9&&!S.won){S.won=true;addPts(S.gnum>1||S.headstart?50:100);checkAch();}
+ {const mc=mileCheck(nw);if(mc){save();render();setTimeout(confettiFx,200);showCard(mc[0],mc[1],'<button class="btn primary" data-a="close">Keep building</button>');return;}}
  S.cool--;
  {const ce=crisisTick();if(ce&&!current){S.cool=Math.max(S.cool,2);afterChange();openEvent(ce);return;}}
  wkInc('months');if(S.happy>75)wkInc('happy');if(S.month%12===0)addPts(3);
@@ -2889,7 +2900,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  $('acctchip').innerHTML=ACC?avatar(ACC)+'<span><b>'+esc(ACC.name)+'</b><small>'+esc(ACC.company)+' · switch</small></span>':'<span><b>No account</b><small>Create one to play</small></span>';
  $('fdn-title').textContent='The '+BR()+' Foundation';
  countUp($('nw'),nw,v=>(curLocal()?v*R.rate<1e7:v<1e6)?fmtFull(v):fmt(v));
- {const tk=document.querySelector('.ticks');if(tk)tk.innerHTML='<span>'+fmt(1e3)+'</span><span>'+fmt(1e6)+'</span><span>'+fmt(1e9)+' goal</span>';}
+ {const tk=document.querySelector('.ticks'),mb=mileBar(nw);if(tk)tk.innerHTML='<span>'+fmt(mb.lo)+'</span><span>'+fmt(Math.sqrt(mb.lo*mb.hi))+'</span><span>'+fmt(mb.hi)+' next milestone</span>';}
  $('rank').textContent=TITLES[titleIdx(nw)][1];$('rank').dataset.tier=titleIdx(nw);
  countUp($('cash'),S.cash,fmt);$('cash').className=S.cash<0?'neg':'';
  $('profit').textContent=(F.net>=0?'+':'')+fmt(F.net);$('profit').className=F.net>=0?'pos':'neg';
@@ -2921,7 +2932,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  $('attention').innerHTML=A.length?A.map(a=>'<div class="alert"><span class="sev '+(a[0]==='bad'?'':a[0])+'"></span><p>'+a[1]+'</p>'+(a[2]&&a[3]?'<button class="btn small" data-a="tab" data-v="'+a[2]+'">'+a[3]+'</button>':'<span></span>')+'</div>').join('')
   :'<p class="allclear">All clear. Press Next month.</p>';
  $('badge').hidden=!urgent;$('badge').textContent=urgent;
- $('ladder').style.width=(clamp((Math.log10(Math.max(nw,1000))-3)/6,0,1)*100)+'%';
+ $('ladder').style.width=(mileBar(nw).p*100)+'%';
 
  /* businesses */
  const bmBase=baseMult()*S.s*buffMult()*modeMult()*moodMult()*F.E.mult*lifeMult()*(1-S.float);
