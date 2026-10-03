@@ -641,6 +641,7 @@ table.fin tr.fsec td{padding-top:12px;font-size:11px;letter-spacing:.1em;text-tr
 table.fin tr.sub td{font-weight:700;border-top:1px solid var(--muted)}table.fin tr.grand td{font-weight:800;font-size:15px;border-top:2px solid var(--ink);border-bottom:3px double var(--ink)}
 html.gm table.fin tr.grand td{border-color:#ffd36b}
 .venue>b{font-size:14px}.venue .vsub{font-size:12.5px;color:var(--muted)}.venue .vsub b{font:inherit;font-weight:700;font-size:inherit;letter-spacing:0}.venue .chips{margin-top:2px}
+.nameinput{display:block;width:100%;box-sizing:border-box;margin-top:12px;padding:12px 14px;font-size:18px;border-radius:10px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:inherit;font-family:inherit}.nameinput:focus{outline:2px solid #ffc93c;border-color:transparent}
 </style>
 
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
@@ -1471,7 +1472,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='7efff4071c89';let updShown=false;
+const APP_VER='0b787b31d7af';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -1994,6 +1995,13 @@ function biggest(min){let best=null;BIZ.forEach(b=>{if(owned(b.id)>=(min||1)&&(!
 function schoolExpect(){return clamp(Math.floor(titleIdx(netWorth())/2),0,3);}
 function newKid(){const n=S.kids.map(k=>k.name);const name=pick(KIDNAMES.filter(x=>!n.includes(x)).concat(n.length>=KIDNAMES.length?['Junior']:[]));
  S.kids.push({name,born:S.month,school:0,best:0,withEx:false,grown:false});return name;}
+/* the player names the baby: type a name, or tap one of the suggestions */
+function cleanKidName(v){v=String(v||'').replace(/<[^>]*>/g,'').replace(/[^\p{L}\p{M}' -]/gu,'').replace(/\s+/g,' ').trim().slice(0,20);return v.split(' ').map(w=>w?w.charAt(0).toUpperCase()+w.slice(1):w).join(' ');}
+function nameEvent(){const k=S.kids[S.kids.length-1];if(!k)return null;const taken=S.kids.map(x=>x.name),sug=KIDNAMES.filter(x=>!taken.includes(x)).sort(()=>rnd()-.5).slice(0,2);
+ const set=n=>{const old=k.name;k.name=n;S.log.forEach(l=>{if(l.m===S.month&&l.t)l.t=l.t.split(old).join(n);});return['You named your baby '+n+'. Welcome to the world, '+n+'!','life'];};
+ return{cat:'Family',title:'What will you name your baby?',focus:'#kidname',
+  text:'Your baby has arrived, healthy and loud. Type a name, or pick one below.<br><input id="kidname" class="nameinput" type="text" maxlength="20" autocomplete="off" placeholder="'+esc(k.name)+'" aria-label="Baby\'s name" onkeydown="event.stopPropagation();if(event.key===\'Enter\'){event.preventDefault();document.querySelector(\'#modal .choice\').click();}">',
+  choices:[{l:'Use this name',d:'The name you typed above. Leave it empty to keep '+k.name+'.',f(){const i=document.getElementById('kidname');return set(cleanKidName(i&&i.value)||k.name);}}].concat([k.name].concat(sug).map(n=>({l:n,d:'Name your baby '+n+'.',f(){return set(n);}})))};}
 
 /* ================= Events ================= */
 // cat: Business, Politics, Family, Social, Street, Economy
@@ -2140,8 +2148,8 @@ const EVENTS=[
    {l:'Stay focused on business',d:'−6 happiness.',f(){addHappy(-6);S.lastSplit=S.month;return['You chose the business over '+n+'.','life']}}]}},
  {id:'baby',cat:'Family',w:()=>S.kidsWant!=null&&S.kids.filter(k=>!k.withEx).length<S.kidsWant?3.5:1.6,when:()=>S.spouse&&S.kids.filter(k=>!k.withEx).length<(S.kidsWant!=null?S.kidsWant:4)&&S.month-S.spouse.since>9&&age()<55&&S.kids.every(k=>kidAge(k)>18),
   title:'A baby is on the way',text:()=>(S.g==='f'?'You are pregnant, and '+S.spouse.name+' is over the moon.':S.spouse.name+' is pregnant.')+' Childcare costs start at '+fmt(60)+' a month, and school fees follow in four years.',
-  choices:()=>[{l:'Throw a big baby shower',d:'Spend '+fmt(nwc(.003,200))+'. +10 spouse happiness.',f(){S.cash-=nwc(.003,200);const n=newKid();addSH(10);addHappy(10);return['Welcome to the world, '+n+'!','life']}},
-   {l:'Keep it simple',d:'+5 spouse happiness.',f(){const n=newKid();addSH(5);addHappy(8);return['Welcome to the world, '+n+'!','life']}}]},
+  choices:()=>[{l:'Throw a big baby shower',d:'Spend '+fmt(nwc(.003,200))+'. +10 spouse happiness.',f(){S.cash-=nwc(.003,200);newKid();addSH(10);addHappy(10);return['The baby shower was the party of the year.','life',nameEvent()]}},
+   {l:'Keep it simple',d:'+5 spouse happiness.',f(){newKid();addSH(5);addHappy(8);return['A quiet, happy family moment.','life',nameEvent()]}}]},
  {id:'anniv',cat:'Family',w:.9,when:()=>S.spouse&&S.month-S.spouse.since>11,title:'Your anniversary is this week',text:()=>S.spouse.name+' has been dropping hints for a month.',
   choices:()=>{const c=nwc(.005,300);return[{l:'A surprise trip to '+R.getaway,d:'Spend '+fmt(c)+'. +15 spouse happiness. Profit ×0.95 this month.',f(){S.cash-=c;addSH(15);addHappy(6);addBuff(.95,1,'Anniversary trip');return['A perfect anniversary in '+R.getaway+'.','life']}},
    {l:'Dinner at a nice restaurant',d:'+5 spouse happiness.',f(){S.cash-=Math.min(S.cash,150);addSH(5);return['A nice anniversary dinner.','life']}},
@@ -2856,7 +2864,7 @@ function evIconHTML(ev){const k=evIconKey(ev),x=EVI[k]||EVI.spark;return'<span c
 function openEvent(ev){current=ev;stopAuto();const m=$('modal');m.hidden=false;
  m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true" aria-labelledby="et">'+evIconHTML(ev)+'<span class="pill cat gold">'+ev.cat+'</span><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3 id="et">'+ev.title+'</h3><p>'+ev.text+'</p><div class="choices">'+
  ev.choices.map((c,i)=>'<button class="choice" data-a="choose" data-i="'+i+'"'+(c.dis?' disabled':'')+'><b>'+c.l+'</b><span>'+c.d+(c.dis?' Not enough cash.':'')+'</span></button>').join('')+'</div></div></div>';
- (m.querySelector('.choice:not(:disabled)')||m.querySelector('.choice')).focus();try{musicTick();}catch(e){}}
+ (m.querySelector('.choice:not(:disabled)')||m.querySelector('.choice')).focus();if(ev.focus){const f=m.querySelector(ev.focus);if(f)setTimeout(()=>f.focus(),60);}try{musicTick();}catch(e){}}
 /* ================= Industry risks: the dangers of each kind of business ================= */
 function riskBiz(ids){let best=null;ids.forEach(id=>{const b=BIZ.find(x=>x.id===id);if(b&&owned(id)>0&&(!best||b.cost>best.cost))best=b;});return best;}
 function riskClose(b,n,why){const k=Math.min(owned(b.id),n);if(k<=0)return'';S.owned[b.id]=owned(b.id)-k;log(why,'bad');return k===1?' One '+b.name.lc()+' was shut down for good.':' '+k+' of your '+b.name.lc()+' units were shut down for good.';}
