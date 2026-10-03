@@ -204,6 +204,13 @@ table.lt.small{min-width:0;font-size:12.5px}
 .aform input[type=password],.aform input[type=email]{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:15px;color:var(--ink)}
 .me{display:flex;align-items:center;gap:14px}
 .hook{margin:2px 0 4px}
+.moreopts{border:1px solid var(--line);border-radius:10px;padding:0 14px;margin:6px 0 2px}
+.moreopts[open]{padding-bottom:12px}
+.moreopts summary{cursor:pointer;list-style:none;padding:12px 0;display:flex;flex-direction:column;gap:2px}
+.moreopts summary::-webkit-details-marker{display:none}
+.moreopts summary b::after{content:' ▾';color:var(--brass)}.moreopts[open] summary b::after{content:' ▴'}
+.moreopts summary span{font-size:12.5px;color:var(--muted)}
+.gopts.need{outline:2px solid var(--red);outline-offset:4px;border-radius:8px}
 .hook-kick{display:inline-flex;align-items:center;gap:6px;margin:0 0 10px;padding:5px 12px;border-radius:20px;background:var(--brass);color:#14110c;font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.05em;text-transform:uppercase}
 .hook-big{margin:0;font-family:var(--display);font-weight:900;font-size:30px;line-height:1.08;text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
 .hook-big em{font-style:normal;color:var(--brass)}
@@ -1194,7 +1201,7 @@ function genderEvent(){const next=()=>!S.inds.length&&!S.over&&!S.won?industryEv
  return{cat:'Your profile',title:'One quick question',text:'So your story gets the details right: are you a man or a woman?'+(S.spouse?' Your marriage records will be updated to match.':' Your future wife or husband will be chosen to match.'),
   choices:[{l:'I\'m a man',d:'You will marry a wife.',f(){setGender('m');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your wife.':'Profile updated.','',next()]}},
    {l:'I\'m a woman',d:'You will marry a husband.',f(){setGender('f');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your husband.':'Profile updated.','',next()]}}]};}
-function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else if(S.tourDone&&bonusDue())openEvent(bonusEvent());else maybeTour();}
+function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else if(S.tourDone&&S.month>0&&bonusDue())openEvent(bonusEvent());else maybeTour();}
 /* ================= Daily bonus & daily deal (real-world days) ================= */
 const dayKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const yesterdayKey=()=>{const d=new Date();d.setDate(d.getDate()-1);return dayKey(d);};
@@ -1263,7 +1270,7 @@ const TOUR=[
 ];
 function maybeTour(){paintGuide();}
 function startTour(){if(current)return;stopAuto();tourOn=true;tourI=0;paintTour();}
-function endTour(){if(!tourOn)return;tourOn=false;const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(bonusDue()&&!current)openEvent(bonusEvent());}
+function endTour(){if(!tourOn)return;tourOn=false;const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(S.month>0&&bonusDue()&&!current)openEvent(bonusEvent());}
 function tourGo(d){const n=tourI+d;if(n<0)return;if(n>=TOUR.length){endTour();return;}tourI=n;paintTour();}
 function tourScroll(el){if(!el){return;}if(el.closest('.note')){window.scrollTo(0,0);return;}
  const bar=document.querySelector('.bar'),q=$('quick'),hdr=(bar?bar.offsetHeight:0)+(q?q.offsetHeight:0)+14,r=el.getBoundingClientRect(),vh=innerHeight;
@@ -1396,11 +1403,12 @@ function authForm(){const su=authMode==='signup';const inv=su&&refInfo?'<p class
   (su?'<p class="hint">3 to 20 characters: letters, numbers, dots and underscores. You log in with this.</p>':'')+
   '<label for="acc-pass">Password</label><input id="acc-pass" type="password" maxlength="128" autocomplete="'+(su?'new-password':'current-password')+'" required>'+(su?'<p class="hint">At least 8 characters.</p>':'')+
   (su?'<label for="acc-email">Email</label><input id="acc-email" type="email" maxlength="120" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required><p class="hint">Only used to reset your password if you forget it.</p>':'');
- if(su)h+='<label for="acc-name">Your name</label><input id="acc-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Wanjiku Kamau" required>'+
+ if(su)h+='<label for="acc-name">Your name</label><input id="acc-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Wanjiku Kamau" required>'+GENDER_FS+
+  '<details class="moreopts"><summary><b>More options</b><span>Company brand, home town, country, money, starting background and colour. All optional: you can skip this.</span></summary>'+
   '<label for="acc-company">Your company brand</label><input id="acc-company" maxlength="16" placeholder="e.g. Savanna"><p class="hint">Used across your empire: <i>Brand</i> Racing, <i>Brand</i> Tower Dubai, the <i>Brand</i> Foundation.</p>'+
-  '<label for="acc-town">Home town</label><select id="acc-town">'+(countryRow(detectCountry())||{towns:TOWNS}).towns.map(t=>'<option>'+esc(t)+'</option>').join('')+'</select>'+GENDER_FS+regionFormHTML(detectCountry(),'USD')+
+  '<label for="acc-town">Home town</label><select id="acc-town">'+(countryRow(detectCountry())||{towns:TOWNS}).towns.map(t=>'<option>'+esc(t)+'</option>').join('')+'</select>'+regionFormHTML(detectCountry(),'USD')+
   '<fieldset><legend>Starting background</legend>'+BGS.map((b,i)=>'<label class="bgopt"><input type="radio" name="acc-bg" id="acc-bg-'+b.id+'" value="'+b.id+'"'+(i===0?' checked':'')+'><span><b>'+b.name+'</b><span>'+dollars(b.desc)+'</span></span></label>').join('')+'</fieldset>'+
-  '<fieldset><legend>Avatar colour</legend><div class="swatches">'+AVCOL.map((c,i)=>'<label class="sw"><input type="radio" name="acc-col" id="acc-col-'+i+'" value="'+i+'"'+(i===0?' checked':'')+' aria-label="Colour '+(i+1)+'"><span style="background:'+c+'"></span></label>').join('')+'</div></fieldset>';
+  '<fieldset><legend>Avatar colour</legend><div class="swatches">'+AVCOL.map((c,i)=>'<label class="sw"><input type="radio" name="acc-col" id="acc-col-'+i+'" value="'+i+'"'+(i===0?' checked':'')+' aria-label="Colour '+(i+1)+'"><span style="background:'+c+'"></span></label>').join('')+'</div></fieldset></details>';
  return h+'<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="acc-submit">'+(su?'Create account and start':'Log in')+'</button>'+(su?'':'<button type="button" class="btn ghost" data-a="forgotview">Forgot your password?</button>')+'</div></form>';}
 function authHook(){const su=authMode!=='login';
  return'<div class="hook">'+(su?'<p class="hook-kick"><span aria-hidden="true">✨</span> Manifestation starts here!</p>':'')+'<p class="hook-big">'+(su?'Start with <em>'+fmt(1000)+'</em>.<br>Die a <em>legend</em>.':'Your empire <em>missed you</em>.')+'</p><p class="hook-sub">'+(su?'Free to play. No downloads. Your first hustle is one tap away.':'Your businesses kept running. Your rivals kept climbing. Time to take back your throne.')+'</p></div>';}
@@ -1505,7 +1513,7 @@ async function submitReset(){const a=$('rs-pass').value,b=$('rs-pass2').value,bt
  if(a.length<8)return showErr('Passwords need at least 8 characters.');if(a!==b)return showErr('The two passwords don\'t match.');
  btn.disabled=true;btn.textContent='Saving…';try{const d=await api('POST','/api/reset',{token:resetToken,password:a});resetToken='';startWith(d.user,d.save,d.bill,d.ver);}
  catch(e){btn.disabled=false;btn.textContent='Save new password';showErr(e.message);}}
-function showErr(msg){const e=$('acc-err');if(e){e.textContent=msg;e.hidden=false;}}
+function showErr(msg){const e=$('acc-err');if(e){e.textContent=msg;e.hidden=false;try{e.scrollIntoView({block:'center',behavior:'smooth'});}catch(x){}}}
 /* anonymous visit counting: a random id per browser, so the admin can see how many people open the game but never sign up */
 function visitorId(){try{let v=localStorage.getItem('hs-vid');if(!v){v=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(36).padStart(2,'0')).join('').replace(/[^a-z0-9]/gi,'').slice(0,20);if(v.length<12)v=(v+Math.random().toString(36).slice(2)).slice(0,20);localStorage.setItem('hs-vid',v);}return v;}catch(e){return'';}}
 let visitFormSent=false;
@@ -1516,7 +1524,7 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
  let body={username,password,vid:visitorId()};
  if(authMode==='signup'){const name=$('acc-name').value.trim();if(!name)return showErr('Enter your name.');if(password.length<8)return showErr('Passwords need at least 8 characters.');
   const email=$('acc-email').value.trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))return showErr('Enter a valid email address. It\'s how you reset your password.');
-  signupGender=(document.querySelector('input[name="acc-g"]:checked')||{}).value||'';if(!signupGender)return showErr('Choose whether you are a man or a woman.');
+  signupGender=(document.querySelector('input[name="acc-g"]:checked')||{}).value||'';if(!signupGender){const g=document.querySelector('.gopts');if(g){g.classList.add('need');g.scrollIntoView({block:'center',behavior:'smooth'});}return showErr('One more thing: choose whether you are a man or a woman (just above).');}
   signupRegion=($('acc-region')||{}).value||detectCountry();signupCur=(document.querySelector('input[name="acc-cur"]:checked')||{}).value||'USD';
   body=Object.assign(body,{ref:refCode||undefined,email,name,company:$('acc-company').value.trim()||'Savanna',town:$('acc-town').value,bg:(document.querySelector('input[name="acc-bg"]:checked')||{}).value||'hustler',color:+((document.querySelector('input[name="acc-col"]:checked')||{}).value||0)});}
  btn.disabled=true;btn.textContent=authMode==='signup'?'Creating your account…':'Logging in…';
@@ -1544,7 +1552,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='0264faabd139';let updShown=false;
+const APP_VER='bd094c38a609';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -3039,8 +3047,8 @@ function closeModal(){$('modal').hidden=true;$('modal').innerHTML='';}
 /* ================= Turn ================= */
 function nextMonth(){
  if(!ACC||acctView||S.over||current)return;
- if(bonusDue()){openEvent(bonusEvent());return;}
- if(openCal())return;
+ if(S.month>0&&bonusDue()){openEvent(bonusEvent());return;}
+ if(S.month>0&&openCal())return;
  const f=flows(true);S.cash+=f.net;S.last=f;plRecord(f);S.month++;
  ASSETS.forEach(a=>{if(has(a.id)||S.af[a.id]){S.af[a.id]=Math.max(.3,af(a.id)*(1+a.drift-.003*behind(a.id)+(rnd()-.5)*(a.vol||.004)));}});
  S.buffs.forEach(b=>b.months--);S.buffs=S.buffs.filter(b=>b.months>0);
@@ -3853,7 +3861,7 @@ function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
 function cheapestBuy(){const bs=[...document.querySelectorAll('.tabpane[data-tab="business"] [data-a="buy"]')];return bs.find(b=>!b.disabled)||bs[0]||null;}
 function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.id='guide';g.className='guide';g.setAttribute('role','status');document.body.appendChild(g);}
  document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));
- const mo=$('modal'),st=(current||(mo&&!mo.hidden))?null:guideStep();if(!st){g.hidden=true;return;}
+ const mo=$('modal'),st=(current||(mo&&!mo.hidden)||(guideSnooze&&Date.now()-guideSnooze<12000))?null:guideStep();if(!st){g.hidden=true;return;}
  const unit=(BIZ.filter(b=>S.inds.includes(b.ind)).sort((a,b)=>unitCost(a,0)-unitCost(b,0))[0]||{name:'business'});
  if(st==='buy'){g.innerHTML=curTab==='business'?'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Press the glowing <b>Open</b> button on the '+esc(unit.name)+'. It earns money for you every month.</p>'
   :'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Your empire starts with one '+esc(unit.name.lc())+'. Go to the <b>Business</b> tab and press <b>Open</b>. It earns money for you every month.</p><div class="chips"><button class="btn primary small" data-a="guidego" data-v="buy">Show me</button></div>';
@@ -3862,7 +3870,8 @@ function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.
   $('next').classList.add('coach');$('auto').classList.add('coach');}
  g.insertAdjacentHTML('afterbegin','<button class="gclose" data-a="guideclose" aria-label="Close the guide" title="Close">&times;</button>');g.hidden=false;}
 ['openEvent','showCard','closeModal'].forEach(n=>{const f=window[n];if(typeof f==='function')window[n]=function(){const r=f.apply(this,arguments);try{paintGuide();}catch(e){}return r;};});
-function guideClose(){S.guideDone=true;document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));paintGuide();save();}
+let guideSnooze=0;
+function guideClose(){if(S&&S.month<1&&!S.over){guideSnooze=Date.now();paintGuide();clearTimeout(guideClose.t);guideClose.t=setTimeout(()=>{guideSnooze=0;paintGuide();},12000);return;}S.guideDone=true;document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));paintGuide();save();}
 function guideGo(v){if(v==='buy'){showTab('business');setTimeout(()=>{const b=cheapestBuy();if(b){b.scrollIntoView({block:'center',behavior:'smooth'});}paintGuide();},60);}
  else{window.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{const n=$('next');if(n)n.scrollIntoView({block:'center',behavior:'smooth'});},100);}}
 function nextClick(){if(S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){

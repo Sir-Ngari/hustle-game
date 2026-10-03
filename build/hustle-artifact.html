@@ -1115,7 +1115,7 @@ function genderEvent(){const next=()=>!S.inds.length&&!S.over&&!S.won?industryEv
  return{cat:'Your profile',title:'One quick question',text:'So your story gets the details right: are you a man or a woman?'+(S.spouse?' Your marriage records will be updated to match.':' Your future wife or husband will be chosen to match.'),
   choices:[{l:'I\'m a man',d:'You will marry a wife.',f(){setGender('m');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your wife.':'Profile updated.','',next()]}},
    {l:'I\'m a woman',d:'You will marry a husband.',f(){setGender('f');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your husband.':'Profile updated.','',next()]}}]};}
-function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else if(S.tourDone&&bonusDue())openEvent(bonusEvent());else maybeTour();}
+function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else if(S.tourDone&&S.month>0&&bonusDue())openEvent(bonusEvent());else maybeTour();}
 /* ================= Daily bonus & daily deal (real-world days) ================= */
 const dayKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const yesterdayKey=()=>{const d=new Date();d.setDate(d.getDate()-1);return dayKey(d);};
@@ -1184,7 +1184,7 @@ const TOUR=[
 ];
 function maybeTour(){paintGuide();}
 function startTour(){if(current)return;stopAuto();tourOn=true;tourI=0;paintTour();}
-function endTour(){if(!tourOn)return;tourOn=false;const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(bonusDue()&&!current)openEvent(bonusEvent());}
+function endTour(){if(!tourOn)return;tourOn=false;const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(S.month>0&&bonusDue()&&!current)openEvent(bonusEvent());}
 function tourGo(d){const n=tourI+d;if(n<0)return;if(n>=TOUR.length){endTour();return;}tourI=n;paintTour();}
 function tourScroll(el){if(!el){return;}if(el.closest('.note')){window.scrollTo(0,0);return;}
  const bar=document.querySelector('.bar'),q=$('quick'),hdr=(bar?bar.offsetHeight:0)+(q?q.offsetHeight:0)+14,r=el.getBoundingClientRect(),vh=innerHeight;
@@ -2675,8 +2675,8 @@ function closeModal(){$('modal').hidden=true;$('modal').innerHTML='';}
 /* ================= Turn ================= */
 function nextMonth(){
  if(!ACC||acctView||S.over||current)return;
- if(bonusDue()){openEvent(bonusEvent());return;}
- if(openCal())return;
+ if(S.month>0&&bonusDue()){openEvent(bonusEvent());return;}
+ if(S.month>0&&openCal())return;
  const f=flows(true);S.cash+=f.net;S.last=f;plRecord(f);S.month++;
  ASSETS.forEach(a=>{if(has(a.id)||S.af[a.id]){S.af[a.id]=Math.max(.3,af(a.id)*(1+a.drift-.003*behind(a.id)+(rnd()-.5)*(a.vol||.004)));}});
  S.buffs.forEach(b=>b.months--);S.buffs=S.buffs.filter(b=>b.months>0);
@@ -3489,7 +3489,7 @@ function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
 function cheapestBuy(){const bs=[...document.querySelectorAll('.tabpane[data-tab="business"] [data-a="buy"]')];return bs.find(b=>!b.disabled)||bs[0]||null;}
 function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.id='guide';g.className='guide';g.setAttribute('role','status');document.body.appendChild(g);}
  document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));
- const mo=$('modal'),st=(current||(mo&&!mo.hidden))?null:guideStep();if(!st){g.hidden=true;return;}
+ const mo=$('modal'),st=(current||(mo&&!mo.hidden)||(guideSnooze&&Date.now()-guideSnooze<12000))?null:guideStep();if(!st){g.hidden=true;return;}
  const unit=(BIZ.filter(b=>S.inds.includes(b.ind)).sort((a,b)=>unitCost(a,0)-unitCost(b,0))[0]||{name:'business'});
  if(st==='buy'){g.innerHTML=curTab==='business'?'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Press the glowing <b>Open</b> button on the '+esc(unit.name)+'. It earns money for you every month.</p>'
   :'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Your empire starts with one '+esc(unit.name.lc())+'. Go to the <b>Business</b> tab and press <b>Open</b>. It earns money for you every month.</p><div class="chips"><button class="btn primary small" data-a="guidego" data-v="buy">Show me</button></div>';
@@ -3498,7 +3498,8 @@ function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.
   $('next').classList.add('coach');$('auto').classList.add('coach');}
  g.insertAdjacentHTML('afterbegin','<button class="gclose" data-a="guideclose" aria-label="Close the guide" title="Close">&times;</button>');g.hidden=false;}
 ['openEvent','showCard','closeModal'].forEach(n=>{const f=window[n];if(typeof f==='function')window[n]=function(){const r=f.apply(this,arguments);try{paintGuide();}catch(e){}return r;};});
-function guideClose(){S.guideDone=true;document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));paintGuide();save();}
+let guideSnooze=0;
+function guideClose(){if(S&&S.month<1&&!S.over){guideSnooze=Date.now();paintGuide();clearTimeout(guideClose.t);guideClose.t=setTimeout(()=>{guideSnooze=0;paintGuide();},12000);return;}S.guideDone=true;document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));paintGuide();save();}
 function guideGo(v){if(v==='buy'){showTab('business');setTimeout(()=>{const b=cheapestBuy();if(b){b.scrollIntoView({block:'center',behavior:'smooth'});}paintGuide();},60);}
  else{window.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{const n=$('next');if(n)n.scrollIntoView({block:'center',behavior:'smooth'});},100);}}
 function nextClick(){if(S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){

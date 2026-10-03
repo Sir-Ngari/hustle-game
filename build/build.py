@@ -30,6 +30,13 @@ rep(".acctbrand{",""".authtabs{display:grid;grid-template-columns:1fr 1fr;border
 .aform input[type=password],.aform input[type=email]{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:15px;color:var(--ink)}
 .me{display:flex;align-items:center;gap:14px}
 .hook{margin:2px 0 4px}
+.moreopts{border:1px solid var(--line);border-radius:10px;padding:0 14px;margin:6px 0 2px}
+.moreopts[open]{padding-bottom:12px}
+.moreopts summary{cursor:pointer;list-style:none;padding:12px 0;display:flex;flex-direction:column;gap:2px}
+.moreopts summary::-webkit-details-marker{display:none}
+.moreopts summary b::after{content:' ▾';color:var(--brass)}.moreopts[open] summary b::after{content:' ▴'}
+.moreopts summary span{font-size:12.5px;color:var(--muted)}
+.gopts.need{outline:2px solid var(--red);outline-offset:4px;border-radius:8px}
 .hook-kick{display:inline-flex;align-items:center;gap:6px;margin:0 0 10px;padding:5px 12px;border-radius:20px;background:var(--brass);color:#14110c;font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.05em;text-transform:uppercase}
 .hook-big{margin:0;font-family:var(--display);font-weight:900;font-size:30px;line-height:1.08;text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
 .hook-big em{font-style:normal;color:var(--brass)}
