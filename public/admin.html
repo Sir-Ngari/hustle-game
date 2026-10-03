@@ -221,7 +221,7 @@ body.navhide .main{margin-left:0}
         <div class="kpis" id="dropKpis"></div>
         <h3 class="eyebrow" style="margin:16px 0 6px">How far players get</h3>
         <div class="tablewrap"><table><thead><tr><th>Step</th><th class="r">Players</th><th class="r">Of all accounts</th><th style="width:40%"></th></tr></thead><tbody id="dropFunnel"></tbody></table></div>
-        <h3 class="eyebrow" style="margin:16px 0 6px">Players who went quiet (not seen for 7+ days): how far they had played</h3>
+        <h3 class="eyebrow" style="margin:16px 0 6px">Players who went quiet (not seen for 2+ days): how far they had played</h3>
         <div class="tablewrap"><table><thead><tr><th>Stopped at</th><th class="r">Players</th><th class="r">Share</th><th style="width:40%"></th></tr></thead><tbody id="dropBuckets"></tbody></table></div>
         <h3 class="eyebrow" style="margin:16px 0 6px">The last decision they made before going quiet</h3>
         <div class="tablewrap"><table><thead><tr><th>Event</th><th>Their choice</th><th class="r">Players</th></tr></thead><tbody id="dropLast"></tbody></table></div>
@@ -443,7 +443,7 @@ let dropCat=null;
 function bar(p){return'<div style="height:10px;border-radius:5px;background:var(--grid);overflow:hidden"><div style="height:100%;width:'+Math.max(0,Math.min(100,p))+'%;background:var(--accent,#d4a017)"></div></div>';}
 async function renderDrop(d){const pnl=$('dropPanel');if(!d){pnl.hidden=true;return;}pnl.hidden=false;
  const n=d.players||0,pc=x=>n?Math.round(100*x/n):0,g=d.gone||0;
- $('dropSub').textContent='Counts players who joined at least 3 days ago ('+n+'). "Went quiet" means not seen for 7 days or more.';
+ const qd=d.quietDays||2;$('dropSub').textContent='All '+n+' accounts. "Went quiet" means not seen for '+qd+' days or more.';
  const f=d.funnel||[],yr=(f.find(x=>/full year/.test(x.label))||{}).n||0,m1=(f.find(x=>/a month/.test(x.label))||{}).n||0,b=d.buckets||[],top=b.slice().sort((a,c)=>c.n-a.n)[0];
  const tiles=[['Went quiet',g,n?pc(g)+'% of '+n+' players':'no players yet','lead'],['Never finished a month',(b[0]||{}).n||0,'quiet players who stopped before month 1'],['Played a month',pc(m1)+'%',m1+' of '+n+' players'],['Played a full year',pc(yr)+'%',yr+' of '+n+' players'],['Most common stop',top&&top.n?top.label:'—',top&&top.n?top.n+' quiet players':'']];
  $('dropKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):esc(String(t[1])))+'</b><small>'+esc(t[2])+'</small></div>').join('');

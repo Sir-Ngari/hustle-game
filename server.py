@@ -463,10 +463,13 @@ DROP_BUCKETS = [(0, 0, "Never finished a month"), (1, 3, "Months 1 to 3"), (4, 1
 FUNNEL = [(1, "Played a month"), (12, "Played a full year"), (60, "Played 5 years"), (240, "Played 20 years")]
 
 
+QUIET_DAYS = 2
+
+
 def dropoff(t):
     """Where players stop: how far players got before going quiet, and the last decision they made."""
     base = q("SELECT u.id, u.last_seen, COALESCE(s.months_played,0) mp, COALESCE(s.best,0) best, COALESCE(s.games,1) games "
-             "FROM users u LEFT JOIN stats s ON s.user_id=u.id WHERE u.disabled=0 AND u.created<?", (t - 3 * 86400,))
+             "FROM users u LEFT JOIN stats s ON s.user_id=u.id WHERE u.disabled=0")
     n = len(base)
     lived = {r["user_id"] for r in q("SELECT DISTINCT user_id FROM lives")}
     funnel = [{"label": "Created an account", "n": n}]
@@ -474,7 +477,7 @@ def dropoff(t):
         funnel.append({"label": label, "n": sum(1 for r in base if r["mp"] >= m)})
     funnel.append({"label": "Became a billionaire", "n": sum(1 for r in base if r["best"] >= 1e9)})
     funnel.append({"label": "Finished a whole life", "n": sum(1 for r in base if r["id"] in lived)})
-    gone = [r for r in base if r["last_seen"] < t - 7 * 86400]
+    gone = [r for r in base if r["last_seen"] < t - QUIET_DAYS * 86400]
     buckets = [{"label": label, "n": sum(1 for r in gone if lo <= r["mp"] <= hi)} for lo, hi, label in DROP_BUCKETS]
     last = {}
     ids = [r["id"] for r in gone if r["last_seen"] > t - 120 * 86400]
@@ -488,7 +491,7 @@ def dropoff(t):
         k = (ev, ch)
         tally[k] = tally.get(k, 0) + 1
     lastev = [{"ev": k[0], "choice": k[1], "n": v} for k, v in sorted(tally.items(), key=lambda x: -x[1])[:10]]
-    return {"players": n, "gone": len(gone), "funnel": funnel, "buckets": buckets, "lastEv": lastev, "lastEvN": len(last)}
+    return {"players": n, "gone": len(gone), "quietDays": QUIET_DAYS, "funnel": funnel, "buckets": buckets, "lastEv": lastev, "lastEvN": len(last)}
 
 
 def backfill_lives():
