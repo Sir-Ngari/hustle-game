@@ -13,7 +13,7 @@ s=s[:i]+open('accthosted.js').read()+"\nfunction save(){if(!ACC)return;S._uid=AC
 rep("function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});","function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});")
 # click handlers for the account screens
 i=s.index("accts:()=>showAccts('pick'),"); j=s.index("acctdelyes:()=>deleteAccount(v),",i)+len("acctdelyes:()=>deleteAccount(v),")
-s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,"+s[j:]
+s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,authmode:()=>{authMode=v;authMsg='';renderAccts();},authjump:()=>{authMode=v;authMsg='';renderAccts();const u=$('acc-user');if(u){u.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>u.focus({preventScroll:true}),400);}},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,"+s[j:]
 # new game keeps the account and tells the server
 rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;")
 # start-up: ask the server who is playing
@@ -29,6 +29,19 @@ rep(".acctbrand{",""".authtabs{display:grid;grid-template-columns:1fr 1fr;border
 .amsg{margin:0;padding:10px 12px;border-radius:3px;background:var(--brass-soft);color:var(--ink);font-size:13.5px}
 .aform input[type=password],.aform input[type=email]{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:15px;color:var(--ink)}
 .me{display:flex;align-items:center;gap:14px}
+.hook{margin:2px 0 4px}
+.hook-big{margin:0;font-family:var(--display);font-weight:900;font-size:30px;line-height:1.08;text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
+.hook-big em{font-style:normal;color:var(--brass)}
+.hook-sub{margin:8px 0 0;font-size:15px;color:var(--muted)}
+.about{margin-top:18px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.about h3{margin:0;font-family:var(--display);font-size:20px;text-transform:uppercase;letter-spacing:.04em;color:var(--brass)}
+.about-lead{margin:0;font-size:15px;line-height:1.55}
+.about-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.about-list li{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:13.5px;line-height:1.45;color:var(--muted)}
+.about-list b{display:block;color:var(--ink);font-size:15px;margin-bottom:2px}
+.about-ic{font-size:24px;line-height:1}
+.about-cta{margin-top:6px;padding:16px;border:2px solid var(--brass);border-radius:12px;background:var(--brass-soft);display:flex;flex-direction:column;gap:12px}
+.about-cta .hook-big{font-size:24px}
 .updbar{position:fixed;z-index:44;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));width:min(480px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-radius:14px;background:#14261f;color:#fff;border:2px solid #ffd36b;box-shadow:0 14px 36px rgba(0,0,0,.4)}
 .updbar span{flex:1;min-width:0;display:flex;flex-direction:column}.updbar b{font-size:15px}.updbar small{font-size:12.5px;opacity:.85}
 .iossteps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:15px;line-height:1.5}
