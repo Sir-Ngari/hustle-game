@@ -906,7 +906,7 @@ DEATH_KINDS = [("lungc", ("lung cancer",)), ("pancc", ("pancreatic cancer",)), (
                ("adventure", ("everest", "shark cage", "walking safari", "desert rally")),
                ("bankrupt", ("creditors", "bankrupt")), ("hit", ("gunmen", "mob had warned")), ("jet", ("jet went down",)),
                ("road", ("ran a red light", "road")), ("aliens", ("mars", "ships arrived")),
-               ("illness", ("second heart attack", "spread too far", "could not save you", "in hospital", "at home, surrounded")),
+               ("illness", ("left untreated", "second heart attack", "spread too far", "could not save you", "in hospital", "at home, surrounded")),
                ("maxage", ("you lived to",)), ("natural", ("heart gave out", "short illness", "collapsed at your desk"))]
 
 
