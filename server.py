@@ -23,6 +23,7 @@ Settings come from environment variables (see deploy/hustle.env.example):
   HUSTLE_TRIAL_HOURS / HUSTLE_GIFT_DAYS / HUSTLE_GIFTS / HUSTLE_BLOCK_DAYS   trial length and the "more free days" offers
   HUSTLE_PRICE_WEEK / HUSTLE_PRICE_MONTH / HUSTLE_PRICE_YEAR   pass prices in Kenya shillings (70 / 250 / 2000)
 """
+import base64
 import hashlib
 import hmac
 import json
@@ -255,6 +256,26 @@ CREATE TABLE IF NOT EXISTS ev_log(
 );
 CREATE INDEX IF NOT EXISTS ev_log_ev ON ev_log(ev, ts);
 CREATE INDEX IF NOT EXISTS ev_log_ts ON ev_log(ts);
+CREATE TABLE IF NOT EXISTS push_subs(
+  endpoint TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  tz TEXT NOT NULL DEFAULT '',
+  created INTEGER NOT NULL,
+  fails INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS push_subs_user ON push_subs(user_id);
+CREATE TABLE IF NOT EXISTS push_log(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  ts INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  delivered INTEGER NOT NULL DEFAULT 0,
+  opened INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS push_log_user ON push_log(user_id, ts);
+CREATE INDEX IF NOT EXISTS push_log_ts ON push_log(ts);
 """
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -435,6 +456,39 @@ def retention(t):
         out["d%d" % n] = {"players": len(eligible), "back": back,
                           "pct": round(100 * back / len(eligible)) if eligible else None}
     return out
+
+
+DROP_BUCKETS = [(0, 0, "Never finished a month"), (1, 3, "Months 1 to 3"), (4, 12, "Months 4 to 12"),
+                (13, 36, "Years 2 to 3"), (37, 120, "Years 4 to 10"), (121, 10 ** 9, "Over 10 years")]
+FUNNEL = [(1, "Played a month"), (12, "Played a full year"), (60, "Played 5 years"), (240, "Played 20 years")]
+
+
+def dropoff(t):
+    """Where players stop: how far players got before going quiet, and the last decision they made."""
+    base = q("SELECT u.id, u.last_seen, COALESCE(s.months_played,0) mp, COALESCE(s.best,0) best, COALESCE(s.games,1) games "
+             "FROM users u LEFT JOIN stats s ON s.user_id=u.id WHERE u.disabled=0 AND u.created<?", (t - 3 * 86400,))
+    n = len(base)
+    lived = {r["user_id"] for r in q("SELECT DISTINCT user_id FROM lives")}
+    funnel = [{"label": "Created an account", "n": n}]
+    for m, label in FUNNEL:
+        funnel.append({"label": label, "n": sum(1 for r in base if r["mp"] >= m)})
+    funnel.append({"label": "Became a billionaire", "n": sum(1 for r in base if r["best"] >= 1e9)})
+    funnel.append({"label": "Finished a whole life", "n": sum(1 for r in base if r["id"] in lived)})
+    gone = [r for r in base if r["last_seen"] < t - 7 * 86400]
+    buckets = [{"label": label, "n": sum(1 for r in gone if lo <= r["mp"] <= hi)} for lo, hi, label in DROP_BUCKETS]
+    last = {}
+    ids = [r["id"] for r in gone if r["last_seen"] > t - 120 * 86400]
+    for i in range(0, len(ids), 500):
+        chunk = ids[i:i + 500]
+        for r in q("SELECT e.user_id, e.ev, e.choice FROM ev_log e JOIN (SELECT user_id, MAX(ts) mt FROM ev_log WHERE user_id IN (%s) GROUP BY user_id) m "
+                   "ON m.user_id=e.user_id AND m.mt=e.ts" % ",".join("?" * len(chunk)), tuple(chunk)):
+            last.setdefault(r["user_id"], (r["ev"], r["choice"]))
+    tally = {}
+    for ev, ch in last.values():
+        k = (ev, ch)
+        tally[k] = tally.get(k, 0) + 1
+    lastev = [{"ev": k[0], "choice": k[1], "n": v} for k, v in sorted(tally.items(), key=lambda x: -x[1])[:10]]
+    return {"players": n, "gone": len(gone), "funnel": funnel, "buckets": buckets, "lastEv": lastev, "lastEvN": len(last)}
 
 
 def backfill_lives():
@@ -776,6 +830,257 @@ def check_payment(ref):
         q("UPDATE payments SET status='failed', updated=? WHERE ref=? AND status='pending'", (now(), ref))
         return "failed"
     return p["status"]
+
+
+# ---- push notifications (Web Push with VAPID; needs the python3-cryptography package) ----
+PUSH_STEPS = [1, 3, 7, 14, 30]          # days away before each nudge; at most one per step, then silence
+PUSH_HOURS = (10, 20)                   # only between 10:00 and 20:00 in the player's own time zone
+PUSH_HOSTS = ("fcm.googleapis.com", "android.googleapis.com", "updates.push.services.mozilla.com", "push.services.mozilla.com",
+              "web.push.apple.com", ".push.apple.com", ".notify.windows.com")
+_push_lock = threading.Lock()
+
+
+def b64u(b):
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+
+def unb64u(s):
+    s = str(s or "")
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def _crypto():
+    try:
+        from cryptography.hazmat.backends import default_backend
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import ec, utils
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        return {"be": default_backend(), "hashes": hashes, "ser": serialization, "ec": ec, "utils": utils, "AESGCM": AESGCM}
+    except Exception:
+        return None
+
+
+def push_ready():
+    return _crypto() is not None
+
+
+def push_on():
+    return push_ready() and meta_get("push_off") != "1"
+
+
+def vapid_keys():
+    """The server's own signing key for notifications, made once and kept in the database."""
+    c = _crypto()
+    with _push_lock:
+        raw = meta_get("vapid_priv")
+        if raw:
+            key = c["ser"].load_pem_private_key(raw.encode(), password=None, backend=c["be"])
+        else:
+            key = c["ec"].generate_private_key(c["ec"].SECP256R1(), c["be"])
+            meta_set("vapid_priv", key.private_bytes(c["ser"].Encoding.PEM, c["ser"].PrivateFormat.PKCS8,
+                                                     c["ser"].NoEncryption()).decode())
+    pub = key.public_key().public_bytes(c["ser"].Encoding.X962, c["ser"].PublicFormat.UncompressedPoint)
+    return key, pub
+
+
+def _hkdf(salt, ikm, info, n):
+    prk = hmac.new(salt, ikm, hashlib.sha256).digest()
+    return hmac.new(prk, info + b"\x01", hashlib.sha256).digest()[:n]
+
+
+def push_encrypt(payload, p256dh, auth):
+    """RFC 8291 message encryption (aes128gcm), so only the player's browser can read the notification."""
+    c = _crypto()
+    ua_pub = unb64u(p256dh)
+    secret = unb64u(auth)
+    eph = c["ec"].generate_private_key(c["ec"].SECP256R1(), c["be"])
+    as_pub = eph.public_key().public_bytes(c["ser"].Encoding.X962, c["ser"].PublicFormat.UncompressedPoint)
+    peer = c["ec"].EllipticCurvePublicKey.from_encoded_point(c["ec"].SECP256R1(), ua_pub)
+    shared = eph.exchange(c["ec"].ECDH(), peer)
+    ikm = _hkdf(secret, shared, b"WebPush: info\x00" + ua_pub + as_pub, 32)
+    salt = os.urandom(16)
+    cek = _hkdf(salt, ikm, b"Content-Encoding: aes128gcm\x00", 16)
+    nonce = _hkdf(salt, ikm, b"Content-Encoding: nonce\x00", 12)
+    body = c["AESGCM"](cek).encrypt(nonce, payload + b"\x02", None)
+    return salt + (4096).to_bytes(4, "big") + bytes([len(as_pub)]) + as_pub + body
+
+
+def vapid_header(endpoint):
+    c = _crypto()
+    key, pub = vapid_keys()
+    u = urlparse(endpoint)
+    claims = {"aud": "%s://%s" % (u.scheme, u.netloc), "exp": now() + 12 * 3600,
+              "sub": "https://" + SITE_DOMAIN if SITE_DOMAIN else "mailto:admin@hustlempires.com"}
+    head = b64u(json.dumps({"typ": "JWT", "alg": "ES256"}, separators=(",", ":")).encode())
+    body = b64u(json.dumps(claims, separators=(",", ":")).encode())
+    der = key.sign((head + "." + body).encode(), c["ec"].ECDSA(c["hashes"].SHA256()))
+    r, s_ = c["utils"].decode_dss_signature(der)
+    sig = b64u(r.to_bytes(32, "big") + s_.to_bytes(32, "big"))
+    return "vapid t=%s.%s.%s, k=%s" % (head, body, sig, b64u(pub))
+
+
+def push_endpoint_ok(endpoint):
+    try:
+        u = urlparse(endpoint)
+    except ValueError:
+        return False
+    host = (u.hostname or "").lower()
+    return u.scheme == "https" and len(endpoint) < 1000 and any(host == h or (h.startswith(".") and host.endswith(h)) for h in PUSH_HOSTS)
+
+
+def push_send(sub, msg):
+    """Send one notification to one browser. Returns True if the push service accepted it."""
+    data = push_encrypt(json.dumps(msg, separators=(",", ":")).encode(), sub["p256dh"], sub["auth"])
+    req = urllib.request.Request(sub["endpoint"], data=data, method="POST", headers={
+        "Authorization": vapid_header(sub["endpoint"]), "Content-Encoding": "aes128gcm",
+        "Content-Type": "application/octet-stream", "TTL": "86400", "Urgency": "normal"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            ok = 200 <= r.status < 300
+    except urllib.error.HTTPError as e:
+        if e.code in (404, 410):
+            q("DELETE FROM push_subs WHERE endpoint=?", (sub["endpoint"],))
+            return False
+        print("Notification to %s failed: HTTP %s %s" % (urlparse(sub["endpoint"]).hostname, e.code, e.read()[:200]), flush=True)
+        ok = False
+    except Exception as e:
+        print("Notification to %s failed: %s" % (urlparse(sub["endpoint"]).hostname, e), flush=True)
+        ok = False
+    if ok:
+        q("UPDATE push_subs SET fails=0 WHERE endpoint=?", (sub["endpoint"],))
+    else:
+        q("UPDATE push_subs SET fails=fails+1 WHERE endpoint=?", (sub["endpoint"],))
+        q("DELETE FROM push_subs WHERE endpoint=? AND fails>=5", (sub["endpoint"],))
+    return ok
+
+
+def push_to_user(uid, kind, title, body):
+    subs = q("SELECT * FROM push_subs WHERE user_id=?", (uid,))
+    if not subs:
+        return None
+    pid = tx(lambda db: db.execute("INSERT INTO push_log(user_id, ts, kind) VALUES(?,?,?)", (uid, now(), kind)).lastrowid)
+    msg = {"title": title, "body": body, "url": "/?push=%d" % pid, "tag": "hustle-" + kind, "id": pid}
+    sent = sum(1 for sub in subs if push_send(sub, msg))
+    if sent:
+        q("UPDATE push_log SET delivered=1 WHERE id=?", (pid,))
+    return sent
+
+
+def _local(tz, t):
+    """The player's own clock. tz is "Area/City|minutes-east-of-UTC"; the offset is the backup when the time-zone database is missing."""
+    name, _, off = str(tz or "").partition("|")
+    try:
+        from zoneinfo import ZoneInfo
+        import datetime
+        return datetime.datetime.fromtimestamp(t, ZoneInfo(name or "Africa/Nairobi")).timetuple()
+    except Exception:
+        try:
+            mins = max(-840, min(840, int(off)))
+        except ValueError:
+            mins = 180
+        return time.gmtime(t + mins * 60)
+
+
+def local_hour(tz, t):
+    return _local(tz, t).tm_hour
+
+
+def local_day(tz, t):
+    return time.strftime("%Y-%m-%d", _local(tz, t))
+
+
+GENERIC_PUSH = [
+    ("{co} is waiting for its boss", "Big decisions are piling up on your desk. Pick up where you left off."),
+    ("Your rivals did not take a week off", "Every month you wait, someone else is building. Get back in the game."),
+    ("Still the boss?", "Your empire is right where you left it. One tap to carry on."),
+    ("We kept your empire safe", "Everything you built is still here. Come back and finish what you started."),
+]
+MILESTONES = [1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15]
+
+
+def push_message(uid, n, done, tz, t):
+    """Pick the most relevant true thing to tell this player about their own game."""
+    u = q("SELECT name, company FROM users WHERE id=?", (uid,), one=True)
+    st = q("SELECT nw FROM stats WHERE user_id=?", (uid,), one=True)
+    sv = q("SELECT state FROM saves WHERE user_id=?", (uid,), one=True)
+    try:
+        S = json.loads(sv["state"]) if sv else {}
+    except ValueError:
+        S = {}
+    co = (u["company"] if u else "") or "Your company"
+    out = []
+    daily = S.get("daily") or {}
+    yday = local_day(tz, t - 86400)
+    if n == 0 and int(daily.get("streak") or 0) >= 2 and daily.get("last") == yday and not S.get("won") and not S.get("over"):
+        out.append(("streak", "Your %d-day streak ends tonight" % int(daily["streak"]),
+                    "Claim today's daily bonus before midnight, or your streak goes back to zero."))
+    if S.get("over") and S.get("died") and S.get("kids") and not S.get("noHeir"):
+        out.append(("heir", "Your empire needs an heir", "Your story ended, but your family's has not. Choose who takes over everything you built."))
+    if isinstance(S.get("ill"), dict) and S["ill"].get("id"):
+        out.append(("health", "Your doctor is waiting", "Your treatment cannot wait. Your health and your empire are on the line."))
+    nw = st["nw"] if st else 0
+    nxt = next((m for m in MILESTONES if m > nw), None)
+    if nxt and nw >= 0.5 * nxt and not S.get("over"):
+        out.append(("milestone", "%d%% of the way to your next milestone" % int(100 * nw / nxt),
+                    "One good month could get you there. Your empire is ready when you are."))
+    sid = season_now()
+    me = q("SELECT pts, region FROM season_scores WHERE user_id=? AND season=?", (uid, sid), one=True)
+    if me and me["pts"] > 0 and me["region"]:
+        ahead = q("SELECT u.name, s.pts FROM season_scores s JOIN users u ON u.id=s.user_id WHERE s.season=? AND s.region=? "
+                  "AND s.pts>? AND u.disabled=0 ORDER BY s.pts ASC LIMIT 1", (sid, me["region"], me["pts"]), one=True)
+        if ahead:
+            rank = q("SELECT COUNT(*) c FROM season_scores WHERE season=? AND region=? AND pts>?", (sid, me["region"], me["pts"]), one=True)["c"] + 1
+            out.append(("rival", "You are #%d in your country this season" % rank,
+                        "%s is just %d points ahead of you. Take the spot back." % ((ahead["name"] or "A rival").split(" ")[0], ahead["pts"] - me["pts"])))
+    if S.get("teams"):
+        out.append(("team", "Your club needs its owner", "The season is under way. Matches, transfers and trophies are waiting for you."))
+    for kind, title, body in out:
+        if kind not in done:
+            return kind, title, body
+    g = GENERIC_PUSH[min(max(n - 1, 0), len(GENERIC_PUSH) - 1)] if n < len(PUSH_STEPS) - 1 else GENERIC_PUSH[-1]
+    return "away%d" % n, g[0].format(co=co), g[1]
+
+
+def push_due(t):
+    """Players who have been away long enough for their next nudge, inside their daytime hours."""
+    for r in q("SELECT u.id, u.last_seen, MIN(p.tz) tz FROM push_subs p JOIN users u ON u.id=p.user_id WHERE u.disabled=0 GROUP BY u.id"):
+        away = (t - r["last_seen"]) / 86400
+        log = q("SELECT ts, kind FROM push_log WHERE user_id=? AND ts>?", (r["id"], r["last_seen"]))
+        n = len(log)
+        if n >= len(PUSH_STEPS) or away < PUSH_STEPS[n]:
+            continue
+        if log and max(x["ts"] for x in log) > t - 20 * 3600:
+            continue
+        h = local_hour(r["tz"], t)
+        if not (PUSH_HOURS[0] <= h < PUSH_HOURS[1]):
+            continue
+        yield r["id"], n, {x["kind"] for x in log}, r["tz"]
+
+
+def push_sweeper():
+    """Every 10 minutes, send the nudges that are due."""
+    time.sleep(60)
+    while True:
+        try:
+            if push_on():
+                t = now()
+                for uid, n, done, tz in list(push_due(t)):
+                    kind, title, body = push_message(uid, n, done, tz, t)
+                    push_to_user(uid, kind, title, body)
+                    time.sleep(0.2)
+        except Exception as e:
+            print("Notification round failed: %s" % e, flush=True)
+        time.sleep(600)
+
+
+def push_overview(t):
+    since = t - 7 * 86400
+    s7 = q("SELECT COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>?", (since,), one=True)
+    s30 = q("SELECT COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>?", (t - 30 * 86400,), one=True)
+    kinds = [dict(r) for r in q("SELECT kind, COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>? GROUP BY kind ORDER BY n DESC", (t - 30 * 86400,))]
+    return {"ready": push_ready(), "on": push_on(), "players": q("SELECT COUNT(DISTINCT user_id) c FROM push_subs", one=True)["c"],
+            "devices": q("SELECT COUNT(*) c FROM push_subs", one=True)["c"],
+            "sent7": s7["d"] or 0, "opened7": s7["o"] or 0, "sent30": s30["d"] or 0, "opened30": s30["o"] or 0, "kinds": kinds}
 
 
 def payment_sweeper():
@@ -1250,6 +1555,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_invite_check()
         if path == "/api/pesapal/ipn":
             return self.api_pesapal_ipn()
+        if path == "/api/push/key":
+            return self.send_json(200, {"on": push_on(), "key": b64u(vapid_keys()[1]) if push_on() else ""})
         if path.startswith("/api/admin/"):
             return self.api_admin_get(path)
         if path.startswith("/api/"):
@@ -1262,7 +1569,9 @@ class Handler(BaseHTTPRequestHandler):
                   "/api/forgot": self.api_forgot, "/api/reset": self.api_reset, "/api/email": self.api_email, "/api/company": self.api_company,
                   "/api/admin/login": self.api_admin_login, "/api/admin/logout": self.api_admin_logout,
                   "/api/billing/checkout": self.api_checkout, "/api/billing/confirm": self.api_confirm,
-                  "/api/billing/later": self.api_later, "/api/billing/gift": self.api_gift}
+                  "/api/billing/later": self.api_later, "/api/billing/gift": self.api_gift,
+                  "/api/push/subscribe": self.api_push_sub, "/api/push/unsubscribe": self.api_push_unsub, "/api/push/open": self.api_push_open,
+                  "/api/admin/push": self.api_admin_push}
         if path in routes:
             return routes[path]()
         if path == "/api/admin/tuning":
@@ -1425,6 +1734,80 @@ class Handler(BaseHTTPRequestHandler):
           (user["id"], now(), self.current_game(user["id"]), "Updated their email" if user["email"] else "Added an email"))
         user = q("SELECT * FROM users WHERE id=?", (user["id"],), one=True)
         self.send_json(200, {"user": user_public(user)})
+
+    def api_push_sub(self):
+        """A player said yes to notifications on this device."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if rate_limited("push:%d" % user["id"], limit=30, window=3600):
+            return self.error(429, "Too many tries. Try again later.")
+        d = self.read_json()
+        if d is None:
+            return
+        ep = str(d.get("endpoint") or "")
+        keys = d.get("keys") if isinstance(d.get("keys"), dict) else {}
+        p256, auth = str(keys.get("p256dh") or ""), str(keys.get("auth") or "")
+        try:
+            ok = push_endpoint_ok(ep) and len(unb64u(p256)) == 65 and len(unb64u(auth)) == 16
+        except Exception:
+            ok = False
+        if not ok:
+            return self.error(400, "This browser's notification details were not accepted.")
+        tz = str(d.get("tz") or "")[:40]
+        if not re.match(r"^[A-Za-z_]+(/[A-Za-z0-9_+-]+){0,2}$", tz):
+            tz = ""
+        try:
+            tz += "|%d" % max(-840, min(840, int(d.get("off"))))
+        except (TypeError, ValueError):
+            pass
+        q("INSERT INTO push_subs(endpoint,user_id,p256dh,auth,tz,created) VALUES(?,?,?,?,?,?) "
+          "ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id, p256dh=excluded.p256dh, auth=excluded.auth, tz=excluded.tz, fails=0",
+          (ep, user["id"], p256, auth, tz, now()))
+        self.send_json(200, {"ok": True})
+
+    def api_push_unsub(self):
+        d = self.read_json()
+        if d is None:
+            return
+        q("DELETE FROM push_subs WHERE endpoint=?", (str(d.get("endpoint") or ""),))
+        self.send_json(200, {"ok": True})
+
+    def api_push_open(self):
+        """A player tapped a notification (counted so the admin can see which messages work)."""
+        if rate_limited("pushopen:" + self.client_ip(), limit=60, window=3600):
+            return self.send_json(200, {"ok": True})
+        d = self.read_json()
+        if d is None:
+            return
+        try:
+            pid = int(d.get("id"))
+        except (TypeError, ValueError):
+            return self.send_json(200, {"ok": True})
+        q("UPDATE push_log SET opened=1 WHERE id=?", (pid,))
+        self.send_json(200, {"ok": True})
+
+    def api_admin_push(self):
+        """Switch notifications on or off, or send a test to one player."""
+        if not self.is_admin():
+            return self.error(401, "Log in as admin.")
+        d = self.read_json()
+        if d is None:
+            return
+        if "on" in d:
+            meta_set("push_off", "0" if d.get("on") else "1")
+        if d.get("test"):
+            if not push_ready():
+                return self.error(409, "Notifications need the python3-cryptography package on the server.")
+            name = str(d.get("test")).strip().lower().lstrip("@")
+            u = q("SELECT id FROM users WHERE username=?", (name,), one=True)
+            if not u:
+                return self.error(404, "No player with that username.")
+            sent = push_to_user(u["id"], "test", "Test from Hustlempires", "Notifications are working. Your empire can reach you now.")
+            if sent is None:
+                return self.error(409, "That player has not switched on notifications on any device.")
+            return self.send_json(200, {"ok": True, "sent": sent, "push": push_overview(now())})
+        self.send_json(200, {"ok": True, "push": push_overview(now())})
 
     def api_company(self):
         """A logged-in player renames their company brand. Allowed once per account."""
@@ -1966,6 +2349,16 @@ class Handler(BaseHTTPRequestHandler):
             "bankrupt": q("SELECT COUNT(*) c FROM stats WHERE bankrupt=1", one=True)["c"],
         }
         k["retention"] = retention(t)
+        try:
+            k["dropoff"] = dropoff(t)
+        except Exception as e:
+            print("Drop-off summary failed: %s" % e, flush=True)
+            k["dropoff"] = None
+        try:
+            k["push"] = push_overview(t)
+        except Exception as e:
+            print("Notification summary failed: %s" % e, flush=True)
+            k["push"] = None
         k["billing"] = billing_overview(t)
         try:
             k["visitors"] = visitors_overview(t)
@@ -2063,6 +2456,8 @@ def main():
     else:
         print("Free to play. Tips through Pesapal %s: %s" % (PESAPAL_ENV, "ready" if pesapal_ready() else "NOT SET (add the key, secret and site domain)"), flush=True)
     threading.Thread(target=payment_sweeper, daemon=True).start()
+    threading.Thread(target=push_sweeper, daemon=True).start()
+    print("Notifications: %s" % ("ready" if push_ready() else "off (install python3-cryptography to switch them on)"), flush=True)
     try:
         backfill_lives()
     except Exception as e:  # never stop the game starting over this

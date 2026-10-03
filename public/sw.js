@@ -1,6 +1,6 @@
 /* Hustlempires service worker: keeps the game's screens on the phone so the app opens instantly
    and shows a friendly message when offline. Game data (/api/) always goes to the server. */
-const CACHE = 'hustle-v5';
+const CACHE = 'hustle-v6';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/icons/favicon-48.png'];
 
 self.addEventListener('install', e => {
@@ -28,4 +28,28 @@ self.addEventListener('fetch', e => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
     return res;
   })));
+});
+
+/* Notifications: show the nudge, and open the game when it is tapped. */
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Hustlempires', {
+    body: d.body || 'Your empire is waiting.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/favicon-48.png',
+    tag: d.tag || 'hustle',
+    data: { url: d.url || '/', id: d.id || null }
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const d = e.notification.data || {};
+  const opened = d.id ? fetch('/api/push/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: d.id }) }).catch(() => {}) : Promise.resolve();
+  e.waitUntil(Promise.all([opened, self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    const w = list.find(c => new URL(c.url).origin === location.origin);
+    if (w) return w.focus();
+    return self.clients.openWindow('/');
+  })]));
 });

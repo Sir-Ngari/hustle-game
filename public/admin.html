@@ -215,6 +215,30 @@ body.navhide .main{margin-left:0}
         <h3 class="eyebrow" style="margin:16px 0 6px">Where visitors came from, last 30 days</h3>
         <div class="tablewrap"><table><thead><tr><th>Source</th><th class="r">Visitors</th><th class="r">Created an account</th><th class="r">Sign-up rate</th></tr></thead><tbody id="visSrc"></tbody></table></div>
       </section>
+    <section class="panel" id="dropPanel" hidden>
+        <h2>Where players stop</h2>
+        <p class="sub" id="dropSub">How far players get, and where the ones who went quiet stopped.</p>
+        <div class="kpis" id="dropKpis"></div>
+        <h3 class="eyebrow" style="margin:16px 0 6px">How far players get</h3>
+        <div class="tablewrap"><table><thead><tr><th>Step</th><th class="r">Players</th><th class="r">Of all accounts</th><th style="width:40%"></th></tr></thead><tbody id="dropFunnel"></tbody></table></div>
+        <h3 class="eyebrow" style="margin:16px 0 6px">Players who went quiet (not seen for 7+ days): how far they had played</h3>
+        <div class="tablewrap"><table><thead><tr><th>Stopped at</th><th class="r">Players</th><th class="r">Share</th><th style="width:40%"></th></tr></thead><tbody id="dropBuckets"></tbody></table></div>
+        <h3 class="eyebrow" style="margin:16px 0 6px">The last decision they made before going quiet</h3>
+        <div class="tablewrap"><table><thead><tr><th>Event</th><th>Their choice</th><th class="r">Players</th></tr></thead><tbody id="dropLast"></tbody></table></div>
+      </section>
+    <section class="panel" id="pushPanel" hidden>
+        <h2>Notifications</h2>
+        <p class="sub" id="pushSub"></p>
+        <div class="kpis" id="pushKpis"></div>
+        <div class="chips" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px">
+          <button class="btn" id="pushToggle" type="button"></button>
+          <input id="pushTestUser" placeholder="username" autocapitalize="none" spellcheck="false" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--paper,transparent);color:inherit;min-width:160px">
+          <button class="btn" id="pushTestBtn" type="button">Send a test</button>
+          <span id="pushMsg" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+        <h3 class="eyebrow" style="margin:16px 0 6px">Messages sent, last 30 days</h3>
+        <div class="tablewrap"><table><thead><tr><th>Message</th><th class="r">Delivered</th><th class="r">Opened</th><th class="r">Open rate</th></tr></thead><tbody id="pushKinds"></tbody></table></div>
+      </section>
     <section class="panel">
         <h2>Daily active players</h2>
         <p class="sub">Players who opened or played the game each day, last 14 days (UTC).</p>
@@ -377,7 +401,7 @@ $('logoutBtn').addEventListener('click',async()=>{try{await api('POST','/api/adm
 
 /* ---------- data ---------- */
 async function load(){try{const [ov,pl,pay]=await Promise.all([api('GET','/api/admin/overview'),api('GET','/api/admin/players'),api('GET','/api/admin/payments')]);
-  serverNow=pl.now;players=pl.players;payments=pay.payments;loadEvents();renderKpis(ov.kpis);renderVisitors(ov.kpis.visitors);renderBilling(ov.kpis.billing);renderInvites(ov.kpis.invites);renderDau(ov.days);renderFeed(ov.feed);renderPlayers();navCounts(ov.kpis);
+  serverNow=pl.now;players=pl.players;payments=pay.payments;loadEvents();renderKpis(ov.kpis);renderVisitors(ov.kpis.visitors);renderDrop(ov.kpis.dropoff);renderPush(ov.kpis.push);renderBilling(ov.kpis.billing);renderInvites(ov.kpis.invites);renderDau(ov.days);renderFeed(ov.feed);renderPlayers();navCounts(ov.kpis);
   $('updated').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   if(openId!=null&&!$('sheet').hidden)openPlayer(openId,true);}
  catch(e){if(e.status===401)showLogin('Your admin session ended. Log in again.');else $('updated').textContent='Could not refresh: '+e.message;}}
@@ -413,6 +437,37 @@ function renderVisitors(v){const pnl=$('visPanel');if(!v){pnl.hidden=true;return
  s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+(pt+ih)+'" y2="'+(pt+ih)+'" stroke="var(--line)" stroke-width="1"/></svg>';box.innerHTML=s;
  const SRC={direct:'Typed the address or a saved link',whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',tiktok:'TikTok',x:'X (Twitter)',google:'Google',linkedin:'LinkedIn',youtube:'YouTube',telegram:'Telegram',bing:'Bing'};
  const rows=v.srcs||[];$('visSrc').innerHTML=rows.length?rows.map(r=>'<tr><td>'+esc(SRC[r.src]||r.src||'Unknown')+'</td><td class="r num">'+r.n+'</td><td class="r num">'+(r.signed||0)+'</td><td class="r num">'+(r.n?Math.round(100*(r.signed||0)/r.n)+'%':'—')+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">No visitors yet.</td></tr>';}
+
+/* ---------- Where players stop ---------- */
+let dropCat=null;
+function bar(p){return'<div style="height:10px;border-radius:5px;background:var(--grid);overflow:hidden"><div style="height:100%;width:'+Math.max(0,Math.min(100,p))+'%;background:var(--accent,#d4a017)"></div></div>';}
+async function renderDrop(d){const pnl=$('dropPanel');if(!d){pnl.hidden=true;return;}pnl.hidden=false;
+ const n=d.players||0,pc=x=>n?Math.round(100*x/n):0,g=d.gone||0;
+ $('dropSub').textContent='Counts players who joined at least 3 days ago ('+n+'). "Went quiet" means not seen for 7 days or more.';
+ const f=d.funnel||[],yr=(f.find(x=>/full year/.test(x.label))||{}).n||0,m1=(f.find(x=>/a month/.test(x.label))||{}).n||0,b=d.buckets||[],top=b.slice().sort((a,c)=>c.n-a.n)[0];
+ const tiles=[['Went quiet',g,n?pc(g)+'% of '+n+' players':'no players yet','lead'],['Never finished a month',(b[0]||{}).n||0,'quiet players who stopped before month 1'],['Played a month',pc(m1)+'%',m1+' of '+n+' players'],['Played a full year',pc(yr)+'%',yr+' of '+n+' players'],['Most common stop',top&&top.n?top.label:'—',top&&top.n?top.n+' quiet players':'']];
+ $('dropKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):esc(String(t[1])))+'</b><small>'+esc(t[2])+'</small></div>').join('');
+ $('dropFunnel').innerHTML=f.map(x=>'<tr><td>'+esc(x.label)+'</td><td class="r num">'+x.n+'</td><td class="r num">'+(n?pc(x.n)+'%':'—')+'</td><td>'+bar(pc(x.n))+'</td></tr>').join('')||'<tr><td colspan="4" class="empty">No players yet.</td></tr>';
+ $('dropBuckets').innerHTML=g?b.map(x=>{const p=Math.round(100*x.n/g);return'<tr><td>'+esc(x.label)+'</td><td class="r num">'+x.n+'</td><td class="r num">'+p+'%</td><td>'+bar(p)+'</td></tr>';}).join(''):'<tr><td colspan="4" class="empty">Nobody has gone quiet yet.</td></tr>';
+ if(!dropCat)try{dropCat=evCat||await fetch('/events-catalog.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());}catch(e){dropCat={events:[]};}
+ const E={};(dropCat.events||[]).forEach(e=>E[e.id]=e);
+ const L=d.lastEv||[];$('dropLast').innerHTML=L.length?L.map(x=>{const e=E[x.ev];return'<tr><td>'+esc(e?e.title:x.ev)+'</td><td>'+esc(e&&e.choices&&e.choices[x.choice]!=null?e.choices[x.choice]:'Choice '+(x.choice+1))+'</td><td class="r num">'+x.n+'</td></tr>';}).join(''):'<tr><td colspan="3" class="empty">No decisions recorded for quiet players yet.</td></tr>';}
+
+/* ---------- Notifications ---------- */
+const PUSHKIND={streak:'Daily streak about to break',heir:'Choose your heir',health:'Doctor is waiting',milestone:'Close to the next milestone',rival:'A rival is just ahead',team:'Your club needs its owner',away1:'Away 3 days',away2:'Away a week',away3:'Away 2 weeks',away4:'Away a month',away0:'Away 1 day',test:'Test message'};
+let pushInfo=null;
+function renderPush(p){const pnl=$('pushPanel');if(!p){pnl.hidden=true;return;}pnl.hidden=false;pushInfo=p;
+ $('pushSub').innerHTML=!p.ready?'<b>Not available yet:</b> the server needs the python3-cryptography package. The update installs it.':
+  (p.on?'<b>On.</b> Players who switched notifications on get a nudge after 1, 3, 7, 14 and 30 days away (one at a time, only between 10:00 and 20:00 their time). Each one picks the most relevant true thing in their game: a streak about to break, a rival just ahead, a milestone close by.':'<b>Switched off.</b> No notifications are being sent. Players can still switch them on, ready for when you turn them back on.');
+ const rate=(o,s)=>s?Math.round(100*o/s)+'%':'—';
+ const tiles=[['Players with notifications on',p.players,p.devices+' device'+(p.devices===1?'':'s'),'lead'],['Sent this week',p.sent7,'delivered, last 7 days'],['Opened this week',p.opened7,'tapped, last 7 days'],['Open rate',rate(p.opened30,p.sent30),p.opened30+' of '+p.sent30+' in 30 days']];
+ $('pushKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):t[1])+'</b><small>'+t[2]+'</small></div>').join('');
+ const tg=$('pushToggle');tg.hidden=!p.ready;tg.textContent=p.on?'Switch notifications off':'Switch notifications on';
+ $('pushTestBtn').disabled=!p.ready;
+ const K=p.kinds||[];$('pushKinds').innerHTML=K.length?K.map(k=>'<tr><td>'+esc(PUSHKIND[k.kind]||k.kind)+'</td><td class="r num">'+(k.d||0)+'</td><td class="r num">'+(k.o||0)+'</td><td class="r num">'+rate(k.o||0,k.d||0)+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">Nothing sent yet.</td></tr>';}
+$('pushToggle').addEventListener('click',async()=>{try{const r=await api('POST','/api/admin/push',{on:!(pushInfo&&pushInfo.on)});renderPush(r.push);$('pushMsg').textContent='';}catch(e){$('pushMsg').textContent=e.message;}});
+$('pushTestBtn').addEventListener('click',async()=>{const u=$('pushTestUser').value.trim();if(!u){$('pushMsg').textContent='Type a username first.';return;}$('pushMsg').textContent='Sending…';
+ try{const r=await api('POST','/api/admin/push',{test:u});renderPush(r.push);$('pushMsg').textContent=r.sent?'Sent to '+r.sent+' device'+(r.sent===1?'':'s')+'. Check the phone.':'It did not reach their device. They may have switched notifications off there, so that device was removed.';}catch(e){$('pushMsg').textContent=e.message;}});
 
 /* ---------- Hustle Pass ---------- */
 const KES=n=>'KSh '+Math.round(+n||0).toLocaleString('en-US');

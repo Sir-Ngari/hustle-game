@@ -21,7 +21,7 @@ function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
 async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save,bill,ver){try{localStorage.setItem('hs-player','1');}catch(e){}SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+function startWith(user,save,bill,ver){try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
  signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
@@ -84,6 +84,36 @@ function aboutGame(){
   '<p class="about-fine">Free to play. No card. No download. Your empire saves to every device you own.</p>'+
   '<div class="chips"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button>'+
   '<button class="btn ghost" data-a="authjump" data-v="login">I already have an empire</button></div></div></section>';}
+/* ---------- Notifications: a friendly nudge when the player has been away ---------- */
+let pushKey=null,pushAskT=null;
+function pushSupported(){return'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
+function pushPerm(){return pushSupported()?Notification.permission:'unsupported';}
+function iosNoPush(){return/iphone|ipad|ipod/i.test(navigator.userAgent)&&!pushSupported();}
+function u8(b){const p='='.repeat((4-b.length%4)%4),r=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(r,c=>c.charCodeAt(0));}
+async function pushGetKey(){if(pushKey!==null)return pushKey;try{const d=await api('GET','/api/push/key');pushKey=d.on?d.key:'';}catch(e){pushKey='';}return pushKey;}
+async function pushRegister(ask){if(!pushSupported()||!ACC)return false;const key=await pushGetKey();if(!key)return false;
+ if(ask){const p=await Notification.requestPermission();if(p!=='granted')return false;}else if(Notification.permission!=='granted')return false;
+ const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+ if(sub){const cur=sub.options&&sub.options.applicationServerKey;if(cur){const a=new Uint8Array(cur),b=u8(key);if(a.length!==b.length||a.some((x,i)=>x!==b[i])){await sub.unsubscribe();sub=null;}}}
+ if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(key)});
+ let tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){}
+ const j=sub.toJSON();await api('POST','/api/push/subscribe',{endpoint:j.endpoint,keys:j.keys,tz,off:-new Date().getTimezoneOffset()});return true;}
+async function pushForget(){try{if(!pushSupported())return;const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();if(sub)await api('POST','/api/push/unsubscribe',{endpoint:sub.endpoint});}catch(e){}}
+function pushAskedRecently(){try{return Date.now()-(+localStorage.getItem('hs-push-ask')||0)<14*864e5;}catch(e){return true;}}
+function pushMaybeAsk(){if(pushAskT||!ACC||!S||S.over||S.month<6||pushPerm()!=='default'||pushAskedRecently())return;
+ pushAskT=setTimeout(async()=>{pushAskT=null;if(current||!$('modal').hidden||acctView||pushPerm()!=='default'||pushAskedRecently())return;if(!(await pushGetKey()))return;
+  try{localStorage.setItem('hs-push-ask',String(Date.now()));}catch(e){}
+  showCard('Never miss a big moment','Want a heads-up when your daily streak is about to break, a rival passes you on the leaderboard, or your empire needs you? We send a few at most, and never at night.',
+   '<button class="choice" data-a="pushyes"><b>Yes, notify me</b><span>Your phone will ask you to allow notifications. Tap Allow.</span></button><button class="choice" data-a="pushno"><b>Not now</b><span>You can switch them on later from your account.</span></button>');},2500);}
+async function pushYes(){closeModal();try{const ok=await pushRegister(true);showCard(ok?'Notifications on':'Notifications are off',ok?'We will give you a nudge when something needs you. You can switch them off any time from your account.':(pushPerm()==='denied'?'Your browser blocked them. You can allow notifications for this site in your browser settings, then switch them on from your account.':'They could not be switched on on this device.'),'<button class="choice" data-a="closecard"><b>Back to my empire</b></button>');}catch(e){showCard('Notifications are off','They could not be switched on on this device.','<button class="choice" data-a="closecard"><b>Back to my empire</b></button>');}}
+function pushMenuHTML(){const p=pushPerm();let line,btn='';
+ if(iosNoPush())line='On iPhone, notifications work once the game is on your Home Screen. Tap <b>Install app</b> above, then open the game from its icon.';
+ else if(p==='unsupported')line='This browser cannot show notifications.';
+ else if(p==='granted')line='<b>On.</b> We nudge you when your streak is about to break, a rival passes you, or your empire needs you. Never at night.',btn='<button class="btn ghost" data-a="pushoff">Switch off on this device</button>';
+ else if(p==='denied')line='<b>Blocked</b> by your browser. To switch them on, allow notifications for this site in your browser settings.';
+ else line='<b>Off.</b> Get a nudge when your streak is about to break or a rival passes you. A few at most, never at night.',btn='<button class="btn" data-a="pushon">Switch on notifications</button>';
+ return'<h3>Notifications</h3><p class="sub">'+line+'</p>'+(btn?'<div class="chips">'+btn+'</div>':'');}
+async function pushOff(){await pushForget();try{const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();}catch(e){}renderAccts();}
 function hideSplash(){const sp=document.getElementById('splash');if(!sp||sp.classList.contains('gone'))return;sp.classList.add('gone');setTimeout(()=>sp.remove(),400);}
 function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustlempires</div>';
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
@@ -91,7 +121,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  else if(acctView==='auth')h+=authHook()+(authMode==='about'?'<div class="chips hook-cta"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">Log in</button></div>'+authTabs()+aboutGame():'<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm()+'<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="about">New to Hustlempires? Read what the game is about →</button></p>');
  else if(acctView==='menu')h+='<div class="me">'+avatar(playerAcc(),true)+'<div><h2>'+esc(playerName())+'</h2><p class="sub">'+((S&&S.gnum>1)?'Generation '+S.gnum+' of the '+esc(familyName())+' family · ':'')+'@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
   '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
-  passMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div><h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
+  passMenuHTML()+pushMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div><h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
  else if(acctView==='installios')h+='<h2>Install the app</h2><p class="sub">Put the game on your home screen. It opens full-screen, like any other app.</p><ol class="iossteps"><li>At the bottom of Safari, tap the <b>Share</b> button (the square with an arrow pointing up).</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The game\'s icon appears on your home screen.</li></ol><div class="chips"><button class="btn primary" data-a="acctclose">Got it</button></div>';
  else if(acctView==='addemail')h+='<h2>Add your email</h2><p class="sub">If you ever forget your password, we\'ll send a reset link here. We don\'t use it for anything else.</p>'+emailForm('Save email',true);
  else if(acctView==='forgot')h+='<h2>Forgot your password?</h2>'+(forgotDone?'<p class="amsg">'+esc(forgotDone)+'</p><div class="chips"><button class="btn primary" data-a="backlogin">Back to log in</button></div>':
@@ -168,7 +198,7 @@ function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('res
  api('GET','/api/tuning').then(t=>{if(t&&typeof t==='object')TUNE=Object.assign({freq:1,gap:2,w:{},cat:{}},t);}).catch(()=>{});
  if(resetToken){acctView='reset';authMsg='';renderAccts();return;}
  acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save,d.bill,d.ver)).catch(e=>{if(e.status===401){acctView='auth';authMode=firstMode();visitMark('landed');}else{acctView='down';authMsg=e.message;}renderAccts();});}
-async function logout(){stopAuto();BILL=null;paintPass();if(ACC)try{await doSync();}catch(e){}try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
+async function logout(){stopAuto();BILL=null;paintPass();if(ACC)try{await doSync();}catch(e){}await pushForget();try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
 async function openBoard(tab){if(tab)lbTab=tab;stopAuto();closeModal();acctView='board';lbData=null;renderAccts();
  try{if(lbTab==='alltime')lbData=(await api('GET','/api/leaderboard')).players;else{const d=await api('GET','/api/season?scope='+(lbTab==='season-world'?'world':'country')+'&region='+encodeURIComponent(S.region||''));seasonCache=d;lbData=d.top;}}catch(e){lbData=[];}renderAccts();}
 async function loadSeason(){try{seasonCache=await api('GET','/api/season?scope=country&region='+encodeURIComponent(S.region||''));render();}catch(e){}}
