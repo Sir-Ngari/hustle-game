@@ -2230,6 +2230,11 @@ class Handler(BaseHTTPRequestHandler):
             return {"rank": w, "players": wn, "rankRegion": r, "playersRegion": rn}
 
         me = dict(pts=mine["pts"], region=mine["region"], **ranks(sid, mine["pts"], mine["region"])) if mine and mine["pts"] > 0 else None
+        if me:
+            up = q("SELECT u.name, s.pts FROM season_scores s JOIN users u ON u.id=s.user_id WHERE s.season=? AND s.region=? AND s.pts>? "
+                   "AND u.disabled=0 ORDER BY s.pts ASC LIMIT 1", (sid, mine["region"], mine["pts"]), one=True)
+            if up:
+                me["ahead"] = {"name": (up["name"] or "A rival").split(" ")[0], "gap": up["pts"] - mine["pts"]}
         hist = []
         for h in q("SELECT season, pts, region FROM season_scores WHERE user_id=? AND season<>? AND pts>0 "
                    "ORDER BY season DESC LIMIT 24", (uid, sid)):

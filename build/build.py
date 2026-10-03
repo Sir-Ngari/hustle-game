@@ -8,12 +8,12 @@ def rep(a,b,cnt=1):
 # swap the device-account block for the server-account block
 i=s.index("/* ================= Accounts ================= */"); j=s.index("function save(){if(!ACC)return;",i)
 k=s.index("saveAccs();}",j)+len("saveAccs();}")
-s=s[:i]+open('accthosted.js').read()+"\nfunction save(){if(!ACC)return;S._uid=ACC.id;queueSync();pushMaybeAsk();}"+s[k:]
+s=s[:i]+open('accthosted.js').read()+"\nfunction save(){if(!ACC)return;S._uid=ACC.id;S.seen=Date.now();queueSync();pushMaybeAsk();}"+s[k:]
 # number every news entry so the server can store each one once
 rep("function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});","function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});")
 # click handlers for the account screens
 i=s.index("accts:()=>showAccts('pick'),"); j=s.index("acctdelyes:()=>deleteAccount(v),",i)+len("acctdelyes:()=>deleteAccount(v),")
-s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,pushyes:()=>pushYes(),pushno:()=>closeModal(),closecard:()=>closeModal(),pushon:()=>{pushRegister(true).catch(()=>{}).then(()=>renderAccts());},pushoff:()=>pushOff(),authmode:()=>{authMode=v;authMsg='';renderAccts();const A=$('acct');if(A)A.scrollTop=0;},authjump:()=>{authMode=v;authMsg='';renderAccts();const u=$('acc-user');if(u){u.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>u.focus({preventScroll:true}),400);}},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,"+s[j:]
+s=s[:i]+"accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,awaygo:()=>awayCollect(),pushyes:()=>pushYes(),pushno:()=>closeModal(),closecard:()=>closeModal(),pushon:()=>{pushRegister(true).catch(()=>{}).then(()=>renderAccts());},pushoff:()=>pushOff(),authmode:()=>{authMode=v;authMsg='';renderAccts();const A=$('acct');if(A)A.scrollTop=0;},authjump:()=>{authMode=v;authMsg='';renderAccts();const u=$('acc-user');if(u){u.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>u.focus({preventScroll:true}),400);}},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),retryboot:bootAuth,appupdate:appUpdate,"+s[j:]
 # new game keeps the account and tells the server
 rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;")
 # start-up: ask the server who is playing
@@ -30,6 +30,10 @@ rep(".acctbrand{",""".authtabs{display:grid;grid-template-columns:1fr 1fr;border
 .aform input[type=password],.aform input[type=email]{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:15px;color:var(--ink)}
 .me{display:flex;align-items:center;gap:14px}
 .hook{margin:2px 0 4px}
+.awaylist{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.awaylist li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.06);font-size:14px;line-height:1.4}
+.awaylist li>span:first-child{font-size:22px;line-height:1}
+.awaylist b{display:block;font-size:15px;margin-bottom:2px}
 .moreopts{border:1px solid var(--line);border-radius:10px;padding:0 14px;margin:6px 0 2px}
 .moreopts[open]{padding-bottom:12px}
 .moreopts summary{cursor:pointer;list-style:none;padding:12px 0;display:flex;flex-direction:column;gap:2px}

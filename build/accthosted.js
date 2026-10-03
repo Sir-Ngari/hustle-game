@@ -21,9 +21,9 @@ function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
 async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save,bill,ver){try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+function startWith(user,save,bill,ver){try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);const away0=S.seen||0;migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
- signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}startEvents();
+ signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}if(!awayWelcome(away0))startEvents();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
@@ -115,6 +115,26 @@ function pushMenuHTML(){const p=pushPerm();let line,btn='';
  else line='<b>Off.</b> Get a nudge when your streak is about to break or a rival passes you. A few at most, never at night.',btn='<button class="btn" data-a="pushon">Switch on notifications</button>';
  return'<h3>Notifications</h3><p class="sub">'+line+'</p>'+(btn?'<div class="chips">'+btn+'</div>':'');}
 async function pushOff(){await pushForget();try{const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();}catch(e){}renderAccts();}
+/* ---------- While you were away: a welcome back after 8+ hours ---------- */
+let awayBusy=false,awayAmt=0;
+function seaRemember(d){if(d&&d.me&&S)S.seaRank={id:d.season,r:d.me.rankRegion};}
+function awayMonths(h){return h>=72?3:h>=48?2:h>=8?1:0;}
+function awayWelcome(seen){if(!S||S.over||!S.inds.length||S.month<1||!seen)return false;
+ const t=Date.now(),from=Math.max(seen,S.awayClaim||0),h=(t-from)/36e5;if(h<8||h>24*365)return false;
+ awayBusy=true;const net=Math.max(0,Math.round(flows(false).net)),mo=awayMonths(h);awayAmt=net*mo;S.awayClaim=t;
+ const paint=d=>{awayBusy=false;const rows=[],nm=(playerName()||'').split(' ')[0],days=h>=48?Math.floor(h/24)+' days':h>=24?'a day':Math.round(h)+' hours';
+  if(awayAmt>0)rows.push('<li><span>💰</span><span><b>Your businesses earned '+fmt(awayAmt)+'</b>Your managers kept the doors open: '+mo+' month'+(mo>1?'s':'')+' of profit is waiting for you.</span></li>');
+  const old=S.seaRank,me=d&&d.me;
+  if(me){const fell=old&&old.id===d.season&&me.rankRegion>old.r?me.rankRegion-old.r:0;
+   rows.push('<li><span>🏆</span><span><b>You are #'+me.rankRegion+' in your country this season</b>'+(fell?fell+' player'+(fell>1?'s':'')+' passed you while you were away. ':'')+(me.ahead?esc(me.ahead.name)+' is just '+me.ahead.gap.toLocaleString('en-US')+' points ahead.':'Nobody is ahead of you. Stay there.')+'</span></li>');}
+  seaRemember(d);
+  const dl=(S.daily||{});if(dl.streak>=2&&dl.last===yesterdayKey())rows.push('<li><span>🔥</span><span><b>Your '+dl.streak+'-day streak is still alive</b>Press Next month to claim today\'s bonus and keep it going.</span></li>');
+  if(!rows.length){startEvents();return;}
+  showCard('Welcome back'+(nm?', '+esc(nm):''),'You were away for '+days+'. Here is what happened.<ul class="awaylist">'+rows.join('')+'</ul>',
+   '<button class="choice" data-a="awaygo"><b>'+(awayAmt>0?'Collect '+fmt(awayAmt):'Back to my empire')+'</b><span>'+(awayAmt>0?'Then carry on building.':'Pick up where you left off.')+'</span></button>');};
+ Promise.race([api('GET','/api/season?scope=country&region='+encodeURIComponent(S.region||'')),new Promise(r=>setTimeout(()=>r(null),2500))]).then(d=>{if(d)seasonCache=d;paint(d);}).catch(()=>paint(null));
+ return true;}
+function awayCollect(){closeModal();if(awayAmt>0){S.cash+=awayAmt;log('While you were away, your businesses earned '+fmt(awayAmt)+'.','good');try{coinBurst(14);}catch(e){}awayAmt=0;render();save();}startEvents();}
 function hideSplash(){const sp=document.getElementById('splash');if(!sp||sp.classList.contains('gone'))return;sp.classList.add('gone');setTimeout(()=>sp.remove(),400);}
 function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustlempires</div>';
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
@@ -202,7 +222,7 @@ function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('res
 async function logout(){stopAuto();BILL=null;paintPass();if(ACC)try{await doSync();}catch(e){}await pushForget();try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
 async function openBoard(tab){if(tab)lbTab=tab;stopAuto();closeModal();acctView='board';lbData=null;renderAccts();
  try{if(lbTab==='alltime')lbData=(await api('GET','/api/leaderboard')).players;else{const d=await api('GET','/api/season?scope='+(lbTab==='season-world'?'world':'country')+'&region='+encodeURIComponent(S.region||''));seasonCache=d;lbData=d.top;}}catch(e){lbData=[];}renderAccts();}
-async function loadSeason(){try{seasonCache=await api('GET','/api/season?scope=country&region='+encodeURIComponent(S.region||''));render();}catch(e){}}
+async function loadSeason(){try{seasonCache=await api('GET','/api/season?scope=country&region='+encodeURIComponent(S.region||''));if(!awayBusy)seaRemember(seasonCache);render();}catch(e){}}
 function seasonRankLine(){const d=seasonCache,s=S.sea;if(!d||!s||d.season!==s.id||!d.me)return' <span class="rk">Play this month to get on the board</span> <button class="btn small ghost" data-a="leaderboard">Leaderboard</button> <button class="btn small ghost" data-a="invite">Invite friends</button>';
  const c=countryRow(d.me.region)||{name:d.me.region};return' <span class="rk">#'+d.me.rankRegion+' of '+d.me.playersRegion+' in '+esc(c.name)+' · #'+d.me.rank+' of '+d.me.players+' worldwide</span> <button class="btn small ghost" data-a="leaderboard">Leaderboard</button> <button class="btn small ghost" data-a="invite">Invite friends</button>';}
 function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length)return'';
