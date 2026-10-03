@@ -3561,6 +3561,10 @@ const SCHEMES=[
  {id:'tenders',name:'Rig government tenders',d:'Inflated public contracts: profit +12%.',att:.9,min:1e6},
  {id:'smuggle',name:'Run contraband through your network',d:'Untaxed goods with fat, unpredictable margins.',att:1.2,min:5e4},
  {id:'launder',name:'Clean money for dangerous people',d:'A big commission, and the gangs learn your name.',att:1.6,min:5e6}];
+/* money cleaning: the gang pushes dirty cash through your businesses every month. You keep a commission of 5%, rising to 10% as police attention climbs (more risk, bigger cut) */
+function launderVol(){return Math.max(6e4,Math.max(0,netWorth())*.08);}
+function launderRate(){const a=S.law?S.law.att:0;return .05+.05*clamp(a,0,100)/100;}
+function launderCut(){return launderVol()*launderRate();}
 function lawOf(){S.law=S.law||{att:0,on:{},convictions:0,dirty:false,bribed:false,jail:null,hide:null,last:-99};return S.law;}
 const jailed=()=>{const L=S.law;return!!(L&&L.jail&&S.month<L.jail.until);},hiding=()=>!!(S.law&&S.law.hide),inHosp=()=>!!(S.hosp&&S.month<S.hosp.until);
 const lawBlocked=()=>jailed()||hiding();
@@ -3568,7 +3572,7 @@ function statusMult(){return(jailed()?.6:1)*(hiding()?.5:1)*(inHosp()?.85:1);}
 function lawyerOn(){return S.svc&&S.svc.legal&&S.svc.legal.lvl>=0;}
 function shadyIncome(biz,noisy){const L=S.law;if(!L||!L.on)return 0;const b=Math.max(0,biz),nw=Math.max(0,netWorth());let t=0;
  if(L.on.evasion)t+=b*.15;if(L.on.bribes)t+=b*.08;if(L.on.tenders)t+=b*.12;
- if(L.on.smuggle)t+=Math.max(1500,nw*.004)*(noisy?.3+rnd()*1.4:1);if(L.on.launder)t+=Math.max(3000,nw*.005);
+ if(L.on.smuggle)t+=Math.max(1500,nw*.004)*(noisy?.3+rnd()*1.4:1);if(L.on.launder)t+=launderCut();
  return t*(jailed()?.5:1);}
 function attLabel(a){return a<20?'Unnoticed':a<45?'On the radar':a<70?'Under investigation':'Arrest likely';}
 function lawTick(){const L=lawOf();
@@ -3707,7 +3711,7 @@ const DW_EVENTS=[
   choices:[{l:'Take the rigged tender',d:'Inflated public contracts: profit +12%.'+DW_ATT(x),f(){dwStart('tenders');return['You won the tender. Nobody else stood a chance.','bad']}},
    {l:'Bid honestly',d:'You probably lose the contract. Reputation +1.',f(){addRep(1);return['You lost the tender to a company with friends in high places.','']}}]})),
  dwOffer('launder',1.5,x=>({title:'A quiet man wants to invest',text:'He has bags of cash that need to come out clean through your businesses. He pays a big commission, and he does not like being told no.',
-  choices:[{l:'Clean his money',d:'A big commission, and the gangs learn your name. Mob heat rises.'+DW_ATT(x),f(){dwStart('launder');return['The cash arrived in sports bags. It left as invoices.','bad']}},
+  choices:[{l:'Clean his money',d:'He pushes about '+fmt(launderVol())+' a month through your businesses and you keep '+Math.round(launderRate()*100)+'% ('+fmt(launderCut())+' a month). Your cut rises to 10% as police attention climbs. The gangs learn your name and mob heat rises.'+DW_ATT(x),f(){dwStart('launder');return['The cash arrived in sports bags. It left as invoices.','bad']}},
    {l:'Decline politely',d:'He leaves unhappy. Mob heat +5.',f(){addHeat(5);return['He smiled, but it did not reach his eyes.','']}},
    {l:'Tip off the police',d:'Reputation +3. The gang will not forget. Mob heat +15.',f(){addRep(3);addHeat(15);return['Detectives thanked you. Someone else sent you a funeral wreath.','bad']}}]}))];
 EVENTS.push(...DW_EVENTS);
@@ -3797,7 +3801,7 @@ function lawHTML(){const L=lawOf(),a=Math.round(L.att),run=SCHEMES.filter(x=>L.o
  if(hiding())h+='<p class="seghint"><b>You are in hiding abroad.</b> The business runs at half speed until you return.</p>'+hideOptsHTML();
  if(!run.length)h+='<p class="seghint">You are not running any shady deals.</p>';
  h+=coversHTML();{const P=(L.past||[]).filter(x=>!x.done);if(P.length)h+='<div class="kv"><span>Skeletons in your closet</span><span>'+P.length+'</span></div><ul class="pastl">'+P.slice(-6).reverse().map(x=>'<li><b>'+yrOf(x.m)+'</b> You '+esc(DWLBL[x.id]||'did something shady')+'.</li>').join('')+'</ul><p class="seghint">Nobody cares while you are small. Once you are worth $100M or more, journalists, old partners, rivals and prosecutors will come looking.</p>';}
- run.forEach(x=>{h+='<div class="row"><div class="t"><b>'+x.name+'</b><span>'+x.d+' Attention +'+x.att+' a month.</span></div><button class="btn small ghost" data-a="scheme" data-v="'+x.id+'"'+(lawBlocked()?' disabled':'')+'>Stop</button></div>';});
+ run.forEach(x=>{h+='<div class="row"><div class="t"><b>'+x.name+'</b><span>'+(x.id==='launder'?'Cleaning about '+fmt(launderVol())+' a month at a '+(launderRate()*100).toFixed(1)+'% commission: you earn '+fmt(launderCut())+' a month. The riskier it gets, the bigger your cut (5% up to 10%).':x.d)+' Attention +'+x.att+' a month.</span></div><button class="btn small ghost" data-a="scheme" data-v="'+x.id+'"'+(lawBlocked()?' disabled':'')+'>Stop</button></div>';});
  if(L.att>=50&&!jailed())h+='<div class="row"><div class="t"><b>Buy a new life</b><span>Vanish with a new name in a new country. You keep '+fmt(vanishKeep())+'; everything and everyone else stays behind.</span></div><button class="btn small" data-a="vanishask">Disappear</button></div>';
  return h;}
 function statusLine(){if(jailed())return'In prison until '+dateStr(S.law.jail.until);if(hiding())return'In hiding abroad';if(inHosp())return'In hospital until '+dateStr(S.hosp.until);if(S.law&&S.law.att>=45)return'Police attention '+Math.round(S.law.att)+' · '+attLabel(S.law.att);return'';}
