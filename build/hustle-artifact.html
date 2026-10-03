@@ -1334,6 +1334,7 @@ function fmt(n){const neg=n<0;n=Math.abs(n);let s;if(curLocal())n*=R.rate;const 
 function fmtFull(n){const v=curLocal()?n*R.rate:n;return v<1e7?curSym()+Math.round(v).toLocaleString('en-US'):fmt(n);}
 const dollars=t=>String(t).replace(/\$(\d[\d,]*(?:\.\d+)?)([KMBT]?)/g,(m,x,u)=>fmt(+x.replace(/,/g,'')*({'':1,K:1e3,M:1e6,B:1e9,T:1e12}[u])));
 const owned=id=>S.owned[id]||0, has=id=>S.assets[id]||0, af=id=>S.af[id]||1;
+const CPI=()=>{try{return(S&&S.cpi)||1;}catch(e){return 1;}}, afx=id=>af(id)*CPI();
 /* fires and other mishaps hit a place the player really owns */
 const FIREPLACE={kiosk:'kiosk',mitumba:'stall',retail:'shop',deptstore:'flagship store',fashionhouse:'design studio',retailgroup:'distribution centre',mbogastand:'stand',poultry:'poultry houses',avocado:'packhouse',mill:'flour mill',foodproc:'processing plant',agribiz:'grain silos',
  boda:'boda boda garage',matatu:'matatu depot',trucking:'truck yard',courier:'sorting centre',logistics:'warehouse',airline:'aircraft hangar',jua:'workshop',workshop:'tailoring workshop',furniture:'furniture factory',factory:'factory',steel:'steel mill',assembly:'assembly plant',
@@ -1343,7 +1344,7 @@ const FIREPLACE={kiosk:'kiosk',mitumba:'stall',retail:'shop',deptstore:'flagship
 function fireBiz(rand){const L=BIZ.filter(b=>owned(b.id)>0);if(!L.length)return null;if(!rand)return L.reduce((a,b)=>bizValue(b)>bizValue(a)?b:a);
  const tot=L.reduce((t,b)=>t+bizValue(b),0);let r=rnd()*tot;for(const b of L){r-=bizValue(b);if(r<=0)return b;}return L[L.length-1];}
 const firePlace=b=>b?(FIREPLACE[b.id]||b.name.lc()):'premises';
-const unitCost=(b,n)=>b.cost*Math.pow(1.12,n);
+const unitCost=(b,n)=>b.cost*Math.pow(1.12,n)*CPI();
 const marketMult=()=>MARKETS.slice(0,S.market+1).reduce((a,m)=>a*m.mult,1);
 const upMult=()=>UPS.reduce((a,u)=>a*(S.ups[u.id]?u.m:1),1);
 const valMult=()=>(S.ups.ir?1.4:1)*(sv('audit').lvl>=0?1.15:1);
@@ -1374,7 +1375,7 @@ function doBuy(id,amt){amt=Math.min(amt,Math.max(0,S.cash));if(amt<1)return 0;co
 function doSell(id,frac){const h=S.port[id];if(!h||!h.u)return[0,0];const v=h.u*frac*S.px[id]*.99,c=h.cost*frac;
  if(frac>=1){h.u=0;h.cost=0}else{h.u*=1-frac;h.cost-=c}S.cash+=v;return[v,v-c];}
 function marketTick(sPrev){
- const old=S.cbr,target=.1+(S.s-1)*.15;
+ const old=S.cbr,target=.07+(S.infl!=null?S.infl:.02)*1.2+(S.s-1)*.12;
  S.cbr=clamp(S.cbr+(target-S.cbr)*.12+(rnd()-.5)*.004,.04,.2);const dR=S.cbr-old;
  const mr=1.6*(S.s-sPrev)+(rnd()-.5)*.05+S.mktTrend;
  S.mktTrend*=.85;if(Math.abs(S.mktTrend)<.002)S.mktTrend=0;
@@ -1403,10 +1404,10 @@ function indBuff(id){return S.buffs.reduce((a,b)=>a*(b.ind===id?b.f:1),1);}
 function entryFee(){return nwc(.02,500);}
 function enterInd(id,fee){if(S.inds.includes(id)||S.inds.length>=SLOTS[S.peak])return false;S.cash-=fee;S.inds.push(id);return true;}
 const cyc=b=>1+(S.s-1)*(.6+b.vol*2);
-function bizValue(b){if(!owned(b.id))return 0;return b.profit*owned(b.id)*policyMult(b)*masteryMult(b.ind)*12*baseMult()*b.mult*valMult()*S.s*(S.float?(1-S.float)*1.3:1);}
+function bizValue(b){if(!owned(b.id))return 0;return CPI()*b.profit*owned(b.id)*policyMult(b)*masteryMult(b.ind)*12*baseMult()*b.mult*valMult()*S.s*(S.float?(1-S.float)*1.3:1);}
 function bizAssets(){return BIZ.reduce((a,b)=>a+bizValue(b),0);}
-function assetPrice(a){if(MODELS[a.id]&&!has(a.id))return a.price*genMult(a.id);return a.price*af(a.id)*(a.stack?Math.pow(1.06,has(a.id)):1);}
-function lifeAssets(){return ASSETS.reduce((t,a)=>t+a.price*af(a.id)*has(a.id),0);}
+function assetPrice(a){if(MODELS[a.id]&&!has(a.id))return a.price*genMult(a.id);return a.price*afx(a.id)*(a.stack?Math.pow(1.06,has(a.id)):1);}
+function lifeAssets(){return ASSETS.reduce((t,a)=>t+a.price*afx(a.id)*has(a.id),0);}
 function assets(){return bizAssets()+lifeAssets()+portValue()+sportsValue()+propValue()+(typeof subValue==='function'?subValue():0)+(S.xcv||0);}
 /* ================= Takeovers: buy control of listed companies ================= */
 const TK_CAP={SIMU:2e9,TAUSI:1.5e9,MAVUNO:3e8,KILIMA:6e8,NURU:4e8,PESA:8e8};
@@ -1442,13 +1443,25 @@ function tkGo(v){closeModal();const [id,ps,sure]=String(v).split(':'),p=+ps,x=SE
  afterChange();}
 function tkSell(id){const x=SECS.find(s=>s.id===id);if(!tkOwned(id))return;const v=tkCap(id)*.9;S.cash+=v;delete S.subs[id];log('You floated '+x.name+' back on the stock exchange for '+fmt(v)+'.','');afterChange();}
 const RIVAL_NAMES=['Jabali Group','Simba Holdings','Upendo Enterprises','Kifaru Industries','Twiga Ventures','Nyota Brands','Baraka Holdings'];
+const ECON={expansion:{s:1.05,inf:.02,d:[36,60],next:'boom',name:'Expansion',tip:'Steady growth and normal inflation, around 2% a year. Keep building, and keep some cash aside: booms and busts come in waves.'},
+ boom:{s:1.22,inf:.04,d:[12,24],next:'slowdown',name:'Boom',tip:'Customers are spending freely and profits are up, but prices are rising faster (around 4% a year). Property and shares are expensive now. Do not overpay, and do not borrow as if it will last: booms end.'},
+ slowdown:{s:.95,inf:.03,d:[9,15],next:'recession',name:'Slowdown',tip:'Growth is fading but prices are still rising. Pay down debt and build up cash. A recession often follows.'},
+ recession:{s:.78,inf:.005,d:[12,24],next:'recovery',name:'Recession',tip:'Sales are down across the country, and property and share prices have fallen. If you have cash, this is when fortunes are made: buy what others are forced to sell. Avoid new debt you cannot service.'},
+ recovery:{s:.95,inf:.01,d:[12,18],next:'expansion',name:'Recovery',tip:'The worst is over. Customers are coming back and prices are still low. A good time to expand.'}};
+function econS(){S.econ=S.econ||{ph:'expansion',left:18+Math.floor(rnd()*30),note:false};if(S.cpi==null)S.cpi=1;if(S.infl==null)S.infl=.02;return S.econ;}
+function econSet(ph){const E=econS(),P=ECON[ph];if(!P)return;E.ph=ph;E.left=P.d[0]+Math.floor(rnd()*(P.d[1]-P.d[0]+1));E.note=true;}
+function econTick(){const E=econS();if(--E.left<=0)econSet(ECON[E.ph].next);const P=ECON[E.ph];S.infl=clamp(S.infl+(P.inf-S.infl)*.1+(rnd()-.5)*.003,-.01,.15);S.cpi*=1+S.infl/12;}
+const econTarget=()=>ECON[econS().ph].s;
+function econNext(){const E=S.econ;if(!E||!E.note)return null;E.note=false;const P=ECON[E.ph];
+ return dealCard('The economy: '+P.name.toLowerCase(),E.ph!=='recession'&&E.ph!=='slowdown','Inflation',(S.infl*100).toFixed(1)+'% a year','Prices are '+Math.round((S.cpi-1)*100)+'% higher than when you started.','<p>'+P.tip+'</p>','Economy');}
+function econHTML(){const E=econS(),P=ECON[E.ph],lost=1-1/S.cpi;return'<div class="pcbox'+(E.ph==='recession'||E.ph==='slowdown'?'':' on')+'" style="margin-bottom:10px"><b>Economy: '+P.name.toLowerCase()+'</b><span>Inflation '+(S.infl*100).toFixed(1)+'% a year · central bank rate '+(S.cbr*100).toFixed(1)+'%</span><span>Prices are '+Math.round((S.cpi-1)*100)+'% higher than when you started'+(lost>.005?': cash you have held since then buys '+Math.round(lost*100)+'% less. Cash loses value; buildings, businesses and shares keep up.':'.')+'</span></div>';}
 function netWorth(){return S.cash+assets()-S.debt;}
 const nwc=(p,min)=>{const nw=Math.max(0,netWorth());return Math.max(nw*p,(min||0)*clamp(nw/20000,.05,1));};
 const pct=p=>Math.max(0,S.cash*p);
 const canPay=c=>S.cash+Math.max(0,creditLimit()-S.debt)>=c;
 function creditLimit(){return Math.max(2000,.4*(Math.max(0,S.cash)+assets())*svcEffects().credit);}
 const rank=()=>titleIdx(netWorth());
-function luxEffects(){const C=custEffects();let hap=C.hap,sh=C.sh,inf=C.inf,rep=0,worth=0;ASSETS.forEach(a=>{if(!a.lux||!has(a.id))return;hap+=a.hap||0;sh+=a.sh||0;inf+=a.inf||0;worth+=a.price*af(a.id);});
+function luxEffects(){const C=custEffects();let hap=C.hap,sh=C.sh,inf=C.inf,rep=0,worth=0;ASSETS.forEach(a=>{if(!a.lux||!has(a.id))return;hap+=a.hap||0;sh+=a.sh||0;inf+=a.inf||0;worth+=a.price*afx(a.id);});
  return{hapRaw:hap,hap:Math.min(18,hap),sh:Math.min(1.2,sh),inf:Math.min(3,inf),worth};}
 function carTier(){return CARS.reduce((t,a)=>has(a.id)?Math.max(t,a.tier):t,0);}
 function ownedHomeTier(){return HOMES.reduce((t,a)=>has(a.id)?Math.max(t,a.tier):t,-1);}
@@ -1542,7 +1555,7 @@ const PLK=['bizRev','bizCost','rent','prop','sport','lux','inv','trustInc','moon
 function plYears(){if(!S.ply){S.ply={};(S.plh||[]).forEach(e=>plAddYear(e));}return S.ply;}
 function plAddYear(e){const y=Math.floor(e.m/12),b=S.ply[y]=S.ply[y]||{n:0};b.n++;PLK.forEach(k=>b[k]=(b[k]||0)+(e[k]||0));}
 function plRecord(f){S.plh=S.plh||[];plYears();const e={m:S.month};PLK.forEach(k=>e[k]=Math.round(+f[k]||0));S.plh.push(e);plAddYear(e);if(S.plh.length>36)S.plh.splice(0,S.plh.length-36);}
-function bsNow(){const rentals=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.price*af(a.id)*has(a.id),0);
+function bsNow(){const rentals=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.price*afx(a.id)*has(a.id),0);
  return{cash:S.cash,biz:bizAssets(),prop:propValue(),rentals,lux:lifeAssets()-rentals,inv:portValue(),sport:sportsValue(),debt:S.debt};}
 function bsRecord(){S.bsh=S.bsh||[];const b=bsNow();const e={m:S.month};Object.keys(b).forEach(k=>e[k]=Math.round(b[k]));S.bsh.push(e);if(S.bsh.length>25)S.bsh.splice(0,S.bsh.length-25);}
 let repPeriod='last';
@@ -1582,25 +1595,25 @@ function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e
 const MARGIN={retail:.25,food:.22,transport:.28,manufacturing:.22,realestate:.35,tech:.4,hospitality:.25,health:.3,energy:.35,media:.3};
 function bizStructMult(E){return baseMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float)*(S.plan&&S.plan.mentor?.97:1)*(typeof statusMult==='function'?statusMult():1);}
 function bizPL(b,noisy,E,sm){const n=owned(b.id);if(!n)return{rev:0,cost:0,profit:0,d:1};E=E||svcEffects();if(sm==null)sm=bizStructMult(E);
- const m=MARGIN[b.ind]||.3,k=.5/m+.5,P=b.profit*n*policyMult(b)*masteryMult(b.ind)*sm;
+ const m=MARGIN[b.ind]||.3,k=.5/m+.5,P=b.profit*n*policyMult(b)*masteryMult(b.ind)*sm*CPI();
  let d=cyc(b)*indBuff(b.ind)*buffMult()*(typeof crisisMult==='function'?crisisMult(b.ind):1);if(noisy)d*=1+(b.vol/k)*(rnd()*2-1);
  const R0=P/m,C0=R0-P,rev=R0*d,cost=C0*.5+C0*.5*d;return{rev,cost,profit:rev-cost,d};}
 function flows(noisy){
  const E=svcEffects(),sm=bizStructMult(E);
  let biz=0,bizRev=0,bizCost=0;
  BIZ.forEach(b=>{if(!owned(b.id))return;const x=bizPL(b,noisy,E,sm);biz+=x.profit;bizRev+=x.rev;bizCost+=x.cost;});
- const rent=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.rent*has(a.id)*af(a.id),0)*policyMult('rent');
+ const rent=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.rent*has(a.id)*afx(a.id),0)*policyMult('rent');
  const sport=sportsNet(),prop=propNet();
- const lux=custEffects().inc+ASSETS.reduce((t,a)=>t+(a.inc&&has(a.id)?a.price*af(a.id)*a.inc*(noisy&&a.incVol?1+(rnd()-.5)*2*a.incVol:1):0),0);
+ const lux=custEffects().inc+ASSETS.reduce((t,a)=>t+(a.inc&&has(a.id)?a.price*afx(a.id)*a.inc*(noisy&&a.incVol?1+(rnd()-.5)*2*a.incVol:1):0),0);
  const inv=secIncome();
  const fees=SERVICES.reduce((t,d)=>t+svcFee(d),0);
  const fines=Math.max(0,biz)*E.fine;
  const interest=S.debt*loanRate();
- const upkeep=ASSETS.filter(a=>!a.stack).reduce((t,a)=>t+a.price*af(a.id)*has(a.id)*a.upkeep*(1+.15*behind(a.id)),0);
- const school=S.kids.reduce((t,k)=>t+kidCost(k),0);
- const homeRent=S.rent>=0&&S.rent>ownedHomeTier()?HOMES[S.rent].rentFee:0, travel=travelCost();
+ const upkeep=ASSETS.filter(a=>!a.stack).reduce((t,a)=>t+a.price*afx(a.id)*has(a.id)*a.upkeep*(1+.15*behind(a.id)),0);
+ const school=S.kids.reduce((t,k)=>t+kidCost(k),0)*CPI();
+ const homeRent=(S.rent>=0&&S.rent>ownedHomeTier()?HOMES[S.rent].rentFee:0)*CPI(), travel=travelCost()*CPI();
  const mob=S.protection>0?Math.max(0,biz)*S.protection:0;
- const alimony=S.alimony?S.alimony.amt:0,health=careFee();
+ const alimony=S.alimony?S.alimony.amt:0,health=careFee()*CPI();
  const giving=S.fdn?Math.max(0,biz)*S.fdn.giving:0;
  const estatePl=typeof planCost==='function'?planCost():0,trustInc=S.trustPay||0,shady=typeof shadyIncome==='function'?shadyIncome(biz,noisy):0;
  const moon=moonSpend(),moonInc=moonIncome(),subInc=typeof subIncome==='function'?subIncome():0;
@@ -1792,12 +1805,12 @@ const EVENTS=[
   choices:()=>[{l:'Accept',d:'Spend '+fmt(pct(.02))+'. Permanent +6% profit.',f(){S.cash-=pct(.02);S.perm*=1.06;return['Your mentor sharpened your instincts. +6% profit, forever.','good']}},
    {l:'Too busy',d:'No time for coffee meetings.',f(){return['You declined the mentorship.','']}}]},
  /* ---- Economy ---- */
- {id:'recession',cat:'Economy',w:.6,when:()=>S.s>.85,title:'Recession hits',text:()=>'Consumer spending is collapsing across the region.',
-  choices:()=>[{l:'Cut costs hard',d:'Profit ×1.15 for 6 months, −5 reputation.',f(){S.s=.72;addBuff(1.15,6,'Cost cuts');addRep(-5);return['Recession. You cut costs to protect margins.','bad']}},
-   {l:'Hold steady',d:'Keep staff and quality. +4 reputation.',f(){S.s=.72;addRep(4);return['Recession. You kept your team.','bad']}}]},
- {id:'boom',cat:'Economy',w:.6,when:()=>S.s<1.15,title:'The economy is booming',text:()=>'Infrastructure spending and strong harvests have customers spending freely.',
-  choices:()=>[{l:'Expand aggressively',d:'Spend '+fmt(pct(.1))+'. Profit ×1.35 for 4 months.',f(){S.cash-=pct(.1);S.s=Math.max(S.s,1.25);addBuff(1.35,4,'Boom push');return['You rode the boom hard.','good']}},
-   {l:'Enjoy the ride',d:'The rising tide lifts all boats.',f(){S.s=Math.max(S.s,1.25);return['The boom lifted your sales.','good']}}]},
+ {id:'recession',cat:'Economy',w:.6,when:()=>econS().ph==='slowdown',title:'Recession hits',text:()=>'Consumer spending is collapsing across the region.',
+  choices:()=>[{l:'Cut costs hard',d:'Profit ×1.15 for 6 months, −5 reputation.',f(){econSet('recession');S.econ.note=false;S.s=.72;addBuff(1.15,6,'Cost cuts');addRep(-5);return['Recession. You cut costs to protect margins.','bad']}},
+   {l:'Hold steady',d:'Keep staff and quality. +4 reputation.',f(){econSet('recession');S.econ.note=false;S.s=.72;addRep(4);return['Recession. You kept your team.','bad']}}]},
+ {id:'boom',cat:'Economy',w:.6,when:()=>['expansion','recovery'].includes(econS().ph),title:'The economy is booming',text:()=>'Infrastructure spending and strong harvests have customers spending freely.',
+  choices:()=>[{l:'Expand aggressively',d:'Spend '+fmt(pct(.1))+'. Profit ×1.35 for 4 months.',f(){S.cash-=pct(.1);econSet('boom');S.econ.note=false;S.s=Math.max(S.s,1.25);addBuff(1.35,4,'Boom push');return['You rode the boom hard.','good']}},
+   {l:'Enjoy the ride',d:'The rising tide lifts all boats.',f(){econSet('boom');S.econ.note=false;S.s=Math.max(S.s,1.25);return['The boom lifted your sales.','good']}}]},
  {id:'fx',cat:'Economy',w:.6,when:()=>S.cash>5000,title:()=>'The '+R.curName+' '+(R.cur==='USD'?'weakens':'devalues')+' sharply',text:()=>'Overnight the local currency lost a big chunk of its value.',
   choices:()=>[{l:'Hold your cash',d:'Lose '+fmt(pct(.1))+'.',f(){S.cash-=pct(.1);return['Devaluation wiped 10% off your cash.','bad']}},
    {l:'Move reserves to dollars',d:'Pay a '+fmt(pct(.02))+' fee.',f(){S.cash-=pct(.02);return['You hedged into dollars in time.','good']}}]},
@@ -1974,12 +1987,12 @@ const EVENTS=[
   choices:()=>[{l:'Shake on it',d:'All businesses earn ×1.12 for 6 months.',f(){addBuff(1.12,6,'Golf course deal');return['A handshake on the 14th hole became a lucrative partnership.','good']}},
    {l:'Keep golf for fun',d:'+4 happiness.',f(){addHappy(4);return['You just enjoyed the game.','']}}]},
  {id:'artdemand',cat:'Luxury',w:.7,when:()=>has('art')||has('masterpiece'),setup(){this.a=has('masterpiece')&&rnd()<.5?'masterpiece':has('art')?'art':'masterpiece';},
-  title:'Collectors want your art',text(){const a=ASSETS.find(x=>x.id===this.a);return'A Gulf collector offers '+fmt(a.price*af(a.id)*1.5)+' for your '+a.name.lc()+'. A national museum would rather borrow it.';},
-  choices(){const a=ASSETS.find(x=>x.id===this.a),v=a.price*af(a.id)*1.5;return[{l:'Sell to the collector',d:'Get '+fmt(v)+'.',f(){S.cash+=v;S.assets[a.id]=0;S.cust[a.id]=[];return['You sold your '+a.name.lc()+' for '+fmt(v)+'.','gold']}},
+  title:'Collectors want your art',text(){const a=ASSETS.find(x=>x.id===this.a);return'A Gulf collector offers '+fmt(a.price*afx(a.id)*1.5)+' for your '+a.name.lc()+'. A national museum would rather borrow it.';},
+  choices(){const a=ASSETS.find(x=>x.id===this.a),v=a.price*afx(a.id)*1.5;return[{l:'Sell to the collector',d:'Get '+fmt(v)+'.',f(){S.cash+=v;S.assets[a.id]=0;S.cust[a.id]=[];return['You sold your '+a.name.lc()+' for '+fmt(v)+'.','gold']}},
    {l:'Lend it to the museum',d:'+6 reputation, +5 influence.',f(){addRep(6);addInf(5);return['Your art went on show at the national museum.','good']}},
    {l:'Keep it at home',d:'+2 happiness.',f(){addHappy(2);return['You kept your art.','']}}]}},
  {id:'islandrent',cat:'Luxury',w:.7,when:()=>has('island'),title:'A pop star wants your island',text:()=>'A global pop star wants your island for a month-long album retreat.',
-  choices:()=>{const v=ASSETS.find(x=>x.id==='island').price*af('island')*.02;return[{l:'Rent it out',d:'Earn '+fmt(v)+'. +3 reputation.',f(){S.cash+=v;addRep(3);return['A pop star spent a month on your island. +'+fmt(v),'good']}},
+  choices:()=>{const v=ASSETS.find(x=>x.id==='island').price*afx('island')*.02;return[{l:'Rent it out',d:'Earn '+fmt(v)+'. +3 reputation.',f(){S.cash+=v;addRep(3);return['A pop star spent a month on your island. +'+fmt(v),'good']}},
    {l:'Keep it private',d:'Your family goes instead. +5 happiness, spouse happier.',f(){addHappy(5);addSH(6);return['A month on the island with the family.','life']}}]}},
  {id:'horsesrace',cat:'Luxury',w:.6,when:()=>has('horses'),title:()=>R.code==='KE'?'Your horse is in the Kenya Derby':'Your horse is in the '+R.adj+' Derby',text:()=>R.code==='KE'?'Your best colt is a strong favourite for the Derby at Ngong Racecourse.':'Your best colt is a strong favourite for the Derby at the '+R.city+' racecourse.',
   choices:()=>{const c=nwc(.002,2000);return[{l:'Place a big bet',d:'Bet '+fmt(c)+'. 40% chance to win '+fmt(c*3)+'.',f(){S.cash-=c;if(rnd()<.4){S.cash+=c*3;addHappy(4);return['Your colt won the Derby! +'+fmt(c*3),'good']}return['Your colt finished third.','bad']}},
@@ -2230,7 +2243,7 @@ function divorceEvent(){const sp=S.spouse,pers=Math.max(0,S.cash)+lifeAssets(),b
   {l:'Fight it in court',d:'Legal fees '+fmt(fee)+'. '+Math.round(wchance*100)+'% chance you pay about '+fmt(est(courtWin))+'; otherwise about '+fmt(est(courtLose))+'. −6 reputation.',f(){S.cash-=fee;addRep(-6);return rnd()<wchance?divorce(courtWin,'The court sided mostly with you.','The court sided mostly with you'):divorce(courtLose,'The court sided with '+sp.name+'.','The court sided with '+sp.name)}},
   {l:'Try counselling first',d:'Spend '+fmt(nwc(.004,300))+'. 40% chance you save the marriage. If it fails, you settle.',f(){const fee=nwc(.004,300);S.cash-=fee;if(rnd()<.4){sp.happy=55;const wasHustle=S.mode==='hustle';S.mode=wasHustle?'balanced':S.mode;return['Counselling saved your marriage. You promised to work less.','life',dealCard('Counselling worked',true,'Counselling','Marriage saved',sp.name+' has agreed to give it another go. '+(sp.g==='f'?'Her':sp.g==='m'?'His':'Their')+' happiness is back up to 55 out of 100.','The sessions cost '+fmt(fee)+'.'+(wasHustle?' You promised to work less, so hustle mode is now off.':'')+' Keep '+sp.name+' happy: Family first mode helps.','Family')]}return divorce(settle,'Counselling failed. You settled.','Counselling did not work')}}]};}
 function divorce(share,msg,head){const sp=S.spouse;let owed=(Math.max(0,S.cash)+lifeAssets())*share+(sp.prenup?0:bizAssets()*share*.4);let note='';
- if(!sp.prenup){const home=ASSETS.filter(a=>a.kind==='Homes'&&has(a.id)).pop();if(home){const v=home.price*af(home.id);S.assets[home.id]--;owed=Math.max(0,owed-v);note=' '+sp.name+' keeps the '+home.name+'.';if(homeTier()<0){S.rent=home.tier;note+=' You moved into a rented '+HOMES[home.tier].name.lc()+'.';}}}
+ if(!sp.prenup){const home=ASSETS.filter(a=>a.kind==='Homes'&&has(a.id)).pop();if(home){const v=home.price*afx(home.id);S.assets[home.id]--;owed=Math.max(0,owed-v);note=' '+sp.name+' keeps the '+home.name+'.';if(homeTier()<0){S.rent=home.tier;note+=' You moved into a rented '+HOMES[home.tier].name.lc()+'.';}}}
  const fromCash=Math.min(Math.max(0,S.cash),owed);S.cash-=fromCash;if(owed>fromCash){S.debt+=owed-fromCash;note+=' '+fmt(owed-fromCash)+' of the settlement became debt.';}
  const kids=S.kids.filter(k=>!k.grown&&!k.withEx);kids.forEach(k=>k.withEx=true);
  if(!sp.prenup){const amt=Math.max(100,flows(false).biz*.04);S.alimony={amt,left:48,to:sp.name};note+=' Alimony: '+fmt(amt)+' a month for 4 years.';}
@@ -2324,7 +2337,7 @@ function acqEvent(D,round){const b=D.b,v=D.v,cur=D.offer,units=owned(b.id),who=c
  return{cat:'Business',title:round===1?'An acquisition offer':who+' comes back to the table',
   text:(round===1?who+' wants to buy your entire '+b.name+' division ('+units+' unit'+(units>1?'s':'')+', worth '+fmt(v)+'). They open at '+fmt(cur)+', '+(cur/v).toFixed(2)+'× its value.'
    :'<div class="result bad"><small>Counter-offer</small><b>Not accepted</b><span>You asked '+fmt(D.asked||cur)+'. They came back with '+fmt(cur)+'.</span></div>'+who+' turned down your price but raised their offer to '+fmt(cur)+' ('+(cur/v).toFixed(2)+'× value). They say this is their final round.')+est,choices:ch};}
-function seasonResult(ch){if(rnd()<ch){S.af.football=af('football')*1.4;addRep(4);addHappy(5);return['Promotion! Your football club is now worth '+fmt(ASSETS.find(x=>x.id==='football').price*af('football'))+'.','gold'];}
+function seasonResult(ch){if(rnd()<ch){S.af.football=af('football')*1.4;addRep(4);addHappy(5);return['Promotion! Your football club is now worth '+fmt(ASSETS.find(x=>x.id==='football').price*afx('football'))+'.','gold'];}
  S.af.football=af('football')*.7;addHappy(-5);return['Relegation. Your football club lost 30% of its value.','bad'];}
 /* ================= Sports ================= */
 const TEAMS=[
@@ -2509,13 +2522,13 @@ const CUSTOM={
 let custOpen={};
 const custs=id=>S.cust[id]||[];
 function custEffects(){let hap=0,sh=0,inf=0,inc=0,sec=false;Object.keys(CUSTOM).forEach(id=>{if(!has(id))return;const a=ASSETS.find(x=>x.id===id);
- CUSTOM[id].forEach(o=>{if(!custs(id).includes(o[0]))return;const e=o[3];hap+=e.hap||0;sh+=e.sh||0;inf+=e.inf||0;if(e.inc)inc+=a.price*af(id)*e.inc;if(e.sec)sec=true;});});return{hap,sh,inf,inc,sec};}
+ CUSTOM[id].forEach(o=>{if(!custs(id).includes(o[0]))return;const e=o[3];hap+=e.hap||0;sh+=e.sh||0;inf+=e.inf||0;if(e.inc)inc+=a.price*afx(id)*e.inc;if(e.sec)sec=true;});});return{hap,sh,inf,inc,sec};}
 function buyCustom(id,oid){const a=ASSETS.find(x=>x.id===id),o=(CUSTOM[id]||[]).find(x=>x[0]===oid);if(!a||!o||!has(id)||custs(id).includes(oid))return;
- const c=a.price*af(id)*o[2];if(S.cash<c)return;S.cash-=c;S.cust[id]=custs(id).concat(oid);const e=o[3];if(e.val)S.af[id]=af(id)*(1+e.val);if(e.rep)addRep(e.rep);
+ const c=a.price*afx(id)*o[2];if(S.cash<c)return;S.cash-=c;S.cust[id]=custs(id).concat(oid);const e=o[3];if(e.val)S.af[id]=af(id)*(1+e.val);if(e.rep)addRep(e.rep);
  log('You added '+o[1].lc()+' to your '+a.name.lc()+'.','life');afterChange();}
 function custUI(a){const mu=modelUI(a),opts=CUSTOM[a.id];if(!opts||!has(a.id))return mu;const own=custs(a.id),open=!!custOpen[a.id];
  let h='<div class="cust"><button class="moretoggle" data-a="custtoggle" data-v="'+a.id+'" aria-expanded="'+open+'"><span>Customise · '+own.length+' of '+opts.length+' added</span><span>'+(open?'Hide':'Show')+'</span></button>';
- if(open)opts.forEach(o=>{const e=o[3],c=a.price*af(a.id)*o[2],got=own.includes(o[0]);const fx=[];if(e.hap)fx.push('+'+e.hap+' happiness');if(e.sh)fx.push('spouse happier');if(e.inf)fx.push('+'+e.inf+' influence/mo');if(e.rep)fx.push('+'+e.rep+' reputation');if(e.inc)fx.push('earns ~'+fmt(a.price*af(a.id)*e.inc)+'/mo');if(e.val)fx.push('value +'+Math.round(e.val*100)+'%');if(e.sec)fx.push('mob heat builds slower');
+ if(open)opts.forEach(o=>{const e=o[3],c=a.price*afx(a.id)*o[2],got=own.includes(o[0]);const fx=[];if(e.hap)fx.push('+'+e.hap+' happiness');if(e.sh)fx.push('spouse happier');if(e.inf)fx.push('+'+e.inf+' influence/mo');if(e.rep)fx.push('+'+e.rep+' reputation');if(e.inc)fx.push('earns ~'+fmt(a.price*afx(a.id)*e.inc)+'/mo');if(e.val)fx.push('value +'+Math.round(e.val*100)+'%');if(e.sec)fx.push('mob heat builds slower');
   h+='<div class="custrow"><div><b>'+o[1]+'</b><span>'+fx.join(' · ')+'</span></div>'+(got?'<span class="pill good">Added</span>':'<button class="btn small" data-a="custbuy" data-v="'+a.id+'" data-o="'+o[0]+'" '+(S.cash<c?'disabled':'')+'>Add · '+fmt(c)+'</button>')+'</div>';});
  return mu+h+'</div>';}
 
@@ -2629,10 +2642,10 @@ function buyProp(tid,cid,dev){const t=ptype(tid),c=pcity(cid),price=propPrice(t,
  propUnlockCheck();
  log((dev?'Construction started on ':'You bought ')+nm+(dev?'. Ready in '+t.build+' months.':' ('+t.name.lc()+', '+c.name+') for '+fmt(cost)+'.'),'gold');afterChange();}
 function sellProp(i){const p=S.props[i];if(!p)return;const v=propValue1(p)*(p.left>0?.8:.95);S.cash+=v;log('You sold '+p.name+' for '+fmt(v)+'.','');S.props.splice(i,1);propSellAsk=null;afterChange();}
-function propTick(){S.reIdx=clamp((S.reIdx||1)*(1+.003+(S.s-1)*.012+(rnd()-.5)*.01),.5,4);
+function propTick(){S.reIdx=clamp((S.reIdx||1)*(1+(S.infl!=null?S.infl/12:.003)+(S.s-1)*.012+(rnd()-.5)*.01),.5,12);
  (S.props||[]).forEach(p=>{const t=ptype(p.type),c=pcity(p.city);
   if(p.left>0){p.left--;p.af*=1+c.g;if(p.left===0){p.af=p.af/.7;log(p.name+' is complete and open for business! Worth '+fmt(propValue1(p))+'.','gold');if(t.rep){addRep(t.rep);addHappy(5);}}return;}
-  p.af*=1+c.g+(S.s-1)*.012+(rnd()-.5)*(c.risk?.03:.012);
+  p.af*=1+c.g*.5+(S.infl!=null?S.infl/12:c.g*.5)+(S.s-1)*.012+(rnd()-.5)*(c.risk?.03:.012);
   p.occ=clamp(.88+(S.s-1)*.5+(rnd()-.5)*(t.hot?.25:.06),.35,.99);if(p.anchor>0)p.anchor--;});
  propUnlockCheck();}
 
@@ -2652,7 +2665,7 @@ const genMult=id=>Math.pow(1.06,latestGen(id));
 const behind=id=>MODELS[id]&&has(id)?Math.max(0,latestGen(id)-((S.gen&&S.gen[id])||0)):0;
 const totalBehind=()=>Object.keys(MODELS).reduce((t,id)=>t+behind(id),0);
 const modelName=(id,g)=>MODELS[id][Math.min(g,MODELS[id].length-1)];
-function upgradeCost(id){const a=ASSETS.find(x=>x.id===id);return a.price*genMult(id)-a.price*af(id)*.85;}
+function upgradeCost(id){const a=ASSETS.find(x=>x.id===id);return a.price*genMult(id)-a.price*afx(id)*.85;}
 function upgradeToy(id){const a=ASSETS.find(x=>x.id===id);if(!behind(id))return false;const c=upgradeCost(id);if(S.cash<c)return false;
  S.cash-=c;const old=modelName(id,S.gen[id]||0);S.gen[id]=latestGen(id);S.af[id]=genMult(id);addHappy(3);
  log('You traded your '+old+' for the new '+modelName(id,S.gen[id])+' ('+a.name.lc()+'). Customisations carried over.','life');return true;}
@@ -2880,7 +2893,7 @@ function nextMonth(){
    S.resultQ=(S.resultQ||[]).concat(r);if(p.inv){S.invHist=[{label:r.label,inv:r.inv,ret:r.ret,ok,m:S.month}].concat(S.invHist||[]).slice(0,12);}}
   return false;});
  const sPrev=S.s;
- S.s+=(1-S.s)*.08+(rnd()-.5)*.06;S.s=clamp(S.s,.6,1.4);
+ econTick();S.s+=(econTarget()-S.s)*.08+(rnd()-.5)*.04;S.s=clamp(S.s,.6,1.4);
  marketTick(sPrev);
  sportsTick();
  propTick();
@@ -2958,6 +2971,7 @@ function nextMonth(){
  {const ce=coverNext();if(ce){openEvent(ce);return;}}
  if(S.seizeQ&&S.seizeQ.length){openEvent(seizeEvent(S.seizeQ.shift()));return;}
  {const pe=polNext();if(pe){openEvent(pe);return;}}
+ {const ee=econNext();if(ee){openEvent(ee);return;}}
  if(moonDue()){openEvent(moonPickEvent());return;}
  if(!S.g){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
@@ -3049,7 +3063,7 @@ function buyAsset(id){const a=ASSETS.find(x=>x.id===id),c=assetPrice(a);if(S.cas
 const MK_SERVICE=['salon','spa','glam','golfmember'];
 function mkBtnA(id){const a=ASSETS.find(x=>x.id===id);if(typeof mkList!=='function'||!a||MK_SERVICE.includes(id)||!has(id))return'';return'<button class="btn ghost small" data-a="mklist" data-v="a'+id+'">List for players</button>';}
 function mkBtnP(i){return typeof mkList==='function'?'<button class="btn ghost small" data-a="mklist" data-v="p'+i+'">List for players</button>':'';}
-function sellAsset(id){const a=ASSETS.find(x=>x.id===id);if(!has(id))return;S.cust[id]=[];const v=a.price*af(id)*.9;S.cash+=v;S.assets[id]--;log('Sold: '+a.name+' for '+fmt(v)+'.','');
+function sellAsset(id){const a=ASSETS.find(x=>x.id===id);if(!has(id))return;S.cust[id]=[];const v=a.price*afx(id)*.9;S.cash+=v;S.assets[id]--;log('Sold: '+a.name+' for '+fmt(v)+'.','');
  if(a.kind==='Homes'&&homeTier()<0){S.rent=a.tier;log('You now rent a '+a.name.lc()+' instead.','');}
  if(a.jet&&S.travel===4)S.travel=3;afterChange();}
 function rentHome(t){const h=HOMES[t],dep=h.rentFee*2;if(S.cash<dep)return false;S.cash-=dep;S.rent=t;log('You moved into a rented '+h.name.lc()+' ('+fmt(h.rentFee)+'/mo, '+fmt(dep)+' deposit).','life');return true;}
@@ -3129,7 +3143,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  {const d=$('dyn');if(d){d.hidden=!(S.gnum>1);if(S.gnum>1)d.textContent='Generation '+S.gnum+' of the '+familyName()+' family · playing as '+S.who;}
   const r=$('reset');if(r&&S.over&&S.died&&S.kids.length&&!r.querySelector('[data-a=heirpick]'))r.insertAdjacentHTML('afterbegin','<button class="btn primary small" data-a="heirpick">Choose your heir</button> ');}
  const chips=[];
- if(S.s>1.1)chips.push(['Economy: booming','']);else if(S.s<.9)chips.push(['Economy: recession','down']);
+ {const ph=econS().ph;chips.push(['Economy: '+ECON[ph].name.toLowerCase()+' · inflation '+(S.infl*100).toFixed(1)+'%',ph==='recession'||ph==='slowdown'?'down':'']);}
  if(S.mode!=='balanced')chips.push([S.mode==='hustle'?'Hustle mode ×1.12':'Family first ×0.90','life']);
  if(moodMult()!==1)chips.push([S.happy<25?'Burnt out ×0.85':'In the zone ×1.05',S.happy<25?'down':'']);
  S.buffs.forEach(b=>chips.push([b.label+' ×'+b.f.toFixed(2)+' · '+b.months+'mo',b.f<1?'down':'']));
@@ -3198,13 +3212,13 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  ah+='<div class="row"><div class="t"><b>Travel · '+(L.req.travel<0?'No flights yet':TRAVEL[L.req.travel])+'</b><span>'+(flightsNeeded()?'You fly: '+(S.travel<0?'nobody, your managers go instead':TRAVEL[S.travel]):'Flights start once you expand into '+R.region)+'</span></div>'+(L.absent?'<span class="pill bad">Absent ×0.92</span>':flightsNeeded()?reqPill(L.short.travel):'<span class="pill">Not yet</span>')+'</div>';
  if(L.late)ah+='<div class="warn" style="margin-top:8px">Living below your station: profit ×'+(1-.03*Math.min(L.steps,5)).toFixed(2)+', and your reputation and family happiness are falling.</div>';
  ah+='<h4>Cars &amp; aircraft</h4>';
- CARS.concat(ASSETS.filter(a=>a.jet)).forEach(a=>{const n=has(a.id),p=assetPrice(a),val=a.price*af(a.id);
+ CARS.concat(ASSETS.filter(a=>a.jet)).forEach(a=>{const n=has(a.id),p=assetPrice(a),val=a.price*afx(a.id);
   if(!n&&!a.jet&&a.tier>L.req.car+1)return; if(a.jet&&!n&&L.r<4)return;
   const tag=a.jet?'Unlocks own-jet travel':a.tier===L.req.car?'Required now':a.tier>L.req.car?'Next rank':'';
   ah+='<div class="row"><div class="t"><b>'+a.name+(n?' <span class="count">Owned</span>':'')+'</b><span>'+(tag?tag+' · ':'')+'upkeep '+fmt(val*a.upkeep)+'/mo'+(n?' · worth '+fmt(val):'')+'</span></div><div class="acts">'+
    (!n?'<button class="btn small '+(S.cash>=p?'primary':'')+'" data-a="abuy" data-v="'+a.id+'" '+(S.cash<p?'disabled':'')+'>Buy · '+fmt(p)+'</button>':'<button class="btn ghost small" data-a="asell" data-v="'+a.id+'">Sell · '+fmt(val*.9)+'</button>'+mkBtnA(a.id))+'</div></div>'+custUI(a);});
  ah+='<h4>Where you live</h4>';
- HOMES.forEach(h=>{const n=has(h.id),p=assetPrice(h),val=h.price*af(h.id),renting=S.rent===h.tier&&ownedHomeTier()<h.tier;
+ HOMES.forEach(h=>{const n=has(h.id),p=assetPrice(h),val=h.price*afx(h.id),renting=S.rent===h.tier&&ownedHomeTier()<h.tier;
   if(!n&&!renting&&(h.tier>L.req.home+1||h.tier<L.req.home-1))return;
   const tag=h.tier===L.req.home?'Required now':h.tier>L.req.home?'Next rank':'Below your rank';
   ah+='<div class="row"><div class="t"><b>'+h.name+(n?' <span class="count">Owned</span>':renting?' <span class="count">Renting</span>':'')+'</b><span>'+tag+' · rent '+fmt(h.rentFee)+'/mo · upkeep if owned '+fmt(val*h.upkeep)+'/mo'+(n?' · worth '+fmt(val):'')+'</span></div><div class="acts">'+
@@ -3223,7 +3237,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  {const LX=ASSETS.filter(a=>a.lux&&(!a.g||a.g===S.g||has(a.id))),X=luxEffects();let lh2='';
   lh2+='<div class="mbtot" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div><span class="eyebrow">Happiness</span><b>+'+Math.round(X.hap)+(X.hapRaw>15?' (max)':'')+'</b></div><div><span class="eyebrow">Influence / mo</span><b>+'+X.inf.toFixed(1)+'</b></div><div><span class="eyebrow">Collection worth</span><b>'+fmt(X.worth)+'</b></div></div>';
   let hidden=0;
-  LX.forEach(a=>{const n=has(a.id),p=assetPrice(a),val=a.price*af(a.id);
+  LX.forEach(a=>{const n=has(a.id),p=assetPrice(a),val=a.price*afx(a.id);
    if(!n&&p>Math.max(nw*1.5,50000)){hidden++;return;}
    const perks=[];if(a.hap)perks.push('+'+a.hap+' happiness');if(a.sh)perks.push('spouse happier');if(a.inf)perks.push('+'+a.inf+' influence/mo');if(a.rep)perks.push('+'+a.rep+' reputation');
    if(a.inc)perks.push('earns ~'+fmt(val*a.inc)+'/mo');
@@ -3256,7 +3270,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
      ph+='</div>';}
     ph+='</div>';});}
   let rh2='<h4>Starter rentals</h4>',any=false;
-  ASSETS.filter(a=>a.stack).forEach(a=>{const n=has(a.id),p=assetPrice(a),val=a.price*af(a.id);if(!n&&p>Math.max(nw*1.5,20000))return;any=true;
+  ASSETS.filter(a=>a.stack).forEach(a=>{const n=has(a.id),p=assetPrice(a),val=a.price*afx(a.id);if(!n&&p>Math.max(nw*1.5,20000))return;any=true;
    rh2+='<div class="row"><div class="t"><b>'+a.name+(n?' <span class="count">×'+n+'</span>':'')+'</b><span>Rent ~'+fmt(a.rent*af(a.id)*policyMult('rent'))+'/mo each'+(n?' · worth '+fmt(val*n):'')+'</span></div><div class="acts">'+
     '<button class="btn small '+(S.cash>=p?'primary':'')+'" data-a="abuy" data-v="'+a.id+'" '+(S.cash<p?'disabled':'')+'>Buy · '+fmt(p)+'</button>'+(n?'<button class="btn ghost small" data-a="asell" data-v="'+a.id+'">Sell · '+fmt(val*.9)+'</button>'+mkBtnA(a.id):'')+'</div></div>';});
   if(!any)rh2+='<p class="seghint" style="margin:0">Rental apartments unlock at a net worth of about $47K.</p>';
@@ -3400,7 +3414,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
 
  /* bank */
  const lim=creditLimit(),room=Math.max(0,lim-S.debt);
- $('bank').innerHTML=(S.strikes?'<div class="warn">Missed payments: '+S.strikes+' of 3. Sell assets or borrow to get cash above zero.</div>':'')+
+ $('bank').innerHTML=econHTML()+(S.strikes?'<div class="warn">Missed payments: '+S.strikes+' of 3. Sell assets or borrow to get cash above zero.</div>':'')+
   '<div class="kv"><span>Interest rate</span><span>'+((S.cbr+.08)*100).toFixed(1)+'% a year</span><span>Credit limit'+(F.E.credit>1?' (audited, +25%)':F.E.credit<1?' (unaudited, cut)':'')+'</span><span>'+fmt(lim)+'</span><span>Available to borrow</span><span>'+fmt(room)+'</span></div>'+
   '<div class="chips">'+[.25,.5,1].map(f=>'<button class="btn small" data-a="borrow" data-v="'+room*f+'" '+(room<50?'disabled':'')+'>Borrow '+fmt(room*f)+'</button>').join('')+'</div>'+
   (S.debt>0?'<div class="chips" style="margin-top:8px"><button class="btn small" data-a="repay" data-v="'+S.debt*.25+'" '+(S.cash<=0?'disabled':'')+'>Repay '+fmt(Math.min(S.debt*.25,Math.max(0,S.cash)))+'</button><button class="btn small" data-a="repay" data-v="'+S.debt+'" '+(S.cash<=0?'disabled':'')+'>Repay max</button></div>':'');

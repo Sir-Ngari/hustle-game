@@ -227,7 +227,7 @@ function bankLotsHTML(){if(!ACC||!S||!S.inds.length)return null;
  return h+(rows||'<p class="seghint">'+(mkTab==='local'?'Nothing for sale in your country right now. Be the first: press <b>List for players</b> on anything you own.':'Nothing for sale around the world right now.')+'</p>');}
 function mkList(v){if(!S||S.over)return;const k=v[0],ref=v.slice(1);let name,value,obj=null;
  if(k==='p'){obj=S.props[+ref];if(!obj||obj.left>0)return;name=obj.name;value=propValue1(obj);}
- else{const a=ASSETS.find(x=>x.id===ref);if(!a||!has(ref))return;name=a.name;value=a.price*af(ref);}
+ else{const a=ASSETS.find(x=>x.id===ref);if(!a||!has(ref))return;name=a.name;value=a.price*afx(ref);}
  mkPending={k,ref,obj,name,value};const P=[[.7,'Quick sale'],[.9,'Priced to sell'],[1,'At value'],[1.15,'A little above value'],[1.3,'Premium'],[1.5,'Top price']];
  showCard('Sell to other players',esc(name)+' is worth <b>'+fmt(value)+'</b>. Pick your asking price. Players in your country'+(k==='p'&&['nairobi','mombasa'].includes(obj.city)?'':' and around the world')+' can buy it. When it sells you get the price minus a '+Math.round(mkFee*100)+'% market fee. It leaves your empire while it is for sale; you can take it back any time, and if nobody buys it in 7 days it comes back to you.',
   P.map(x=>'<button class="choice" data-a="mkpost" data-v="'+x[0]+'"><b>Ask '+fmt(value*x[0])+'</b><span>'+x[1]+(x[0]!==1?' · '+Math.round(Math.abs(x[0]-1)*100)+'% '+(x[0]<1?'below':'above')+' value':'')+' · you get '+fmt(value*x[0]*(1-mkFee))+'</span></button>').join('')+'<button class="choice" data-a="closecard"><b>Keep it</b><span>Not now.</span></button>');}
@@ -239,7 +239,7 @@ function mkGive(k,d,restore){if(k==='p'){const t=ptype(d.type),c=pcity(d.city);i
  if(!restore&&a.lux&&a.rep)addRep(a.rep);if(a.kind==='Homes'&&S.rent>=0&&a.tier>=S.rent)S.rent=-1;}
 async function mkPost(pct){const P=mkPending;closeModal();if(!P||!S)return;pct=+pct;let k=P.k,data;
  if(k==='p'){const i=S.props.indexOf(P.obj);if(i<0)return;data=bankLot(P.obj);S.props.splice(i,1);}
- else{if(!has(P.ref))return;data={id:P.ref,name:P.name,af:af(P.ref),gen:(S.gen||{})[P.ref]||0,value:Math.round(P.value)};mkTakeAsset(P.ref);}
+ else{if(!has(P.ref))return;data={id:P.ref,name:P.name,af:(S.af&&S.af[P.ref])||1,gen:(S.gen||{})[P.ref]||0,value:Math.round(P.value)};mkTakeAsset(P.ref);}
  const price=Math.round(P.value*pct);mkPending=null;afterChange();
  try{await api('POST','/api/market/list',{k,item:data,price,region:S.region||'',g:S.g||''});log('You put '+P.name+' up for sale at '+fmt(price)+'.','');mkMsg='Listed. '+esc(P.name)+' is for sale at '+fmt(price)+'.';mkTab='mine';mkData.mine=null;save();}
  catch(e){mkGive(k,data,true);showCard('Could not list it',esc(e.message),'<button class="choice" data-a="closecard"><b>OK</b></button>');}
