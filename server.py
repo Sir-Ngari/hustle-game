@@ -1717,6 +1717,12 @@ def clean_tuning(d):
         hg = 3
     if hg != 3:
         heir["gap"] = hg
+    try:
+        hg1 = int(min(24, max(1, int(hd.get("gap1", 2)))))
+    except (TypeError, ValueError):
+        hg1 = 2
+    if hg1 != 2:
+        heir["gap1"] = hg1
     if heir:
         out["heir"] = heir
     return out

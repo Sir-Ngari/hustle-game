@@ -332,6 +332,11 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .cs-bar{position:relative;height:8px;border-radius:99px;margin:12px 0 4px;background:linear-gradient(90deg,#ef4444 0%,#f97316 50.9%,#eab308 67.3%,#84cc16 80%,#22c55e 90.9%,#16a34a 100%)}.cs-bar i{position:absolute;top:-4px;width:4px;height:16px;margin-left:-2px;border-radius:2px;background:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
 .cs-scale{position:relative;height:14px;font-size:10px;opacity:.6}.cs-scale span{position:absolute;transform:translateX(-50%)}.cs-scale span:first-child{transform:none}.cs-scale span:last-child{transform:translateX(-100%)}.cs-why{margin:10px 0 6px;padding-left:18px;font-size:13px;line-height:1.5}
 .cs-excellent,.cs-verygood{color:#4ade80}.cs-good{color:#a3e635}.cs-fair{color:#fbbf24}.cs-poor{color:#f87171}
+.famx{margin:4px 0 14px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04)}
+.famx-top{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.famx-top>div{display:flex;flex-direction:column}.famx-top small{font-size:11px;text-transform:uppercase;letter-spacing:.08em;opacity:.7}.famx-top b{font-size:32px;line-height:1;font-weight:900}.famx-top b.up{color:var(--green)}.famx-top b.down{color:var(--red)}.famx-top p{flex:1;min-width:180px;margin:0;font-size:13px;opacity:.85}
+.famx-list{list-style:none;margin:12px 0 10px;padding:0;display:grid;gap:8px}.famx-list li{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(70px,1fr) auto;gap:10px;align-items:center}.famx-list li div:first-child{display:flex;flex-direction:column;min-width:0}.famx-list span{font-size:12px;opacity:.7}
+.famx-m{height:7px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}.famx-m i{display:block;height:100%;background:#fbbf24;border-radius:99px}.famx-m i.up{background:var(--green)}.famx-m i.down{background:var(--red)}.famx-list em{font-style:normal;font-size:12px;font-weight:700;min-width:70px;text-align:right}
+.famx-acts{display:flex;flex-wrap:wrap;gap:8px}
 .hofh{margin:18px 0 2px}.hofsec{margin:12px 0 4px}.hofsec h4{margin:0 0 4px;font-size:15px}.hofnone{color:var(--muted);font-size:14px;margin:4px 0 8px}.hofmore summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 .hpos{font-family:var(--display);font-weight:800;font-size:18px;width:22px}
 .hnum{margin-left:auto;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -1854,7 +1859,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='8ea268d0d8fb';let updShown=false;
+const APP_VER='aa8bff4af990';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2313,7 +2318,7 @@ function moonHTML(){if(!moonOn())return'<p class="seghint" style="margin:0">Moon
   h+='</div></div>';});
  return h+'<p class="seghint" style="margin:8px 0 0"><b>As a billionaire you must always fund at least one moonshot.</b> More funding means faster tests and slightly better odds. Every failure teaches your team something and raises the next chance.</p>';}
 /* ================= Reports: income statement and balance sheet ================= */
-const PLK=['excise','bizRev','bizCost','rent','prop','sport','lux','inv','trustInc','moonInc','shady','interest','fees','fines','upkeep','school','homeRent','travel','health','giving','moon','mob','alimony','estatePl','net'];
+const PLK=['famSup','excise','bizRev','bizCost','rent','prop','sport','lux','inv','trustInc','moonInc','shady','interest','fees','fines','upkeep','school','homeRent','travel','health','giving','moon','mob','alimony','estatePl','net'];
 function plYears(){if(!S.ply){S.ply={};(S.plh||[]).forEach(e=>plAddYear(e));}return S.ply;}
 function plAddYear(e){const y=Math.floor(e.m/12),b=S.ply[y]=S.ply[y]||{n:0};b.n++;PLK.forEach(k=>b[k]=(b[k]||0)+(e[k]||0));}
 function plRecord(f){S.plh=S.plh||[];plYears();const e={m:S.month};PLK.forEach(k=>e[k]=Math.round(+f[k]||0));S.plh.push(e);plAddYear(e);if(S.plh.length>36)S.plh.splice(0,S.plh.length-36);}
@@ -2331,7 +2336,7 @@ function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e
  const row=(name,k,sign,opt)=>{const v=(T[k]||0)*sign,cv=C?(C[k]||0)*sign:null;if(opt&&!v&&!cv)return'';return'<tr><td>'+name+'</td>'+cell(v)+(C?cell(cv):'')+'</tr>';};
  const tot=(name,v,cv,cls)=>'<tr class="'+(cls||'sub')+'"><td>'+name+'</td>'+cell(v,1)+(C?cell(cv,1):'')+'</tr>',head=t=>'<tr class="fsec"><td>'+t+'</td><td></td>'+(C?'<td></td>':'')+'</tr>';
  const gross=x=>(x.bizRev||0)-(x.bizCost||0),oth=x=>['rent','prop','sport','lux','inv','trustInc','moonInc','shady'].reduce((a,k)=>a+(x[k]||0),0),
-  EXP=[['Excise & licence taxes','excise'],['Loan interest','interest'],['Professional fees','fees'],['Fines & penalties','fines'],['Asset upkeep','upkeep'],['School & childcare','school'],['Home rent','homeRent'],['Business travel','travel'],['Health care','health'],['Foundation giving','giving'],['Moonshot research','moon'],['Protection money','mob'],['Alimony','alimony'],['Estate planning & insurance','estatePl']],
+  EXP=[['Family support','famSup'],['Excise & licence taxes','excise'],['Loan interest','interest'],['Professional fees','fees'],['Fines & penalties','fines'],['Asset upkeep','upkeep'],['School & childcare','school'],['Home rent','homeRent'],['Business travel','travel'],['Health care','health'],['Foundation giving','giving'],['Moonshot research','moon'],['Protection money','mob'],['Alimony','alimony'],['Estate planning & insurance','estatePl']],
   exp=x=>EXP.reduce((a,e)=>a+(x[e[1]]||0),0);
  let h='<div class="seg four reptabs" role="group" aria-label="Report period">'+Object.keys(P).map(k=>'<button data-a="repper" data-v="'+k+'" aria-pressed="'+(repPeriod===k)+'"'+(!P[k][1].length?' disabled':'')+'>'+P[k][0]+'</button>').join('')+'</div>';
  h+='<div class="reps"><div class="rep"><h3>Income statement</h3><p class="seghint">'+lbl+((repPeriod==='y10'||repPeriod==='all')&&ys.length?' · '+list.reduce((a,e)=>a+(e.n||0),0)+' months, from Year '+(list.length?Math.floor(list[0].m/12)+1:yr+1)+(ys[0]>0&&(S.month-1)/12>ys[0]?' (records began in Year '+(ys[0]+1)+')':''):'')+(repPeriod==='m12'&&list.length<12?' (only '+list.length+' recorded so far)':'')+'</p><table class="fin"><thead><tr><th></th><th class="r">'+lbl+'</th>'+(C?'<th class="r">Prior month</th>':'')+'</tr></thead><tbody>';
@@ -2376,10 +2381,10 @@ function flows(noisy){
  const homeRent=(S.rent>=0&&S.rent>ownedHomeTier()?HOMES[S.rent].rentFee:0)*CPI(), travel=travelCost()*CPI();
  const mob=S.protection>0?Math.max(0,biz)*S.protection:0;
  const alimony=S.alimony?S.alimony.amt:0,health=careFee()*CPI();
- const giving=S.fdn?Math.max(0,biz)*S.fdn.giving:0;
+ const giving=S.fdn?Math.max(0,biz)*S.fdn.giving:0,famSup=S.fam&&S.fam.allow?famAllow():0;
  const estatePl=typeof planCost==='function'?planCost():0,trustInc=S.trustPay||0,shady=typeof shadyIncome==='function'?shadyIncome(biz,noisy):0;
  const moon=moonSpend(),moonInc=moonIncome(),subInc=typeof subIncome==='function'?subIncome():0;
- return{excise,subInc,biz,bizRev,bizCost,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,moon,moonInc,E,net:subInc+biz+rent+lux+inv+sport+prop+trustInc+shady+moonInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl-moon-excise};
+ return{famSup,excise,subInc,biz,bizRev,bizCost,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,moon,moonInc,E,net:subInc+biz+rent+lux+inv+sport+prop+trustInc+shady+moonInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl-moon-excise-famSup};
 }
 function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});S.log.length=Math.min(S.log.length,80);}
 function soften(f){return sv('exec').lvl>=0&&f<1?1-(1-f)*.6:f;}
@@ -3629,9 +3634,9 @@ const RISKS=[
 /* event tuning: the admin page can make each event or category rarer, commoner or switch it off */
 let TUNE={freq:1,gap:2,w:{},cat:{}};
 const IND_CATS=['Retail & Fashion','Food & Agriculture','Transport & Logistics','Manufacturing','Real Estate & Construction','Technology & Finance','Hospitality & Tourism','Health & Education','Energy & Mining','Media & Entertainment'];
-function evGroup(e){return e.drama?'Family drama':e.cat==='Your past'?'Darkworld':RISKS.includes(e)?'Industry risks':IND_CATS.includes(e.cat)?'Industries':(e.cat||'Other');}
+function evGroup(e){return e.drama?'Family drama':e.fam1?'Family life':e.cat==='Your past'?'Darkworld':RISKS.includes(e)?'Industry risks':IND_CATS.includes(e.cat)?'Industries':(e.cat||'Other');}
 function tuneMult(e){const a=TUNE.w&&TUNE.w[e.id],b=TUNE.cat&&TUNE.cat[evGroup(e)];return(a==null?1:+a)*(b==null?1:+b);}
-const HT=()=>Object.assign({repeat:.35,gap:3},(typeof TUNE!=='undefined'&&TUNE.heir)||{});
+const HT=()=>Object.assign({repeat:.35,gap:3,gap1:2},(typeof TUNE!=='undefined'&&TUNE.heir)||{});
 /* an heir is the same player in a new life: events the family already lived through come round less often */
 const heirRep=e=>S.gnum>1&&!e.drama&&S.seenFam&&S.seenFam[e.id]?+HT().repeat:1;
 const W=e=>(typeof e.w==='function'?e.w():e.w)*tuneMult(e)*heirRep(e);
@@ -3644,12 +3649,13 @@ function triggerRandom(){const pool=EVENTS.concat(RISKS).filter(e=>(!e.when||e.w
  openEvent({_id:e.id,cat:e.cat,title:typeof e.title==='function'?e.title(S):e.title,text:e.text(),choices:e.choices()});}
 function choose(i){const ev=current;if(ev&&ev._id){S.evq=S.evq||[];S.evq.push([ev._id,i]);if(S.evq.length>200)S.evq.splice(0,S.evq.length-200);}const before=outSnap();const r=ev.choices[i].f();if(!/Daily bonus/.test(ev.cat||''))wkInc('events');log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else if(outWanted(ev,r))outcomeCard(ev,ev.choices[i],r,before);else maybeTour();}
 /* ---- after a decision, show what happened and what it changed ---- */
-function outSnap(){return{cash:S.cash,debt:S.debt,rep:S.rep,happy:S.happy,inf:S.influence,heat:S.heat,cop:S.law?S.law.att:0,health:S.health};}
+function outSnap(){return{fam:famMembers().map(x=>[x.who,x.mood]),cash:S.cash,debt:S.debt,rep:S.rep,happy:S.happy,inf:S.influence,heat:S.heat,cop:S.law?S.law.att:0,health:S.health};}
 function outWanted(ev,r){return!!(r&&r[0])&&ev.choices.length>1&&!/Daily bonus|Calendar/.test(ev.cat||'')&&!ev.noOut;}
 function outcomeCard(ev,ch,r,b){const a=outSnap(),rows=[];
  {const d=a.cash-b.cash;if(Math.abs(d)>=1)rows.push(['Cash',(d>0?'+':'−')+fmt(Math.abs(d)),d>0]);}
  {const d=a.debt-b.debt;if(Math.abs(d)>=1)rows.push(['Debt',(d>0?'+':'−')+fmt(Math.abs(d)),d<0]);}
  const pts=(k,l,good)=>{const d=Math.round(a[k]-b[k]);if(d)rows.push([l,(d>0?'+':'−')+Math.abs(d),good?d>0:d<0]);};
+ {const bm={};(b.fam||[]).forEach(x=>{bm[x[0]]=x[1];});(a.fam||[]).forEach(x=>{if(bm[x[0]]==null)return;const d=Math.round(x[1]-bm[x[0]]);if(d){const nm=({'Your parents':'Parents','The in-laws':'In-laws','Your brothers and sisters':'Siblings'})[x[0]]||x[0];rows.push([nm+(/s$/.test(nm)?'\' mood':'\'s mood'),(d>0?'+':'−')+Math.abs(d),d>0]);}});}
  pts('rep','Reputation',1);pts('happy','Happiness',1);pts('inf','Influence',1);pts('heat','Mob heat',0);pts('cop','Police attention',0);pts('health','Health',1);
  const m=$('modal');m.hidden=false;const k=r[1]==='good'?'good':r[1]==='bad'?'bad':'';
  m.innerHTML='<div class="shade"><div class="card outcard'+(k?' out-'+k:'')+'" role="dialog" aria-modal="true" aria-labelledby="ot">'+evIconHTML(ev)+'<span class="pill cat '+(k||'gold')+'">Outcome</span><span class="eyebrow cat">'+String(ev.title).replace(/<[^>]+>/g,'')+'</span><h3 id="ot">'+ch.l+'</h3><p>'+r[0]+'</p>'+
@@ -3703,8 +3709,9 @@ function nextMonth(){
   d+=LX.sh;
   S.kids.forEach(k=>{const a=kidAge(k);if(!k.withEx&&a>=48&&a<216&&k.school<schoolExpect())d-=.8;});
   sp.happy=clamp(sp.happy+d,0,100);}
+ famTick();
  let target=55+(LS.late?-Math.min(20,4*LS.steps):LS.steps===0?5:0)+LX.hap+SP.hap-Math.min(8,2*TB)+(S.fdn&&S.fdn.giving>0?3:0)+(S.spouse?(S.spouse.happy-50)/4:(age()>=30?-Math.min(12,(age()-29)*2):0))+({hustle:-10,balanced:0,family:8})[S.mode]
-  -(S.debt>.5*Math.max(1,assets())?10:0)-S.heat/5-S.strikes*10+Math.min(8,S.kids.filter(k=>!k.withEx).length*3)+f.E.happy;
+  -(S.debt>.5*Math.max(1,assets())?10:0)-S.heat/5-S.strikes*10+Math.min(8,S.kids.filter(k=>!k.withEx).length*3)+f.E.happy+(famOthers()==null?0:(famOthers()-60)/5);
  S.happy=clamp(S.happy+(target-S.happy)*.1,0,100);
  S.influence=Math.max(0,S.influence-.4);addInf(LX.inf+SP.inf);
  if(S.month<S.mobQuiet)S.heat=Math.max(0,S.heat-5);
@@ -3872,6 +3879,38 @@ function expand(){const m=MARKETS[S.market+1];if(!m||S.cash<m.cost)return;S.cash
 function borrow(a){a=Math.min(a,creditLimit()-S.debt);if(a<=0)return;csOf().used=true;S.cash+=a;S.debt+=a;log('Borrowed '+fmt(a)+'.','');afterChange();}
 function repay(a){a=Math.min(a,S.debt,S.cash);if(a<=0)return;S.cash-=a;S.debt-=a;if(S.debt<1)S.debt=0;log('Repaid '+fmt(a)+'.','');afterChange();}
 function setMode(m){S.mode=m;afterChange();}
+/* ---- Family happiness: spouse, children, parents, in-laws and siblings each have a mood that feeds your own happiness ---- */
+function famOf(){S.fam=S.fam||{par:{mood:70,alive:(S.gnum||1)<=1},sib:{mood:65},allow:false,hol:-99};return S.fam;}
+const moodLbl=m=>m>=75?'Very happy':m>=60?'Happy':m>=45?'Okay':m>=30?'Unhappy':'Upset';
+function famAllow(){return Math.max(150,Math.max(0,netWorth())*.002)*CPI();}
+function famMembers(){const F=famOf(),out=[];
+ if(S.spouse)out.push({who:S.spouse.name,rel:'Your '+spW(),mood:S.spouse.happy,sp:1});
+ S.kids.forEach(k=>{if(k.mood==null)k.mood=70;out.push({who:k.name,rel:(k.withEx?'Child, lives with your ex':kidAge(k)>=216?'Grown-up child':'Child'),mood:k.mood});});
+ if(F.par.alive)out.push({who:'Your parents',rel:'Mum and Dad',mood:F.par.mood});
+ if(S.spouse){if(S.spouse.inlaw==null)S.spouse.inlaw=60;out.push({who:'The in-laws',rel:S.spouse.name+'\'s family',mood:S.spouse.inlaw});}
+ if((S.sibs||[]).length)S.sibs.filter(x=>!x.out).forEach(x=>out.push({who:x.name,rel:'Brother or sister',mood:x.rel}));
+ else if((S.gnum||1)<=1)out.push({who:'Your brothers and sisters',rel:'Siblings',mood:F.sib.mood});
+ return out;}
+/* everyone except your spouse, whose mood already counts on its own */
+function famOthers(){const m=famMembers().filter(x=>!x.sp);return m.length?m.reduce((t,x)=>t+x.mood,0)/m.length:null;}
+function famTick(){const F=famOf(),mode=({hustle:-15,balanced:0,family:10})[S.mode]||0,al=F.allow?1:0,step=(v,b)=>v+(b-v)*.06;
+ S.kids.forEach(k=>{if(k.mood==null)k.mood=70;const a=kidAge(k);let b=70+mode+(k.withEx?-15:0);if(a>=48&&a<216&&!k.withEx&&k.school<schoolExpect())b-=10;if(a>=216)b=65+mode/2;k.mood=clamp(step(k.mood,b),0,100);});
+ if(F.par.alive){F.par.mood=clamp(step(F.par.mood,62+mode/2+al*20),0,100);
+  if(age()>=50&&rnd()<.004*(1+(age()-50)/10)){F.par.alive=false;addHappy(-8);log('Your last surviving parent passed away. The whole family gathered for the funeral.','bad');}}
+ if(S.spouse){if(S.spouse.inlaw==null)S.spouse.inlaw=60;S.spouse.inlaw=clamp(step(S.spouse.inlaw,52+al*18+(S.spouse.happy-50)/3),0,100);}
+ if(!(S.sibs||[]).length)F.sib.mood=clamp(step(F.sib.mood,58+al*18),0,100);
+ else S.sibs.forEach(x=>{if(!x.out&&al)x.rel=clamp(x.rel+.4,0,100);});}
+function famHoliday(){const F=famOf(),c=nwc(.004,300);if(S.month-F.hol<12||!canPay(c))return;S.cash-=c;F.hol=S.month;
+ S.kids.forEach(k=>{k.mood=clamp((k.mood==null?70:k.mood)+12,0,100);});F.par.mood=clamp(F.par.mood+10,0,100);F.sib.mood=clamp(F.sib.mood+8,0,100);
+ if(S.spouse){S.spouse.happy=clamp(S.spouse.happy+10,0,100);S.spouse.inlaw=clamp((S.spouse.inlaw||60)+6,0,100);}(S.sibs||[]).forEach(x=>{if(!x.out)x.rel=clamp(x.rel+6,0,100);});
+ addHappy(5);log('You took the whole family on holiday for '+fmt(c)+'. Everyone came home smiling.','good');afterChange();}
+function familyHTML(){const F=famOf(),M=famMembers();if(!M.length)return'';const all=M.reduce((t,x)=>t+x.mood,0)/M.length,o=famOthers(),hc=nwc(.004,300),hOk=S.month-F.hol>=12;
+ return'<div class="famx"><div class="famx-top"><div><small>Family happiness</small><b class="'+(all>=60?'up':all<40?'down':'')+'">'+Math.round(all)+'</b><span>'+moodLbl(all)+'</span></div><p>'+(o==null?'':'Your relatives are '+moodLbl(o).toLowerCase()+', which '+(o>=60?'lifts':'drags down')+' your own happiness by about '+Math.abs(Math.round((o-60)/5))+' points.')+'</p></div>'+
+  '<ul class="famx-list">'+M.map(x=>'<li><div><b>'+esc(x.who)+'</b><span>'+esc(x.rel)+'</span></div><div class="famx-m"><i style="width:'+Math.round(x.mood)+'%" class="'+(x.mood>=60?'up':x.mood<40?'down':'')+'"></i></div><em>'+moodLbl(x.mood)+'</em></li>').join('')+'</ul>'+
+  '<div class="famx-acts"><button class="btn small'+(hOk?' primary':'')+'" data-a="famhol"'+(hOk&&canPay(hc)?'':' disabled')+'>'+(hOk?'Family holiday · '+fmt(hc):'Next holiday in '+(12-(S.month-F.hol))+' months')+'</button>'+
+  '<button class="btn small'+(F.allow?' primary':'')+'" data-a="famallow">'+(F.allow?'Supporting relatives · '+fmt(famAllow())+'/mo · Stop':'Support parents, in-laws & siblings · '+fmt(famAllow())+'/mo')+'</button></div>'+
+  '<p class="seghint">Everyone\'s mood drifts each month. Hustle mode, a poor school or living with your ex upsets the children; Family first mode cheers everyone up. A monthly allowance keeps parents, in-laws and siblings happy, and a family holiday lifts everyone once a year.</p></div>';}
+
 function hireSvc(id,quiet){const d=SERVICES.find(x=>x.id===id),s=sv(id),r=Math.max(0,reqLvl(d)),fee=d.levels[r][2];
  if(S.cash<fee)return false;S.cash-=fee;const was=s.lvl;s.lvl=r;s.rate=1;
  if(!quiet){log((was<0?'Hired':'Upgraded to')+' '+d.levels[r][1].lc()+' for '+fmt(fee)+'/mo.','good');afterChange();}return true;}
@@ -3887,7 +3926,7 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInter
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
- ({payloan:()=>{const L=S.loans||[];const list=v==='all'?L.slice():[L[+v]].filter(Boolean);const need=list.reduce((t,x)=>t+loanOwed(x),0);if(!list.length||S.cash<need)return;const r=loanPayOff(list);log('You paid off '+(list.length>1?'all your business loans':'the '+list[0].name+' loan')+' early for '+fmt(r.paid)+', saving about '+fmt(r.saved)+' in interest.','good');afterChange();},outok:()=>{closeModal();maybeTour();},guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),tkbid:()=>tkCard(v),tkgo:()=>tkGo(v),tksell:()=>tkSell(v),polrun:()=>pcRunCard(+v),poldonor:()=>pcTakeDonor(v),polskip:()=>pcSkipDonor(),polgo:()=>pcLaunch(),poldraftno:()=>pcDraftNo(),polpower:()=>pcUse(v),poldrop:()=>pcDrop(),closecard:()=>closeModal(),lifeobit:()=>openObit(obitFromLife(LIVES_SHOWN[+v])),lifesave:()=>obitSave(obitFromLife(LIVES_SHOWN[+v])),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),sound:()=>soundSet(v==='on'),sndtoggle:()=>soundSet(!soundOn()),music:()=>musicSet(v==='on'),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},repper:()=>{repPeriod=v;render();},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]&&!S.conds[v].managed){const f=condFix(v);if(!canPay(f))return;S.cash-=f;S.conds[v].managed=true;addHealth(10);log('You finally treated your '+CONDS[v].name.lc()+'. Years of neglect made it a long, expensive fight: '+fmt(f)+', then '+fmt(condFee(v))+' a month.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
+ ({famhol:()=>famHoliday(),famallow:()=>{famOf().allow=!famOf().allow;log(famOf().allow?'You started sending your relatives '+fmt(famAllow())+' a month.':'You stopped the family allowance. Expect some cold phone calls.',famOf().allow?'good':'');afterChange();},payloan:()=>{const L=S.loans||[];const list=v==='all'?L.slice():[L[+v]].filter(Boolean);const need=list.reduce((t,x)=>t+loanOwed(x),0);if(!list.length||S.cash<need)return;const r=loanPayOff(list);log('You paid off '+(list.length>1?'all your business loans':'the '+list[0].name+' loan')+' early for '+fmt(r.paid)+', saving about '+fmt(r.saved)+' in interest.','good');afterChange();},outok:()=>{closeModal();maybeTour();},guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),tkbid:()=>tkCard(v),tkgo:()=>tkGo(v),tksell:()=>tkSell(v),polrun:()=>pcRunCard(+v),poldonor:()=>pcTakeDonor(v),polskip:()=>pcSkipDonor(),polgo:()=>pcLaunch(),poldraftno:()=>pcDraftNo(),polpower:()=>pcUse(v),poldrop:()=>pcDrop(),closecard:()=>closeModal(),lifeobit:()=>openObit(obitFromLife(LIVES_SHOWN[+v])),lifesave:()=>obitSave(obitFromLife(LIVES_SHOWN[+v])),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),sound:()=>soundSet(v==='on'),sndtoggle:()=>soundSet(!soundOn()),music:()=>musicSet(v==='on'),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},repper:()=>{repPeriod=v;render();},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]&&!S.conds[v].managed){const f=condFix(v);if(!canPay(f))return;S.cash-=f;S.conds[v].managed=true;addHealth(10);log('You finally treated your '+CONDS[v].name.lc()+'. Years of neglect made it a long, expensive fight: '+fmt(f)+', then '+fmt(condFee(v))+' a month.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
   choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?slotInds().length<SLOTS[S.peak]:othersOpen);render();},regenter:()=>regEnter(v),close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,awaygo:()=>awayCollect(),bankbuy:()=>bankBuy(+v),xclist:()=>xcList(v),xcbuy:()=>xcBuyCard(+v),xcgo:()=>xcBuy(v),xcsell:()=>xcSell(+v,+t.dataset.f),mktab:()=>{mkTab=v;mkMsg='';bankMsg='';render();},mklist:()=>mkList(v),mkpost:()=>mkPost(v),mkbuy:()=>mkBuy(+v),mkcancel:()=>mkCancel(+v),friends:()=>openFriends(),friendgift:()=>friendAct('gift',+v),friendrm:()=>friendAct('rm',+v),friendaddid:()=>friendAct('add',+v),giftclaim:()=>giftClaim(),pushyes:()=>pushYes(),pushno:()=>closeModal(),closecard:()=>closeModal(),pushon:()=>{pushRegister(true).catch(()=>{}).then(()=>renderAccts());},pushoff:()=>pushOff(),authmode:()=>{authMode=v;authMsg='';renderAccts();const A=$('acct');if(A)A.scrollTop=0;},authjump:()=>{authMode=v;authMsg='';renderAccts();const u=$('acc-user');if(u){u.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>u.focus({preventScroll:true}),400);}},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),lbsub:()=>lbSubGo(v),retryboot:bootAuth,appupdate:appUpdate,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propctry:()=>{propShut[v]=!propShut[v];render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),venuebuild:()=>venueGet(v,false),venuebuy:()=>venueGet(v,true),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
@@ -4160,7 +4199,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  /* statement */
  const line=(l,v,sign)=>'<span>'+l+'</span><span class="'+(Math.abs(v)<.5?'zero':sign<0?'neg':'pos')+'">'+(Math.abs(v)<.5?'—':(sign<0?'−':'+')+fmt(v).replace('−',''))+'</span>';
  $('stmt').innerHTML=line('Business income'+(S.float?' (80% yours)':''),F.bizRev||0,1)+line('Business running costs',F.bizCost||0,-1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Moonshot research',F.moon||0,-1)+line('Moonshot income',F.moonInc||0,1)+line('Dividends & bond interest',F.inv,1)+line('Family trust income',F.trustInc||0,1)+line('Under the table',F.shady||0,1)+line('Loan interest',F.interest,-1)+
-  line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+(F.excise?line('Excise taxes',F.excise,-1):'')+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
+  line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+(F.excise?line('Excise taxes',F.excise,-1):'')+(F.famSup?line('Family support',F.famSup,-1):'')+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
   line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+line('Health care',F.health,-1)+line('Estate planning & insurance',F.estatePl||0,-1)+
   '<span class="tot">Net cash flow</span><span class="tot '+(F.net<0?'neg':'pos')+'">'+(F.net<0?'−':'+')+fmt(Math.abs(F.net))+'</span>';
  {const iv=$('invest');if(iv)iv.innerHTML=investHTML();}
@@ -4175,6 +4214,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
   '<p class="seghint"><b>'+CARE[S.care||0].name+'</b>: '+CARE[S.care||0].d+' '+(CARE[S.care||0].fee?fmt(CARE[S.care||0].fee)+' a month, +'+CARE[S.care||0].h+' to long-term health.':'Free, but your health declines faster as you age.')+'</p>';
  lh+='<h4>Work–life balance</h4><div class="seg" role="group" aria-label="Work-life balance">'+[['hustle','Hustle'],['balanced','Balanced'],['family','Family first']].map(m=>'<button data-a="mode" data-v="'+m[0]+'" aria-pressed="'+(S.mode===m[0])+'">'+m[1]+'</button>').join('')+'</div>'+
   '<p class="seghint">'+({hustle:'Profit ×1.12, but your '+(S.spouse?spW():'family')+' and your happiness pay for it.',balanced:'No bonus, no penalty. Relationships slowly cool.',family:'Profit ×0.90. Your '+(S.spouse?spW():'family')+' and your happiness recover.'})[S.mode]+'</p>';
+ lh+=familyHTML();
  lh+='<h4>Relationship</h4>';
  if(S.spouse){const sp=S.spouse;lh+='<div class="person" style="border-top:0"><div><b>'+sp.name+'</b> <span>· your '+spW()+'</span><br><span>Married '+Math.floor((S.month-sp.since)/12)+' yrs · '+(sp.prenup?'prenup signed':'no prenup')+'</span></div><span class="pill '+(sp.happy<30?'bad':sp.happy>65?'good':'')+'">'+(sp.happy<20?'Wants out':sp.happy<35?'Unhappy':sp.happy>65?'Happy':'Okay')+'</span></div>'+meter(sp.happy,sp.happy<30?'--red':'--plum');}
  else lh+='<p class="seghint" style="margin-top:4px">'+(S.exes?'Divorced'+(S.exes>1?' ('+S.exes+'×)':'')+'. ':'Single. ')+(age()<35?'Marriage is mandatory by 35: <b>'+(35-age())+' year'+(35-age()===1?'':'s')+' left</b>.':'The family expects you to remarry within <b>'+Math.max(0,12-(S.month-S.divorcedAt))+' months</b>.')+'</p>';
@@ -5071,6 +5111,139 @@ FAM_EVENTS.push(
      {l:'Give a fair pledge',d:'Pledge '+fmt(c)+'.',dis:!canPay(c),f(){S.cash-=c;return['You gave your share. Someone in the group called it "small for someone so rich".','']}},
      {l:'Do not go',d:'Save the money. The family will talk.',f(){addHappy(-3);(S.sibs||[]).forEach(x=>{if(!x.out)sibRel(x,-4);});return['You skipped it. The family group went very quiet when you posted.','bad']}}]};}});
 EVENTS.push(...FAM_EVENTS.slice(-13));
+/* ---- Family life (founders): everyday events with your spouse, children, parents, in-laws and siblings. Each choice moves their mood ---- */
+const f1cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const f1Gap=()=>Math.max(1,+(HT().gap1)||2);
+const f1Ready=()=>(S.gnum||1)<=1&&S.month>=6&&S.month-(S.f1Last==null?-99:S.f1Last)>=f1Gap();
+const f1Mark=()=>{S.f1Last=S.month;};
+const parM=d=>{const F=famOf();if(F.par.alive)F.par.mood=clamp(F.par.mood+d,0,100);};
+const sibM=d=>{const F=famOf();F.sib.mood=clamp(F.sib.mood+d,0,100);(S.sibs||[]).forEach(x=>{if(!x.out)x.rel=clamp(x.rel+d,0,100);});};
+const inM=d=>{if(S.spouse)S.spouse.inlaw=clamp((S.spouse.inlaw==null?60:S.spouse.inlaw)+d,0,100);};
+const kidM=(k,d)=>{if(k)k.mood=clamp((k.mood==null?70:k.mood)+d,0,100);};
+const kidsM=d=>S.kids.filter(k=>!k.withEx).forEach(k=>kidM(k,d));
+const parAlive=()=>famOf().par.alive;
+/* one younger brother or sister per founder, so the same name comes back in every story */
+function f1Sib(){if(!S.f1sib){const p=pick([['brother','Kamau','he','him','his'],['sister','Wambui','she','her','her'],['brother','Otieno','he','him','his'],['sister','Achieng','she','her','her'],['brother','Mutua','he','him','his'],['sister','Njeri','she','her','her'],['brother','Juma','he','him','his'],['sister','Halima','she','her','her']]);S.f1sib={rel:p[0],name:p[1],he:p[2],him:p[3],his:p[4]};}return S.f1sib;}
+const sibName=()=>'your younger '+f1Sib().rel+' '+f1Sib().name;
+const kidAt=(lo,hi)=>S.kids.find(k=>!k.withEx&&kidAge(k)>=lo&&kidAge(k)<hi);
+const ownsBiz=()=>Object.keys(S.owned||{}).some(k=>S.owned[k]>0);
+const MD=(who,n)=>who+': '+(n>=15?'much happier':n>0?'happier':n<=-15?'very upset':'upset');
+const FAM1_EVENTS=[
+ {id:'f1_parmed',cat:'Family',fam1:1,w:1.3,when:()=>f1Ready()&&parAlive()&&age()>=26,
+  build(){const who=pick(['Dad','Mum']),c=nwc(.012,600);f1Mark();
+   return{cat:'Family',title:who+' is in hospital',text:who+' collapsed at home upcountry and was rushed to hospital. The doctors want '+fmt(c)+' before they operate. The family WhatsApp group is looking at you.',
+    choices:[{l:'Pay the whole bill',d:'Costs '+fmt(c)+'. '+MD('Parents',18)+', siblings happier.',dis:!canPay(c),f(){S.cash-=c;parM(18);sibM(6);addHappy(2);return[who+' had the operation and is home again. Your parents tell everyone what you did.','good']}},
+     {l:'Split it with your siblings',d:'You pay '+fmt(c/2)+'. Fair, but the others are short of money.',dis:!canPay(c/2),f(){S.cash-=c/2;parM(8);sibM(-5);return['The bill was paid between you. '+f1Sib().name+' had to borrow from a chama to cover '+f1Sib().his+' part.','']}},
+     {l:'Say you cannot help right now',d:'Keep the money. '+MD('Parents',-20)+', siblings upset.',f(){parM(-20);sibM(-10);addHappy(-4);return['A harambee raised the money in the end. Nobody in the family has forgotten that you said no.','bad']}}]};}},
+ {id:'f1_parhome',cat:'Family',fam1:1,w:.9,when:()=>f1Ready()&&parAlive()&&age()>=30&&!S.f1home&&netWorth()>3e4,
+  build(){const big=nwc(.03,4000),fix=nwc(.01,1200);S.f1home=true;f1Mark();
+   return{cat:'Family',title:'Your parents want a proper home',text:'Your parents still live in the old house upcountry where you grew up. The roof leaks and the neighbours keep asking why someone as successful as you has not built them something better.',
+    choices:[{l:'Build them a new house',d:'Costs '+fmt(big)+'. '+MD('Parents',25)+'. Reputation +2 in the village.',dis:!canPay(big),f(){S.cash-=big;parM(25);sibM(5);addRep(2);addHappy(3);return['The new house has a verandah, running water and a room for every grandchild. Mum cried at the opening.','good']}},
+     {l:'Renovate the old one',d:'Costs '+fmt(fix)+'. '+MD('Parents',10)+'.',dis:!canPay(fix),f(){S.cash-=fix;parM(10);return['New roof, new paint, a water tank. Dad says the old house is good enough for him.','good']}},
+     {l:'Move them in with you',d:'Free. Parents and children love it, your '+spW()+' may not.',f(){parM(14);kidsM(6);if(S.spouse){addSH(-10);inM(-5);}return['Your parents moved into the spare room. The children have never been happier'+(S.spouse?'; your '+spW()+' is counting the days.':'.'),'']}}]};}},
+ {id:'f1_parbday',cat:'Family',fam1:1,w:.9,when:()=>f1Ready()&&parAlive()&&S.month>=24&&S.month-(S.f1bday||-99)>=60,
+  build(){const c=nwc(.005,500);S.f1bday=S.month;f1Mark();
+   return{cat:'Family',title:'Your parents\' 40th anniversary',text:'Your parents have been married forty years. '+f1Sib().name+' is organising a celebration and has asked what you will contribute.',
+    choices:[{l:'Throw them a big party',d:'Costs '+fmt(c)+'. '+MD('Parents',16)+', siblings happier.',dis:!canPay(c),f(){S.cash-=c;parM(16);sibM(8);addHappy(3);kidsM(4);return['Tents, a choir and a nyama choma feast. Dad gave a speech about how proud he is of you.','good']}},
+     {l:'A quiet family dinner',d:'Costs '+fmt(c/5)+'. '+MD('Parents',6)+'.',dis:!canPay(c/5),f(){S.cash-=c/5;parM(6);return['A warm evening at home with the people who matter.','good']}},
+     {l:'Send money, skip it for work',d:'Costs '+fmt(c/4)+'. Profit ×1.03 for 3 months.',dis:!canPay(c/4),f(){S.cash-=c/4;parM(-8);sibM(-5);addBuff(1.03,3,'Worked through the anniversary');return['You sent money and a card. Mum kept looking at the gate all evening.','bad']}}]};}},
+ {id:'f1_parcare',cat:'Family',fam1:1,w:.8,when:()=>f1Ready()&&parAlive()&&age()>=45&&!S.f1care,
+  build(){const c=nwc(.008,800);S.f1care=true;f1Mark();
+   return{cat:'Family',title:'Dad cannot live alone any more',text:'Since his fall, Dad forgets his medicine and sometimes the stove. Somebody has to look after him, and every sibling is waiting to see who it will be.',
+    choices:[{l:'Hire a full-time nurse',d:'Costs '+fmt(c)+'. '+MD('Parents',12)+', siblings relieved.',dis:!canPay(c),f(){S.cash-=c;parM(12);sibM(8);return['A trained nurse now lives with Dad. He complains about her cooking, which means he is fine.','good']}},
+     {l:'Bring him to live with you',d:'Free. '+MD('Parents',16)+'. The children love Grandpa; your '+spW()+' has a say too.',f(){parM(16);kidsM(5);if(S.spouse)addSH(-8);addHappy(-1);return['Dad moved in. Breakfast is louder now, and the children have a new storyteller.','']}},
+     {l:'Let the siblings take turns',d:'Free. '+MD('Siblings',-14)+'.',f(){parM(-6);sibM(-14);return['The siblings agreed to take turns. '+f1Sib().name+' does most of it, and has started saying so.','bad']}}]};}},
+ {id:'f1_sibfees',cat:'Family',fam1:1,w:1.2,when:()=>f1Ready()&&age()<38&&!S.f1fees,
+  build(){const c=nwc(.01,700);S.f1fees=true;f1Mark();
+   return{cat:'Family',title:f1Sib().name+' got into university',text:'Good news from home: '+sibName()+' got a place to study medicine. Bad news: '+f1Sib().he+' is short of '+fmt(c)+' in fees, and the family thinks you are the obvious answer.',
+    choices:[{l:'Pay the full fees',d:'Costs '+fmt(c)+'. '+MD('Siblings',16)+', parents happier.',dis:!canPay(c),f(){S.cash-=c;sibM(16);parM(8);addHappy(2);return[f1Sib().name+' starts in September. '+f1cap(f1Sib().he)+' calls you every week to report '+f1Sib().his+' grades.','good']}},
+     {l:'Lend half, pay back after graduation',d:'Costs '+fmt(c/2)+' now.',dis:!canPay(c/2),f(){S.cash-=c/2;sibM(4);return[f1Sib().name+' took the loan and found a weekend job for the rest. '+f1cap(f1Sib().he)+' is proud, but tired.','']}},
+     {l:'Tell them to apply for a HELB loan',d:'Free. '+MD('Siblings',-15)+', parents upset.',f(){sibM(-15);parM(-8);return[f1Sib().name+' deferred for a year. At home they say success has changed you.','bad']}}]};}},
+ {id:'f1_sibjob',cat:'Family',fam1:1,w:1.1,when:()=>f1Ready()&&ownsBiz()&&!S.f1job,
+  build(){S.f1job=true;f1Mark();
+   return{cat:'Family',title:f1Sib().name+' wants a job',text:sibName()+' has been out of work for a year. '+f1cap(f1Sib().he)+' wants to join your business, and not as a cleaner: '+f1Sib().he+' is thinking manager.',
+    choices:[{l:'Make '+f1Sib().him+' a manager',d:'Siblings much happier. Could work out, or cost you.',f(){sibM(14);parM(6);if(rnd()<.5){addBuff(1.05,12,f1Sib().name+' as manager');return[f1Sib().name+' surprised everyone. '+f1cap(f1Sib().his)+' branch is your best performer this year.','good'];}addBuff(.95,9,f1Sib().name+' as manager');return[f1Sib().name+' treats the till like a family wallet. Profit has slipped.','bad'];}},
+     {l:'Start '+f1Sib().him+' at the bottom',d:MD('Siblings',4)+', parents approve.',f(){sibM(4);parM(5);return[f1Sib().name+' grumbled, then got to work. Staff respect '+f1Sib().him+' for it.','good']}},
+     {l:'Keep family out of the business',d:MD('Siblings',-14)+'.',f(){sibM(-14);parM(-5);return[f1Sib().name+' says you have forgotten where you came from.','bad']}}]};}},
+ {id:'f1_sibloan',cat:'Family',fam1:1,w:1,when:()=>f1Ready()&&netWorth()>5e4&&S.month-(S.f1loan||-99)>=48,
+  build(){const c=nwc(.012,1500);S.f1loan=S.month;f1Mark();
+   return{cat:'Family',title:f1Sib().name+' has a business idea',text:sibName()+' wants to open a '+pick(['hardware shop','salon','boda boda fleet','poultry farm','M-Pesa shop'])+' and needs '+fmt(c)+' to start. "You of all people should understand," '+f1Sib().he+' says.',
+    choices:[{l:'Give it as a gift',d:'Costs '+fmt(c)+'. '+MD('Siblings',16)+'.',dis:!canPay(c),f(){S.cash-=c;sibM(16);parM(5);return[f1Sib().name+' opened last month. '+f1cap(f1Sib().he)+' has your photo on the wall.','good']}},
+     {l:'Lend it with a written agreement',d:'Costs '+fmt(c)+'. You may get it back.',dis:!canPay(c),f(){S.cash-=c;if(rnd()<.5){S.cash+=c*1.1;sibM(8);return['The business took off and '+f1Sib().name+' paid you back with a little extra.','good'];}sibM(-4);return['The business failed. '+f1Sib().name+' avoids you at family events now.','bad'];}},
+     {l:'Say no',d:'Keep the money. '+MD('Siblings',-12)+'.',f(){sibM(-12);return[f1Sib().name+' found the money elsewhere, and makes sure you know it.','bad']}}]};}},
+ {id:'f1_sibwed',cat:'Family',fam1:1,w:.8,when:()=>f1Ready()&&age()>=28&&!S.f1sibwed,
+  build(){const c=nwc(.01,1000);S.f1sibwed=true;f1Mark();
+   return{cat:'Family',title:f1Sib().name+' is getting married',text:sibName()+' is getting married in December. The wedding committee meets on Thursdays, and your name is at the top of the pledge list.',
+    choices:[{l:'Pay for the whole wedding',d:'Costs '+fmt(c)+'. '+MD('Siblings',18)+', parents happier. Reputation +1.',dis:!canPay(c),f(){S.cash-=c;sibM(18);parM(8);addRep(1);addHappy(2);return['Four hundred guests, two bands and a cake taller than the bride. People will talk about it for years.','good']}},
+     {l:'Pledge a fair share',d:'Costs '+fmt(c/4)+'.',dis:!canPay(c/4),f(){S.cash-=c/4;sibM(4);return['You pledged your share and gave a short speech. A good day.','good']}},
+     {l:'Send a gift and stay away',d:'Costs '+fmt(c/20)+'. '+MD('Siblings',-14)+'.',dis:!canPay(c/20),f(){S.cash-=c/20;sibM(-14);parM(-6);return['Your chair at the top table stayed empty all day.','bad']}}]};}},
+ {id:'f1_sibtrouble',cat:'Family',fam1:1,w:.8,when:()=>f1Ready()&&S.month>=24&&!S.f1trouble,
+  build(){const c=nwc(.006,600);S.f1trouble=true;f1Mark();
+   return{cat:'Family',title:f1Sib().name+' is in trouble',text:'A call at 2 a.m.: '+sibName()+' owes '+fmt(c)+' to a shylock and they have taken '+f1Sib().his+' car. Mum is crying on the phone.',
+    choices:[{l:'Clear the debt',d:'Costs '+fmt(c)+'. '+MD('Siblings',12)+', parents relieved.',dis:!canPay(c),f(){S.cash-=c;sibM(12);parM(8);return['You paid. '+f1Sib().name+' has promised it will never happen again.','good']}},
+     {l:'Pay, but take over '+f1Sib().his+' finances',d:'Costs '+fmt(c)+'. '+f1cap(f1Sib().he)+' will hate it, but it may work.',dis:!canPay(c),f(){S.cash-=c;sibM(-4);parM(10);addHappy(1);return[f1Sib().name+' now gets a monthly budget from you. '+f1cap(f1Sib().he)+' sulks, but the debts have stopped.','']}},
+     {l:'Let '+f1Sib().him+' learn the hard way',d:'Free. '+MD('Siblings',-16)+', parents upset.',f(){sibM(-16);parM(-12);addHappy(-2);return[f1Sib().name+' lost the car. Mum has not called you since.','bad']}}]};}},
+ {id:'f1_ruracio',cat:'Family',fam1:1,w:2.5,when:()=>f1Ready()&&S.spouse&&!S.spouse.f1rur&&S.month-S.spouse.since<=48,
+  build(){const c=nwc(.015,1500);S.spouse.f1rur=true;f1Mark();
+   return{cat:'Family',title:'The dowry talks',text:S.spouse.name+'\'s family has sent word: the elders are ready to talk dowry. Your uncles are already arguing about how many cows, and the in-laws expect a proper ceremony.',
+    choices:[{l:'Pay in full, with a big ceremony',d:'Costs '+fmt(c)+'. '+MD('In-laws',20)+', your '+spW()+' happier. Reputation +2.',dis:!canPay(c),f(){S.cash-=c;inM(20);addSH(10);parM(6);addRep(2);return['The goats, the cows and the feast were talked about across three villages. The in-laws call you "our child" now.','good']}},
+     {l:'Negotiate a smaller dowry',d:'Costs '+fmt(c/2)+'. Fair, if a little stiff.',dis:!canPay(c/2),f(){S.cash-=c/2;inM(4);addSH(2);return['After a long afternoon of tea and talking, the elders agreed. Everyone shook hands.','']}},
+     {l:'Ask to pay it later',d:'Free. '+MD('In-laws',-16)+', your '+spW()+' upset.',f(){inM(-16);addSH(-8);return['The in-laws went home without a date. Your '+spW()+' was embarrassed in front of '+(S.spouse.g==='m'?'his':'her')+' family.','bad']}}]};}},
+ {id:'f1_inlawmoney',cat:'Family',fam1:1,w:1,when:()=>f1Ready()&&S.spouse&&S.month-(S.f1inm||-99)>=36,
+  build(){const c=nwc(.008,800);S.f1inm=S.month;f1Mark();
+   return{cat:'Family',title:'The in-laws need money',text:S.spouse.name+'\'s parents need '+fmt(c)+' '+pick(['to restock their shop','to clear a SACCO loan','to fence their farm','for a cousin\'s hospital bill'])+'. They asked your '+spW()+', not you, and now your '+spW()+' is asking you.',
+    choices:[{l:'Give it',d:'Costs '+fmt(c)+'. '+MD('In-laws',16)+', your '+spW()+' happier.',dis:!canPay(c),f(){S.cash-=c;inM(16);addSH(6);return['The in-laws sent a thank-you message to the whole family group.','good']}},
+     {l:'Lend it',d:'Costs '+fmt(c)+'. You may see it again.',dis:!canPay(c),f(){S.cash-=c;inM(4);if(rnd()<.4){S.cash+=c;return['To everyone\'s surprise, they paid it back in full.','good'];}return['The loan has quietly become a gift. Nobody mentions it.','']}},
+     {l:'Say no',d:'Free. '+MD('In-laws',-16)+', your '+spW()+' upset.',f(){inM(-16);addSH(-8);return['The in-laws were polite at the next visit. Very polite.','bad']}}]};}},
+ {id:'f1_inlawvisit',cat:'Family',fam1:1,w:.9,when:()=>f1Ready()&&S.spouse&&S.month-(S.f1inv||-99)>=24,
+  build(){const c=nwc(.003,300);S.f1inv=S.month;f1Mark();
+   return{cat:'Family',title:'The in-laws are coming to stay',text:S.spouse.name+'\'s mother has announced she is coming to stay. For a month. Maybe two. She has opinions about your house, your food and your working hours.',
+    choices:[{l:'Welcome her warmly',d:'Costs '+fmt(c)+'. '+MD('In-laws',14)+', your '+spW()+' happier. Long month for you.',dis:!canPay(c),f(){S.cash-=c;inM(14);addSH(8);kidsM(4);addHappy(-2);return['She left with a full suitcase and good reports about you for the whole clan.','good']}},
+     {l:'Put her in a nice hotel nearby',d:'Costs '+fmt(c*3)+'. Peace at home, but she noticed.',dis:!canPay(c*3),f(){S.cash-=c*3;inM(-3);addSH(2);return['She enjoyed the hotel and told everyone you are "very modern".','']}},
+     {l:'Say the timing is bad',d:'Free. '+MD('In-laws',-14)+', your '+spW()+' upset.',f(){inM(-14);addSH(-10);return['The visit was cancelled. Your '+spW()+' spent the weekend on the phone apologising to '+(S.spouse.g==='m'?'his':'her')+' mother.','bad']}}]};}},
+ {id:'f1_feud',cat:'Family',fam1:1,w:.8,when:()=>f1Ready()&&S.spouse&&S.month-S.spouse.since>=12&&!S.f1feud,
+  build(){S.f1feud=true;f1Mark();
+   return{cat:'Family',title:'Your family and your '+spW()+' are fighting',text:'At Christmas lunch '+f1Sib().name+' said your '+spW()+' only married you for your money. '+S.spouse.name+' walked out. Both sides want you to take theirs.',
+    choices:[{l:'Stand with your '+spW(),d:MD('Your '+spW(),12)+', in-laws happier. '+MD('Siblings',-14)+'.',f(){addSH(12);inM(6);sibM(-14);parM(-4);return['You told '+f1Sib().name+' to apologise or stay away. '+f1cap(f1Sib().he)+' stayed away.','']}},
+     {l:'Stand with your siblings',d:MD('Siblings',10)+'. Your '+spW()+' will not forget it.',f(){sibM(10);addSH(-15);inM(-10);return['Blood is thicker than water, you said. '+S.spouse.name+' slept in the guest room for a week.','bad']}},
+     {l:'Bring everyone together to talk',d:'Could heal things, or make them worse.',f(){if(rnd()<.55){addSH(5);sibM(6);inM(3);addHappy(2);return['A long, hard evening, but '+f1Sib().name+' apologised and '+S.spouse.name+' accepted. Peace, for now.','good'];}addSH(-5);sibM(-5);addHappy(-2);return['The meeting turned into round two. Everyone left angrier.','bad'];}}]};}},
+ {id:'f1_spousestudy',cat:'Family',fam1:1,w:.7,when:()=>f1Ready()&&S.spouse&&S.month-S.spouse.since>=24&&!S.spouse.f1study,
+  build(){const c=nwc(.008,900);S.spouse.f1study=true;f1Mark();
+   return{cat:'Family',title:S.spouse.name+' wants to go back to school',text:'Your '+spW()+' wants to do a master\'s degree. It means '+fmt(c)+' in fees and evenings away from home, and more of the school runs falling to you.',
+    choices:[{l:'Pay and support it fully',d:'Costs '+fmt(c)+'. '+MD('Your '+spW(),16)+'. The children will miss them a little.',dis:!canPay(c),f(){S.cash-=c;addSH(16);kidsM(-3);addHappy(1);return[S.spouse.name+' graduated with distinction. You were in the front row.','good']}},
+     {l:'Ask them to wait a few years',d:'Free. '+MD('Your '+spW(),-12)+'.',f(){addSH(-12);return[S.spouse.name+' put the forms back in the drawer, and has been quieter since.','bad']}}]};}},
+ {id:'f1_kidtrouble',cat:'Family',fam1:1,w:1,when:()=>f1Ready()&&!!kidAt(120,216)&&S.month-(S.f1kt||-99)>=36,
+  build(){const k=kidAt(120,216)||S.kids[0],c=nwc(.004,400);S.f1kt=S.month;f1Mark();
+   return{cat:'Family',title:k.name+' was suspended from school',text:'The head teacher called: '+k.name+' was caught '+pick(['sneaking out of the boarding school','vaping in the dorms','in a fight after a football match','leading a strike over the school food'])+'. '+k.name+' is home for two weeks and not talking to anyone.',
+    choices:[{l:'Take time off to talk to '+k.name,d:'Two weeks away from the business. Profit ×0.97 for 2 months. '+MD(k.name,12)+'.',f(){addBuff(.97,2,'Time with '+k.name);kidM(k,12);addHappy(2);return['Long drives and long talks. '+k.name+' told you things you never knew.','good']}},
+     {l:'Hire a counsellor',d:'Costs '+fmt(c)+'.',dis:!canPay(c),f(){S.cash-=c;kidM(k,4);return['The counsellor says '+k.name+' is fine, but misses having you around.','']}},
+     {l:'Punish them hard',d:'No phone, no outings for three months. '+MD(k.name,-14)+'.',f(){kidM(k,-14);if(S.spouse)addSH(-3);return[k.name+' went back to school without saying goodbye.','bad']}}]};}},
+ {id:'f1_kidgrad',cat:'Family',fam1:1,w:1.4,when:()=>f1Ready()&&S.kids.some(k=>!k.withEx&&kidAge(k)>=252&&kidAge(k)<300&&!k.f1grad),
+  build(){const k=S.kids.find(x=>!x.withEx&&kidAge(x)>=252&&kidAge(x)<300&&!x.f1grad)||S.kids[0],c=nwc(.006,600);k.f1grad=true;f1Mark();
+   return{cat:'Family',title:k.name+' is graduating',text:k.name+' finishes university next month. '+k.name+' has invited you to the ceremony, which falls on the same day as an important investor meeting.',
+    choices:[{l:'Go, and throw a party after',d:'Costs '+fmt(c)+'. '+MD(k.name,16)+'. The investor waits.',dis:!canPay(c),f(){S.cash-=c;kidM(k,16);addSH(5);parM(5);addHappy(4);return[k.name+' found you in the crowd and waved. The party went on past midnight.','good']}},
+     {l:'Give them a car instead',d:'Costs '+fmt(c*2)+'. Keep the meeting. '+k.name+' is pleased, but noticed.',dis:!canPay(c*2),f(){S.cash-=c*2;kidM(k,4);addBuff(1.03,6,'The investor meeting');return[k.name+' loves the car. The photos from the ceremony have an empty chair in them.','']}},
+     {l:'Take the meeting',d:'Profit ×1.04 for 6 months. '+MD(k.name,-16)+'.',f(){addBuff(1.04,6,'The investor meeting');kidM(k,-16);addSH(-5);return['The deal is done. '+k.name+' did not mention the graduation at dinner.','bad']}}]};}},
+ {id:'f1_kidabroad',cat:'Family',fam1:1,w:1,when:()=>f1Ready()&&S.kids.some(k=>!k.withEx&&kidAge(k)>=204&&kidAge(k)<228&&!k.f1abroad),
+  build(){const k=S.kids.find(x=>!x.withEx&&kidAge(x)>=204&&kidAge(x)<228&&!x.f1abroad)||S.kids[0],c=nwc(.025,3000),place=pick(['London','Toronto','Boston','Melbourne','Berlin']);k.f1abroad=true;f1Mark();
+   return{cat:'Family',title:k.name+' wants to study in '+place,text:k.name+' got an offer from a university in '+place+'. Four years of fees and living costs come to '+fmt(c)+'.',
+    choices:[{l:'Pay for it all',d:'Costs '+fmt(c)+'. '+MD(k.name,18)+'.',dis:!canPay(c),f(){S.cash-=c;kidM(k,18);addSH(4);addRep(1);return[k.name+' flew out in September. The video calls are full of stories.','good']}},
+     {l:'Study at home in Kenya',d:'Costs '+fmt(c/5)+'. '+MD(k.name,-8)+'.',dis:!canPay(c/5),f(){S.cash-=c/5;kidM(k,-8);return[k.name+' enrolled in Nairobi. Disappointed, but '+k.name+' is close to home.','']}},
+     {l:'Work in the business for a year first',d:'Free. '+MD(k.name,-12)+'. Profit ×1.03 for a year.',f(){kidM(k,-12);addBuff(1.03,12,k.name+' in the business');return[k.name+' sits at a desk outside your office and says very little.','bad']}}]};}},
+ {id:'f1_kidbiz',cat:'Family',fam1:1,w:.9,when:()=>f1Ready()&&S.kids.some(k=>!k.withEx&&kidAge(k)>=264&&!k.f1biz),
+  build(){const k=S.kids.find(x=>!x.withEx&&kidAge(x)>=264&&!x.f1biz)||S.kids[0],c=nwc(.02,2500);k.f1biz=true;f1Mark();
+   return{cat:'Family',title:k.name+' wants their own company',text:k.name+' does not want to wait to inherit the family business. '+k.name+' has a plan for a '+pick(['fintech app','fashion label','solar company','music studio','logistics start-up'])+' and needs '+fmt(c)+' to start.',
+    choices:[{l:'Back the idea',d:'Costs '+fmt(c)+'. '+MD(k.name,16)+'.',dis:!canPay(c),f(){S.cash-=c;kidM(k,16);addHappy(2);return[k.name+' launched with your money and a lot of nerve. You are quietly proud.','good']}},
+     {l:'Offer a senior role in yours instead',d:'Free. '+MD(k.name,-4)+'. Profit ×1.05 for a year.',f(){kidM(k,-4);addBuff(1.05,12,k.name+' in management');return[k.name+' took the job. Fresh ideas, and some arguments with your old managers.','']}},
+     {l:'Tell them to earn it themselves',d:'Free. '+MD(k.name,-14)+'.',f(){kidM(k,-14);return[k.name+' said "you started with $1,000, so can I" and walked out.','bad']}}]};}},
+ {id:'f1_reunion',cat:'Family',fam1:1,w:.9,when:()=>f1Ready()&&S.month>=18&&S.month-(S.f1reu||-99)>=48,
+  build(){const c=nwc(.006,600);S.f1reu=S.month;f1Mark();
+   return{cat:'Family',title:'The family reunion',text:'The clan is holding its reunion upcountry this December: grandparents, cousins, aunties, everyone. Since you are doing so well, they hope you will host.',
+    choices:[{l:'Host and pay for everything',d:'Costs '+fmt(c)+'. Everyone happier.',dis:!canPay(c),f(){S.cash-=c;parM(10);sibM(10);inM(6);kidsM(8);addSH(4);addHappy(4);addRep(1);return['Three days of food, music and old stories. Your children finally met all their cousins.','good']}},
+     {l:'Go as a guest',d:'Costs '+fmt(c/6)+'. A good time, nothing more.',dis:!canPay(c/6),f(){S.cash-=c/6;parM(4);sibM(3);kidsM(3);addHappy(2);return['You ate, danced and slept in your old room.','good']}},
+     {l:'Stay in the city and work',d:'Profit ×1.03 for 6 months. Everyone is upset.',f(){addBuff(1.03,6,'Worked over December');parM(-10);sibM(-8);kidsM(-8);addSH(-5);addHappy(-3);return['The reunion photos arrived on WhatsApp. You were not in any of them.','bad']}}]};}}];
+EVENTS.push(...FAM1_EVENTS);
+
 function sibsHTML(){const xs=S.sibs||[];if(!xs.length)return'';
  return'<h3 class="sibh">Your brothers and sisters</h3><ul class="sibs">'+xs.map(x=>{const tr=SIB_TRAITS[x.t]||['',''];const r=x.rel>=65?'Close':x.rel>=40?'Civil':x.rel>=20?'Strained':'Not speaking';
   return'<li><b>'+esc(x.name)+'</b><span class="sibt">'+(x.out?'Cut off':tr[0])+(x.board?' · on the board':'')+'</span><span class="sibd">'+(x.out?'You cut ties publicly.':tr[1])+'</span><span class="sibr">'+r+'</span></li>';}).join('')+'</ul>';}
