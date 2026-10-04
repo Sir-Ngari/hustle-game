@@ -154,6 +154,26 @@ tr.arch td{opacity:.55}
 .mtip{font-size:13px;color:var(--muted);border-left:3px solid var(--brass);padding:4px 0 4px 10px;margin:0 0 12px}
 @media (max-width:760px){.mform{grid-template-columns:1fr 1fr}}
 
+/* scheduled posts */
+.pform{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px 18px;align-items:start}
+.pform fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+.pform legend,.pform .plbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:0;margin-bottom:4px}
+.pform .opts{display:flex;gap:8px;flex-wrap:wrap}
+.pform .opt{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:3px;padding:6px 10px;background:var(--paper);font-weight:600;font-size:13.5px;cursor:pointer}
+.pform .opt:has(input:checked){border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.pform .opt:has(input:disabled){opacity:.45;cursor:not-allowed}
+.pform textarea{width:100%;min-height:150px;padding:10px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font:inherit;font-size:14px;color:var(--ink);resize:vertical}
+.pform input[type=datetime-local],.pform input[type=file]{padding:7px 8px;border:1px solid var(--line);background:var(--paper);border-radius:3px;color:var(--ink);font:inherit;font-size:13.5px;max-width:100%}
+.pprev{border:1px dashed var(--line);border-radius:4px;min-height:120px;display:grid;place-items:center;color:var(--muted);font-size:13px;overflow:hidden;background:var(--paper)}
+.pprev img,.pprev video{max-width:100%;max-height:300px;display:block}
+.pbar{height:6px;border-radius:3px;background:var(--grid);overflow:hidden}.pbar i{display:block;height:100%;width:0;background:var(--brass);transition:width .2s}
+.pwarn{font-size:12.5px;color:var(--red);margin:0}.pnote{font-size:12.5px;color:var(--muted);margin:0}
+.pform .full{grid-column:1/-1}
+.prow td{vertical-align:top}.pthumb{width:52px;height:52px;border-radius:3px;object-fit:cover;background:var(--grid);display:block}
+.pcap{max-width:340px;white-space:pre-line;font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.perr{display:block;font-size:12px;color:var(--red);max-width:260px;white-space:normal}
+@media (max-width:760px){.pform{grid-template-columns:1fr}}
+
 /* side menu */
 .side{position:fixed;top:0;left:0;bottom:0;width:236px;z-index:12;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) 10px 14px;overflow-y:auto;transition:transform .2s ease}
 .side .brand{font-family:var(--display);font-weight:900;font-size:21px;letter-spacing:.05em;text-transform:uppercase;line-height:1.05;padding:4px 10px 16px}
@@ -321,6 +341,21 @@ body.navhide .main{margin-left:0}
       </form>
       <div class="tablewrap" style="margin-top:14px"><table style="min-width:1040px"><thead><tr><th>Campaign</th><th class="r">Visitors</th><th class="r">New players</th><th class="r">Sign-up rate</th><th class="r">Came back next day</th><th class="r">Came back after a week</th><th class="r">Playing this week</th><th class="r">Tips</th><th class="r">Spend</th><th class="r">Cost per player</th><th></th></tr></thead><tbody id="mCamps"></tbody></table></div>
       <label class="toggle" style="margin-top:8px"><input type="checkbox" id="mShowArch"> Show archived links</label>
+    </section>
+    <section class="panel" id="postPanel">
+      <h2>Scheduled posts</h2>
+      <p class="sub" id="postSub">Loading…</p>
+      <form class="pform" id="pForm" novalidate>
+        <fieldset><legend>Post to</legend><div class="opts"><label class="opt"><input type="checkbox" id="pFb" checked> <span id="pFbName">Facebook Page</span></label><label class="opt"><input type="checkbox" id="pIg" checked> <span id="pIgName">Instagram</span></label></div></fieldset>
+        <fieldset><legend>Type</legend><div class="opts"><label class="opt"><input type="radio" name="pKind" value="photo" checked> Photo</label><label class="opt"><input type="radio" name="pKind" value="video"> Video / Reel</label><label class="opt"><input type="radio" name="pKind" value="text"> Text only</label></div></fieldset>
+        <fieldset id="pFileBox"><label class="plbl" for="pFile">Photo or video</label><input type="file" id="pFile" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"><div class="pprev" id="pPrev">No file chosen</div><div class="pbar" id="pBar" hidden><i></i></div><p class="pwarn" id="pWarn" hidden></p></fieldset>
+        <fieldset><label class="plbl" for="pCap">Caption</label><textarea id="pCap" maxlength="2100" placeholder="Nimeanza na KSh 129,000 na kiosk… Utafika wapi? #Hustlempires"></textarea><p class="pnote"><span id="pCount">0</span> / 2,100 characters</p>
+          <label class="toggle"><input type="checkbox" id="pLink" checked> Add a tracked game link</label><p class="pnote">Facebook gets a link people can tap. Instagram doesn't allow links in captions, so it gets the short link as text.</p></fieldset>
+        <fieldset><legend>When</legend><div class="opts"><label class="opt"><input type="radio" name="pWhen" value="later" checked> Schedule</label><label class="opt"><input type="radio" name="pWhen" value="now"> Post now</label></div><input type="datetime-local" id="pTime" aria-label="Date and time to post"><p class="pnote" id="pTz"></p></fieldset>
+        <div class="acts full" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="submit" id="pSave">Schedule post</button><p class="mmsg" id="pMsg" role="status"></p></div>
+      </form>
+      <h3 class="eyebrow" style="margin:18px 0 6px">Upcoming and recent posts</h3>
+      <div class="tablewrap"><table style="min-width:900px"><thead><tr><th>When</th><th>Post</th><th>Facebook</th><th>Instagram</th><th class="r">Visitors</th><th class="r">New players</th><th></th></tr></thead><tbody id="pRows"></tbody></table></div>
     </section>
     <section class="panel" id="adsPanel">
       <h2>Facebook &amp; Instagram ads</h2>
@@ -510,7 +545,7 @@ function shortLink(code){return((mkt&&mkt.site)||'hustlempires.com')+'/go/'+code
 async function loadMarketing(quiet){if(mLoading)return;mLoading=true;if(!quiet)$('mLoad').textContent='Loading…';
  try{mkt=await api('GET','/api/admin/marketing?days='+$('mDays').value);serverNow=mkt.now;renderMarketing();$('mLoad').textContent='';}
  catch(e){if(e.status===401)showLogin('Your admin session ended. Log in again.');else $('mLoad').textContent='Could not load: '+e.message;}
- mLoading=false;loadAds();if(!chal||!quiet)loadChallenge();}
+ mLoading=false;loadAds();loadPosts();if(!chal||!quiet)loadChallenge();}
 function renderMarketing(){const m=mkt,T=m.totals,per=m.days===365?'last year':'last '+m.days+' days';
  if(!$('mChan').options.length)$('mChan').innerHTML=m.channels.map(c=>'<option value="'+c+'">'+esc(CHAN[c]||c)+'</option>').join('');
  $('mExample').textContent=m.site+'/go/tiktok';
@@ -560,6 +595,85 @@ $('mCamps').addEventListener('click',async e=>{const b=e.target.closest('button'
   $('mName').value=c.known?c.name:'';$('mChan').value=c.channel||'other';$('mCode').value=code;$('mCode').disabled=!!mEdit;$('mCost').value=c.cost||'';$('mNote').value=c.note||'';
   $('mSave').textContent=mEdit?'Save changes':'Create link';$('mCancel').hidden=false;$('mMsg').textContent=mEdit?'Editing '+code+'. The link stays the same.':'';$('mName').focus();$('mForm').scrollIntoView({block:'center'});return;}
  if(b.dataset.march!=null){b.disabled=true;try{await api('POST','/api/admin/campaign',{code:b.dataset.march,archive:b.dataset.v==='1'});await loadMarketing(true);}catch(err){$('mMsg').textContent=err.message;b.disabled=false;}}});
+/* ---------- Scheduled posts ---------- */
+let posts=null,pFile=null,pMedia=null,pBusy=false;
+const PST2={scheduled:['Scheduled',''],processing:['Instagram is processing',''],posted:['Posted','good'],failed:['Failed','bad'],cancelled:['Cancelled','idle']};
+function pTimeDefault(){const d=new Date(Date.now()+86400000);d.setHours(18,0,0,0);const z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T18:00';}
+async function loadPosts(){try{posts=await api('GET','/api/admin/posts');renderPosts();}catch(e){if(e.status!==401)$('postSub').textContent='Could not load posts: '+e.message;}}
+function renderPosts(){const P=posts,pg=(P.pages||{}),page=pg.page,ig=pg.ig;
+ let sub;if(!P.ready)sub='Not connected yet. Connect Meta first (the "Connect Meta ads" console steps).';
+ else if(P.missing&&P.missing.length)sub='<b style="color:var(--red)">The Meta token can read ads but not post yet.</b> It needs these permissions: '+P.missing.map(esc).join(', ')+'. Make a new token with them ticked, then run the token step again.';
+ else if(!page)sub=pg.error?'<b style="color:var(--red)">'+esc(pg.error)+'</b> Give hustle-server access to the Facebook Page in Business Settings, then press Check again.':'Looking for your Facebook Page…';
+ else sub='Posting to the Facebook Page <b>'+esc(page.name)+'</b>'+(ig?' and Instagram <b>@'+esc(ig.username)+'</b>':' (no Instagram business account is linked to this Page)')+'. Posts go out within a minute of their time.';
+ $('postSub').innerHTML=sub+(P.ready?' <button class="btn xs ghost" type="button" id="pCheck">Check again</button>':'');
+ $('pFbName').textContent=page?'Facebook: '+page.name:'Facebook Page';$('pIgName').textContent=ig?'Instagram: @'+ig.username:'Instagram';
+ $('pIg').disabled=P.ready&&page&&!ig;if($('pIg').disabled)$('pIg').checked=false;
+ const R=P.posts||[],when=ts=>new Date(ts*1000).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+ const cell=(p,pf)=>{const st=p[pf+'_status'];if(!st)return'<td><span style="color:var(--muted)">—</span></td>';const x=PST2[st]||[st,''],url=p[pf+'_url'],err=p[pf+'_error'];
+  return'<td><span class="pill '+x[1]+'">'+x[0]+'</span>'+(url?' <a href="'+esc(url)+'" target="_blank" rel="noopener" style="font-size:12.5px">View</a>':'')+(err?'<small class="perr">'+esc(err)+'</small>':'')+'</td>';};
+ const sum=(p,k)=>(p['fb_'+k]||0)+(p['ig_'+k]||0);
+ $('pRows').innerHTML=R.length?R.map(p=>{const live=p.fb_status==='scheduled'||p.ig_status==='scheduled',fail=p.fb_status==='failed'||p.ig_status==='failed'||p.fb_status==='cancelled'||p.ig_status==='cancelled',busy=p.ig_status==='processing';
+  const th=p.media?(p.kind==='video'?'<video class="pthumb" src="/media/'+esc(p.media)+'#t=1" muted preload="metadata"></video>':'<img class="pthumb" src="/media/'+esc(p.media)+'" alt="">'):'<span class="pthumb" style="display:grid;place-items:center;font-size:11px;color:var(--muted)">Text</span>';
+  return'<tr class="prow"><td style="white-space:nowrap"><b>'+when(p.due)+'</b>'+(live&&p.due>serverNow?'<small style="display:block;color:var(--muted)">in '+(p.due-serverNow<3600?Math.max(1,Math.round((p.due-serverNow)/60))+' min':p.due-serverNow<172800?Math.round((p.due-serverNow)/3600)+' h':Math.round((p.due-serverNow)/86400)+' days')+'</small>':'')+'</td>'+
+   '<td><div style="display:flex;gap:10px">'+th+'<div class="pcap">'+esc(p.caption||'(no caption)')+'</div></div></td>'+cell(p,'fb')+cell(p,'ig')+
+   '<td class="r num">'+(p.link?sum(p,'visitors'):'—')+'</td><td class="r num"><b>'+(p.link?sum(p,'players'):'—')+'</b></td>'+
+   '<td style="white-space:nowrap">'+(live?'<button class="btn xs" type="button" data-pmove="'+p.id+'">Change time</button> <button class="btn xs ghost" type="button" data-pcancel="'+p.id+'">Cancel</button>':'')+(fail?'<button class="btn xs" type="button" data-pretry="'+p.id+'">Post again now</button> ':'')+(!live&&!busy?'<button class="btn xs ghost" type="button" data-pdel="'+p.id+'">Remove</button>':'')+
+   '<div data-pmovebox="'+p.id+'" hidden style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><input type="datetime-local" aria-label="New time" style="padding:4px 6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"><button class="btn xs primary" type="button" data-pmovesave="'+p.id+'">Save</button></div></td></tr>';}).join('')
+  :'<tr><td colspan="7" class="empty">No posts yet. Schedule your first one above.</td></tr>';
+ const n=R.filter(p=>p.fb_status==='scheduled'||p.ig_status==='scheduled').length;}
+function pKind(){return(document.querySelector('input[name=pKind]:checked')||{}).value||'photo';}
+function pSync(){const k=pKind(),now_=(document.querySelector('input[name=pWhen]:checked')||{}).value==='now';
+ $('pFileBox').hidden=k==='text';$('pTime').disabled=now_;$('pSave').textContent=now_?'Post now':'Schedule post';
+ if(k==='text'){$('pIg').checked=false;}$('pIg').closest('.opt').style.opacity=k==='text'?.45:'';
+ $('pFile').accept=k==='video'?'video/mp4,video/quicktime':'image/jpeg,image/png,image/webp';
+ if(pFile&&((k==='video')!==pFile.type.startsWith('video/'))){pFile=null;pMedia=null;$('pFile').value='';$('pPrev').textContent='No file chosen';$('pWarn').hidden=true;}}
+document.querySelectorAll('input[name=pKind],input[name=pWhen]').forEach(r=>r.addEventListener('change',pSync));
+$('pCap').addEventListener('input',()=>$('pCount').textContent=$('pCap').value.length.toLocaleString('en-US'));
+$('pTime').value=pTimeDefault();try{$('pTz').textContent='Your time zone: '+Intl.DateTimeFormat().resolvedOptions().timeZone.replace('_',' ');}catch(e){}
+function pWarn(t){$('pWarn').hidden=!t;$('pWarn').textContent=t||'';}
+async function toJpeg(file){const url=URL.createObjectURL(file);try{const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('That image could not be opened.'));i.src=url;});
+  const max=2160,sc=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)),w=Math.round(img.naturalWidth*sc),h=Math.round(img.naturalHeight*sc);
+  const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(img,0,0,w,h);
+  const blob=await new Promise(ok=>c.toBlob(ok,'image/jpeg',.9));return{blob,w,h};}finally{URL.revokeObjectURL(url);}}
+$('pFile').addEventListener('change',async()=>{const f=$('pFile').files[0];pMedia=null;pWarn('');if(!f){pFile=null;$('pPrev').textContent='No file chosen';return;}
+ const vid=f.type.startsWith('video/');if(vid&&pKind()!=='video')document.querySelector('input[name=pKind][value=video]').checked=true;if(!vid&&pKind()!=='photo')document.querySelector('input[name=pKind][value=photo]').checked=true;pSync();
+ try{if(vid){if(f.size>300*1024*1024){pWarn('Videos can be up to 300 MB.');pFile=null;return;}pFile={blob:f,type:f.type==='video/quicktime'?'video/quicktime':'video/mp4'};
+   const u=URL.createObjectURL(f);$('pPrev').innerHTML='<video src="'+u+'" controls muted playsinline></video>';const v=$('pPrev').querySelector('video');
+   v.addEventListener('loadedmetadata',()=>{const r=v.videoWidth/v.videoHeight,d=v.duration;let w=[];if($('pIg').checked&&Math.abs(r-9/16)>.08)w.push('Instagram Reels look best in tall 9:16 video; this one is '+v.videoWidth+'×'+v.videoHeight+'.');if(d<3)w.push('Instagram needs at least 3 seconds of video.');if(d>900)w.push('Instagram Reels can be at most 15 minutes.');pWarn(w.join(' '));});}
+  else{const j=await toJpeg(f);pFile={blob:j.blob,type:'image/jpeg',w:j.w,h:j.h};$('pPrev').innerHTML='<img src="'+URL.createObjectURL(j.blob)+'" alt="Preview of the photo">';
+   const r=j.w/j.h;if($('pIg').checked&&(r<0.8-.01||r>1.91+.01))pWarn('Instagram only accepts photos from 4:5 (tall) to 1.91:1 (wide). This one is '+j.w+'×'+j.h+'. Crop it, or post it to Facebook only.');
+   if(j.blob.size>8*1024*1024){pWarn('This photo is still over 8 MB after shrinking it. Use a smaller one.');pFile=null;}}}
+ catch(e){pWarn(e.message);pFile=null;}});
+async function pUpload(){const f=pFile,bar=$('pBar'),fill=bar.querySelector('i');bar.hidden=false;fill.style.width='0';
+ const st=await api('POST','/api/admin/media/start',{type:f.type,size:f.blob.size}),step=st.chunk||2500000;let off=0;
+ while(off<f.blob.size){const part=f.blob.slice(off,off+step);let tries=0;
+  for(;;){try{const r=await fetch('/api/admin/media/chunk?id='+encodeURIComponent(st.id)+'&offset='+off,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/octet-stream'},body:part});
+     const d=await r.json().catch(()=>({}));if(r.status===409&&typeof d.have==='number'){off=d.have;break;}if(!r.ok)throw new Error(d.error||'Upload failed.');off=d.have;break;}
+   catch(e){if(++tries>=3)throw e;await new Promise(r=>setTimeout(r,1500));}}
+  fill.style.width=Math.round(100*off/f.blob.size)+'%';$('pMsg').textContent='Uploading… '+Math.round(100*off/f.blob.size)+'%';}
+ const d=await api('POST','/api/admin/media/done',{id:st.id,size:f.blob.size});bar.hidden=true;return d.id;}
+$('pForm').addEventListener('submit',async e=>{e.preventDefault();if(pBusy)return;const k=pKind(),fb=$('pFb').checked,ig=$('pIg').checked&&k!=='text',now_=(document.querySelector('input[name=pWhen]:checked')||{}).value==='now';
+ const msg=t=>$('pMsg').textContent=t;
+ if(!posts||!posts.ready)return msg('Connect Meta first.');if(!fb&&!ig)return msg('Choose Facebook, Instagram or both.');
+ if(k!=='text'&&!pFile)return msg('Choose a '+(k==='video'?'video':'photo')+' first.');if(k==='text'&&!$('pCap').value.trim())return msg('Write the post text.');
+ let due=Math.floor(Date.now()/1000);if(!now_){const v=$('pTime').value;if(!v)return msg('Pick a date and time.');due=Math.floor(new Date(v).getTime()/1000);if(due<Date.now()/1000-60)return msg('That time has passed. Pick a later one, or choose Post now.');}
+ pBusy=true;$('pSave').disabled=true;
+ try{if(k!=='text'&&!pMedia)pMedia=await pUpload();
+  await api('POST','/api/admin/posts',{platforms:[fb&&'fb',ig&&'ig'].filter(Boolean),kind:k,media:k==='text'?'':pMedia,caption:$('pCap').value,link:$('pLink').checked,due});
+  msg(now_?'Posting now. It will show as Posted within a minute.':'Scheduled for '+new Date(due*1000).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'.');
+  $('pCap').value='';$('pCount').textContent='0';$('pFile').value='';pFile=null;pMedia=null;$('pPrev').textContent='No file chosen';pWarn('');await loadPosts();}
+ catch(err){msg(err.message||'Something went wrong.');$('pBar').hidden=true;}
+ pBusy=false;$('pSave').disabled=false;});
+$('postPanel').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.id==='pCheck'){b.disabled=true;try{posts=await api('POST','/api/admin/posts/check',{});renderPosts();}catch(x){$('pMsg').textContent=x.message;}return;}
+ if(b.dataset.pmove){const box=document.querySelector('[data-pmovebox="'+b.dataset.pmove+'"]');box.hidden=!box.hidden;const p=posts.posts.find(x=>x.id==b.dataset.pmove);
+  if(p){const d=new Date(p.due*1000),z=n=>String(n).padStart(2,'0');box.querySelector('input').value=d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':'+z(d.getMinutes());}return;}
+ const act=b.dataset.pmovesave?'time':b.dataset.pcancel?'cancel':b.dataset.pretry?'retry':b.dataset.pdel?'delete':null;if(!act)return;
+ const id=+(b.dataset.pmovesave||b.dataset.pcancel||b.dataset.pretry||b.dataset.pdel),body={id};
+ if(act==='time'){const v=document.querySelector('[data-pmovebox="'+id+'"] input').value;if(!v)return;body.due=Math.floor(new Date(v).getTime()/1000);}
+ b.disabled=true;try{await api('POST','/api/admin/posts/'+act,body);await loadPosts();}catch(x){$('pMsg').textContent=x.message;b.disabled=false;}});
+pSync();
+
 /* ---------- Meta ads ---------- */
 let ads=null;
 const ST={ACTIVE:['Running','good'],PAUSED:['Paused','idle'],CAMPAIGN_PAUSED:['Paused','idle'],ARCHIVED:['Archived','idle'],DELETED:['Deleted','bad'],IN_PROCESS:['Starting',''],WITH_ISSUES:['Has issues','bad']};

@@ -81,6 +81,8 @@ META_ACCOUNT = re.sub(r"[^0-9]", "", os.environ.get("HUSTLE_META_ACCOUNT", ""))
 META_APP_SECRET = os.environ.get("HUSTLE_META_APP_SECRET", "").strip()
 META_API = os.environ.get("HUSTLE_META_API", "v25.0").strip() or "v25.0"
 META_URL = os.environ.get("HUSTLE_META_URL", "https://graph.facebook.com").strip().rstrip("/")
+META_PAGE = re.sub(r"[^0-9]", "", os.environ.get("HUSTLE_META_PAGE", ""))   # optional: which Facebook Page to post to
+MEDIA_DIR = os.path.join(os.path.dirname(os.path.abspath(os.environ.get("HUSTLE_DB", "") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "hustle.db"))), "media")
 PESAPAL_KEY = os.environ.get("HUSTLE_PESAPAL_KEY", "").strip()
 PESAPAL_SECRET = os.environ.get("HUSTLE_PESAPAL_SECRET", "").strip()
 PESAPAL_ENV = "sandbox" if os.environ.get("HUSTLE_PESAPAL_ENV", "").strip().lower() == "sandbox" else "live"
@@ -286,6 +288,27 @@ CREATE TABLE IF NOT EXISTS meta_campaigns(
   manual INTEGER NOT NULL DEFAULT 0,
   updated INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS posts(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created INTEGER NOT NULL,
+  due INTEGER NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'photo',
+  caption TEXT NOT NULL DEFAULT '',
+  media TEXT NOT NULL DEFAULT '',
+  link INTEGER NOT NULL DEFAULT 1,
+  fb_status TEXT NOT NULL DEFAULT '',
+  fb_id TEXT NOT NULL DEFAULT '',
+  fb_url TEXT NOT NULL DEFAULT '',
+  fb_error TEXT NOT NULL DEFAULT '',
+  ig_status TEXT NOT NULL DEFAULT '',
+  ig_container TEXT NOT NULL DEFAULT '',
+  ig_id TEXT NOT NULL DEFAULT '',
+  ig_url TEXT NOT NULL DEFAULT '',
+  ig_error TEXT NOT NULL DEFAULT '',
+  ig_tries INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS posts_due ON posts(due);
 CREATE TABLE IF NOT EXISTS campaigns(
   code TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -1688,9 +1711,9 @@ def graph_get(path, params=None, url=None):
     """One read-only Graph API call. The token never appears in errors or logs."""
     if url is None:
         params = dict(params or {})
-        params["access_token"] = META_TOKEN
+        params.setdefault("access_token", META_TOKEN)
         if META_APP_SECRET:
-            params["appsecret_proof"] = hmac.new(META_APP_SECRET.encode(), META_TOKEN.encode(), hashlib.sha256).hexdigest()
+            params["appsecret_proof"] = hmac.new(META_APP_SECRET.encode(), params["access_token"].encode(), hashlib.sha256).hexdigest()
         url = "%s/%s/%s?%s" % (META_URL, META_API, path.lstrip("/"), urllib.parse.urlencode(params))
     req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Hustlempires/1"})
     try:
@@ -1702,8 +1725,31 @@ def graph_get(path, params=None, url=None):
         except Exception:
             err = {}
         msg = err.get("message") or ("HTTP %s" % e.code)
-        if META_TOKEN:
-            msg = msg.replace(META_TOKEN, "[token]")
+        msg = re.sub(r"EAA[A-Za-z0-9]{20,}", "[token]", msg)
+        raise RuntimeError("Meta said: %s (code %s)" % (msg[:300], err.get("code", e.code)))
+    except urllib.error.URLError as e:
+        raise RuntimeError("Could not reach Meta: %s" % getattr(e, "reason", e))
+
+
+def graph_post(path, data):
+    """One Graph API write (used only for publishing posts to the Page and Instagram)."""
+    data = dict(data)
+    data.setdefault("access_token", META_TOKEN)
+    if META_APP_SECRET:
+        data["appsecret_proof"] = hmac.new(META_APP_SECRET.encode(), data["access_token"].encode(), hashlib.sha256).hexdigest()
+    url = "%s/%s/%s" % (META_URL, META_API, path.lstrip("/"))
+    req = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode(), method="POST",
+                                 headers={"Accept": "application/json", "User-Agent": "Hustlempires/1",
+                                          "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            err = (json.loads(e.read().decode("utf-8")) or {}).get("error") or {}
+        except Exception:
+            err = {}
+        msg = re.sub(r"EAA[A-Za-z0-9]{20,}", "[token]", err.get("error_user_msg") or err.get("message") or ("HTTP %s" % e.code))
         raise RuntimeError("Meta said: %s (code %s)" % (msg[:300], err.get("code", e.code)))
     except urllib.error.URLError as e:
         raise RuntimeError("Could not reach Meta: %s" % getattr(e, "reason", e))
@@ -1780,6 +1826,7 @@ def meta_sync(full=False):
             meta_set("meta_token", json.dumps({"expires": dbg.get("expires_at") or 0, "valid": dbg.get("is_valid"), "scopes": dbg.get("scopes") or []}))
         except Exception:
             pass
+        page_discover()
         return True
     except Exception as e:
         old = meta_get_state()
@@ -1807,6 +1854,180 @@ def meta_sweeper():
             meta_sync(full=first)
             first = False
         time.sleep(3600)
+
+
+# ---- scheduled posts: Facebook Page and Instagram ----
+POST_SCOPES = ["pages_show_list", "pages_read_engagement", "pages_manage_posts", "instagram_basic", "instagram_content_publish"]
+POST_LOCK = threading.Lock()
+MEDIA_TYPES = {"image/jpeg": "jpg", "video/mp4": "mp4", "video/quicktime": "mov"}
+MEDIA_MAX = {"jpg": 8 * 1024 * 1024, "mp4": 300 * 1024 * 1024, "mov": 300 * 1024 * 1024}
+MEDIA_RE = re.compile(r"^[a-z0-9]{24}\.(jpg|mp4|mov)$")
+
+
+def page_discover():
+    """Find the Facebook Page (and the Instagram account linked to it) this token can post to. No tokens are stored."""
+    try:
+        pages = graph_all("me/accounts", {"fields": "id,name,instagram_business_account{id,username}", "limit": 50})
+        pick = next((p for p in pages if META_PAGE and p.get("id") == META_PAGE), pages[0] if pages else None)
+        if not pick:
+            meta_set("meta_pages", json.dumps({"at": now(), "error": "No Facebook Page is shared with this token yet."}))
+            return None
+        ig = pick.get("instagram_business_account") or {}
+        info = {"at": now(), "page": {"id": pick.get("id"), "name": pick.get("name") or ""},
+                "ig": {"id": ig.get("id"), "username": ig.get("username") or ""} if ig.get("id") else None,
+                "pages": [{"id": p.get("id"), "name": p.get("name")} for p in pages][:10]}
+        meta_set("meta_pages", json.dumps(info))
+        return info
+    except Exception as e:
+        meta_set("meta_pages", json.dumps({"at": now(), "error": str(e)[:300]}))
+        return None
+
+
+def pages_info():
+    try:
+        return json.loads(meta_get("meta_pages") or "{}")
+    except (TypeError, ValueError):
+        return {}
+
+
+def page_token(page_id):
+    return (graph_get(page_id, {"fields": "access_token"}) or {}).get("access_token") or ""
+
+
+def media_url(name):
+    return "https://%s/media/%s" % (SITE_DOMAIN or "hustlempires.com", name)
+
+
+def post_caption(p, platform):
+    cap = p["caption"]
+    if p["link"]:
+        code = ("fb-post-%d" if platform == "fb" else "ig-post-%d") % p["id"]
+        site = SITE_DOMAIN or "hustlempires.com"
+        cap = (cap.rstrip() + "\n\n" if cap.strip() else "") + ("Play free: https://%s/go/%s" % (site, code) if platform == "fb" else "Play free at %s/go/%s" % (site, code))
+    return cap
+
+
+def post_set(pid, **kw):
+    kw["updated"] = now()
+    q("UPDATE posts SET %s WHERE id=?" % ", ".join("%s=?" % k for k in kw), tuple(kw.values()) + (pid,))
+
+
+def publish_post(p):
+    """Move one due post forward: publish to Facebook, and create, check or publish its Instagram container."""
+    info = pages_info()
+    page = (info.get("page") or {}).get("id")
+    if not page:
+        raise RuntimeError(info.get("error") or "No Facebook Page found for this token.")
+    ptok = page_token(page)
+    if not ptok:
+        raise RuntimeError("Meta did not give a Page token. Check the token has pages_manage_posts and the Page is assigned to hustle-server.")
+    mu = media_url(p["media"]) if p["media"] else ""
+    if p["fb_status"] == "scheduled":
+        try:
+            if p["kind"] == "photo":
+                r = graph_post(page + "/photos", {"url": mu, "caption": post_caption(p, "fb"), "access_token": ptok})
+                pid = r.get("post_id") or r.get("id") or ""
+                post_set(p["id"], fb_status="posted", fb_id=pid, fb_url="https://www.facebook.com/" + pid, fb_error="")
+            elif p["kind"] == "video":
+                r = graph_post(page + "/videos", {"file_url": mu, "description": post_caption(p, "fb"), "access_token": ptok})
+                post_set(p["id"], fb_status="posted", fb_id=r.get("id", ""), fb_url="https://www.facebook.com/%s/videos/%s" % (page, r.get("id", "")), fb_error="")
+            else:
+                d = {"message": post_caption(p, "fb"), "access_token": ptok}
+                if p["link"]:
+                    d["link"] = "https://%s/go/fb-post-%d" % (SITE_DOMAIN or "hustlempires.com", p["id"])
+                r = graph_post(page + "/feed", d)
+                post_set(p["id"], fb_status="posted", fb_id=r.get("id", ""), fb_url="https://www.facebook.com/" + r.get("id", ""), fb_error="")
+        except Exception as e:
+            post_set(p["id"], fb_status="failed", fb_error=str(e)[:300])
+    if p["ig_status"] in ("scheduled", "processing"):
+        ig = (info.get("ig") or {}).get("id")
+        try:
+            if not ig:
+                raise RuntimeError("No Instagram business account is linked to the Facebook Page.")
+            cont = p["ig_container"]
+            if p["ig_status"] == "scheduled":
+                d = {"caption": post_caption(p, "ig"), "access_token": ptok}
+                if p["kind"] == "video":
+                    d.update({"media_type": "REELS", "video_url": mu, "share_to_feed": "true"})
+                else:
+                    d["image_url"] = mu
+                cont = graph_post(ig + "/media", d).get("id", "")
+                post_set(p["id"], ig_status="processing", ig_container=cont, ig_tries=0, ig_error="")
+            st = graph_get(cont, {"fields": "status_code,status", "access_token": ptok})
+            code = st.get("status_code") or ""
+            if code == "FINISHED":
+                mid = graph_post(ig + "/media_publish", {"creation_id": cont, "access_token": ptok}).get("id", "")
+                link = ""
+                try:
+                    link = graph_get(mid, {"fields": "permalink", "access_token": ptok}).get("permalink") or ""
+                except Exception:
+                    pass
+                post_set(p["id"], ig_status="posted", ig_id=mid, ig_url=link, ig_error="")
+            elif code in ("ERROR", "EXPIRED"):
+                raise RuntimeError("Instagram could not process the file: %s" % (st.get("status") or code))
+            else:
+                tries = q("SELECT ig_tries FROM posts WHERE id=?", (p["id"],), one=True)["ig_tries"] + 1
+                if tries > 80:
+                    raise RuntimeError("Instagram took more than 40 minutes to process the video.")
+                post_set(p["id"], ig_tries=tries)
+        except Exception as e:
+            post_set(p["id"], ig_status="failed", ig_error=str(e)[:300])
+
+
+def post_sweeper():
+    """Every 30 seconds, publish posts that are due and move Instagram videos along."""
+    time.sleep(15)
+    while True:
+        try:
+            if meta_ready() and POST_LOCK.acquire(blocking=False):
+                try:
+                    if not pages_info().get("page"):
+                        page_discover()
+                    for p in q("SELECT * FROM posts WHERE due<=? AND (fb_status='scheduled' OR ig_status IN ('scheduled','processing')) ORDER BY due LIMIT 10", (now(),)):
+                        try:
+                            publish_post(p)
+                        except Exception as e:
+                            msg = str(e)[:300]
+                            q("UPDATE posts SET fb_status=CASE WHEN fb_status='scheduled' THEN 'failed' ELSE fb_status END, "
+                              "fb_error=CASE WHEN fb_status='scheduled' THEN ? ELSE fb_error END, "
+                              "ig_status=CASE WHEN ig_status IN ('scheduled','processing') THEN 'failed' ELSE ig_status END, "
+                              "ig_error=CASE WHEN ig_status IN ('scheduled','processing') THEN ? ELSE ig_error END, updated=? WHERE id=?",
+                              (msg, msg, now(), p["id"]))
+                    # tidy: media of posts finished more than 14 days ago
+                    for r in q("SELECT id, media FROM posts WHERE media<>'' AND updated<? AND fb_status NOT IN ('scheduled') "
+                               "AND ig_status NOT IN ('scheduled','processing')", (now() - 14 * 86400,)):
+                        if not q("SELECT 1 FROM posts WHERE media=? AND (fb_status='scheduled' OR ig_status IN ('scheduled','processing'))", (r["media"],), one=True):
+                            try:
+                                os.remove(os.path.join(MEDIA_DIR, r["media"]))
+                            except OSError:
+                                pass
+                finally:
+                    POST_LOCK.release()
+        except Exception as e:
+            print("Post sweeper problem: %s" % e, flush=True)
+        time.sleep(30)
+
+
+def posts_report(t):
+    try:
+        tok = json.loads(meta_get("meta_token") or "{}")
+    except (TypeError, ValueError):
+        tok = {}
+    scopes = tok.get("scopes") or []
+    rows = []
+    for r in q("SELECT * FROM posts WHERE due>? OR fb_status='scheduled' OR ig_status IN ('scheduled','processing') ORDER BY due DESC LIMIT 150",
+               (t - 60 * 86400,)):
+        d = dict(r)
+        for pf in ("fb", "ig"):
+            if d[pf + "_status"]:
+                code = "%s-post-%d" % (pf, d["id"])
+                d[pf + "_players"] = q("SELECT COUNT(*) n FROM users WHERE camp=?", (code,), one=True)["n"]
+                d[pf + "_visitors"] = q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND stage<>'login'", (code,), one=True)["n"]
+                d[pf + "_code"] = code
+        d.pop("ig_container", None)
+        rows.append(d)
+    return {"ready": meta_ready(), "pages": pages_info(), "scopes": scopes,
+            "missing": [x for x in POST_SCOPES if scopes and x not in scopes], "posts": rows, "site": SITE_DOMAIN or "hustlempires.com", "now": t}
 
 
 def ads_report(t, days):
@@ -1977,7 +2198,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Security-Policy",
                          "default-src 'self'; script-src 'self' 'unsafe-inline'; "
                          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                         "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; "
+                         "font-src https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; "
                          "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
     def send_json(self, status, payload, cookies=()):
@@ -2073,6 +2294,51 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def serve_media(self, name):
+        """Images and videos uploaded for scheduled posts. Meta downloads them from here when it publishes."""
+        if not MEDIA_RE.match(name or ""):
+            return self.send_error(404)
+        path = os.path.join(MEDIA_DIR, name)
+        if not os.path.isfile(path):
+            return self.send_error(404)
+        size = os.path.getsize(path)
+        start, end = 0, size - 1
+        rng = re.match(r"bytes=(\d*)-(\d*)$", self.headers.get("Range") or "")
+        if rng and size:
+            if rng.group(1):
+                start = int(rng.group(1))
+                end = min(size - 1, int(rng.group(2))) if rng.group(2) else size - 1
+            elif rng.group(2):
+                start = max(0, size - int(rng.group(2)))
+            if start > end:
+                self.send_response(416)
+                self.send_header("Content-Range", "bytes */%d" % size)
+                self.end_headers()
+                return
+        self.send_response(206 if rng and size else 200)
+        self.send_header("Content-Type", {"jpg": "image/jpeg", "mp4": "video/mp4", "mov": "video/quicktime"}[name.rsplit(".", 1)[1]])
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Accept-Ranges", "bytes")
+        if rng and size:
+            self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, size))
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        if self.command == "HEAD":
+            return
+        try:
+            with open(path, "rb") as f:
+                f.seek(start)
+                left = end - start + 1
+                while left > 0:
+                    chunk = f.read(min(256 * 1024, left))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass   # the viewer stopped loading (normal for video previews)
+
     # ---------- routing ----------
     def moved(self, path):
         """Pages on an old web address forward to the new one. The API keeps answering there, so open games,
@@ -2097,6 +2363,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.serve_file("admin.html")
         if path == "/healthz":
             return self.send_json(200, {"ok": True})
+        if path.startswith("/media/"):
+            return self.serve_media(path[7:])
         m = re.match(r"^/go/([A-Za-z0-9-]{1,30})/?$", path)
         if m:
             # short campaign link for bios and posters: /go/tiktok opens the game as /?c=tiktok
@@ -2149,6 +2417,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(404, "Not found.")
         return self.serve_file(path.lstrip("/"))
 
+    def do_HEAD(self):
+        path = urlparse(self.path).path
+        if path.startswith("/media/"):
+            return self.serve_media(path[7:])
+        self.send_response(405)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_POST(self):
         path = urlparse(self.path).path
         routes = {"/api/visit": self.api_visit, "/api/signup": self.api_signup, "/api/login": self.api_login, "/api/logout": self.api_logout,
@@ -2168,6 +2444,10 @@ class Handler(BaseHTTPRequestHandler):
             return routes[path]()
         if path == "/api/admin/campaign":
             return self.api_admin_campaign()
+        if path == "/api/admin/media/chunk":
+            return self.api_admin_media_chunk()
+        if path.startswith("/api/admin/media/") or path.startswith("/api/admin/posts"):
+            return self.api_admin_posts(path)
         if path in ("/api/admin/ads/sync", "/api/admin/ads/link"):
             return self.api_admin_ads(path)
         if path == "/api/admin/tuning":
@@ -3338,6 +3618,140 @@ class Handler(BaseHTTPRequestHandler):
           "name=excluded.name, channel=excluded.channel, cost=excluded.cost, note=excluded.note", (code, name, channel, cost, note, now()))
         self.send_json(200, {"ok": True, "code": code})
 
+    def api_admin_media_chunk(self):
+        """One piece (up to 2.5 MB) of an uploaded image or video, sent as raw bytes."""
+        if not self.is_admin():
+            return self.error(401, "Log in as admin.")
+        qs = parse_qs(urlparse(self.path).query)
+        name = (qs.get("id") or [""])[0]
+        try:
+            offset = int((qs.get("offset") or ["-1"])[0])
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self.error(400, "Bad upload request.")
+        if not MEDIA_RE.match(name) or length <= 0 or length > 3 * 1024 * 1024:
+            return self.error(400, "Bad upload request.")
+        part = os.path.join(MEDIA_DIR, name + ".part")
+        if not os.path.isfile(part):
+            return self.error(404, "That upload has expired. Start it again.")
+        have = os.path.getsize(part)
+        data = self.rfile.read(length)
+        if offset != have:
+            return self.send_json(409, {"error": "Out of order.", "have": have})
+        if have + len(data) > MEDIA_MAX[name.rsplit(".", 1)[1]]:
+            os.remove(part)
+            return self.error(413, "That file is too large.")
+        with open(part, "ab") as f:
+            f.write(data)
+        self.send_json(200, {"ok": True, "have": have + len(data)})
+
+    def api_admin_posts(self, path):
+        if not self.is_admin():
+            return self.error(401, "Log in as admin.")
+        d = self.read_json()
+        if d is None:
+            return
+        t = now()
+        if path == "/api/admin/media/start":
+            ext = MEDIA_TYPES.get(str(d.get("type") or "").lower())
+            if not ext:
+                return self.error(400, "Use a JPG image or an MP4/MOV video.")
+            try:
+                size = int(d.get("size") or 0)
+            except (TypeError, ValueError):
+                size = 0
+            if size <= 0 or size > MEDIA_MAX[ext]:
+                return self.error(400, "Images can be up to 8 MB and videos up to 300 MB.")
+            os.makedirs(MEDIA_DIR, exist_ok=True)
+            for f in os.listdir(MEDIA_DIR):   # clear abandoned uploads
+                fp = os.path.join(MEDIA_DIR, f)
+                if f.endswith(".part") and os.path.getmtime(fp) < t - 6 * 3600:
+                    os.remove(fp)
+            name = "".join(secrets.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(24)) + "." + ext
+            open(os.path.join(MEDIA_DIR, name + ".part"), "wb").close()
+            return self.send_json(200, {"id": name, "chunk": 2500000})
+        if path == "/api/admin/media/done":
+            name = str(d.get("id") or "")
+            part = os.path.join(MEDIA_DIR, name + ".part")
+            if not MEDIA_RE.match(name) or not os.path.isfile(part):
+                return self.error(404, "That upload has expired. Start it again.")
+            if int(d.get("size") or -1) != os.path.getsize(part):
+                return self.error(400, "The upload is incomplete. Try again.")
+            os.replace(part, os.path.join(MEDIA_DIR, name))
+            return self.send_json(200, {"ok": True, "id": name, "url": "/media/" + name})
+        if path == "/api/admin/posts":
+            pf = d.get("platforms") if isinstance(d.get("platforms"), list) else []
+            fb, ig = "fb" in pf, "ig" in pf
+            kind = d.get("kind") if d.get("kind") in ("photo", "video", "text") else "text"
+            media = str(d.get("media") or "")
+            caption = clean_text(d.get("caption"), 2100) if not isinstance(d.get("caption"), str) else d["caption"].replace("\r", "")[:2100]
+            if not (fb or ig):
+                return self.error(400, "Choose Facebook, Instagram or both.")
+            if kind != "text" and (not MEDIA_RE.match(media) or not os.path.isfile(os.path.join(MEDIA_DIR, media))):
+                return self.error(400, "Upload the image or video first.")
+            if kind == "text":
+                media = ""
+                if ig:
+                    return self.error(400, "Instagram posts need an image or a video.")
+                if not caption.strip():
+                    return self.error(400, "Write the post text.")
+            if kind == "photo" and not media.endswith(".jpg") or kind == "video" and media.endswith(".jpg"):
+                return self.error(400, "The file type doesn't match the post type.")
+            try:
+                due = int(d.get("due") or 0)
+            except (TypeError, ValueError):
+                due = 0
+            if due < t - 300:
+                due = t
+            if due > t + 180 * 86400:
+                return self.error(400, "Posts can be scheduled up to 6 months ahead.")
+            if not (SITE_DOMAIN or "").strip() and kind != "text":
+                return self.error(400, "The server needs HUSTLE_SITE_DOMAIN set so Meta can fetch the file.")
+            link = 1 if d.get("link", True) else 0
+            cur = tx(lambda db: db.execute("INSERT INTO posts(created,due,kind,caption,media,link,fb_status,ig_status,updated) VALUES(?,?,?,?,?,?,?,?,?)",
+                                           (t, due, kind, caption, media, link, "scheduled" if fb else "", "scheduled" if ig else "", t)).lastrowid)
+            if link:
+                title = re.sub(r"\s+", " ", caption).strip()[:40] or ("Video post" if kind == "video" else "Photo post")
+                for flag, pfx, ch in ((fb, "fb", "facebook"), (ig, "ig", "instagram")):
+                    if flag:
+                        q("INSERT OR IGNORE INTO campaigns(code,name,channel,cost,note,created) VALUES(?,?,?,0,?,?)",
+                          ("%s-post-%d" % (pfx, cur), "%s post: %s" % ("Facebook" if pfx == "fb" else "Instagram", title), ch, "Scheduled post #%d" % cur, t))
+            return self.send_json(200, {"ok": True, "id": cur})
+        try:
+            pid = int(d.get("id") or 0)
+        except (TypeError, ValueError):
+            pid = 0
+        p = q("SELECT * FROM posts WHERE id=?", (pid,), one=True)
+        if not p:
+            return self.error(404, "No such post.")
+        if path == "/api/admin/posts/cancel":
+            q("UPDATE posts SET fb_status=CASE WHEN fb_status='scheduled' THEN 'cancelled' ELSE fb_status END, "
+              "ig_status=CASE WHEN ig_status='scheduled' THEN 'cancelled' ELSE ig_status END, updated=? WHERE id=?", (t, pid))
+            return self.send_json(200, {"ok": True})
+        if path == "/api/admin/posts/retry":
+            q("UPDATE posts SET fb_status=CASE WHEN fb_status IN ('failed','cancelled') THEN 'scheduled' ELSE fb_status END, fb_error='', "
+              "ig_status=CASE WHEN ig_status IN ('failed','cancelled') THEN 'scheduled' ELSE ig_status END, ig_error='', ig_container=CASE WHEN ig_status IN ('failed','cancelled') THEN '' ELSE ig_container END, "
+              "due=CASE WHEN due<? THEN ? ELSE due END, updated=? WHERE id=?", (t, t, t, pid))
+            return self.send_json(200, {"ok": True})
+        if path == "/api/admin/posts/time":
+            try:
+                due = int(d.get("due") or 0)
+            except (TypeError, ValueError):
+                return self.error(400, "Pick a date and time.")
+            if p["fb_status"] != "scheduled" and p["ig_status"] != "scheduled":
+                return self.error(400, "Only scheduled posts can be moved.")
+            q("UPDATE posts SET due=?, updated=? WHERE id=?", (max(due, t), t, pid))
+            return self.send_json(200, {"ok": True})
+        if path == "/api/admin/posts/delete":
+            if p["fb_status"] == "scheduled" or p["ig_status"] in ("scheduled", "processing"):
+                return self.error(400, "Cancel the post before removing it.")
+            q("DELETE FROM posts WHERE id=?", (pid,))
+            return self.send_json(200, {"ok": True})
+        if path == "/api/admin/posts/check":
+            page_discover()
+            return self.send_json(200, posts_report(t))
+        self.error(404, "Not found.")
+
     def api_admin_ads(self, path):
         if not self.is_admin():
             return self.error(401, "Log in as admin.")
@@ -3374,6 +3788,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(401, "Log in as admin.")
         if path == "/api/admin/overview":
             return self.admin_overview()
+        if path == "/api/admin/posts":
+            return self.send_json(200, posts_report(now()))
         if path == "/api/admin/ads":
             try:
                 days = int((parse_qs(urlparse(self.path).query).get("days") or ["30"])[0])
@@ -3584,6 +4000,7 @@ def main():
     threading.Thread(target=payment_sweeper, daemon=True).start()
     threading.Thread(target=push_sweeper, daemon=True).start()
     threading.Thread(target=meta_sweeper, daemon=True).start()
+    threading.Thread(target=post_sweeper, daemon=True).start()
     print("Meta ads: %s" % ("connected to ad account %s, refreshed every hour" % META_ACCOUNT if meta_ready() else "not connected"), flush=True)
     try:
         backfill_friends()
