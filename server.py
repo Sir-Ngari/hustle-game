@@ -1493,6 +1493,22 @@ def clean_tuning(d):
         death["maxAge"] = ma
     if death:
         out["death"] = death
+    hd = d.get("heir") if isinstance(d.get("heir"), dict) else {}
+    heir = {}
+    try:
+        hr = round(min(1.0, max(0.0, float(hd.get("repeat", 0.35)))), 2)
+    except (TypeError, ValueError):
+        hr = 0.35
+    if hr != 0.35:
+        heir["repeat"] = hr
+    try:
+        hg = int(min(24, max(1, int(hd.get("gap", 3)))))
+    except (TypeError, ValueError):
+        hg = 3
+    if hg != 3:
+        heir["gap"] = hg
+    if heir:
+        out["heir"] = heir
     return out
 
 
