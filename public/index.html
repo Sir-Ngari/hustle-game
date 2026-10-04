@@ -1802,7 +1802,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='16a8e31b1901';let updShown=false;
+const APP_VER='09b4884cdd80';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2014,7 +2014,10 @@ function indBuff(id){return S.buffs.reduce((a,b)=>a*(b.ind===id?b.f:1),1);}
 function entryFee(){return nwc(.02,500);}
 function enterInd(id,fee){if(S.inds.includes(id)||S.inds.length>=SLOTS[S.peak])return false;S.cash-=fee;S.inds.push(id);return true;}
 const cyc=b=>1+(S.s-1)*(.6+b.vol*2);
-function bizValue(b){if(!owned(b.id))return 0;return CPI()*b.profit*owned(b.id)*policyMult(b)*masteryMult(b.ind)*12*baseMult()*b.mult*valMult()*S.s*(S.float?(1-S.float)*1.3:1);}
+/* economy difficulty: how much businesses earn for what they cost, how much net worth unlocks the next tier, and whether the bank offers business loans */
+const ECONT=()=>Object.assign({ret:.6,unlock:2.5,bank:1},(typeof TUNE!=='undefined'&&TUNE.econ)||{});
+const RET=()=>+ECONT().ret;
+function bizValue(b){if(!owned(b.id))return 0;return RET()*CPI()*b.profit*owned(b.id)*policyMult(b)*masteryMult(b.ind)*12*baseMult()*b.mult*valMult()*S.s*(S.float?(1-S.float)*1.3:1);}
 function bizAssets(){return BIZ.reduce((a,b)=>a+bizValue(b),0);}
 function assetPrice(a){if(MODELS[a.id]&&!has(a.id))return a.price*genMult(a.id);return a.price*afx(a.id)*(a.stack?Math.pow(1.06,has(a.id)):1);}
 function lifeAssets(){return ASSETS.reduce((t,a)=>t+a.price*afx(a.id)*has(a.id),0);}
@@ -2064,6 +2067,28 @@ function econTick(){const E=econS();if(--E.left<=0)econSet(ECON[E.ph].next);cons
 const econTarget=()=>ECON[econS().ph].s;
 function econNext(){const E=S.econ;if(!E||!E.note)return null;E.note=false;const P=ECON[E.ph];
  return dealCard('The economy: '+P.name.toLowerCase(),E.ph!=='recession'&&E.ph!=='slowdown','Inflation',(S.infl*100).toFixed(1)+'% a year','Prices are '+Math.round((S.cpi-1)*100)+'% higher than when you started.','<p>'+P.tip+'</p>','Economy');}
+
+/* ---- Business loans: the bank finances your next business, you repay over 5 years ---- */
+const LOAN_MONTHS=60,LOAN_DEP=.25;
+function loanPay(L){return L.prin;}
+function loanTick(){if(!S.loans||!S.loans.length)return;
+ S.loans.forEach(L=>{const p=Math.min(L.prin,S.debt);S.cash-=p;S.debt=Math.max(0,S.debt-p);L.left--;L.paid=(L.paid||0)+p;});
+ S.loans.filter(L=>L.left<=0).forEach(L=>log('You paid off the bank loan for your '+L.name+'. It is all yours now.','good'));
+ S.loans=S.loans.filter(L=>L.left>0);}
+function loanLeft(){return(S.loans||[]).reduce((t,L)=>t+L.prin*L.left,0);}
+function bankCands(){if(!+ECONT().bank||S.over||!S.inds.length)return[];const nw=netWorth(),net=S.last?S.last.net:0,out=[];
+ S.inds.forEach(iid=>{const bs=BIZ.filter(b=>b.ind===iid).sort((a,c)=>a.tier-c.tier),nb=bs.find(x=>!owned(x.id)),top=bs.filter(x=>owned(x.id)).pop();
+  [nb&&nb.tier>1?nb:null,top&&top.tier>1?top:null].forEach(b=>{if(!b)return;
+   const price=unitCost(b,owned(b.id)),dep=price*LOAN_DEP,loan=price-dep,pay=loan/LOAN_MONTHS+loan*loanRate();
+   const locked=!owned(b.id)&&!(nw>=b.cost*ECONT().unlock);
+   if((S.cash<price||locked)&&S.cash>=dep&&nw>=price*.15&&net>=pay*.8)out.push({b,price,dep,loan,pay});});});
+ return out.sort((a,c)=>c.price-a.price);}
+function bankOffer(){if(S.month<6||S.month-(S.bankLast||-99)<4)return null;const c=bankCands()[0];if(!c)return null;S.bankLast=S.month;const b=c.b,yr=((S.cbr+.08)*100).toFixed(1);
+ return{cat:'Bank',title:'The bank will finance '+(owned(b.id)?'another '+b.name:'your next business'),text:'Your bank manager has looked at your books and you qualify for a business loan. Put down '+fmt(c.dep)+' ('+Math.round(LOAN_DEP*100)+'%) and the bank lends you the other '+fmt(c.loan)+' to open '+(owned(b.id)?'another '+b.name:aN(b.name.lc()))+' now. You repay about '+fmt(c.pay)+' a month for 5 years, at '+yr+'% a year. Miss payments and the bank can take the business back.',
+  choices:[{l:'Take the loan and open it',d:'Deposit '+fmt(c.dep)+' now. Loan '+fmt(c.loan)+' over 5 years.',dis:S.cash<c.dep||!S.inds.includes(b.ind),f(){S.cash-=c.dep;S.debt+=c.loan;S.owned[b.id]=owned(b.id)+1;S.bankOK=S.bankOK||{};S.bankOK[b.id]=1;
+     S.loans=(S.loans||[]).concat([{id:b.id,name:b.name,prin:c.loan/LOAN_MONTHS,left:LOAN_MONTHS}]);wkInc('units');return['The bank financed your '+(owned(b.id)>1?'new ':'first ')+b.name+'. Repayments start next month.','good'];}},
+   {l:'Not now',d:'The bank will ask again in a few months.',f(){return['You turned down the loan for now.','']}}]};}
+function loansHTML(){const L=S.loans||[];if(!L.length)return'';return'<div class="pcbox on" style="margin-bottom:10px"><b>Business loans</b>'+L.map(x=>'<span>'+esc(x.name)+': about '+fmt(x.prin+x.prin*x.left*loanRate())+' a month with interest, '+x.left+' more month'+(x.left===1?'':'s')+' · '+fmt(x.prin*x.left)+' still owed</span>').join('')+'</div>';}
 function econHTML(){const E=econS(),P=ECON[E.ph],lost=1-1/S.cpi;return'<div class="pcbox'+(E.ph==='recession'||E.ph==='slowdown'?'':' on')+'" style="margin-bottom:10px"><b>Economy: '+P.name.toLowerCase()+'</b><span>Inflation '+(S.infl*100).toFixed(1)+'% a year · central bank rate '+(S.cbr*100).toFixed(1)+'%</span><span>Prices are '+Math.round((S.cpi-1)*100)+'% higher than when you started'+(lost>.005?': cash you have held since then buys '+Math.round(lost*100)+'% less. Cash loses value; buildings, businesses and shares keep up.':'.')+'</span></div>';}
 function netWorth(){return S.cash+assets()-S.debt;}
 const nwc=(p,min)=>{const nw=Math.max(0,netWorth());return Math.max(nw*p,(min||0)*clamp(nw/20000,.05,1));};
@@ -2205,7 +2230,7 @@ function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e
 const MARGIN={retail:.25,food:.22,transport:.28,manufacturing:.22,realestate:.35,tech:.4,hospitality:.25,health:.3,energy:.35,media:.3};
 function bizStructMult(E){return baseMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float)*(S.plan&&S.plan.mentor?.97:1)*(typeof statusMult==='function'?statusMult():1);}
 function bizPL(b,noisy,E,sm){const n=owned(b.id);if(!n)return{rev:0,cost:0,profit:0,d:1};E=E||svcEffects();if(sm==null)sm=bizStructMult(E);
- const m=MARGIN[b.ind]||.3,k=.5/m+.5,P=b.profit*n*policyMult(b)*masteryMult(b.ind)*sm*CPI();
+ const m=MARGIN[b.ind]||.3,k=.5/m+.5,P=RET()*b.profit*n*policyMult(b)*masteryMult(b.ind)*sm*CPI();
  let d=cyc(b)*indBuff(b.ind)*buffMult()*(typeof crisisMult==='function'?crisisMult(b.ind):1);if(noisy)d*=1+(b.vol/k)*(rnd()*2-1);
  const R0=P/m,C0=R0-P,rev=R0*d,cost=C0*.5+C0*.5*d;return{rev,cost,profit:rev-cost,d};}
 function flows(noisy){
@@ -3494,7 +3519,7 @@ function nextMonth(){
  if(!ACC||acctView||S.over||current)return;
  if(S.month>0&&bonusDue()){openEvent(bonusEvent());return;}
  if(S.month>0&&openCal())return;
- const f=flows(true);S.cash+=f.net;pcBurn();S.last=f;plRecord(f);S.month++;
+ const f=flows(true);S.cash+=f.net;pcBurn();loanTick();S.last=f;plRecord(f);S.month++;
  ASSETS.forEach(a=>{if(has(a.id)||S.af[a.id]){S.af[a.id]=Math.max(.3,af(a.id)*(1+a.drift-.003*behind(a.id)+(rnd()-.5)*(a.vol||.004)));}});
  S.buffs.forEach(b=>b.months--);S.buffs=S.buffs.filter(b=>b.months>0);
  S.policies.forEach(p=>p.left--);S.policies.filter(p=>p.left<=0).forEach(p=>log('The '+POLICIES[p.id].name.lc()+' has expired.',''));S.policies=S.policies.filter(p=>p.left>0);
@@ -3586,6 +3611,7 @@ function nextMonth(){
  if(S.seizeQ&&S.seizeQ.length){openEvent(seizeEvent(S.seizeQ.shift()));return;}
  {const pe=polNext();if(pe){openEvent(pe);return;}}
  {const ee=econNext();if(ee){openEvent(ee);return;}}
+ {const bo=bankOffer();if(bo){openEvent(bo);return;}}
  if(moonDue()){openEvent(moonPickEvent());return;}
  if(!S.g){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
@@ -3792,10 +3818,10 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
   bh+='<div class="ind"><div class="indhead"><div style="min-width:0"><h3>'+ind.name+'</h3><div class="ownrow">'+(ownList?'<span class="eyebrow">You own</span>'+ownList:'<span class="eyebrow">You own nothing here yet</span>')+'</div></div><div class="indmeta"><span class="pill '+(tiers===6?'good':'')+'" title="Own every tier for +10% profit in this industry">'+(tiers===6?'Mastered ×1.10':'Mastery '+tiers+'/6')+'</span>'+(units||S.inds.length>1?exitUI:'')+'</div></div><p class="indblurb">'+ind.blurb+'</p>';
   let shownLocked=false;
   bs.forEach(b=>{const n=owned(b.id),c=unitCost(b,n),pm=policyMult(b),im=indBuff(iid)*masteryMult(iid);
-   if(!(n>0||nw>=b.cost*.2||b.tier===1)){if(shownLocked)return;shownLocked=true;
-    bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*.2)+'.</div></div><div></div></div>';return;}
+   if(!(n>0||nw>=b.cost*ECONT().unlock||b.tier===1||(S.bankOK&&S.bankOK[b.id]))){if(shownLocked)return;shownLocked=true;
+    bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*ECONT().unlock)+', or sooner if the bank agrees to finance it.</div></div><div></div></div>';return;}
    bh+='<div class="biz '+(n?'owned':'')+'"><div class="tier">'+b.tier+'</div><div style="min-width:0"><div class="name">'+b.name+(n?'<span class="count">×'+n+'</span>':'')+(pm!==1?' <span class="pill '+(pm<1?'bad':'good')+'">Policy ×'+pm.toFixed(2)+'</span>':'')+'</div><div class="tag">'+b.tag+'</div>'+
-    '<div class="meta">Each earns ~'+fmt(b.profit*bmBase*pm*im*cyc(b)/S.s)+'/mo'+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
+    '<div class="meta">Each earns ~'+fmt(RET()*b.profit*bmBase*pm*im*cyc(b)/S.s)+'/mo'+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
     '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+(S.cash<c||S.over?'disabled':'')+'>Open · '+fmt(c)+'</button>'+
     (n?'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1 · '+fmt(unitCost(b,n-1)*.7)+'</button>':'')+'</div></div>';});
   bh+='</div>';});
@@ -4028,7 +4054,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
 
  /* bank */
  const lim=creditLimit(),room=Math.max(0,lim-S.debt);
- $('bank').innerHTML=econHTML()+(S.strikes?'<div class="warn">Missed payments: '+S.strikes+' of 3. Sell assets or borrow to get cash above zero.</div>':'')+
+ $('bank').innerHTML=econHTML()+loansHTML()+(S.strikes?'<div class="warn">Missed payments: '+S.strikes+' of 3. Sell assets or borrow to get cash above zero.</div>':'')+
   '<div class="kv"><span>Interest rate</span><span>'+((S.cbr+.08)*100).toFixed(1)+'% a year</span><span>Credit limit'+(F.E.credit>1?' (audited, +25%)':F.E.credit<1?' (unaudited, cut)':'')+'</span><span>'+fmt(lim)+'</span><span>Available to borrow</span><span>'+fmt(room)+'</span></div>'+
   '<div class="chips">'+[.25,.5,1].map(f=>'<button class="btn small" data-a="borrow" data-v="'+room*f+'" '+(room<50?'disabled':'')+'>Borrow '+fmt(room*f)+'</button>').join('')+'</div>'+
   (S.debt>0?'<div class="chips" style="margin-top:8px"><button class="btn small" data-a="repay" data-v="'+S.debt*.25+'" '+(S.cash<=0?'disabled':'')+'>Repay '+fmt(Math.min(S.debt*.25,Math.max(0,S.cash)))+'</button><button class="btn small" data-a="repay" data-v="'+S.debt+'" '+(S.cash<=0?'disabled':'')+'>Repay max</button></div>':'');

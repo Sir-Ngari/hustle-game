@@ -527,6 +527,16 @@ body.navhide .main{margin-left:0}
       <div class="actions"><button class="btn primary" id="evSave" disabled>Save changes</button><button class="btn ghost" id="evReset">Reset everything to normal</button><span id="evMsgA" style="font-size:13px;color:var(--muted)"></span></div>
     </section>
 
+    <section class="panel" id="ecPanel">
+      <h2>Economy difficulty</h2>
+      <p class="sub">How hard it is to get rich. Businesses earn a share of their original returns, the next tier of business stays locked until a player's net worth is a multiple of its price, and the bank offers loans that unlock it sooner. Changes reach every player, including games in progress, the next time their game loads.</p>
+      <div class="evpace">
+        <label>Business returns<select id="ecRet"><option value="0.4">Very hard (40%)</option><option value="0.5">Hard (50%)</option><option value="0.6">Realistic (60%)</option><option value="0.8">Easier (80%)</option><option value="1">Original (100%)</option></select></label>
+        <label>Net worth needed to unlock the next tier without a loan<select id="ecUnl"><option value="0.2">20% of its price (original)</option><option value="1">Its full price</option><option value="1.5">1.5 times its price</option><option value="2.5">2.5 times its price</option><option value="4">4 times its price</option></select></label>
+        <label>Bank loan offers<select id="ecBank"><option value="1">On</option><option value="0">Off</option></select></label>
+      </div>
+      <div class="actions"><button class="btn primary" id="ecSave" disabled>Save changes</button><span id="ecMsg" style="font-size:13px;color:var(--muted)"></span></div>
+    </section>
     <section class="panel" id="fdPanel">
       <h2>Family drama (heirs)</h2>
       <p class="sub">When a player dies and a child takes over, it is still the same person playing. So heirs get their own family drama: brothers and sisters, the will, the old managers and the family home. The everyday events the family already lived through come round less often, so the new life does not feel like a replay.</p>
@@ -1148,7 +1158,7 @@ function renderInvites(v){const el=$('invites');if(!v){el.innerHTML='';return;}
 
 /* ---------- events & challenges ---------- */
 let evCat=null,evStats=null,evTune=null,evOpen={},evDirty=false;
-const EVMSG={set t(v){$('evMsgA').textContent=v;$('crMsg').textContent=v;if($('fdMsg'))$('fdMsg').textContent=v;}};
+const EVMSG={set t(v){$('evMsgA').textContent=v;$('crMsg').textContent=v;if($('fdMsg'))$('fdMsg').textContent=v;if($('ecMsg'))$('ecMsg').textContent=v;}};
 const EVM=[[0,'Off'],[0.25,'Rare'],[0.5,'Less'],[1,'Normal'],[1.5,'More'],[2,'Lots'],[3,'Max']];
 const evSel=(val,attr)=>'<select '+attr+'>'+EVM.map(m=>'<option value="'+m[0]+'"'+(Math.abs(m[0]-val)<1e-9?' selected':'')+'>'+m[1]+(m[0]&&m[0]!==1?' ×'+m[0]:'')+'</option>').join('')+(EVM.some(m=>Math.abs(m[0]-val)<1e-9)?'':'<option value="'+val+'" selected>×'+val+'</option>')+'</select>';
 async function loadEvents(force){if(evDirty&&!force)return;try{const [c,st]=await Promise.all([evCat?Promise.resolve(evCat):fetch('/events-catalog.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()),api('GET','/api/admin/events')]);
@@ -1174,7 +1184,7 @@ function renderEvents(){if(!evCat)return;renderCrisis();const T=evTune,S=evStats
    const ch=st.choices||{},n=Object.values(ch).reduce((a,b)=>a+b,0);let top='';if(n){const best=Object.keys(ch).sort((a,b)=>ch[b]-ch[a])[0];top=Math.round(100*ch[best]/n)+'% chose “'+esc(e.choices[+best]||('answer '+(+best+1)))+'”';}
    h+='<tr class="evrow'+(mult(e)===0?' off':'')+'"><td><b>'+esc(e.title)+'</b>'+(e.cond?'<span class="tag" title="Only happens when its condition is met">if</span>':'')+(e.w==null?'<span class="tag" title="Its weight changes with the player\'s situation">varies</span>':'')+'<small>'+esc(e.id)+(e.choices.length?' · answers: '+e.choices.map(esc).join(' / '):'')+'</small></td>'+
     '<td class="r num">'+(e.w==null?'—':e.w)+'</td><td class="r num">'+(sh*100).toFixed(2)+'%<small>'+(mult(e)===0?'switched off':!(e.p>0)?'not seen in simulated games':yrs>=1?'about once every '+(yrs<10?yrs.toFixed(1):Math.round(yrs))+' game years':'several times a game year')+(e.cond?'<br>possible '+Math.round((e.possible||0)*100)+'% of the time':'')+'</small></td><td class="r num">'+(st.d30||0)+'</td><td class="r num">'+(st.all||0)+(top?'<small>'+top+'</small>':'')+'</td><td>'+evSel(wm,'data-ev="'+esc(e.id)+'" aria-label="Setting for '+esc(e.title)+'"')+'</td></tr>';});});
- $('evRows').innerHTML=h;$('evSave').disabled=!evDirty;$('crSave').disabled=!evDirty;if($('deSave'))$('deSave').disabled=!evDirty;if(typeof renderDeaths==='function'&&document.getElementById('deRows'))renderDeaths();renderDrama();}
+ $('evRows').innerHTML=h;$('evSave').disabled=!evDirty;$('crSave').disabled=!evDirty;if($('deSave'))$('deSave').disabled=!evDirty;if(typeof renderDeaths==='function'&&document.getElementById('deRows'))renderDeaths();renderDrama();renderEcon();}
 $('evRows').addEventListener('click',e=>{if(e.target.closest('select'))return;const r=e.target.closest('tr.evcat');if(r){evOpen[r.dataset.g]=!evOpen[r.dataset.g];renderEvents();}});
 $('evRows').addEventListener('change',e=>{const s=e.target;if(s.dataset.cat){const v=+s.value;if(v===1)delete evTune.cat[s.dataset.cat];else evTune.cat[s.dataset.cat]=v;}if(s.dataset.ev){const v=+s.value;if(v===1)delete evTune.w[s.dataset.ev];else evTune.w[s.dataset.ev]=v;}evDirty=true;EVMSG.t='Unsaved changes';renderEvents();});
 ['crNature','crWorld','crGap'].forEach(id=>$(id).addEventListener('change',()=>{const C=evTune.crisis=evTune.crisis||{};C.nature=+$('crNature').value;C.world=+$('crWorld').value;C.gap=+$('crGap').value;evDirty=true;EVMSG.t='Unsaved changes';renderEvents();}));
@@ -1182,10 +1192,13 @@ $('crTypes').addEventListener('change',e=>{const k=e.target.dataset.cr;if(!k)ret
 ['evFreq','evGap'].forEach(id=>$(id).addEventListener('change',()=>{evTune.freq=+$('evFreq').value;evTune.gap=+$('evGap').value;evDirty=true;EVMSG.t='Unsaved changes';renderEvents();}));
 async function evSaveNow(){try{const r=await api('POST','/api/admin/tuning',evTune);evTune=r.tuning;evDirty=false;EVMSG.t='Saved. Players get the new settings the next time their game loads.';renderEvents();}catch(e){EVMSG.t='Could not save: '+e.message;}}
 $('evSave').addEventListener('click',evSaveNow);$('crSave').addEventListener('click',evSaveNow);
-$('evReset').addEventListener('click',()=>{evTune={freq:1,gap:2,w:{},cat:{},crisis:{},death:{},heir:{}};evDirty=true;EVMSG.t='Everything set back to normal. Press Save to apply.';renderEvents();});
+$('evReset').addEventListener('click',()=>{evTune={freq:1,gap:2,w:{},cat:{},crisis:{},death:{},heir:{},econ:{}};evDirty=true;EVMSG.t='Everything set back to normal. Press Save to apply.';renderEvents();});
 
 /* ---------- family drama (heirs) ---------- */
 const FD_ABOUT={fam_will:'A brother or sister takes the will to court in the first years',fam_plan:'A sibling on the board pushes to change the family business',fam_debt:'The black sheep of the family is in debt again',fam_scandal:'The black sheep ends up in the newspapers',fam_spend:'The big spender runs up the company card',fam_xmas:'Brothers and sisters fight at the holiday lunch',fam_loyal:'The loyal sibling offers to run operations for a year',fam_sober:'A sibling in recovery asks for a job in the business',fam_bust:'Police search the family home because of a sibling',fam_half:'A secret half-brother or half-sister turns up wanting a share',fam_oldguard:'The managers who worked for the parent doubt the heir',fam_rivalco:'A bitter sibling opens a company to compete with the heir',fam_house:'The family argues over selling the family home',fam_memorial:'One year since the parent died: memorial, donation or work',fam_shadow:'The press asks if the heir is half the tycoon the parent was',fam_safe:'Undeclared offshore money found in the parent\'s safe',fam_widow:'The parent\'s surviving partner asks to be looked after',fam_trustee:'The trustee of the family trust is skimming money',fam_wedding:'A sibling wants the family to pay for a huge wedding',fam_startup:'A sibling wants seed money for their own start-up',fam_nephew:'A sibling\'s child expects a senior job in the business',fam_book:'A former assistant writes a tell-all book about the parent',fam_enemy:'The parent\'s old business enemy offers peace',fam_claim:'Someone arrives with an IOU signed by the parent',fam_coup:'A sibling calls a board vote to remove the heir as chair',fam_village:'The home village asks the heir to build a school',fam_dowry:'As new head of the family, the heir must lead dowry talks',fam_land:'Cousins claim the land where the parent is buried',fam_harambee:'A family fundraiser for a cousin\'s university fees'};
+function renderEcon(){if(!$('ecRet'))return;const E=evTune.econ=evTune.econ||{};$('ecRet').value=String(E.ret==null?0.6:E.ret);$('ecUnl').value=String(E.unlock==null?2.5:E.unlock);$('ecBank').value=String(E.bank===0?0:1);$('ecSave').disabled=!evDirty;}
+['ecRet','ecUnl','ecBank'].forEach(id=>$(id).addEventListener('change',()=>{const E=evTune.econ=evTune.econ||{};E.ret=+$('ecRet').value;E.unlock=+$('ecUnl').value;E.bank=+$('ecBank').value;evDirty=true;EVMSG.t='Unsaved changes';renderEvents();}));
+$('ecSave').addEventListener('click',evSaveNow);
 function renderDrama(){if(!evCat||!$('fdRows'))return;const T=evTune,H=T.heir=T.heir||{},S=evStats.stats||{},G='Family drama';
  const cm=T.cat[G]==null?1:+T.cat[G],rep=H.repeat==null?.35:+H.repeat,gap=H.gap==null?3:+H.gap;
  $('fdFreq').innerHTML=EVM.map(m=>'<option value="'+m[0]+'"'+(Math.abs(m[0]-cm)<1e-9?' selected':'')+'>'+m[1]+'</option>').join('');$('fdGap').value=String(gap);$('fdRep').value=String(rep);

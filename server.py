@@ -1658,6 +1658,19 @@ def clean_tuning(d):
         death["maxAge"] = ma
     if death:
         out["death"] = death
+    ed = d.get("econ") if isinstance(d.get("econ"), dict) else {}
+    econ = {}
+    for k, lo, hi, dflt in (("ret", 0.2, 1.5, 0.6), ("unlock", 0.2, 5.0, 2.5)):
+        try:
+            v = round(min(hi, max(lo, float(ed.get(k, dflt)))), 2)
+        except (TypeError, ValueError):
+            v = dflt
+        if v != dflt:
+            econ[k] = v
+    if ed.get("bank") in (0, False, "0"):
+        econ["bank"] = 0
+    if econ:
+        out["econ"] = econ
     hd = d.get("heir") if isinstance(d.get("heir"), dict) else {}
     heir = {}
     try:
