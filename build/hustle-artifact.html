@@ -3919,9 +3919,9 @@ function comebackHTML(){const w=week(),c=calNow(),s=sea();let h=crisisHTML();
 /* ================= Under the table: crime, jail, hiding, hospital, new lives ================= */
 const SCHEMES=[
  {id:'evasion',name:'Hide income from the taxman',d:'Keep 40% more of your business profit.',att:1,min:0},
- {id:'bribes',name:'Pay officials to look away',d:'Faster licences, fewer inspections: profit +8%.',att:.5,min:0},
- {id:'tenders',name:'Rig government tenders',d:'Inflated public contracts: profit +12%.',att:.9,min:1e6},
- {id:'smuggle',name:'Run contraband through your network',d:'Untaxed goods with fat, unpredictable margins.',att:1.2,min:5e4},
+ {id:'bribes',name:'Pay officials to look away',d:'Faster licences, fewer inspections: profit +20%.',att:.5,min:0},
+ {id:'tenders',name:'Rig government tenders',d:'Inflated public contracts: profit +25%.',att:.9,min:1e6},
+ {id:'smuggle',name:'Run contraband through your network',d:'Untaxed goods: an extra 20% to 30% of your business profit each month, never the same twice.',att:1.2,min:5e4},
  {id:'launder',name:'Clean money for dangerous people',d:'A big commission, and the gangs learn your name.',att:1.6,min:5e6}];
 /* money cleaning: the gang pushes dirty cash through your businesses every month. You keep a commission of 5%, rising to 10% as police attention climbs (more risk, bigger cut) */
 function launderVol(){return Math.max(6e4,Math.max(0,netWorth())*.08);}
@@ -3933,8 +3933,8 @@ const lawBlocked=()=>jailed()||hiding();
 function statusMult(){return(jailed()?.6:1)*(hiding()?.5:1)*(inHosp()?.85:1);}
 function lawyerOn(){return S.svc&&S.svc.legal&&S.svc.legal.lvl>=0;}
 function shadyIncome(biz,noisy){const L=S.law;if(!L||!L.on)return 0;const b=Math.max(0,biz),nw=Math.max(0,netWorth());let t=0;
- if(L.on.evasion)t+=b*.4;if(L.on.bribes)t+=b*.08;if(L.on.tenders)t+=b*.12;
- if(L.on.smuggle)t+=Math.max(1500,nw*.004)*(noisy?.3+rnd()*1.4:1);if(L.on.launder)t+=launderCut();
+ if(L.on.evasion)t+=b*.4;if(L.on.bribes)t+=b*.2;if(L.on.tenders)t+=b*.25;
+ if(L.on.smuggle)t+=Math.max(1500,b*(noisy?.2+rnd()*.1:.25));if(L.on.launder)t+=launderCut();
  return t*(jailed()?.5:1);}
 function attLabel(a){return a<20?'Unnoticed':a<45?'On the radar':a<70?'Under investigation':'Arrest likely';}
 function lawTick(){const L=lawOf();
@@ -4063,14 +4063,14 @@ const DW_EVENTS=[
   choices:[{l:'Keep two sets of books',d:'Keep 40% more of your business profit.'+DW_ATT(x),f(){dwStart('evasion');return['The second set of books lives in a locked drawer.','bad']}},
    {l:'Keep the books clean',d:'Pay every cent you owe. Reputation +1.',f(){addRep(1);return['You told her to file it straight.','good']}}]})),
  dwOffer('bribes',2,x=>({title:'An official wants "tea money"',text:'Your licence renewal has been "pending" for weeks. The officer smiles: it could be ready this afternoon, and every month after, for a small consideration.',
-  choices:[{l:'Pay him, every month',d:'Faster licences, fewer inspections: profit +8%.'+DW_ATT(x),f(){dwStart('bribes');return['An envelope changed hands. Your licence was ready by lunch.','bad']}},
+  choices:[{l:'Pay him, every month',d:'Faster licences, fewer inspections: profit +20%.'+DW_ATT(x),f(){dwStart('bribes');return['An envelope changed hands. Your licence was ready by lunch.','bad']}},
    {l:'Wait in line like everyone',d:'Slower paperwork, clean hands.',f(){addRep(1);return['You waited. The licence came, eventually.','']}},
    {l:'Report him',d:'Reputation +3, but officials remember. Influence −3.',f(){addRep(3);S.influence=clamp(S.influence-3,0,100);return['He was suspended. His colleagues stopped returning your calls.','good']}}]})),
  dwOffer('smuggle',1.8,x=>({title:'A trucker offers a sideline',text:'Your trucks come back from the border empty. A man at the port says they do not have to: untaxed goods, no questions, cash on delivery.',
-  choices:[{l:'Load the trucks',d:'Untaxed goods with fat, unpredictable margins.'+DW_ATT(x),f(){dwStart('smuggle');return['The first load came through without a single stop.','bad']}},
+  choices:[{l:'Load the trucks',d:'Untaxed goods: an extra 20% to 30% of your business profit each month, never the same twice.'+DW_ATT(x),f(){dwStart('smuggle');return['The first load came through without a single stop.','bad']}},
    {l:'Send him away',d:'Your trucks stay clean.',f(){return['You sent him away. He said you would call him one day.','']}}]})),
  dwOffer('tenders',1.8,x=>({title:'A ministry insider calls',text:'A big public contract is coming. He can make sure you win it, as long as the price is padded and he gets his share.',
-  choices:[{l:'Take the rigged tender',d:'Inflated public contracts: profit +12%.'+DW_ATT(x),f(){dwStart('tenders');return['You won the tender. Nobody else stood a chance.','bad']}},
+  choices:[{l:'Take the rigged tender',d:'Inflated public contracts: profit +25%.'+DW_ATT(x),f(){dwStart('tenders');return['You won the tender. Nobody else stood a chance.','bad']}},
    {l:'Bid honestly',d:'You probably lose the contract. Reputation +1.',f(){addRep(1);return['You lost the tender to a company with friends in high places.','']}}]})),
  dwOffer('launder',1.5,x=>({title:'A quiet man wants to invest',text:'He has bags of cash that need to come out clean through your businesses. He pays a big commission, and he does not like being told no.',
   choices:[{l:'Clean his money',d:'He pushes about '+fmt(launderVol())+' a month through your businesses and you keep '+Math.round(launderRate()*100)+'% ('+fmt(launderCut())+' a month). Your cut rises to 10% as police attention climbs. The gangs learn your name and mob heat rises.'+DW_ATT(x),f(){dwStart('launder');return['The cash arrived in sports bags. It left as invoices.','bad']}},
