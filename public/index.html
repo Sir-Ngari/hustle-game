@@ -1846,7 +1846,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='801416f499b1';let updShown=false;
+const APP_VER='71ac397cfe20';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -4526,7 +4526,7 @@ function comebackHTML(){const w=week(),c=calNow(),s=sea();let h=crisisHTML();
  return h;}
 /* ================= Under the table: crime, jail, hiding, hospital, new lives ================= */
 const SCHEMES=[
- {id:'evasion',name:'Hide income from the taxman',d:'Keep 15% more of your business profit.',att:.6,min:0},
+ {id:'evasion',name:'Hide income from the taxman',d:'Keep 40% more of your business profit.',att:1,min:0},
  {id:'bribes',name:'Pay officials to look away',d:'Faster licences, fewer inspections: profit +8%.',att:.5,min:0},
  {id:'tenders',name:'Rig government tenders',d:'Inflated public contracts: profit +12%.',att:.9,min:1e6},
  {id:'smuggle',name:'Run contraband through your network',d:'Untaxed goods with fat, unpredictable margins.',att:1.2,min:5e4},
@@ -4541,7 +4541,7 @@ const lawBlocked=()=>jailed()||hiding();
 function statusMult(){return(jailed()?.6:1)*(hiding()?.5:1)*(inHosp()?.85:1);}
 function lawyerOn(){return S.svc&&S.svc.legal&&S.svc.legal.lvl>=0;}
 function shadyIncome(biz,noisy){const L=S.law;if(!L||!L.on)return 0;const b=Math.max(0,biz),nw=Math.max(0,netWorth());let t=0;
- if(L.on.evasion)t+=b*.15;if(L.on.bribes)t+=b*.08;if(L.on.tenders)t+=b*.12;
+ if(L.on.evasion)t+=b*.4;if(L.on.bribes)t+=b*.08;if(L.on.tenders)t+=b*.12;
  if(L.on.smuggle)t+=Math.max(1500,nw*.004)*(noisy?.3+rnd()*1.4:1);if(L.on.launder)t+=launderCut();
  return t*(jailed()?.5:1);}
 function attLabel(a){return a<20?'Unnoticed':a<45?'On the radar':a<70?'Under investigation':'Arrest likely';}
@@ -4668,7 +4668,7 @@ function dwOffer(id,w,make){const x=SCHEMES.find(y=>y.id===id);return{id:'dw_'+i
 const DW_ATT=x=>' Police attention +'+(Math.round(x.att*(lawyerOn()?.7:1)*10)/10)+' a month until you stop.';
 const DW_EVENTS=[
  dwOffer('evasion',2,x=>({title:'Your accountant has a suggestion',text:'"Two sets of books, boss. One for us, one for the taxman. Nobody checks a business our size." She slides a folder across the desk.',
-  choices:[{l:'Keep two sets of books',d:'Keep 15% more of your business profit.'+DW_ATT(x),f(){dwStart('evasion');return['The second set of books lives in a locked drawer.','bad']}},
+  choices:[{l:'Keep two sets of books',d:'Keep 40% more of your business profit.'+DW_ATT(x),f(){dwStart('evasion');return['The second set of books lives in a locked drawer.','bad']}},
    {l:'Keep the books clean',d:'Pay every cent you owe. Reputation +1.',f(){addRep(1);return['You told her to file it straight.','good']}}]})),
  dwOffer('bribes',2,x=>({title:'An official wants "tea money"',text:'Your licence renewal has been "pending" for weeks. The officer smiles: it could be ready this afternoon, and every month after, for a small consideration.',
   choices:[{l:'Pay him, every month',d:'Faster licences, fewer inspections: profit +8%.'+DW_ATT(x),f(){dwStart('bribes');return['An envelope changed hands. Your licence was ready by lunch.','bad']}},
