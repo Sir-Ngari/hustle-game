@@ -175,6 +175,22 @@ tr.arch td{opacity:.55}
 .perr{display:block;font-size:12px;color:var(--red);max-width:260px;white-space:normal}
 @media (max-width:760px){.pform{grid-template-columns:1fr}}
 
+/* ads manager */
+.mgtabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:4px 0 0;flex-wrap:wrap}
+.mgtab{border:1px solid transparent;border-bottom:0;background:transparent;padding:9px 16px;font-weight:700;font-size:14px;color:var(--muted);border-radius:4px 4px 0 0;margin-bottom:-1px;display:flex;gap:8px;align-items:center}
+.mgtab[aria-selected="true"]{background:var(--paper);border-color:var(--line);color:var(--ink)}
+.mgtab .cnt{font-family:var(--mono);font-size:11.5px;background:var(--grid);border-radius:10px;padding:0 7px}
+.mgsel{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;background:var(--brass-soft);color:var(--brass);border-radius:12px;padding:1px 4px 1px 10px;font-weight:700}
+.mgsel button{border:0;background:transparent;color:inherit;font-weight:700;padding:0 4px}
+.mgtable td,.mgtable th{white-space:nowrap}.mgtable td.nm{white-space:normal;min-width:220px;max-width:320px}
+.mgtable .nm button{border:0;background:none;padding:0;text-align:left;font-weight:700;color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.mgtable tfoot td{font-weight:700;border-top:2px solid var(--ink)}
+.sw{position:relative;display:inline-block;width:38px;height:22px}.sw input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;z-index:1}
+.sw i{position:absolute;inset:0;border-radius:11px;background:var(--line);transition:background .15s}.sw i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--panel);transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.sw input:checked+i{background:var(--green)}.sw input:checked+i::after{transform:translateX(16px)}.sw input:disabled+i{opacity:.45}.sw input:focus-visible+i{outline:2px solid var(--brass);outline-offset:2px}
+.dl{display:inline-flex;align-items:center;gap:6px;font-size:13px}.dl::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dl.on::before{background:var(--green)}.dl.warn::before{background:var(--brass)}.dl.bad::before{background:var(--red)}
+
 /* side menu */
 .side{position:fixed;top:0;left:0;bottom:0;width:236px;z-index:12;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) 10px 14px;overflow-y:auto;transition:transform .2s ease}
 .side .brand{font-family:var(--display);font-weight:900;font-size:21px;letter-spacing:.05em;text-transform:uppercase;line-height:1.05;padding:4px 10px 16px}
@@ -384,6 +400,44 @@ body.navhide .main{margin-left:0}
       <div class="kpis" id="pKpis"></div>
       <h3 class="eyebrow" style="margin:18px 0 6px">Upcoming and recent posts</h3>
       <div class="tablewrap"><table style="min-width:1080px"><thead><tr><th>When</th><th>Post</th><th>Facebook</th><th>Instagram</th><th>Both combined</th><th></th></tr></thead><tbody id="pRows"></tbody></table></div>
+    </section>
+    <section class="panel" id="runPanel">
+      <h2>Run an ad</h2>
+      <p class="sub" id="rSub">Loading…</p>
+      <form class="pform" id="rForm" novalidate>
+        <fieldset class="full"><legend>What to advertise</legend><div class="opts"><label class="opt"><input type="radio" name="rKind" value="boost" checked> Boost a post</label><label class="opt"><input type="radio" name="rKind" value="new"> New ad</label></div></fieldset>
+        <fieldset id="rBoostBox" class="full"><label class="plbl" for="rPost">Published post</label><select id="rPost" style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px;max-width:100%"></select>
+          <div class="opts" style="margin-top:6px"><label class="opt"><input type="radio" name="rWhich" value="boost_ig" checked> The Instagram post</label><label class="opt"><input type="radio" name="rWhich" value="boost_fb"> The Facebook post</label></div>
+          <p class="pnote">Boosting keeps the post's likes and comments in one place. The ad sends people to the game with its own tracked link.</p></fieldset>
+        <fieldset id="rNewBox" class="full" hidden><div class="pform" style="margin:0">
+          <fieldset><label class="plbl" for="rFile">Photo or video</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" id="rFile" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"><button class="btn xs ghost" type="button" id="rClear" hidden>Remove file</button></div><div class="pprev" id="rPrev">No file chosen</div><div class="pbar" id="rBar" hidden><i></i></div></fieldset>
+          <fieldset><label class="plbl" for="rCap">Ad text</label><textarea id="rCap" maxlength="2000" placeholder="Nilianza na KSh 129,000 na kiosk… Unaweza kunishinda? Fungua account yako bure."></textarea>
+            <label class="plbl" for="rHead" style="margin-top:6px">Headline (optional)</label><input id="rHead" maxlength="40" placeholder="Build your empire, free" style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"></fieldset>
+        </div></fieldset>
+        <fieldset><legend>Who sees it</legend><div class="opts" id="rCountries"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px"><label class="pnote" for="rAgeMin">Ages</label><input id="rAgeMin" type="number" min="13" max="65" value="18" style="width:70px;padding:6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"> to <input id="rAgeMax" type="number" min="13" max="65" value="40" aria-label="Maximum age" style="width:70px;padding:6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"></div>
+          <div class="opts" style="margin-top:6px" id="rPlaceBox"><label class="opt"><input type="radio" name="rPlace" value="all" checked> Facebook &amp; Instagram</label><label class="opt"><input type="radio" name="rPlace" value="facebook"> Facebook only</label><label class="opt"><input type="radio" name="rPlace" value="instagram"> Instagram only</label></div></fieldset>
+        <fieldset><legend>Budget and timing</legend>
+          <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap"><label class="plbl">KSh per day<input id="rDaily" type="number" min="100" step="50" value="500" style="width:120px;padding:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px;margin-top:4px"></label>
+          <label class="plbl">Days<input id="rDays" type="number" min="1" max="30" value="5" style="width:80px;padding:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px;margin-top:4px"></label>
+          <label class="plbl">Button<select id="rCta" style="padding:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px;margin-top:4px"></select></label></div>
+          <div class="opts" style="margin-top:8px"><label class="opt"><input type="radio" name="rWhen" value="now" checked> Start now</label><label class="opt"><input type="radio" name="rWhen" value="later"> Start at</label><input type="datetime-local" id="rStart" aria-label="Start time" disabled style="padding:7px 8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"></div></fieldset>
+        <div class="full" style="display:flex;flex-direction:column;gap:8px">
+          <p class="mtip" id="rTotal" style="margin:0"></p>
+          <label class="toggle"><input type="checkbox" id="rOk"> <span id="rOkTxt">I confirm this ad can spend up to this amount</span></label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="submit" id="rGo">Start ad</button><p class="mmsg" id="rMsg" role="status"></p></div></div>
+      </form>
+      <h3 class="eyebrow" style="margin:18px 0 6px">Ads run from the admin</h3>
+      <div class="tablewrap"><table style="min-width:1000px"><thead><tr><th>Ad</th><th>Status</th><th>Budget</th><th class="r">Spent</th><th class="r">Link clicks</th><th class="r">Opened the game</th><th class="r">New players</th><th class="r">Cost per player</th><th></th></tr></thead><tbody id="rRows"></tbody></table></div>
+    </section>
+    <section class="panel" id="mgPanel">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between"><h2>Ads Manager</h2>
+        <div class="mtools"><select id="mgDays" aria-label="Period"><option value="1">Today</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select><button class="btn xs" type="button" id="mgSync">Refresh from Meta</button></div></div>
+      <p class="sub" id="mgSub">Every campaign, ad set and ad on the Hustle empire ad account, including ones made in Ads Manager. Click a name to see what's inside it.</p>
+      <div class="mgtabs" role="tablist"><button class="mgtab" role="tab" data-mglevel="campaign" aria-selected="true">Campaigns <span class="cnt" id="mgnC">0</span></button><button class="mgtab" role="tab" data-mglevel="adset" aria-selected="false">Ad sets <span class="cnt" id="mgnS">0</span></button><button class="mgtab" role="tab" data-mglevel="ad" aria-selected="false">Ads <span class="cnt" id="mgnA">0</span></button></div>
+      <div id="mgFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px"></div>
+      <div class="tablewrap"><table class="mgtable" style="min-width:1240px"><thead id="mgHead"></thead><tbody id="mgRows"></tbody><tfoot id="mgFoot"></tfoot></table></div>
+      <p class="mmsg" id="mgMsg" role="status" style="margin-top:8px"></p>
     </section>
     <section class="panel" id="adsPanel">
       <h2>Facebook &amp; Instagram ads</h2>
@@ -627,7 +681,7 @@ $('mCamps').addEventListener('click',async e=>{const b=e.target.closest('button'
 /* ---------- Meta page: connection, scheduled posts, ads ---------- */
 let metaLoading=false;
 async function loadMeta(quiet){if(metaLoading)return;metaLoading=true;if(!quiet)$('aLoad').textContent='Loading…';
- await Promise.all([loadAds(),loadPosts()]);renderConn();$('aLoad').textContent='';metaLoading=false;}
+ await Promise.all([loadAds(),loadPosts(),loadRuns(),loadMg()]);if(runs)renderRuns();renderConn();$('aLoad').textContent='';metaLoading=false;}
 $('aDays').addEventListener('change',()=>loadAds());
 function renderConn(){const A=ads||{},P=posts||{},sy=A.sync||{},tk=A.token||{},pg=(P.pages||{});
  if(!A.ready){$('connKpis').innerHTML='';$('connNote').innerHTML='<b style="color:var(--red)">Not connected.</b> Add a Meta token with the console token step.';navMeta(0);return;}
@@ -644,6 +698,135 @@ function renderConn(){const A=ads||{},P=posts||{},sy=A.sync||{},tk=A.token||{},p
  $('connNote').innerHTML=notes.length?notes.join(' '):'All good: ads are read and posts can be published.';
  navMeta(notes.length?'!':0);}
 function navMeta(v){const e=$('cntMeta');e.hidden=!v;e.textContent=v||'';}
+
+/* ---------- Ads Manager: campaigns, ad sets, ads ---------- */
+let mg=null,mgLevel='campaign',mgPick={campaign:null,adset:null};
+const DELIV={ACTIVE:['Active','on'],PAUSED:['Off',''],CAMPAIGN_PAUSED:['Campaign off',''],ADSET_PAUSED:['Ad set off',''],IN_PROCESS:['Processing','warn'],WITH_ISSUES:['Has issues','bad'],
+ DISAPPROVED:['Rejected','bad'],PENDING_REVIEW:['In review','warn'],PREAPPROVED:['Approved, waiting','warn'],PENDING_BILLING_INFO:['Needs payment method','bad'],ARCHIVED:['Archived',''],DELETED:['Deleted','bad'],ADSET_ENDED:['Finished','']};
+async function loadMg(){try{mg=await api('GET','/api/admin/manager?days='+$('mgDays').value);renderMg();}catch(e){if(e.status!==401)$('mgSub').textContent='Could not load: '+e.message;}}
+$('mgDays').addEventListener('change',loadMg);
+$('mgSync').addEventListener('click',async()=>{const b=$('mgSync');b.disabled=true;$('mgMsg').textContent='Asking Meta for the latest…';
+ try{await api('POST','/api/admin/ads/sync',{});await loadMg();$('mgMsg').textContent='Up to date.';}catch(e){$('mgMsg').textContent=e.message;}b.disabled=false;});
+const KS=n=>n==null?'—':'KSh '+(+n||0).toLocaleString('en-US',{maximumFractionDigits:0});
+function mgRows(){if(!mg)return[];if(mgLevel==='campaign')return mg.campaigns;
+ if(mgLevel==='adset')return mg.adsets.filter(a=>!mgPick.campaign||a.campaign_id===mgPick.campaign);
+ return mg.ads.filter(a=>(!mgPick.campaign||a.campaign_id===mgPick.campaign)&&(!mgPick.adset||a.adset_id===mgPick.adset));}
+function renderMg(){if(!mg)return;
+ $('mgnC').textContent=mg.campaigns.length;$('mgnS').textContent=mg.adsets.filter(a=>!mgPick.campaign||a.campaign_id===mgPick.campaign).length;$('mgnA').textContent=mg.ads.filter(a=>(!mgPick.campaign||a.campaign_id===mgPick.campaign)&&(!mgPick.adset||a.adset_id===mgPick.adset)).length;
+ document.querySelectorAll('.mgtab').forEach(t=>t.setAttribute('aria-selected',t.dataset.mglevel===mgLevel?'true':'false'));
+ const nameOf=(lvl,id)=>((lvl==='campaign'?mg.campaigns:mg.adsets).find(x=>x.id===id)||{}).name||id;
+ $('mgFilter').innerHTML=(mgPick.campaign&&mgLevel!=='campaign'?'<span class="mgsel">Campaign: '+esc(nameOf('campaign',mgPick.campaign))+'<button type="button" data-mgclear="campaign" aria-label="Clear campaign filter">×</button></span>':'')+
+  (mgPick.adset&&mgLevel==='ad'?'<span class="mgsel">Ad set: '+esc(nameOf('adset',mgPick.adset))+'<button type="button" data-mgclear="adset" aria-label="Clear ad set filter">×</button></span>':'');
+ const game=mgLevel!=='adset';
+ $('mgHead').innerHTML='<tr><th>Off / On</th><th>'+{campaign:'Campaign',adset:'Ad set',ad:'Ad'}[mgLevel]+'</th><th>Delivery</th>'+(mgLevel!=='ad'?'<th class="r">Budget</th>':'')+
+  '<th class="r">Results<small style="display:block;font-weight:500">link clicks</small></th><th class="r">Cost per result</th><th class="r">Reach</th><th class="r">Impressions</th><th class="r">Amount spent</th><th class="r">CTR</th>'+
+  (game?'<th class="r">Opened the game</th><th class="r">New players</th><th class="r">Cost per player</th>':'')+'</tr>';
+ const R=mgRows(),edit=mg.canEdit;
+ const row=r=>{const dv=DELIV[r.status]||[r.status?r.status.toLowerCase().replace(/_/g,' '):'—',''],on=r.onoff==='ACTIVE';
+  const bud=mgLevel==='ad'?'':'<td class="r">'+(r.daily?KS(r.daily)+'/day'+(edit?' <button class="btn xs ghost" type="button" data-mgbud="'+r.id+'" aria-label="Change budget">Edit</button>':''):r.lifetime?KS(r.lifetime)+' total':'<span style="color:var(--muted)">'+(mgLevel==='campaign'?'set on ad sets':'set on campaign')+'</span>')+
+   '<div data-mgbudbox="'+r.id+'" hidden style="margin-top:4px;display:flex;gap:4px;justify-content:flex-end"><input type="number" min="100" max="'+mg.cap+'" step="50" value="'+Math.round(r.daily||0)+'" aria-label="New daily budget" style="width:90px;padding:3px 5px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"><button class="btn xs primary" type="button" data-mgbudsave="'+r.id+'">Save</button></div></td>';
+  const nm=mgLevel==='ad'?'<b>'+esc(r.name)+'</b>':'<button type="button" data-mgopen="'+r.id+'">'+esc(r.name)+'</button>';
+  const cpr=r.link_clicks?KS(r.spend/r.link_clicks):'—',ctr=r.impressions?(100*r.link_clicks/r.impressions).toFixed(2)+'%':'—';
+  return'<tr><td><label class="sw" title="'+(edit?(on?'Switch off':'Switch on'):'Needs the ads_management permission')+'"><input type="checkbox" data-mgtog="'+r.id+'"'+(on?' checked':'')+(edit?'':' disabled')+' aria-label="'+(on?'Switch off ':'Switch on ')+esc(r.name)+'"><i></i></label></td>'+
+   '<td class="nm">'+nm+(r.objective?'<small style="display:block;color:var(--muted)">'+esc(r.objective.replace('OUTCOME_','').toLowerCase())+'</small>':'')+'</td><td><span class="dl '+dv[1]+'">'+esc(dv[0])+'</span></td>'+bud+
+   '<td class="r num">'+N0(r.link_clicks)+'</td><td class="r num">'+cpr+'</td><td class="r num">'+N0(r.reach)+'</td><td class="r num">'+N0(r.impressions)+'</td><td class="r num"><b>'+KS(r.spend)+'</b></td><td class="r num">'+ctr+'</td>'+
+   (game?'<td class="r num">'+(r.visitors==null?'<span style="color:var(--muted)" title="No game link found in this '+(mgLevel==='ad'?'ad':'campaign')+'">—</span>':N0(r.visitors))+'</td><td class="r num">'+(r.players==null?'—':'<b>'+N0(r.players)+'</b>')+'</td><td class="r num">'+(r.players?KS(r.spend/r.players):'—')+'</td>':'')+'</tr>';};
+ $('mgRows').innerHTML=R.length?R.map(row).join(''):'<tr><td colspan="13" class="empty">'+(mg.sync&&mg.sync.at?'Nothing here for this period.':'No results yet. Press Refresh from Meta.')+'</td></tr>';
+ const T=R.reduce((a,r)=>{['spend','impressions','link_clicks','reach'].forEach(k=>a[k]+=r[k]||0);if(r.visitors!=null){a.v+=r.visitors;a.p+=r.players;a.g=1;}return a;},{spend:0,impressions:0,link_clicks:0,reach:0,v:0,p:0,g:0});
+ $('mgFoot').innerHTML=R.length?'<tr><td></td><td>Total, '+R.length+' '+{campaign:'campaign',adset:'ad set',ad:'ad'}[mgLevel]+(R.length===1?'':'s')+'</td><td></td>'+(mgLevel!=='ad'?'<td></td>':'')+'<td class="r num">'+N0(T.link_clicks)+'</td><td class="r num">'+(T.link_clicks?KS(T.spend/T.link_clicks):'—')+'</td><td class="r num" title="Reach is added up here, so a person reached by two ads counts twice">'+N0(T.reach)+'*</td><td class="r num">'+N0(T.impressions)+'</td><td class="r num">'+KS(T.spend)+'</td><td class="r num">'+(T.impressions?(100*T.link_clicks/T.impressions).toFixed(2)+'%':'—')+'</td>'+
+  (game?'<td class="r num">'+(T.g?N0(T.v):'—')+'</td><td class="r num">'+(T.g?N0(T.p):'—')+'</td><td class="r num">'+(T.p?KS(T.spend/T.p):'—')+'</td>':'')+'</tr>':'';
+ const sy=mg.sync||{};$('mgSub').innerHTML='Every campaign, ad set and ad on '+esc(sy.name||'the ad account')+', including ones made in Ads Manager. Click a name to see what\'s inside it.'+(sy.at?' Numbers from Meta, refreshed '+ago(sy.at)+'.':'')+
+  (edit?' Switching something on is only allowed if its daily budget is KSh '+N0(mg.cap)+' or less.':' <b style="color:var(--red)">Switches and budgets need the ads_management permission.</b>');}
+$('mgPanel').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.mglevel){mgLevel=b.dataset.mglevel;renderMg();return;}
+ if(b.dataset.mgclear){mgPick[b.dataset.mgclear]=null;if(b.dataset.mgclear==='campaign')mgPick.adset=null;renderMg();return;}
+ if(b.dataset.mgopen){if(mgLevel==='campaign'){mgPick={campaign:b.dataset.mgopen,adset:null};mgLevel='adset';}else{const a=mg.adsets.find(x=>x.id===b.dataset.mgopen);mgPick={campaign:a?a.campaign_id:mgPick.campaign,adset:b.dataset.mgopen};mgLevel='ad';}renderMg();return;}
+ if(b.dataset.mgbud){const box=document.querySelector('[data-mgbudbox="'+b.dataset.mgbud+'"]');box.hidden=!box.hidden;return;}
+ if(b.dataset.mgbudsave){const v=+document.querySelector('[data-mgbudbox="'+b.dataset.mgbudsave+'"] input').value||0;if(v>mg.cap){$('mgMsg').textContent='The most per day is KSh '+N0(mg.cap)+'.';return;}
+  b.disabled=true;try{await api('POST','/api/admin/manager/budget',{level:mgLevel,id:b.dataset.mgbudsave,daily:v});$('mgMsg').textContent='Daily budget changed to KSh '+N0(v)+'.';await loadMg();}catch(x){$('mgMsg').textContent=x.message;b.disabled=false;}}});
+$('mgPanel').addEventListener('change',async e=>{const c=e.target.closest('input[data-mgtog]');if(!c)return;const on=c.checked;c.disabled=true;
+ try{await api('POST','/api/admin/manager/toggle',{level:mgLevel,id:c.dataset.mgtog,on});$('mgMsg').textContent=on?'Switched on. Meta may take a few minutes to start delivering.':'Switched off.';await loadMg();if(typeof loadRuns==='function')loadRuns();}
+ catch(x){c.checked=!on;c.disabled=false;$('mgMsg').textContent=x.message;}});
+
+/* ---------- Run an ad ---------- */
+let runs=null,rFile=null,rMedia=null,rUrl=null,rBusy=false;
+const RST={creating:['Setting up',''],processing:['Meta is processing the video',''],active:['Running','good live'],paused:['Paused','idle'],stopped:['Stopped','idle'],ended:['Finished',''],failed:['Failed','bad']};
+async function loadRuns(){try{runs=await api('GET','/api/admin/adruns');renderRuns();}catch(e){if(e.status!==401)$('rSub').textContent='Could not load: '+e.message;}}
+function rKind(){return(document.querySelector('input[name=rKind]:checked')||{}).value||'boost';}
+function rSync(){const k=rKind();$('rBoostBox').hidden=k!=='boost';$('rNewBox').hidden=k!=='new';
+ $('rStart').disabled=(document.querySelector('input[name=rWhen]:checked')||{}).value!=='later';
+ const cap=runs?runs.cap:2000,d=Math.min(cap,Math.max(0,+$('rDaily').value||0)),n=Math.max(0,Math.min(runs?runs.maxDays:30,+$('rDays').value||0)),tot=d*n;
+ $('rTotal').innerHTML=(+$('rDaily').value>cap?'<b style="color:var(--red)">The most per day is KSh '+N0(cap)+'.</b> ':'')+'Most this ad can spend: <b>KSh '+N0(tot)+'</b> (KSh '+N0(d)+' a day for '+n+' day'+(n===1?'':'s')+'). Meta usually spends a little less; it never goes over the daily amount on average.';
+ $('rOkTxt').textContent='I confirm this ad can spend up to KSh '+N0(tot);$('rOk').checked=false;$('rOk').dataset.total=tot;}
+['input','change'].forEach(ev=>['rDaily','rDays'].forEach(id=>$(id).addEventListener(ev,rSync)));
+document.querySelectorAll('input[name=rKind],input[name=rWhen]').forEach(r=>r.addEventListener('change',rSync));
+function renderRuns(){const R=runs;
+ const P=(posts&&posts.posts||[]).filter(p=>p.fb_status==='posted'||p.ig_status==='posted');
+ const cur=$('rPost').value;$('rPost').innerHTML=P.length?P.map(p=>'<option value="'+p.id+'"'+(String(p.id)===cur?' selected':'')+'>'+esc(new Date(p.due*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' · '+(p.caption||'(no caption)').replace(/\s+/g,' ').slice(0,70))+(p.ig_status==='posted'&&p.fb_status==='posted'?' (Facebook + Instagram)':p.ig_status==='posted'?' (Instagram)':' (Facebook)')+'</option>').join(''):'<option value="">No published posts yet</option>';
+ rWhichSync();
+ if(!$('rCountries').children.length){$('rCountries').innerHTML=Object.entries(R.countries).map(([c,n])=>'<label class="opt"><input type="checkbox" value="'+c+'"'+(c==='KE'?' checked':'')+'> '+esc(n)+'</label>').join('');
+  $('rCta').innerHTML=Object.entries(R.ctas).map(([c,n])=>'<option value="'+c+'">'+esc(n)+'</option>').join('');$('rDaily').max=R.cap;
+  const d=new Date(Date.now()+3600000),z=n=>String(n).padStart(2,'0');$('rStart').value=d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':00';rSync();}
+ $('rSub').innerHTML=!R.canRun?'<b style="color:var(--red)">Running ads needs one more permission: ads_management.</b> Add it in the app\'s ads use case, give hustle-server "Manage campaigns" on the ad account, make a new token with it ticked, and run the console token step.':
+  (R.currency&&R.currency!=='KES'?'<b style="color:var(--red)">The ad account bills in '+esc(R.currency)+'.</b> The admin only runs ads on a KES account.':'Ads are charged to the Hustle empire ad account. The most any ad can spend is <b>KSh '+N0(R.cap)+' a day</b>, for up to '+R.maxDays+' days. Every ad gets its own tracked game link, so you see who it brought in.');
+ $('rGo').disabled=!R.canRun;
+ const L=R.runs||[];
+ $('rRows').innerHTML=L.length?L.map(r=>{const st=RST[r.status]||[r.status,''],cpp=r.players?'KSh '+N0(Math.round(r.spend/r.players)):'—';
+  const what=r.kind==='new'?'New ad':r.kind==='boost_ig'?'Boosted Instagram post':'Boosted Facebook post';
+  const act=(r.status==='active'?'<button class="btn xs" type="button" data-rpause="'+r.id+'">Pause</button> ':'')+(r.status==='paused'&&r.end_ts>serverNow?'<button class="btn xs" type="button" data-rresume="'+r.id+'">Resume</button> ':'')+
+   (r.status==='active'||r.status==='paused'?'<button class="btn xs" type="button" data-rbud="'+r.id+'">Change budget</button> <button class="btn xs danger" type="button" data-rstop="'+r.id+'">Stop</button>':'')+
+   (['failed','stopped','ended'].includes(r.status)?'<button class="btn xs ghost" type="button" data-rdel="'+r.id+'">Remove</button>':'');
+  return'<tr class="prow"><td><b>'+esc(r.name)+'</b><small style="display:block;color:var(--muted)">'+what+' · '+esc(r.countries.split(',').map(c=>R.countries[c]||c).join(', '))+' · ages '+r.age_min+'–'+r.age_max+'</small></td>'+
+   '<td><span class="pill '+st[1]+'">'+st[0]+'</span>'+(r.error?'<small class="perr">'+esc(r.error)+'</small>':'')+'</td>'+
+   '<td style="white-space:nowrap">KSh '+N0(r.daily_kes)+'/day<small style="display:block;color:var(--muted)">'+new Date(r.start_ts*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' – '+new Date(r.end_ts*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</small></td>'+
+   '<td class="r num">KSh '+N0(Math.round(r.spend))+'</td><td class="r num">'+N0(r.clicks)+'</td><td class="r num">'+N0(r.visitors)+'</td><td class="r num"><b>'+N0(r.players)+'</b></td><td class="r num">'+cpp+'</td>'+
+   '<td style="white-space:nowrap">'+act+'<div data-rbudbox="'+r.id+'" hidden style="margin-top:6px;display:flex;gap:6px;align-items:center"><input type="number" min="100" max="'+R.cap+'" step="50" value="'+r.daily_kes+'" aria-label="New daily budget" style="width:100px;padding:4px 6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"><button class="btn xs primary" type="button" data-rbudsave="'+r.id+'">Save</button></div></td></tr>';}).join('')
+  :'<tr><td colspan="9" class="empty">No ads yet. Spend shows here within the hour after an ad starts.</td></tr>';}
+function rWhichSync(){const p=(posts&&posts.posts||[]).find(x=>String(x.id)===$('rPost').value);
+ const ig=document.querySelector('input[name=rWhich][value=boost_ig]'),fb=document.querySelector('input[name=rWhich][value=boost_fb]');
+ ig.disabled=!(p&&p.ig_status==='posted');fb.disabled=!(p&&p.fb_status==='posted');
+ if(ig.checked&&ig.disabled&&!fb.disabled)fb.checked=true;if(fb.checked&&fb.disabled&&!ig.disabled)ig.checked=true;}
+$('rPost').addEventListener('change',rWhichSync);
+async function rUpload(){const f=rFile,bar=$('rBar'),fill=bar.querySelector('i');bar.hidden=false;fill.style.width='0';
+ const st=await api('POST','/api/admin/media/start',{type:f.type,size:f.blob.size}),step=st.chunk||2500000;let off=0;
+ while(off<f.blob.size){const part=f.blob.slice(off,off+step);let tries=0;
+  for(;;){try{const r=await fetch('/api/admin/media/chunk?id='+encodeURIComponent(st.id)+'&offset='+off,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/octet-stream'},body:part});
+     const d=await r.json().catch(()=>({}));if(r.status===409&&typeof d.have==='number'){off=d.have;break;}if(!r.ok)throw new Error(d.error||'Upload failed.');off=d.have;break;}
+   catch(e){if(++tries>=3)throw e;await new Promise(r=>setTimeout(r,1500));}}
+  fill.style.width=Math.round(100*off/f.blob.size)+'%';$('rMsg').textContent='Uploading… '+Math.round(100*off/f.blob.size)+'%';}
+ const d=await api('POST','/api/admin/media/done',{id:st.id,size:f.blob.size});bar.hidden=true;return d.id;}
+function rClearFile(){rFile=null;rMedia=null;$('rFile').value='';if(rUrl){URL.revokeObjectURL(rUrl);rUrl=null;}$('rPrev').textContent='No file chosen';$('rClear').hidden=true;$('rBar').hidden=true;}
+$('rClear').addEventListener('click',rClearFile);
+$('rFile').addEventListener('change',async()=>{const f=$('rFile').files[0];rMedia=null;if(rUrl){URL.revokeObjectURL(rUrl);rUrl=null;}$('rClear').hidden=!f;if(!f){rFile=null;$('rPrev').textContent='No file chosen';return;}
+ try{if(f.type.startsWith('video/')){if(f.size>300*1024*1024){$('rMsg').textContent='Videos can be up to 300 MB.';rClearFile();return;}rFile={blob:f,type:f.type==='video/quicktime'?'video/quicktime':'video/mp4'};rUrl=URL.createObjectURL(f);$('rPrev').innerHTML='<video src="'+rUrl+'" controls playsinline></video>';}
+  else{const j=await toJpeg(f);rFile={blob:j.blob,type:'image/jpeg'};rUrl=URL.createObjectURL(j.blob);$('rPrev').innerHTML='<img src="'+rUrl+'" alt="Preview of the ad photo">';}}
+ catch(e){$('rMsg').textContent=e.message;rClearFile();}});
+$('rForm').addEventListener('submit',async e=>{e.preventDefault();if(rBusy)return;const msg=t=>$('rMsg').textContent=t;
+ if(!runs||!runs.canRun)return msg('Running ads needs the ads_management permission first.');
+ const k=rKind(),daily=+$('rDaily').value||0,days=+$('rDays').value||0;
+ if(daily<100||daily>runs.cap)return msg('Set a daily budget from KSh 100 to KSh '+N0(runs.cap)+'.');
+ if(days<1||days>runs.maxDays)return msg('Ads can run from 1 to '+runs.maxDays+' days.');
+ const countries=[...$('rCountries').querySelectorAll('input:checked')].map(x=>x.value);if(!countries.length)return msg('Choose at least one country.');
+ const body={daily,days,countries,age_min:+$('rAgeMin').value||18,age_max:+$('rAgeMax').value||40,platforms:(document.querySelector('input[name=rPlace]:checked')||{}).value||'all',cta:$('rCta').value,confirm:daily*days};
+ if((document.querySelector('input[name=rWhen]:checked')||{}).value==='later'){const v=$('rStart').value;if(!v)return msg('Pick a start time.');body.start=Math.floor(new Date(v).getTime()/1000);}
+ if(k==='boost'){body.kind=(document.querySelector('input[name=rWhich]:checked')||{}).value;body.post_id=+$('rPost').value||0;if(!body.post_id)return msg('Choose a published post.');}
+ else{body.kind='new';if(!rFile)return msg('Choose a photo or video.');if(!$('rCap').value.trim())return msg('Write the ad text.');body.caption=$('rCap').value;body.headline=$('rHead').value.trim();}
+ if(!$('rOk').checked||+$('rOk').dataset.total!==daily*days)return msg('Tick the box to confirm the most this ad can spend (KSh '+N0(daily*days)+').');
+ rBusy=true;$('rGo').disabled=true;
+ try{if(k==='new'){if(!rMedia)rMedia=await rUpload();body.media=rMedia;}msg('Setting up the ad on Meta…');
+  const r=await api('POST','/api/admin/adruns/start',body);runs=r.report;renderRuns();
+  msg(r.status==='processing'?'Meta is processing the video. The ad switches on by itself when it is ready (usually a few minutes).':'The ad is running. Spend and results show within the hour.');
+  if(k==='new'){rClearFile();$('rCap').value='';$('rHead').value='';}$('rOk').checked=false;}
+ catch(err){msg(err.message||'Something went wrong.');try{await loadRuns();}catch(x){}}
+ rBusy=false;$('rGo').disabled=!(runs&&runs.canRun);});
+$('runPanel').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.rbud){const box=document.querySelector('[data-rbudbox="'+b.dataset.rbud+'"]');box.hidden=!box.hidden;return;}
+ const act=b.dataset.rpause?'pause':b.dataset.rresume?'resume':b.dataset.rstop?'stop':b.dataset.rdel?'remove':b.dataset.rbudsave?'budget':null;if(!act)return;
+ const id=+(b.dataset.rpause||b.dataset.rresume||b.dataset.rstop||b.dataset.rdel||b.dataset.rbudsave),body={id};
+ if(act==='budget'){body.daily=+document.querySelector('[data-rbudbox="'+id+'"] input').value||0;if(body.daily>runs.cap){$('rMsg').textContent='The most per day is KSh '+N0(runs.cap)+'.';return;}}
+ if(act==='stop'&&b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Tap again to stop';setTimeout(()=>{b.dataset.armed='';b.textContent='Stop';},4000);return;}
+ b.disabled=true;try{const r=await api('POST','/api/admin/adruns/'+act,body);runs=r.report;renderRuns();$('rMsg').textContent={pause:'Paused.',resume:'Running again.',stop:'Stopped. It won\'t spend any more.',remove:'Removed from the list.',budget:'Daily budget changed.'}[act];}
+ catch(x){$('rMsg').textContent=x.message;b.disabled=false;}});
 
 /* ---------- Scheduled posts ---------- */
 let posts=null,pFile=null,pMedia=null,pBusy=false;

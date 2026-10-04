@@ -280,6 +280,17 @@ CREATE TABLE IF NOT EXISTS meta_ads(
   code TEXT NOT NULL DEFAULT '',
   updated INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS meta_adsets(
+  adset_id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',
+  onoff TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT '',
+  daily_budget REAL NOT NULL DEFAULT 0,
+  lifetime_budget REAL NOT NULL DEFAULT 0,
+  end_time TEXT NOT NULL DEFAULT '',
+  updated INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS meta_campaigns(
   campaign_id TEXT PRIMARY KEY,
   name TEXT NOT NULL DEFAULT '',
@@ -309,6 +320,33 @@ CREATE TABLE IF NOT EXISTS posts(
   updated INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS posts_due ON posts(due);
+CREATE TABLE IF NOT EXISTS ad_runs(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  post_id INTEGER NOT NULL DEFAULT 0,
+  name TEXT NOT NULL DEFAULT '',
+  caption TEXT NOT NULL DEFAULT '',
+  headline TEXT NOT NULL DEFAULT '',
+  media TEXT NOT NULL DEFAULT '',
+  cta TEXT NOT NULL DEFAULT 'PLAY_GAME',
+  countries TEXT NOT NULL DEFAULT 'KE',
+  age_min INTEGER NOT NULL DEFAULT 18,
+  age_max INTEGER NOT NULL DEFAULT 45,
+  platforms TEXT NOT NULL DEFAULT 'all',
+  daily_kes INTEGER NOT NULL DEFAULT 0,
+  start_ts INTEGER NOT NULL DEFAULT 0,
+  end_ts INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'creating',
+  campaign_id TEXT NOT NULL DEFAULT '',
+  adset_id TEXT NOT NULL DEFAULT '',
+  creative_id TEXT NOT NULL DEFAULT '',
+  ad_id TEXT NOT NULL DEFAULT '',
+  video_id TEXT NOT NULL DEFAULT '',
+  error TEXT NOT NULL DEFAULT '',
+  tries INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS post_stats(
   post_id INTEGER NOT NULL,
   platform TEXT NOT NULL,
@@ -456,6 +494,13 @@ if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall
 if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(visitors)").fetchall()]:
     _db.execute("ALTER TABLE visitors ADD COLUMN camp TEXT NOT NULL DEFAULT ''")
 _db.execute("CREATE INDEX IF NOT EXISTS users_camp ON users(camp)")
+# Ads Manager view: ad set ids on daily rows, on/off and budgets on campaigns and ads
+for _t, _c, _d in (("meta_daily", "adset_id", "TEXT NOT NULL DEFAULT ''"), ("meta_campaigns", "onoff", "TEXT NOT NULL DEFAULT ''"),
+                   ("meta_campaigns", "objective", "TEXT NOT NULL DEFAULT ''"), ("meta_campaigns", "daily_budget", "REAL NOT NULL DEFAULT 0"),
+                   ("meta_campaigns", "lifetime_budget", "REAL NOT NULL DEFAULT 0"), ("meta_ads", "adset_id", "TEXT NOT NULL DEFAULT ''"),
+                   ("meta_ads", "onoff", "TEXT NOT NULL DEFAULT ''")):
+    if _c not in [r[1] for r in _db.execute("PRAGMA table_info(%s)" % _t).fetchall()]:
+        _db.execute("ALTER TABLE %s ADD COLUMN %s %s" % (_t, _c, _d))
 _db.execute("CREATE INDEX IF NOT EXISTS visitors_camp ON visitors(camp)")
 _lock = threading.Lock()
 
@@ -1779,6 +1824,13 @@ def graph_post(path, data):
         raise RuntimeError("Could not reach Meta: %s" % getattr(e, "reason", e))
 
 
+def graph_delete(obj):
+    try:
+        graph_post(obj, {"method": "delete"})
+    except Exception as e:
+        print("Could not remove %s on Meta: %s" % (obj, e), flush=True)
+
+
 def graph_all(path, params):
     """Follow Meta's pages of results (at most 40 pages)."""
     out, d, n = [], graph_get(path, params), 0
@@ -1817,31 +1869,45 @@ def meta_sync(full=False):
         until = time.strftime("%Y-%m-%d", time.gmtime(t + 86400))
         rows = graph_all(acct + "/insights", {
             "level": "ad", "time_increment": 1, "limit": 500,
-            "fields": "campaign_id,campaign_name,adset_name,ad_id,ad_name,spend,impressions,reach,clicks,inline_link_clicks",
+            "fields": "campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,reach,clicks,inline_link_clicks",
             "time_range": json.dumps({"since": since, "until": until})})
-        ads = graph_all(acct + "/ads", {"limit": 200, "fields": "id,name,campaign_id,effective_status,creative{object_story_spec,asset_feed_spec,url_tags}"})
-        camps = graph_all(acct + "/campaigns", {"limit": 200, "fields": "id,name,effective_status"})
+        ads = graph_all(acct + "/ads", {"limit": 200, "fields": "id,name,campaign_id,adset_id,status,effective_status,creative{object_story_spec,asset_feed_spec,url_tags}"})
+        camps = graph_all(acct + "/campaigns", {"limit": 200, "fields": "id,name,status,effective_status,objective,daily_budget,lifetime_budget"})
+        sets = graph_all(acct + "/adsets", {"limit": 200, "fields": "id,name,campaign_id,status,effective_status,daily_budget,lifetime_budget,end_time"})
 
         def write(db):
             db.execute("DELETE FROM meta_daily WHERE day>=?", (since,))
             for r in rows:
                 n = lambda k: int(float(r.get(k) or 0))
-                db.execute("INSERT OR REPLACE INTO meta_daily(day,ad_id,campaign_id,campaign_name,adset_name,ad_name,spend,impressions,reach,clicks,link_clicks) "
-                           "VALUES(?,?,?,?,?,?,?,?,?,?,?)", (r.get("date_start", "")[:10], str(r.get("ad_id", "")), str(r.get("campaign_id", "")),
+                db.execute("INSERT OR REPLACE INTO meta_daily(day,ad_id,campaign_id,campaign_name,adset_name,ad_name,spend,impressions,reach,clicks,link_clicks,adset_id) "
+                           "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", (r.get("date_start", "")[:10], str(r.get("ad_id", "")), str(r.get("campaign_id", "")),
                            (r.get("campaign_name") or "")[:120], (r.get("adset_name") or "")[:120], (r.get("ad_name") or "")[:120],
-                           float(r.get("spend") or 0), n("impressions"), n("reach"), n("clicks"), n("inline_link_clicks")))
+                           float(r.get("spend") or 0), n("impressions"), n("reach"), n("clicks"), n("inline_link_clicks"), str(r.get("adset_id", ""))))
             for a in ads:
                 code = link_code(json.dumps(a.get("creative") or {}))
-                db.execute("INSERT INTO meta_ads(ad_id,campaign_id,name,status,code,updated) VALUES(?,?,?,?,?,?) ON CONFLICT(ad_id) DO UPDATE SET "
-                           "campaign_id=excluded.campaign_id,name=excluded.name,status=excluded.status,code=excluded.code,updated=excluded.updated",
-                           (str(a.get("id", "")), str(a.get("campaign_id", "")), (a.get("name") or "")[:120], a.get("effective_status") or "", code, t))
+                db.execute("INSERT INTO meta_ads(ad_id,campaign_id,name,status,code,updated,adset_id,onoff) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(ad_id) DO UPDATE SET "
+                           "campaign_id=excluded.campaign_id,name=excluded.name,status=excluded.status,code=excluded.code,updated=excluded.updated,"
+                           "adset_id=excluded.adset_id,onoff=excluded.onoff",
+                           (str(a.get("id", "")), str(a.get("campaign_id", "")), (a.get("name") or "")[:120], a.get("effective_status") or "", code, t,
+                            str(a.get("adset_id", "")), a.get("status") or ""))
+            for a in sets:
+                db.execute("INSERT INTO meta_adsets(adset_id,campaign_id,name,onoff,status,daily_budget,lifetime_budget,end_time,updated) VALUES(?,?,?,?,?,?,?,?,?) "
+                           "ON CONFLICT(adset_id) DO UPDATE SET campaign_id=excluded.campaign_id,name=excluded.name,onoff=excluded.onoff,status=excluded.status,"
+                           "daily_budget=excluded.daily_budget,lifetime_budget=excluded.lifetime_budget,end_time=excluded.end_time,updated=excluded.updated",
+                           (str(a.get("id", "")), str(a.get("campaign_id", "")), (a.get("name") or "")[:120], a.get("status") or "", a.get("effective_status") or "",
+                            float(a.get("daily_budget") or 0) / 100, float(a.get("lifetime_budget") or 0) / 100, a.get("end_time") or "", t))
             for c in camps:
                 cid = str(c.get("id", ""))
                 codes = [r["code"] for r in db.execute("SELECT code FROM meta_ads WHERE campaign_id=? AND code<>''", (cid,)).fetchall()]
                 auto = max(set(codes), key=codes.count) if codes else ""
-                db.execute("INSERT INTO meta_campaigns(campaign_id,name,status,code,updated) VALUES(?,?,?,?,?) ON CONFLICT(campaign_id) DO UPDATE SET "
-                           "name=excluded.name,status=excluded.status,updated=excluded.updated,code=CASE WHEN meta_campaigns.manual=1 THEN meta_campaigns.code ELSE excluded.code END",
-                           (cid, (c.get("name") or "")[:120], c.get("effective_status") or "", auto, t))
+                db.execute("INSERT INTO meta_campaigns(campaign_id,name,status,code,updated,onoff,objective,daily_budget,lifetime_budget) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(campaign_id) DO UPDATE SET "
+                           "name=excluded.name,status=excluded.status,updated=excluded.updated,code=CASE WHEN meta_campaigns.manual=1 THEN meta_campaigns.code ELSE excluded.code END,"
+                           "onoff=excluded.onoff,objective=excluded.objective,daily_budget=excluded.daily_budget,lifetime_budget=excluded.lifetime_budget",
+                           (cid, (c.get("name") or "")[:120], c.get("effective_status") or "", auto, t, c.get("status") or "", c.get("objective") or "",
+                            float(c.get("daily_budget") or 0) / 100, float(c.get("lifetime_budget") or 0) / 100))
+            # anything Meta no longer lists was deleted there
+            for tbl in ("meta_campaigns", "meta_adsets", "meta_ads"):
+                db.execute("UPDATE %s SET status='DELETED' WHERE updated<?" % tbl, (t,))
         tx(write)
         meta_set("meta_sync", json.dumps({"at": t, "ok": True, "rows": len(rows), "name": info.get("name") or "", "currency": info.get("currency") or "",
                                            "tz": info.get("timezone_name") or "", "status": info.get("account_status")}))
@@ -2178,6 +2244,227 @@ def stats_sweeper():
         except Exception as e:
             print("Post stats problem: %s" % e, flush=True)
         time.sleep(900)
+
+
+# ---- running ads from the admin: boost a published post, or a new ad from a photo/video ----
+AD_DAILY_CAP = env_int("HUSTLE_AD_DAILY_CAP", 2000)   # KSh; no ad can be set to spend more than this a day
+AD_MAX_DAYS = 30
+AD_CTAS = {"PLAY_GAME": "Play game", "LEARN_MORE": "Learn more", "SIGN_UP": "Sign up"}
+AD_COUNTRIES = {"KE": "Kenya", "UG": "Uganda", "TZ": "Tanzania", "RW": "Rwanda", "NG": "Nigeria", "GH": "Ghana", "ZA": "South Africa"}
+AD_LOCK = threading.Lock()
+
+
+def ad_set(aid, **kw):
+    kw["updated"] = now()
+    q("UPDATE ad_runs SET %s WHERE id=?" % ", ".join("%s=?" % k for k in kw), tuple(kw.values()) + (aid,))
+
+
+def ad_link(aid):
+    return "https://%s/go/ad-%d" % (SITE_DOMAIN or "hustlempires.com", aid)
+
+
+def account_currency():
+    return (meta_get_state() or {}).get("currency") or ""
+
+
+def fb_post_id_for(p):
+    """The Facebook post behind a published post (videos are stored by video id)."""
+    if p["kind"] != "video":
+        return p["fb_id"]
+    page = (pages_info().get("page") or {}).get("id")
+    tok = page_token(page) if page else ""
+    try:
+        d = graph_get(p["fb_id"], {"fields": "post_id", "access_token": tok})
+        if d.get("post_id"):
+            return d["post_id"] if "_" in d["post_id"] else "%s_%s" % (page, d["post_id"])
+    except RuntimeError:
+        pass
+    raise RuntimeError("Meta did not say which Page post this video belongs to. Boost this video from Ads Manager, or run it as a new ad.")
+
+
+def ad_build(r):
+    """Create campaign, ad set, creative and ad on Meta, paused; switch them on at the end. Undo everything if a step fails."""
+    acct = "act_" + META_ACCOUNT
+    info = pages_info()
+    page = (info.get("page") or {}).get("id")
+    ig = (info.get("ig") or {}).get("id")
+    if not page:
+        raise RuntimeError("No Facebook Page found for this token.")
+    made = []
+    try:
+        if not r["campaign_id"]:
+            c = graph_post(acct + "/campaigns", {
+                "name": "Hustlempires · %s" % r["name"], "objective": "OUTCOME_TRAFFIC", "status": "PAUSED",
+                "special_ad_categories": "[]", "buying_type": "AUCTION",
+                "daily_budget": str(r["daily_kes"] * 100), "bid_strategy": "LOWEST_COST_WITHOUT_CAP"})
+            ad_set(r["id"], campaign_id=c["id"]); r = dict(r, campaign_id=c["id"])
+        made.append(r["campaign_id"])
+        if not r["adset_id"]:
+            tg = {"geo_locations": {"countries": [x for x in r["countries"].split(",") if x]},
+                  "age_min": r["age_min"], "age_max": r["age_max"], "targeting_automation": {"advantage_audience": 0}}
+            if r["platforms"] == "facebook":
+                tg["publisher_platforms"] = ["facebook"]
+            elif r["platforms"] == "instagram":
+                tg["publisher_platforms"] = ["instagram"]
+            a = graph_post(acct + "/adsets", {
+                "name": "%s · %s" % (r["name"], ", ".join(AD_COUNTRIES.get(x, x) for x in r["countries"].split(","))),
+                "campaign_id": r["campaign_id"], "status": "PAUSED", "billing_event": "IMPRESSIONS",
+                "optimization_goal": "LINK_CLICKS", "destination_type": "WEBSITE",
+                "targeting": json.dumps(tg), "start_time": str(r["start_ts"]), "end_time": str(r["end_ts"])})
+            ad_set(r["id"], adset_id=a["id"]); r = dict(r, adset_id=a["id"])
+        made.append(r["adset_id"])
+        if not r["creative_id"]:
+            link = ad_link(r["id"])
+            cta = {"type": r["cta"], "value": {"link": link}}
+            if r["kind"] == "boost_fb":
+                p = q("SELECT * FROM posts WHERE id=?", (r["post_id"],), one=True)
+                spec = {"name": r["name"], "object_story_id": fb_post_id_for(p)}
+            elif r["kind"] == "boost_ig":
+                p = q("SELECT * FROM posts WHERE id=?", (r["post_id"],), one=True)
+                if not ig:
+                    raise RuntimeError("No Instagram account is linked to the Page.")
+                spec = {"name": r["name"], "object_id": page, "instagram_user_id": ig,
+                        "source_instagram_media_id": p["ig_id"], "call_to_action": json.dumps(cta)}
+            else:
+                story = {"page_id": page}
+                if ig:
+                    story["instagram_user_id"] = ig
+                if r["media"].endswith(".jpg"):
+                    with open(os.path.join(MEDIA_DIR, r["media"]), "rb") as f:
+                        img = graph_post(acct + "/adimages", {"bytes": base64.b64encode(f.read()).decode()})
+                    h = list((img.get("images") or {}).values())[0]["hash"]
+                    story["link_data"] = {"link": link, "message": r["caption"], "image_hash": h, "call_to_action": cta}
+                    if r["headline"]:
+                        story["link_data"]["name"] = r["headline"]
+                else:
+                    if not r["video_id"]:
+                        v = graph_post(acct + "/advideos", {"file_url": media_url(r["media"]), "name": r["name"]})
+                        ad_set(r["id"], video_id=v["id"], status="processing", tries=0)
+                        return "processing"
+                    v = graph_get(r["video_id"], {"fields": "status,picture"})
+                    st = ((v.get("status") or {}).get("video_status") or "").lower()
+                    if st in ("error", "expired"):
+                        raise RuntimeError("Meta could not process the video for the ad.")
+                    if st != "ready" or not v.get("picture"):
+                        tries = (r["tries"] or 0) + 1
+                        if tries > 80:
+                            raise RuntimeError("Meta took more than 40 minutes to process the video.")
+                        ad_set(r["id"], status="processing", tries=tries)
+                        return "processing"
+                    story["video_data"] = {"video_id": r["video_id"], "message": r["caption"], "image_url": v["picture"], "call_to_action": cta}
+                    if r["headline"]:
+                        story["video_data"]["title"] = r["headline"]
+                spec = {"name": r["name"], "object_story_spec": json.dumps(story)}
+            cr = graph_post(acct + "/adcreatives", spec)
+            ad_set(r["id"], creative_id=cr["id"]); r = dict(r, creative_id=cr["id"])
+        made.append(r["creative_id"])
+        if not r["ad_id"]:
+            ad = graph_post(acct + "/ads", {"name": r["name"], "adset_id": r["adset_id"],
+                                            "creative": json.dumps({"creative_id": r["creative_id"]}), "status": "PAUSED"})
+            ad_set(r["id"], ad_id=ad["id"]); r = dict(r, ad_id=ad["id"])
+        for obj in (r["ad_id"], r["adset_id"], r["campaign_id"]):
+            graph_post(obj, {"status": "ACTIVE"})
+        ad_set(r["id"], status="active", error="")
+        return "active"
+    except Exception as e:
+        if r.get("campaign_id"):
+            graph_delete(r["campaign_id"])      # removing the campaign removes its ad set and ad too
+        ad_set(r["id"], status="failed", error=str(e)[:300], campaign_id="", adset_id="", creative_id="", ad_id="")
+        raise
+
+
+def ad_sweeper():
+    """Finish ads waiting on a video, and mark ads that reached their end date."""
+    time.sleep(25)
+    while True:
+        try:
+            if meta_ready() and AD_LOCK.acquire(blocking=False):
+                try:
+                    for r in q("SELECT * FROM ad_runs WHERE status='processing' LIMIT 5"):
+                        try:
+                            ad_build(dict(r))
+                        except Exception as e:
+                            print("Ad %d failed: %s" % (r["id"], e), flush=True)
+                    q("UPDATE ad_runs SET status='ended', updated=? WHERE status IN ('active','paused') AND end_ts<?", (now(), now()))
+                finally:
+                    AD_LOCK.release()
+        except Exception as e:
+            print("Ad sweeper problem: %s" % e, flush=True)
+        time.sleep(30)
+
+
+def manager_report(t, days):
+    """Ads Manager view: every campaign, ad set and ad on the account with its results for the period, plus game results."""
+    since = time.strftime("%Y-%m-%d", time.gmtime(t - (days - 1) * 86400))
+    def agg(col):
+        out = {}
+        for r in q("SELECT %s k, SUM(spend) spend, SUM(impressions) imp, SUM(reach) reach, SUM(clicks) clicks, SUM(link_clicks) lc "
+                   "FROM meta_daily WHERE day>=? GROUP BY %s" % (col, col), (since,)):
+            out[r["k"]] = {"spend": r["spend"] or 0, "impressions": r["imp"] or 0, "reach": r["reach"] or 0, "clicks": r["clicks"] or 0, "link_clicks": r["lc"] or 0}
+        return out
+    zero = {"spend": 0, "impressions": 0, "reach": 0, "clicks": 0, "link_clicks": 0}
+    ac, aa, ad = agg("campaign_id"), agg("adset_id"), agg("ad_id")
+    since_ts = t - days * 86400
+    def game(code):
+        if not code:
+            return {"visitors": None, "players": None}
+        return {"visitors": q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND first>? AND stage<>'login'", (code, since_ts), one=True)["n"],
+                "players": q("SELECT COUNT(*) n FROM users WHERE camp=? AND created>?", (code, since_ts), one=True)["n"]}
+    camps = []
+    for c in q("SELECT * FROM meta_campaigns ORDER BY name"):
+        if c["status"] in ("DELETED", "ARCHIVED") and not ac.get(c["campaign_id"]):
+            continue
+        d = {"id": c["campaign_id"], "name": c["name"], "onoff": c["onoff"], "status": c["status"], "objective": c["objective"],
+             "daily": c["daily_budget"], "lifetime": c["lifetime_budget"], "code": c["code"]}
+        d.update(ac.get(c["campaign_id"], zero)); d.update(game(c["code"]))
+        camps.append(d)
+    sets = []
+    for a in q("SELECT * FROM meta_adsets ORDER BY name"):
+        if a["status"] in ("DELETED", "ARCHIVED") and not aa.get(a["adset_id"]):
+            continue
+        d = {"id": a["adset_id"], "campaign_id": a["campaign_id"], "name": a["name"], "onoff": a["onoff"], "status": a["status"],
+             "daily": a["daily_budget"], "lifetime": a["lifetime_budget"], "end": a["end_time"]}
+        d.update(aa.get(a["adset_id"], zero))
+        sets.append(d)
+    ads = []
+    for a in q("SELECT * FROM meta_ads ORDER BY name"):
+        if a["status"] in ("DELETED", "ARCHIVED") and not ad.get(a["ad_id"]):
+            continue
+        d = {"id": a["ad_id"], "campaign_id": a["campaign_id"], "adset_id": a["adset_id"], "name": a["name"], "onoff": a["onoff"],
+             "status": a["status"], "code": a["code"]}
+        d.update(ad.get(a["ad_id"], zero)); d.update(game(a["code"]))
+        ads.append(d)
+    try:
+        tok = json.loads(meta_get("meta_token") or "{}")
+    except (TypeError, ValueError):
+        tok = {}
+    return {"campaigns": camps, "adsets": sets, "ads": ads, "days": days, "cap": AD_DAILY_CAP, "currency": account_currency(),
+            "canEdit": "ads_management" in (tok.get("scopes") or []), "sync": meta_get_state(), "now": t}
+
+
+def ads_runs_report(t):
+    rows = []
+    for r in q("SELECT * FROM ad_runs WHERE created>? OR status IN ('active','paused','processing') ORDER BY id DESC LIMIT 60", (t - 120 * 86400,)):
+        d = dict(r)
+        sp = q("SELECT COALESCE(SUM(spend),0) s, COALESCE(SUM(impressions),0) i, COALESCE(SUM(reach),0) re, COALESCE(SUM(link_clicks),0) c "
+               "FROM meta_daily WHERE campaign_id=?", (r["campaign_id"] or "-",), one=True) if r["campaign_id"] else None
+        d.update({"spend": sp["s"] if sp else 0, "impressions": sp["i"] if sp else 0, "reach": sp["re"] if sp else 0, "clicks": sp["c"] if sp else 0})
+        code = "ad-%d" % r["id"]
+        d["visitors"] = q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND stage<>'login'", (code,), one=True)["n"]
+        d["players"] = q("SELECT COUNT(*) n FROM users WHERE camp=?", (code,), one=True)["n"]
+        d["link"] = ad_link(r["id"])
+        if r["post_id"]:
+            p = q("SELECT caption, media, kind FROM posts WHERE id=?", (r["post_id"],), one=True)
+            if p:
+                d["post"] = dict(p)
+        rows.append(d)
+    try:
+        tok = json.loads(meta_get("meta_token") or "{}")
+    except (TypeError, ValueError):
+        tok = {}
+    scopes = tok.get("scopes") or []
+    return {"runs": rows, "cap": AD_DAILY_CAP, "maxDays": AD_MAX_DAYS, "ctas": AD_CTAS, "countries": AD_COUNTRIES,
+            "currency": account_currency(), "canRun": "ads_management" in scopes, "now": t}
 
 
 def posts_report(t):
@@ -2629,6 +2916,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_admin_media_chunk()
         if path.startswith("/api/admin/media/") or path.startswith("/api/admin/posts"):
             return self.api_admin_posts(path)
+        if path.startswith("/api/admin/adruns/"):
+            return self.api_admin_adruns(path)
+        if path in ("/api/admin/manager/toggle", "/api/admin/manager/budget"):
+            return self.api_admin_manager(path)
         if path in ("/api/admin/ads/sync", "/api/admin/ads/link"):
             return self.api_admin_ads(path)
         if path == "/api/admin/tuning":
@@ -3944,6 +4235,178 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, posts_report(t))
         self.error(404, "Not found.")
 
+    def api_admin_manager(self, path):
+        """Switch a campaign, ad set or ad on or off, or change a daily budget, with the same KSh cap as ads started here."""
+        if not self.is_admin():
+            return self.error(401, "Log in as admin.")
+        d = self.read_json()
+        if d is None:
+            return
+        if not meta_ready():
+            return self.error(400, "Connect Meta first.")
+        level = d.get("level")
+        oid = re.sub(r"[^0-9]", "", str(d.get("id") or ""))[:30]
+        table, col = {"campaign": ("meta_campaigns", "campaign_id"), "adset": ("meta_adsets", "adset_id"), "ad": ("meta_ads", "ad_id")}.get(level, (None, None))
+        if not table or not oid:
+            return self.error(400, "Bad request.")
+        row = q("SELECT * FROM %s WHERE %s=?" % (table, col), (oid,), one=True)
+        if not row:
+            return self.error(404, "Not found. Press Refresh from Meta first.")
+        cur = account_currency()
+        if cur and cur != "KES":
+            return self.error(400, "The ad account bills in %s. The admin only changes ads on a KES account." % cur)
+
+        def budget_of(camp_id, set_id=None):
+            """The daily spend that switching this on could allow, from the campaign or its ad sets."""
+            c = q("SELECT daily_budget, lifetime_budget FROM meta_campaigns WHERE campaign_id=?", (camp_id,), one=True)
+            if c and (c["daily_budget"] or c["lifetime_budget"]):
+                return c["daily_budget"], c["lifetime_budget"]
+            rs = q("SELECT daily_budget, lifetime_budget FROM meta_adsets WHERE campaign_id=?" + (" AND adset_id=?" if set_id else ""),
+                   (camp_id, set_id) if set_id else (camp_id,))
+            return sum(r["daily_budget"] for r in rs), sum(r["lifetime_budget"] for r in rs)
+        t = now()
+        if path.endswith("toggle"):
+            on = bool(d.get("on"))
+            if on:
+                camp = row["campaign_id"]
+                daily, life = budget_of(camp, row["adset_id"] if level == "adset" else None)
+                if life:
+                    return self.error(400, "This uses a lifetime budget. Switch it on in Ads Manager, or give it a daily budget of up to KSh {:,}.".format(AD_DAILY_CAP))
+                if daily > AD_DAILY_CAP:
+                    return self.error(400, "Its daily budget is KSh {:,}, above the KSh {:,} limit. Lower the budget first.".format(int(daily), AD_DAILY_CAP))
+            graph_post(oid, {"status": "ACTIVE" if on else "PAUSED"})
+            q("UPDATE %s SET onoff=?, updated=? WHERE %s=?" % (table, col), ("ACTIVE" if on else "PAUSED", t, oid))
+            if level == "campaign":
+                q("UPDATE ad_runs SET status=?, updated=? WHERE campaign_id=? AND status IN ('active','paused')", ("active" if on else "paused", t, oid))
+        else:
+            if level not in ("campaign", "adset"):
+                return self.error(400, "Budgets are set on campaigns or ad sets.")
+            try:
+                b = int(round(float(d.get("daily"))))
+            except (TypeError, ValueError):
+                b = 0
+            if not 100 <= b <= AD_DAILY_CAP:
+                return self.error(400, "The daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
+            if row["lifetime_budget"]:
+                return self.error(400, "This uses a lifetime budget. Change it in Ads Manager.")
+            if not row["daily_budget"]:
+                return self.error(400, "The budget for this is set on its %s. Change it there." % ("ad sets" if level == "campaign" else "campaign"))
+            graph_post(oid, {"daily_budget": str(b * 100)})
+            q("UPDATE %s SET daily_budget=?, updated=? WHERE %s=?" % (table, col), (b, t, oid))
+            if level == "campaign":
+                q("UPDATE ad_runs SET daily_kes=?, updated=? WHERE campaign_id=?", (b, t, oid))
+        self.send_json(200, {"ok": True})
+
+    def api_admin_adruns(self, path):
+        """Start, pause, resume, stop or re-budget an ad run from the admin. Every amount is checked against the daily cap."""
+        if not self.is_admin():
+            return self.error(401, "Log in as admin.")
+        d = self.read_json()
+        if d is None:
+            return
+        if not meta_ready():
+            return self.error(400, "Connect Meta first.")
+        t = now()
+        cur = account_currency()
+        if cur and cur != "KES":
+            return self.error(400, "The ad account bills in %s. The admin only runs ads on a KES ad account." % cur)
+
+        def budget(v):
+            try:
+                b = int(round(float(v)))
+            except (TypeError, ValueError):
+                return None
+            return b if 100 <= b <= AD_DAILY_CAP else None
+        if path == "/api/admin/adruns/start":
+            kind = d.get("kind")
+            if kind not in ("boost_fb", "boost_ig", "new"):
+                return self.error(400, "Choose what to advertise.")
+            b = budget(d.get("daily"))
+            if b is None:
+                return self.error(400, "The daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
+            try:
+                days = int(d.get("days") or 0)
+                age_min = max(13, min(65, int(d.get("age_min") or 18)))
+                age_max = max(age_min, min(65, int(d.get("age_max") or 45)))
+            except (TypeError, ValueError):
+                return self.error(400, "Check the number of days and the ages.")
+            if not 1 <= days <= AD_MAX_DAYS:
+                return self.error(400, "Ads can run from 1 to %d days." % AD_MAX_DAYS)
+            countries = [c for c in (d.get("countries") or []) if c in AD_COUNTRIES][:7] or ["KE"]
+            platforms = d.get("platforms") if d.get("platforms") in ("all", "facebook", "instagram") else "all"
+            cta = d.get("cta") if d.get("cta") in AD_CTAS else "PLAY_GAME"
+            name = clean_text(d.get("name"), 60)
+            post_id, media, caption, headline = 0, "", "", ""
+            if kind in ("boost_fb", "boost_ig"):
+                try:
+                    post_id = int(d.get("post_id") or 0)
+                except (TypeError, ValueError):
+                    post_id = 0
+                p = q("SELECT * FROM posts WHERE id=?", (post_id,), one=True)
+                pf = "fb" if kind == "boost_fb" else "ig"
+                if not p or p[pf + "_status"] != "posted" or not p[pf + "_id"]:
+                    return self.error(400, "That post isn't published on %s." % ("Facebook" if pf == "fb" else "Instagram"))
+                name = name or re.sub(r"\s+", " ", p["caption"]).strip()[:40] or "Post %d" % post_id
+                platforms = "facebook" if kind == "boost_fb" and platforms == "all" else platforms
+                if kind == "boost_ig":
+                    platforms = "instagram" if platforms == "all" else platforms
+            else:
+                media = str(d.get("media") or "")
+                if not MEDIA_RE.match(media) or not os.path.isfile(os.path.join(MEDIA_DIR, media)):
+                    return self.error(400, "Upload the photo or video first.")
+                caption = (d.get("caption") if isinstance(d.get("caption"), str) else "").replace("\r", "")[:2000]
+                headline = clean_text(d.get("headline"), 40)
+                if not caption.strip():
+                    return self.error(400, "Write the ad text.")
+                name = name or re.sub(r"\s+", " ", caption).strip()[:40]
+            start = max(t + 120, int(d.get("start") or 0))
+            end = start + days * 86400
+            if not d.get("confirm") or int(d.get("confirm")) != b * days:
+                return self.error(400, "Confirm the most this ad can spend (KSh {:,}) first.".format(b * days))
+            aid = tx(lambda db: db.execute(
+                "INSERT INTO ad_runs(created,kind,post_id,name,caption,headline,media,cta,countries,age_min,age_max,platforms,daily_kes,start_ts,end_ts,status,updated) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'creating',?)",
+                (t, kind, post_id, name, caption, headline, media, cta, ",".join(countries), age_min, age_max, platforms, b, start, end, t)).lastrowid)
+            q("INSERT OR IGNORE INTO campaigns(code,name,channel,cost,note,created) VALUES(?,?,?,0,?,?)",
+              ("ad-%d" % aid, "Ad: %s" % name, "ads", "Run from the admin, KSh {:,}/day for {} days".format(b, days), t))
+            with AD_LOCK:
+                try:
+                    st = ad_build(dict(q("SELECT * FROM ad_runs WHERE id=?", (aid,), one=True)))
+                except Exception as e:
+                    return self.send_json(502, {"error": str(e), "report": ads_runs_report(now())})
+            return self.send_json(200, {"ok": True, "status": st, "report": ads_runs_report(now())})
+        try:
+            aid = int(d.get("id") or 0)
+        except (TypeError, ValueError):
+            aid = 0
+        r = q("SELECT * FROM ad_runs WHERE id=?", (aid,), one=True)
+        if not r:
+            return self.error(404, "No such ad.")
+        if path == "/api/admin/adruns/pause" or path == "/api/admin/adruns/stop":
+            if r["campaign_id"]:
+                graph_post(r["campaign_id"], {"status": "PAUSED"})
+            ad_set(aid, status="stopped" if path.endswith("stop") else "paused")
+        elif path == "/api/admin/adruns/resume":
+            if r["status"] not in ("paused",) or r["end_ts"] < t:
+                return self.error(400, "Only paused ads that haven't reached their end date can be resumed.")
+            graph_post(r["campaign_id"], {"status": "ACTIVE"})
+            ad_set(aid, status="active")
+        elif path == "/api/admin/adruns/budget":
+            b = budget(d.get("daily"))
+            if b is None:
+                return self.error(400, "The daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
+            if not r["campaign_id"]:
+                return self.error(400, "This ad isn't on Meta yet.")
+            graph_post(r["campaign_id"], {"daily_budget": str(b * 100)})
+            ad_set(aid, daily_kes=b)
+        elif path == "/api/admin/adruns/remove":
+            if r["status"] in ("active", "processing", "creating", "paused"):
+                return self.error(400, "Stop the ad before removing it from the list.")
+            q("DELETE FROM ad_runs WHERE id=?", (aid,))
+        else:
+            return self.error(404, "Not found.")
+        self.send_json(200, {"ok": True, "report": ads_runs_report(now())})
+
     def api_admin_ads(self, path):
         if not self.is_admin():
             return self.error(401, "Log in as admin.")
@@ -3982,6 +4445,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.admin_overview()
         if path == "/api/admin/posts":
             return self.send_json(200, posts_report(now()))
+        if path == "/api/admin/adruns":
+            return self.send_json(200, ads_runs_report(now()))
+        if path == "/api/admin/manager":
+            try:
+                days = int((parse_qs(urlparse(self.path).query).get("days") or ["30"])[0])
+            except ValueError:
+                days = 30
+            return self.send_json(200, manager_report(now(), days if days in (1, 7, 30, 90, 365) else 30))
         if path == "/api/admin/ads":
             try:
                 days = int((parse_qs(urlparse(self.path).query).get("days") or ["30"])[0])
@@ -4194,6 +4665,7 @@ def main():
     threading.Thread(target=meta_sweeper, daemon=True).start()
     threading.Thread(target=post_sweeper, daemon=True).start()
     threading.Thread(target=stats_sweeper, daemon=True).start()
+    threading.Thread(target=ad_sweeper, daemon=True).start()
     print("Meta ads: %s" % ("connected to ad account %s, refreshed every hour" % META_ACCOUNT if meta_ready() else "not connected"), flush=True)
     try:
         backfill_friends()
