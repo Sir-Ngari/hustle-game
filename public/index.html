@@ -4243,7 +4243,7 @@ function crisisLine(){const c=crisisOf();return c?crisisDef(c).name:'';}
 const bcNW=()=>Math.max(1,netWorth()),bcFlow=()=>(S.last&&S.last.net)||0,bcTeams=()=>Object.keys(S.teams||{}).length+(S.race?1:0);
 function bcTake(amt,why){amt=Math.max(0,amt);const fromCash=Math.min(Math.max(0,S.cash),amt);S.cash-=fromCash;S.debt+=amt-fromCash;log(why,'bad');}
 const BC=[
- {id:'forbes',name:'The rich list',ask:()=>'The rich list has named you one of '+(R?R.adj:'the country\'s')+' newest billionaires. Editors want to know: one-hit wonder, or the real thing? Commit to doubling your fortune.',
+ {id:'forbes',name:'The rich list',ask:()=>'The rich list has named you one of the newest billionaires in '+(R&&R.theCountry?R.theCountry:'the country')+'. Editors want to know: one-hit wonder, or the real thing? Commit to doubling your fortune.',
   goal:c=>'Grow your net worth to '+fmt(c.t)+' within '+c.len+' months',months:60,init:c=>{c.t=bcNW()*2;},prog:c=>bcNW()/c.t,
   win:c=>{const b=bcNW()*.02;S.cash+=b;addRep(10);addInf(10);return'You doubled your fortune. The rich list puts you on the cover and sponsors line up: +'+fmt(b)+', +10 reputation, +10 influence.';},
   lose:c=>{addRep(-15);addHappy(-10);return'The deadline passed and the rich list calls you a one-hit wonder. −15 reputation.';}},
