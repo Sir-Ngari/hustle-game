@@ -1846,7 +1846,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='96274c07c813';let updShown=false;
+const APP_VER='b2d06699ee35';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2138,11 +2138,13 @@ function bankCands(){if(!+ECONT().bank||S.over||!S.inds.length)return[];const nw
    const price=unitCost(b,owned(b.id)),dep=price*LOAN_DEP,loan=price-dep,pay=loan/LOAN_MONTHS+loan*loanRate();
    const locked=!owned(b.id)&&!(nw>=b.cost*ECONT().unlock);
    if((S.cash<price||locked)&&S.cash>=dep&&nw>=price*.15&&net>=pay*.8)out.push({b,price,dep,loan,pay});});});
- return out.sort((a,c)=>c.price-a.price);}
+ return out;}
+/* pick an offer at random across all your industries, avoiding the industry the bank offered last time when there is another */
+function bankPick(){const all=bankCands();if(!all.length)return null;const fresh=all.filter(c=>c.b.ind!==S.bankLastInd),pool=fresh.length?fresh:all;const c=pool[Math.floor(rnd()*pool.length)];S.bankLastInd=c.b.ind;return c;}
 function bankTake(b,price,dep){dep=Math.min(dep,S.cash,price);const loan=Math.max(0,price-dep);S.cash-=dep;S.owned[b.id]=owned(b.id)+1;S.bankOK=S.bankOK||{};S.bankOK[b.id]=1;
  if(loan>0){S.debt+=loan;S.loans=(S.loans||[]).concat([{id:b.id,name:b.name,prin:loan/LOAN_MONTHS,left:LOAN_MONTHS}]);}wkInc('units');
  return['You put down '+fmt(dep)+(loan>0?' and the bank lent you '+fmt(loan)+' to open your '+(owned(b.id)>1?'new ':'first ')+b.name+'. Repayments of about '+fmt(loan/LOAN_MONTHS+loan*loanRate())+' a month start next month.':' and opened your '+b.name+' with no loan.'),'good'];}
-function bankOffer(){if(S.month<6||S.month-(S.bankLast||-99)<4)return null;const c=bankCands()[0];if(!c)return null;S.bankLast=S.month;const b=c.b,yr=((S.cbr+.08)*100).toFixed(1),price=c.price;
+function bankOffer(){if(S.month<6||S.month-(S.bankLast||-99)<4)return null;const c=bankPick();if(!c)return null;S.bankLast=S.month;const b=c.b,yr=((S.cbr+.08)*100).toFixed(1),price=c.price;
  const maxDep=Math.min(S.cash,price),ok=S.inds.includes(b.ind),what=owned(b.id)?'another '+b.name:aN(b.name.lc());
  BANKDEP={min:c.dep,max:maxDep,price,v:maxDep};
  const rt=curLocal()?R.rate:1,lo=Math.ceil(c.dep*rt),hi=Math.floor(maxDep*rt),pc=[[.25,'25%'],[.5,'50%'],[.75,'75%']].filter(x=>x[0]*price<=maxDep*1.0001);
