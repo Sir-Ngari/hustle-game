@@ -312,6 +312,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .hof li:first-child{border-top:0}
 .lbsubs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}.lbsubs::-webkit-scrollbar{display:none}.lbsub{flex:0 0 auto;border:1px solid var(--line);background:transparent;color:inherit;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}.lbsub[aria-selected=true]{background:var(--ink,#fff);color:var(--bg,#111);border-color:transparent}
 .outdelta{list-style:none;margin:6px 0 12px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}.outdelta li{display:flex;justify-content:space-between;gap:8px;padding:7px 10px;border-radius:9px;background:rgba(255,255,255,.06);font-size:14px}.outdelta li.up b{color:var(--green)}.outdelta li.down b{color:var(--red)}.outnone{color:var(--muted);font-size:14px}.outcard.out-good{box-shadow:0 0 0 1px rgba(52,211,153,.45),0 18px 50px rgba(0,0,0,.45)}.outcard.out-bad{box-shadow:0 0 0 1px rgba(248,113,113,.45),0 18px 50px rgba(0,0,0,.45)}
+.regsec{margin-top:12px;border:1px solid rgba(248,113,113,.35);border-radius:12px;padding:10px 12px}.regh{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.regh span{color:var(--muted);font-size:13px}
 .hofh{margin:18px 0 2px}.hofsec{margin:12px 0 4px}.hofsec h4{margin:0 0 4px;font-size:15px}.hofnone{color:var(--muted);font-size:14px;margin:4px 0 8px}.hofmore summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 .hpos{font-family:var(--display);font-weight:800;font-size:18px;width:22px}
 .hnum{margin-left:auto;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -1116,6 +1117,25 @@ const INDS=[
   ['tv','TV Station',7e5,56000,'News, soaps and the football'],
   ['mediahouse','Media House',9e6,660000,'Newspapers, radio, TV and digital'],
   ['streaming','Streaming Platform',1.5e8,1e7,'African films and music for the world']]}
+,
+ {id:'gambling',reg:{lic:3e6,tax:.4,why:'Betting is licensed by the gaming board and taxed heavily on every bet won.'},name:'Betting & Gaming',blurb:'Punters always come back. The gaming board watches every move.',vol:.25,vm:.9,biz:[
+  ['betshop','Betting Shop Network',250000,78000,'Twenty betting shops in busy estates and bus stages'],
+  ['sportsbook','Online Sportsbook',2.5e6,725000,'A mobile betting app with millions of punters'],
+  ['casino','City Casino',25e6,7.05e+06,'Tables, slots and a hotel in the capital'],
+  ['casresort','Casino Resort',250e6,6.38e+07,'A destination resort that draws gamblers from across Africa'],
+  ['lottery','National Lottery Operator',2.5e9,6e+08,'The exclusive licence to run the national lottery']]},
+ {id:'alcohol',reg:{lic:2e6,tax:.3,why:'Alcohol needs a liquor licence and pays excise duty on every bottle.'},name:'Beer, Wine & Spirits',blurb:'Steady demand in good times and bad. Excise duty takes a big cut.',vol:.15,vm:.9,biz:[
+  ['wines','Wines & Spirits Distributor',200000,62400,'Supplying bars and supermarkets across the city'],
+  ['microbrew','Craft Brewery',2e6,580000,'Small-batch beers with a cult following'],
+  ['distillery','Gin & Vodka Distillery',20e6,5.64e+06,'Premium spirits for the region\'s bars'],
+  ['brewery','National Brewery',200e6,5.1e+07,'The beer in every bar in the country'],
+  ['drinksco','Pan-African Drinks Group',2e9,4.8e+08,'Breweries and distilleries in a dozen countries']]},
+ {id:'tobacco',reg:{lic:1e6,tax:.45,why:'Tobacco is licensed, its adverts are banned and excise is the highest of all.'},name:'Tobacco & Nicotine',blurb:'Fat margins and loyal customers, but the most heavily taxed trade of all.',vol:.12,vm:.8,biz:[
+  ['leaf','Tobacco Leaf Buyer',300000,93600,'Buying leaf from thousands of small farmers'],
+  ['cigfactory','Cigarette Factory',3e6,870000,'Rolling millions of sticks a day'],
+  ['vape','Vape & Nicotine Pouch Brand',30e6,8.46e+06,'The fastest-growing nicotine brand among young adults'],
+  ['tobaccoco','Regional Tobacco Company',300e6,7.65e+07,'Factories and distribution across East Africa'],
+  ['tobaccomajor','Continental Tobacco Major',3e9,7.2e+08,'One of Africa\'s biggest tobacco companies']]},
 ];
 const IND={};INDS.forEach(i=>IND[i.id]=i);
 const TIER_MULT=[1.2,1.5,2,2.6,3.4,4.2];
@@ -1806,7 +1826,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='b2b45a81562f';let updShown=false;
+const APP_VER='a4464ca248bb';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2016,12 +2036,24 @@ const indOwned=id=>BIZ.some(b=>b.ind===id&&owned(b.id)>0);
 function masteryMult(id){const bs=IND[id].biz;for(let i=0;i<bs.length;i++)if(!owned(bs[i][0]))return 1;return 1.1;}
 function indBuff(id){return S.buffs.reduce((a,b)=>a*(b.ind===id?b.f:1),1);}
 function entryFee(){return nwc(.02,500);}
-function enterInd(id,fee){if(S.inds.includes(id)||S.inds.length>=SLOTS[S.peak])return false;S.cash-=fee;S.inds.push(id);return true;}
+/* regulated industries: millionaires only, a licence to enter, a yearly renewal at half the licence, and heavy excise on profit; they do not use an industry slot */
+const REG_MIN=1e6;
+const isReg=id=>!!(IND[id]&&IND[id].reg);
+const slotInds=()=>S.inds.filter(id=>!isReg(id));
+function regLic(id){return IND[id].reg.lic*CPI();}
+function regEnter(id){const fee=regLic(id);if(!isReg(id)||S.inds.includes(id)||Math.max(0,netWorth())<REG_MIN||S.cash<fee||S.over)return;S.cash-=fee;S.inds.push(id);S.lic=S.lic||{};S.lic[id]={due:S.month+12};log('You were granted a '+IND[id].name.toLowerCase()+' licence for '+fmt(fee)+'. It renews every year at half the price.','gold');afterChange();}
+function licTick(){if(!S.lic)return;Object.keys(S.lic).forEach(id=>{if(!S.inds.includes(id)){delete S.lic[id];return;}const L=S.lic[id];if(S.month>=L.due){const r=regLic(id)/2;S.cash-=r;L.due+=12;L.paid=(L.paid||0)+r;log('You renewed your '+IND[id].name.toLowerCase()+' licence for '+fmt(r)+'.','');}});}
+function regHTML(){const nw=Math.max(0,netWorth()),regs=INDS.filter(i=>i.reg);let h='<div class="more regsec"><div class="regh"><b>Regulated industries</b><span>Betting, alcohol and tobacco. Millionaires only. A licence to enter, renewed every year at half the price, and heavy excise taxes on profit, but the returns are the highest in the game. They do not use an industry slot.</span></div>';
+ regs.forEach(i=>{const lic=regLic(i.id),own=S.inds.includes(i.id),L=(S.lic||{})[i.id];
+  h+='<div class="row"><div class="t"><b>'+i.name+'</b><span>'+i.blurb+' Starts with '+aN(i.biz[0][1].lc())+' ('+fmt(i.biz[0][2]*CPI())+'). Licence '+fmt(lic)+', renewal '+fmt(lic/2)+' a year, excise '+Math.round(i.reg.tax*100)+'% of profit.</span></div>'+
+   (own?'<span class="pill good">Licensed'+(L?' · renews '+dateStr(L.due):'')+'</span>':nw<REG_MIN?'<span class="pill">Millionaires only</span>':'<button class="btn small '+(S.cash>=lic?'primary':'')+'" data-a="regenter" data-v="'+i.id+'" '+(S.cash<lic?'disabled':'')+'>Get licence · '+fmt(lic)+'</button>')+'</div>';});
+ return h+'</div>';}
+function enterInd(id,fee){if(isReg(id)||S.inds.includes(id)||slotInds().length>=SLOTS[S.peak])return false;S.cash-=fee;S.inds.push(id);return true;}
 const cyc=b=>1+(S.s-1)*(.6+b.vol*2);
 /* economy difficulty: how much businesses earn for what they cost, how much net worth unlocks the next tier, and whether the bank offers business loans */
 const ECONT=()=>Object.assign({ret:.6,unlock:2.5,bank:1},(typeof TUNE!=='undefined'&&TUNE.econ)||{});
 const RET=()=>+ECONT().ret;
-function bizValue(b){if(!owned(b.id))return 0;return RET()*CPI()*b.profit*owned(b.id)*policyMult(b)*masteryMult(b.ind)*12*baseMult()*b.mult*valMult()*S.s*(S.float?(1-S.float)*1.3:1);}
+function bizValue(b){if(!owned(b.id))return 0;return (isReg(b.ind)?1-IND[b.ind].reg.tax:1)*RET()*CPI()*b.profit*owned(b.id)*policyMult(b)*masteryMult(b.ind)*12*baseMult()*b.mult*valMult()*S.s*(S.float?(1-S.float)*1.3:1);}
 function bizAssets(){return BIZ.reduce((a,b)=>a+bizValue(b),0);}
 function assetPrice(a){if(MODELS[a.id]&&!has(a.id))return a.price*genMult(a.id);return a.price*afx(a.id)*(a.stack?Math.pow(1.06,has(a.id)):1);}
 function lifeAssets(){return ASSETS.reduce((t,a)=>t+a.price*afx(a.id)*has(a.id),0);}
@@ -2190,7 +2222,7 @@ function moonHTML(){if(!moonOn())return'<p class="seghint" style="margin:0">Moon
   h+='</div></div>';});
  return h+'<p class="seghint" style="margin:8px 0 0"><b>As a billionaire you must always fund at least one moonshot.</b> More funding means faster tests and slightly better odds. Every failure teaches your team something and raises the next chance.</p>';}
 /* ================= Reports: income statement and balance sheet ================= */
-const PLK=['bizRev','bizCost','rent','prop','sport','lux','inv','trustInc','moonInc','shady','interest','fees','fines','upkeep','school','homeRent','travel','health','giving','moon','mob','alimony','estatePl','net'];
+const PLK=['excise','bizRev','bizCost','rent','prop','sport','lux','inv','trustInc','moonInc','shady','interest','fees','fines','upkeep','school','homeRent','travel','health','giving','moon','mob','alimony','estatePl','net'];
 function plYears(){if(!S.ply){S.ply={};(S.plh||[]).forEach(e=>plAddYear(e));}return S.ply;}
 function plAddYear(e){const y=Math.floor(e.m/12),b=S.ply[y]=S.ply[y]||{n:0};b.n++;PLK.forEach(k=>b[k]=(b[k]||0)+(e[k]||0));}
 function plRecord(f){S.plh=S.plh||[];plYears();const e={m:S.month};PLK.forEach(k=>e[k]=Math.round(+f[k]||0));S.plh.push(e);plAddYear(e);if(S.plh.length>36)S.plh.splice(0,S.plh.length-36);}
@@ -2208,7 +2240,7 @@ function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e
  const row=(name,k,sign,opt)=>{const v=(T[k]||0)*sign,cv=C?(C[k]||0)*sign:null;if(opt&&!v&&!cv)return'';return'<tr><td>'+name+'</td>'+cell(v)+(C?cell(cv):'')+'</tr>';};
  const tot=(name,v,cv,cls)=>'<tr class="'+(cls||'sub')+'"><td>'+name+'</td>'+cell(v,1)+(C?cell(cv,1):'')+'</tr>',head=t=>'<tr class="fsec"><td>'+t+'</td><td></td>'+(C?'<td></td>':'')+'</tr>';
  const gross=x=>(x.bizRev||0)-(x.bizCost||0),oth=x=>['rent','prop','sport','lux','inv','trustInc','moonInc','shady'].reduce((a,k)=>a+(x[k]||0),0),
-  EXP=[['Loan interest','interest'],['Professional fees','fees'],['Fines & penalties','fines'],['Asset upkeep','upkeep'],['School & childcare','school'],['Home rent','homeRent'],['Business travel','travel'],['Health care','health'],['Foundation giving','giving'],['Moonshot research','moon'],['Protection money','mob'],['Alimony','alimony'],['Estate planning & insurance','estatePl']],
+  EXP=[['Excise & licence taxes','excise'],['Loan interest','interest'],['Professional fees','fees'],['Fines & penalties','fines'],['Asset upkeep','upkeep'],['School & childcare','school'],['Home rent','homeRent'],['Business travel','travel'],['Health care','health'],['Foundation giving','giving'],['Moonshot research','moon'],['Protection money','mob'],['Alimony','alimony'],['Estate planning & insurance','estatePl']],
   exp=x=>EXP.reduce((a,e)=>a+(x[e[1]]||0),0);
  let h='<div class="seg four reptabs" role="group" aria-label="Report period">'+Object.keys(P).map(k=>'<button data-a="repper" data-v="'+k+'" aria-pressed="'+(repPeriod===k)+'"'+(!P[k][1].length?' disabled':'')+'>'+P[k][0]+'</button>').join('')+'</div>';
  h+='<div class="reps"><div class="rep"><h3>Income statement</h3><p class="seghint">'+lbl+((repPeriod==='y10'||repPeriod==='all')&&ys.length?' · '+list.reduce((a,e)=>a+(e.n||0),0)+' months, from Year '+(list.length?Math.floor(list[0].m/12)+1:yr+1)+(ys[0]>0&&(S.month-1)/12>ys[0]?' (records began in Year '+(ys[0]+1)+')':''):'')+(repPeriod==='m12'&&list.length<12?' (only '+list.length+' recorded so far)':'')+'</p><table class="fin"><thead><tr><th></th><th class="r">'+lbl+'</th>'+(C?'<th class="r">Prior month</th>':'')+'</tr></thead><tbody>';
@@ -2240,7 +2272,7 @@ function bizPL(b,noisy,E,sm){const n=owned(b.id);if(!n)return{rev:0,cost:0,profi
 function flows(noisy){
  const E=svcEffects(),sm=bizStructMult(E);
  let biz=0,bizRev=0,bizCost=0;
- BIZ.forEach(b=>{if(!owned(b.id))return;const x=bizPL(b,noisy,E,sm);biz+=x.profit;bizRev+=x.rev;bizCost+=x.cost;});
+ let excise=0;BIZ.forEach(b=>{if(!owned(b.id))return;const x=bizPL(b,noisy,E,sm);biz+=x.profit;bizRev+=x.rev;bizCost+=x.cost;if(x.profit>0&&isReg(b.ind))excise+=x.profit*IND[b.ind].reg.tax;});
  const rent=ASSETS.filter(a=>a.stack).reduce((t,a)=>t+a.rent*has(a.id)*afx(a.id),0)*policyMult('rent');
  const sport=sportsNet(),prop=propNet();
  const lux=custEffects().inc+ASSETS.reduce((t,a)=>t+(a.inc&&has(a.id)?a.price*afx(a.id)*a.inc*(noisy&&a.incVol?1+(rnd()-.5)*2*a.incVol:1):0),0);
@@ -2256,7 +2288,7 @@ function flows(noisy){
  const giving=S.fdn?Math.max(0,biz)*S.fdn.giving:0;
  const estatePl=typeof planCost==='function'?planCost():0,trustInc=S.trustPay||0,shady=typeof shadyIncome==='function'?shadyIncome(biz,noisy):0;
  const moon=moonSpend(),moonInc=moonIncome(),subInc=typeof subIncome==='function'?subIncome():0;
- return{subInc,biz,bizRev,bizCost,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,moon,moonInc,E,net:subInc+biz+rent+lux+inv+sport+prop+trustInc+shady+moonInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl-moon};
+ return{excise,subInc,biz,bizRev,bizCost,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,moon,moonInc,E,net:subInc+biz+rent+lux+inv+sport+prop+trustInc+shady+moonInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl-moon-excise};
 }
 function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});S.log.length=Math.min(S.log.length,80);}
 function soften(f){return sv('exec').lvl>=0&&f<1?1-(1-f)*.6:f;}
@@ -2914,7 +2946,7 @@ function burnoutEvent(){const c=nwc(.01,300);return{cat:'Life',title:'You are bu
  choices:[{l:'Take a proper vacation',d:'Spend '+fmt(c)+'. Profit ×0.9 this month. +22 happiness.',f(){S.cash-=c;addBuff(.9,1,'Vacation');addHappy(22);addSH(8);return['Two weeks off. You came back a new person.','life']}},
   {l:'Push through',d:'−8 happiness.',f(){addHappy(-8);return['You pushed through. It is taking a toll.','bad']}}]};}
 
-function industryEvent(first){const avail=INDS.filter(i=>!S.inds.includes(i.id)),fee=first?0:entryFee();
+function industryEvent(first){const avail=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id)),fee=first?0:entryFee();
  return{cat:'Industries',title:first?'Choose your first industry':'Room for a new industry',
   text:first?'Every empire starts somewhere. Pick the industry you want to build in first. You unlock a second industry at Business Owner, a third at Millionaire, and one more at every rank after that.':'Your standing opens new doors. You now have room for '+SLOTS[S.peak]+' industries. Licences and setup cost '+fmt(fee)+'.',
   choices:avail.map(i=>({l:i.name,d:i.blurb+' Starts with '+aN(i.biz[0][1].lc())+' ('+fmt(i.biz[0][2])+').',dis:!first&&S.cash<fee,f(){enterInd(i.id,fee);return[first?'You chose '+i.name+'. Open your first '+i.biz[0][1].lc()+'.':'You entered '+i.name+'.','gold']}}))
@@ -2949,7 +2981,7 @@ function attention(F){const A=[],L=lifestyle();
  SERVICES.forEach(d=>{const i=svcInfo(d);if(i.behind)A.push([i.late?'bad':'warn',(i.late?'Paying penalties: you need a ':'Hire within '+i.grace+' month'+(i.grace===1?'':'s')+': ')+d.levels[i.req][1].lc()+'.','power','Hire']);});
  if(L.steps>0)A.push([L.late?'bad':'warn',(L.late?'Living below your station. Upgrade your ':'Upgrade within '+L.grace+' month'+(L.grace===1?'':'s')+': ')+[L.short.car?'car':'',L.short.home?'home':'',L.short.travel?'travel class':''].filter(Boolean).join(', ')+'.','life','Upgrade']);
  if(L.absent)A.push(['warn','Nobody senior is visiting your foreign markets (profit ×0.92).','life','Travel']);
- if(S.inds.length<SLOTS[S.peak])A.push(['info','You have room for another industry.','business','Choose']);
+ if(slotInds().length<SLOTS[S.peak])A.push(['info','You have room for another industry.','business','Choose']);
  if(!S.spouse&&age()>=30)A.push([age()>=34?'bad':'warn',age()<35?'Marriage is mandatory by 35. '+(35-age())+' year'+(35-age()===1?'':'s')+' left.':'The family expects you to remarry soon.','life',null]);
  if(S.spouse&&S.spouse.happy<35)A.push(['bad',S.spouse.name+' is unhappy. Try Family first mode.','life','Family']);
  const lag=S.kids.find(k=>!k.withEx&&kidAge(k)>=48&&kidAge(k)<216&&k.school<schoolExpect());if(lag)A.push(['warn',(S.spouse?S.spouse.name+' wants ':'')+lag.name+' at a better school.','life','Schools']);
@@ -3543,7 +3575,7 @@ function nextMonth(){
  if(!ACC||acctView||S.over||current)return;
  if(S.month>0&&bonusDue()){openEvent(bonusEvent());return;}
  if(S.month>0&&openCal())return;
- const f=flows(true);S.cash+=f.net;pcBurn();loanTick();S.last=f;plRecord(f);S.month++;
+ const f=flows(true);S.cash+=f.net;pcBurn();loanTick();licTick();S.last=f;plRecord(f);S.month++;
  ASSETS.forEach(a=>{if(has(a.id)||S.af[a.id]){S.af[a.id]=Math.max(.3,af(a.id)*(1+a.drift-.003*behind(a.id)+(rnd()-.5)*(a.vol||.004)));}});
  S.buffs.forEach(b=>b.months--);S.buffs=S.buffs.filter(b=>b.months>0);
  S.policies.forEach(p=>p.left--);S.policies.filter(p=>p.left<=0).forEach(p=>log('The '+POLICIES[p.id].name.lc()+' has expired.',''));S.policies=S.policies.filter(p=>p.left>0);
@@ -3639,7 +3671,7 @@ function nextMonth(){
  if(moonDue()){openEvent(moonPickEvent());return;}
  if(!S.g){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
- if(S.indPending&&!S.lifePending){S.indPending=false;if(S.inds.length<SLOTS[S.peak]){openEvent(industryEvent(false));return;}}
+ if(S.indPending&&!S.lifePending){S.indPending=false;if(slotInds().length<SLOTS[S.peak]){openEvent(industryEvent(false));return;}}
  if(S.relPending&&S.relPending.length){const id=S.relPending.shift();if(behind(id)){openEvent(releaseEvent(id));return;}}
  if(S.lifePending){S.lifePending=false;const L=lifestyle();if(L.steps>0){openEvent(lifeEvent(L));return;}}
  if(S.svcPending.length){const ids=S.svcPending.filter(id=>sv(id).lvl<reqLvl(SERVICES.find(d=>d.id===id)));S.svcPending=[];if(ids.length){openEvent(svcEvent(ids));return;}}
@@ -3764,7 +3796,7 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInter
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
  ({outok:()=>{closeModal();maybeTour();},guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),tkbid:()=>tkCard(v),tkgo:()=>tkGo(v),tksell:()=>tkSell(v),polrun:()=>pcRunCard(+v),poldonor:()=>pcTakeDonor(v),polskip:()=>pcSkipDonor(),polgo:()=>pcLaunch(),poldraftno:()=>pcDraftNo(),polpower:()=>pcUse(v),poldrop:()=>pcDrop(),closecard:()=>closeModal(),lifeobit:()=>openObit(obitFromLife(LIVES_SHOWN[+v])),lifesave:()=>obitSave(obitFromLife(LIVES_SHOWN[+v])),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),sound:()=>soundSet(v==='on'),sndtoggle:()=>soundSet(!soundOn()),music:()=>musicSet(v==='on'),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},repper:()=>{repPeriod=v;render();},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]&&!S.conds[v].managed){const f=condFix(v);if(!canPay(f))return;S.cash-=f;S.conds[v].managed=true;addHealth(10);log('You finally treated your '+CONDS[v].name.lc()+'. Years of neglect made it a long, expensive fight: '+fmt(f)+', then '+fmt(condFee(v))+' a month.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buy(v),sell:()=>sell(v),abuy:()=>buyAsset(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
-  choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?S.inds.length<SLOTS[S.peak]:othersOpen);render();},close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},stoppay:stopPaying,
+  choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?slotInds().length<SLOTS[S.peak]:othersOpen);render();},regenter:()=>regEnter(v),close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>{if(!ACC)return;stopAuto();acctView='menu';renderAccts();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,awaygo:()=>awayCollect(),bankbuy:()=>bankBuy(+v),xclist:()=>xcList(v),xcbuy:()=>xcBuyCard(+v),xcgo:()=>xcBuy(v),xcsell:()=>xcSell(+v,+t.dataset.f),mktab:()=>{mkTab=v;mkMsg='';bankMsg='';render();},mklist:()=>mkList(v),mkpost:()=>mkPost(v),mkbuy:()=>mkBuy(+v),mkcancel:()=>mkCancel(+v),friends:()=>openFriends(),friendgift:()=>friendAct('gift',+v),friendrm:()=>friendAct('rm',+v),friendaddid:()=>friendAct('add',+v),giftclaim:()=>giftClaim(),pushyes:()=>pushYes(),pushno:()=>closeModal(),closecard:()=>closeModal(),pushon:()=>{pushRegister(true).catch(()=>{}).then(()=>renderAccts());},pushoff:()=>pushOff(),authmode:()=>{authMode=v;authMsg='';renderAccts();const A=$('acct');if(A)A.scrollTop=0;},authjump:()=>{authMode=v;authMsg='';renderAccts();const u=$('acc-user');if(u){u.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>u.focus({preventScroll:true}),400);}},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView='auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),lbsub:()=>lbSubGo(v),retryboot:bootAuth,appupdate:appUpdate,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propctry:()=>{propShut[v]=!propShut[v];render();},propbuy:()=>buyProp(v,propCity,false),propdev:()=>buyProp(v,propCity,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>buyTeam(v),venuebuild:()=>venueGet(v,false),venuebuy:()=>venueGet(v,true),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>buyCustom(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
   askreset:()=>{$('reset').innerHTML='<span class="foot">Erase this life? <button class="btn small" data-a="reset">Yes, restart</button><button class="btn ghost small" data-a="noreset">Cancel</button></span>';},
@@ -3839,21 +3871,21 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
   const exitUI=exitAsk===iid?'<span class="foot">Sell all for '+fmt(exitVal)+'? <button class="btn small" data-a="exitind" data-v="'+iid+'">Yes, exit</button><button class="btn ghost small" data-a="noexit">Cancel</button></span>'
    :'<button class="btn ghost small" data-a="askexit" data-v="'+iid+'">Exit</button>';
   const ownList=bs.filter(b=>owned(b.id)).map(b=>'<span class="own">'+b.name+' ×'+owned(b.id)+'</span>').join('');
-  bh+='<div class="ind"><div class="indhead"><div style="min-width:0"><h3>'+ind.name+'</h3><div class="ownrow">'+(ownList?'<span class="eyebrow">You own</span>'+ownList:'<span class="eyebrow">You own nothing here yet</span>')+'</div></div><div class="indmeta"><span class="pill '+(tiers===6?'good':'')+'" title="Own every tier for +10% profit in this industry">'+(tiers===6?'Mastered ×1.10':'Mastery '+tiers+'/6')+'</span>'+(units||S.inds.length>1?exitUI:'')+'</div></div><p class="indblurb">'+ind.blurb+'</p>';
+  bh+='<div class="ind"><div class="indhead"><div style="min-width:0"><h3>'+ind.name+'</h3><div class="ownrow">'+(ownList?'<span class="eyebrow">You own</span>'+ownList:'<span class="eyebrow">You own nothing here yet</span>')+'</div></div><div class="indmeta"><span class="pill '+(tiers===bs.length?'good':'')+'" title="Own every tier for +10% profit in this industry">'+(tiers===bs.length?'Mastered ×1.10':'Mastery '+tiers+'/'+bs.length)+'</span>'+(isReg(iid)?'<span class="pill bad" title="'+IND[iid].reg.why+'">Excise '+Math.round(IND[iid].reg.tax*100)+'%</span>':'')+(units||S.inds.length>1?exitUI:'')+'</div></div><p class="indblurb">'+ind.blurb+'</p>';
   let shownLocked=false;
   bs.forEach(b=>{const n=owned(b.id),c=unitCost(b,n),pm=policyMult(b),im=indBuff(iid)*masteryMult(iid);
    if(!(n>0||nw>=b.cost*ECONT().unlock||b.tier===1||(S.bankOK&&S.bankOK[b.id]))){if(shownLocked)return;shownLocked=true;
     bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*ECONT().unlock)+', or sooner if the bank agrees to finance it.</div></div><div></div></div>';return;}
    bh+='<div class="biz '+(n?'owned':'')+'"><div class="tier">'+b.tier+'</div><div style="min-width:0"><div class="name">'+b.name+(n?'<span class="count">×'+n+'</span>':'')+(pm!==1?' <span class="pill '+(pm<1?'bad':'good')+'">Policy ×'+pm.toFixed(2)+'</span>':'')+'</div><div class="tag">'+b.tag+'</div>'+
-    '<div class="meta">Each earns ~'+fmt(RET()*b.profit*bmBase*pm*im*cyc(b)/S.s)+'/mo'+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
+    '<div class="meta">Each earns ~'+fmt(RET()*b.profit*bmBase*pm*im*cyc(b)/S.s)+'/mo'+(isReg(iid)?' before excise':'')+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
     '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+(S.cash<c||S.over?'disabled':'')+'>Open · '+fmt(c)+'</button>'+
     (n?'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1 · '+fmt(unitCost(b,n-1)*.7)+'</button>':'')+'</div></div>';});
   bh+='</div>';});
- const others=INDS.filter(i=>!S.inds.includes(i.id));
+ const others=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id));
  if(others.length&&S.inds.length){
-  const free=S.inds.length<slots,fee=entryFee();let nr=SLOTS.findIndex(x=>x>slots);
+  const free=slotInds().length<slots,fee=entryFee();let nr=SLOTS.findIndex(x=>x>slots);
   const open=othersOpen===null?free:othersOpen;
-  bh+='<div class="more"><button class="moretoggle" data-a="others" aria-expanded="'+open+'"><span>Other industries · '+S.inds.length+' of '+slots+' slot'+(slots>1?'s':'')+' used</span><span>'+(open?'Hide':'Show')+'</span></button>';
+  bh+='<div class="more"><button class="moretoggle" data-a="others" aria-expanded="'+open+'"><span>Other industries · '+slotInds().length+' of '+slots+' slot'+(slots>1?'s':'')+' used</span><span>'+(open?'Hide':'Show')+'</span></button>';
   if(open){
   bh+='<p class="seghint" style="margin:0 0 6px">'+(free?'You have a free slot. Licences and setup cost '+fmt(fee)+'.':nr>0?'Your next industry slot opens when you become a '+TITLES[nr][1].toLowerCase()+' ('+fmt(TITLES[nr][0])+'). Exit an industry to free a slot now.':'All slots are in use.')+'</p>';
   others.forEach(i=>{bh+='<div class="row"><div class="t"><b>'+i.name+'</b><span>'+i.blurb+' Starts with '+aN(i.biz[0][1].lc())+'.</span></div>'+
@@ -3861,6 +3893,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
   }
   bh+='</div>';
  }
+ if(S.inds.length)bh+=regHTML();
  $('biz').innerHTML=bh;
 
 
@@ -4035,7 +4068,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  /* statement */
  const line=(l,v,sign)=>'<span>'+l+'</span><span class="'+(Math.abs(v)<.5?'zero':sign<0?'neg':'pos')+'">'+(Math.abs(v)<.5?'—':(sign<0?'−':'+')+fmt(v).replace('−',''))+'</span>';
  $('stmt').innerHTML=line('Business income'+(S.float?' (80% yours)':''),F.bizRev||0,1)+line('Business running costs',F.bizCost||0,-1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Moonshot research',F.moon||0,-1)+line('Moonshot income',F.moonInc||0,1)+line('Dividends & bond interest',F.inv,1)+line('Family trust income',F.trustInc||0,1)+line('Under the table',F.shady||0,1)+line('Loan interest',F.interest,-1)+
-  line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
+  line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+(F.excise?line('Excise taxes',F.excise,-1):'')+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
   line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+line('Health care',F.health,-1)+line('Estate planning & insurance',F.estatePl||0,-1)+
   '<span class="tot">Net cash flow</span><span class="tot '+(F.net<0?'neg':'pos')+'">'+(F.net<0?'−':'+')+fmt(Math.abs(F.net))+'</span>';
  {const iv=$('invest');if(iv)iv.innerHTML=investHTML();}
