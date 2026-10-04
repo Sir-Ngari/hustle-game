@@ -4238,15 +4238,18 @@ class Handler(BaseHTTPRequestHandler):
                  "JOIN stats s ON s.user_id=u.id WHERE u.disabled=0 AND s.best>0 "
                  "ORDER BY (s.billion_month IS NULL), s.billion_month, s.best DESC LIMIT 25")
         out = {"players": [dict(r) for r in rows], "ms": {}, "gens": {}}
+        # ?region=KE limits every list to lives played in that country
+        region = re.sub(r"[^A-Z]", "", ((parse_qs(urlparse(self.path).query).get("region") or [""])[0]).upper())[:3]
+        rw = ("l.region='%s' AND " % region) if region else ""
         base = ("SELECT u.name,u.company,u.color,l.who,l.region,l.gen,l.best,%s FROM lifeboard l JOIN users u ON u.id=l.user_id "
-                "WHERE u.disabled=0 AND %s")
+                "WHERE u.disabled=0 AND " + rw + "%s")
         for k, _ in MS_KEYS:
             col = "ms_" + k
             # one entry per player: their youngest founder life to reach it
             out["ms"][k] = [dict(r) for r in q(base % ("MIN(l.%s) age_m" % col, "l.gen=1 AND l.%s IS NOT NULL GROUP BY l.user_id ORDER BY age_m, MIN(l.updated) LIMIT 10" % col))]
         # the company each player runs today, valued by everything it owns
         out["companies"] = [dict(r) for r in q("SELECT u.name,u.company,u.color,l.who,l.region,l.gen,l.co FROM lifeboard l JOIN users u ON u.id=l.user_id "
-                                               "JOIN stats s ON s.user_id=l.user_id AND s.games=l.game WHERE u.disabled=0 AND l.co>0 ORDER BY l.co DESC LIMIT 10")]
+                                               "JOIN stats s ON s.user_id=l.user_id AND s.games=l.game WHERE u.disabled=0 AND " + rw + "l.co>0 ORDER BY l.co DESC LIMIT 10")]
         out["founders"] = [dict(r) for r in q(base % ("MAX(l.best) top", "l.gen=1 AND l.best>0 GROUP BY l.user_id ORDER BY top DESC LIMIT 15"))]
         for r in q("SELECT DISTINCT gen FROM lifeboard WHERE gen>1 ORDER BY gen LIMIT 12"):
             g = r["gen"]
