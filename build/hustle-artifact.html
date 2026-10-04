@@ -109,6 +109,7 @@ canvas#chart{width:100%;height:170px;display:block}
 .dealcard .chips{margin-top:4px}
 .bar{position:sticky;top:max(env(safe-area-inset-top,0px),var(--qh,0px));transition:top .2s ease;z-index:5;background:var(--paper);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding-top:10px}
 .barrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lbshort{display:none}@media (max-width:440px){.lbfull{display:none}.lbshort{display:inline}}
 .tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-bottom:-1px}
 .tabs::-webkit-scrollbar{display:none}
 .tabs button{border:0;background:none;padding:10px 14px 9px;font-family:var(--display);font-weight:800;font-size:16px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:6px}
@@ -634,6 +635,7 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
       <button class="btn primary" id="next" aria-label="Play the next month">PLAY</button>
       <button class="btn" id="auto" aria-pressed="false">Auto-play</button>
       <button class="btn ghost" id="tourbtn" data-a="tour" aria-label="Take the game tour">Tour</button>
+      <button class="btn ghost" id="lbbtn" data-a="leaderboard" aria-label="Open the leaderboard" hidden>🏆 <span class="lbfull">Leaderboard</span><span class="lbshort"></span></button>
       <button class="btn ghost sndbtn" id="sndbtn" data-a="sndtoggle" aria-label="Mute sounds" aria-pressed="true"></button>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
