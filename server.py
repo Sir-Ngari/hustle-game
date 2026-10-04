@@ -25,6 +25,7 @@ Settings come from environment variables (see deploy/hustle.env.example):
 """
 import base64
 import calendar
+import datetime
 import hashlib
 import hmac
 import json
@@ -347,6 +348,13 @@ CREATE TABLE IF NOT EXISTS ad_runs(
   tries INTEGER NOT NULL DEFAULT 0,
   updated INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS audiences(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  spec TEXT NOT NULL DEFAULT '{}',
+  created INTEGER NOT NULL,
+  updated INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS post_stats(
   post_id INTEGER NOT NULL,
   platform TEXT NOT NULL,
@@ -494,6 +502,18 @@ if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall
 if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(visitors)").fetchall()]:
     _db.execute("ALTER TABLE visitors ADD COLUMN camp TEXT NOT NULL DEFAULT ''")
 _db.execute("CREATE INDEX IF NOT EXISTS users_camp ON users(camp)")
+# Ad builder: objective, budget level, gender, interests and what this run created
+_old_runs = False
+for _c, _d in (("objective", "TEXT NOT NULL DEFAULT 'OUTCOME_TRAFFIC'"), ("budget_level", "TEXT NOT NULL DEFAULT 'campaign'"),
+               ("genders", "TEXT NOT NULL DEFAULT ''"), ("interests", "TEXT NOT NULL DEFAULT '[]'"), ("campaign_name", "TEXT NOT NULL DEFAULT ''"),
+               ("adset_name", "TEXT NOT NULL DEFAULT ''"), ("made_campaign", "INTEGER NOT NULL DEFAULT 0"), ("made_adset", "INTEGER NOT NULL DEFAULT 0"),
+               ("adset_daily", "INTEGER NOT NULL DEFAULT 0")):
+    if _c not in [r[1] for r in _db.execute("PRAGMA table_info(ad_runs)").fetchall()]:
+        _db.execute("ALTER TABLE ad_runs ADD COLUMN %s %s" % (_c, _d))
+        if _c == "made_campaign":
+            _old_runs = True
+if _old_runs:   # ads from before the builder made their own campaign and ad set
+    _db.execute("UPDATE ad_runs SET made_campaign=1, made_adset=1")
 # Ads Manager view: ad set ids on daily rows, on/off and budgets on campaigns and ads
 for _t, _c, _d in (("meta_daily", "adset_id", "TEXT NOT NULL DEFAULT ''"), ("meta_campaigns", "onoff", "TEXT NOT NULL DEFAULT ''"),
                    ("meta_campaigns", "objective", "TEXT NOT NULL DEFAULT ''"), ("meta_campaigns", "daily_budget", "REAL NOT NULL DEFAULT 0"),
@@ -2282,37 +2302,59 @@ def fb_post_id_for(p):
     raise RuntimeError("Meta did not say which Page post this video belongs to. Boost this video from Ads Manager, or run it as a new ad.")
 
 
+AD_OBJECTIVES = {"OUTCOME_TRAFFIC": "Traffic: people tap through to the game", "OUTCOME_AWARENESS": "Awareness: show it to as many people as possible"}
+
+
+def targeting_spec(r):
+    """Meta targeting from an ad run (or a saved audience): countries, ages, gender, interests and placements."""
+    tg = {"geo_locations": {"countries": [x for x in (r["countries"] or "KE").split(",") if x]},
+          "age_min": int(r["age_min"]), "age_max": int(r["age_max"]), "targeting_automation": {"advantage_audience": 0}}
+    if r["genders"] in ("1", "2"):
+        tg["genders"] = [int(r["genders"])]
+    try:
+        ints = json.loads(r["interests"] or "[]")
+    except (TypeError, ValueError):
+        ints = []
+    ints = [{"id": str(i["id"]), "name": str(i.get("name") or "")} for i in ints if isinstance(i, dict) and re.match(r"^\d{5,25}$", str(i.get("id") or ""))][:25]
+    if ints:
+        tg["flexible_spec"] = [{"interests": ints}]
+    if r["platforms"] in ("facebook", "instagram"):
+        tg["publisher_platforms"] = [r["platforms"]]
+    return tg
+
+
 def ad_build(r):
-    """Create campaign, ad set, creative and ad on Meta, paused; switch them on at the end. Undo everything if a step fails."""
+    """Create whatever this run needs on Meta (a new campaign and/or ad set, then the creative and ad), paused, then switch
+    on only what it made. If a step fails, remove only what this run made; existing campaigns and ad sets are never touched."""
+    r = dict(r)
     acct = "act_" + META_ACCOUNT
     info = pages_info()
     page = (info.get("page") or {}).get("id")
     ig = (info.get("ig") or {}).get("id")
     if not page:
         raise RuntimeError("No Facebook Page found for this token.")
-    made = []
+    objective = r.get("objective") or "OUTCOME_TRAFFIC"
     try:
         if not r["campaign_id"]:
-            c = graph_post(acct + "/campaigns", {
-                "name": "Hustlempires · %s" % r["name"], "objective": "OUTCOME_TRAFFIC", "status": "PAUSED",
-                "special_ad_categories": "[]", "buying_type": "AUCTION",
-                "daily_budget": str(r["daily_kes"] * 100), "bid_strategy": "LOWEST_COST_WITHOUT_CAP"})
-            ad_set(r["id"], campaign_id=c["id"]); r = dict(r, campaign_id=c["id"])
-        made.append(r["campaign_id"])
+            c = {"name": r.get("campaign_name") or "Hustlempires · %s" % r["name"], "objective": objective, "status": "PAUSED",
+                 "special_ad_categories": "[]", "buying_type": "AUCTION"}
+            if r.get("budget_level") == "adset":
+                c["is_adset_budget_sharing_enabled"] = "false"
+            else:
+                c.update({"daily_budget": str(r["daily_kes"] * 100), "bid_strategy": "LOWEST_COST_WITHOUT_CAP"})
+            c = graph_post(acct + "/campaigns", c)
+            ad_set(r["id"], campaign_id=c["id"], made_campaign=1); r.update(campaign_id=c["id"], made_campaign=1)
         if not r["adset_id"]:
-            tg = {"geo_locations": {"countries": [x for x in r["countries"].split(",") if x]},
-                  "age_min": r["age_min"], "age_max": r["age_max"], "targeting_automation": {"advantage_audience": 0}}
-            if r["platforms"] == "facebook":
-                tg["publisher_platforms"] = ["facebook"]
-            elif r["platforms"] == "instagram":
-                tg["publisher_platforms"] = ["instagram"]
-            a = graph_post(acct + "/adsets", {
-                "name": "%s · %s" % (r["name"], ", ".join(AD_COUNTRIES.get(x, x) for x in r["countries"].split(","))),
-                "campaign_id": r["campaign_id"], "status": "PAUSED", "billing_event": "IMPRESSIONS",
-                "optimization_goal": "LINK_CLICKS", "destination_type": "WEBSITE",
-                "targeting": json.dumps(tg), "start_time": str(r["start_ts"]), "end_time": str(r["end_ts"])})
-            ad_set(r["id"], adset_id=a["id"]); r = dict(r, adset_id=a["id"])
-        made.append(r["adset_id"])
+            a = {"name": r.get("adset_name") or "%s · %s" % (r["name"], ", ".join(AD_COUNTRIES.get(x, x) for x in r["countries"].split(","))),
+                 "campaign_id": r["campaign_id"], "status": "PAUSED", "billing_event": "IMPRESSIONS",
+                 "optimization_goal": "REACH" if objective == "OUTCOME_AWARENESS" else "LINK_CLICKS",
+                 "targeting": json.dumps(targeting_spec(r)), "start_time": str(r["start_ts"]), "end_time": str(r["end_ts"])}
+            if objective != "OUTCOME_AWARENESS":
+                a["destination_type"] = "WEBSITE"
+            if r.get("adset_daily"):
+                a.update({"daily_budget": str(r["adset_daily"] * 100), "bid_strategy": "LOWEST_COST_WITHOUT_CAP"})
+            a = graph_post(acct + "/adsets", a)
+            ad_set(r["id"], adset_id=a["id"], made_adset=1); r.update(adset_id=a["id"], made_adset=1)
         if not r["creative_id"]:
             link = ad_link(r["id"])
             cta = {"type": r["cta"], "value": {"link": link}}
@@ -2356,21 +2398,68 @@ def ad_build(r):
                         story["video_data"]["title"] = r["headline"]
                 spec = {"name": r["name"], "object_story_spec": json.dumps(story)}
             cr = graph_post(acct + "/adcreatives", spec)
-            ad_set(r["id"], creative_id=cr["id"]); r = dict(r, creative_id=cr["id"])
-        made.append(r["creative_id"])
+            ad_set(r["id"], creative_id=cr["id"]); r.update(creative_id=cr["id"])
         if not r["ad_id"]:
             ad = graph_post(acct + "/ads", {"name": r["name"], "adset_id": r["adset_id"],
                                             "creative": json.dumps({"creative_id": r["creative_id"]}), "status": "PAUSED"})
-            ad_set(r["id"], ad_id=ad["id"]); r = dict(r, ad_id=ad["id"])
-        for obj in (r["ad_id"], r["adset_id"], r["campaign_id"]):
-            graph_post(obj, {"status": "ACTIVE"})
+            ad_set(r["id"], ad_id=ad["id"]); r.update(ad_id=ad["id"])
+        graph_post(r["ad_id"], {"status": "ACTIVE"})
+        if r.get("made_adset"):
+            graph_post(r["adset_id"], {"status": "ACTIVE"})
+        if r.get("made_campaign"):
+            graph_post(r["campaign_id"], {"status": "ACTIVE"})
         ad_set(r["id"], status="active", error="")
         return "active"
     except Exception as e:
-        if r.get("campaign_id"):
-            graph_delete(r["campaign_id"])      # removing the campaign removes its ad set and ad too
-        ad_set(r["id"], status="failed", error=str(e)[:300], campaign_id="", adset_id="", creative_id="", ad_id="")
+        if r.get("made_campaign") and r.get("campaign_id"):
+            graph_delete(r["campaign_id"])      # removes its ad set and ad too
+            ad_set(r["id"], campaign_id="", adset_id="", creative_id="", ad_id="")
+        elif r.get("made_adset") and r.get("adset_id"):
+            graph_delete(r["adset_id"])
+            ad_set(r["id"], adset_id="", creative_id="", ad_id="")
+        elif r.get("ad_id"):
+            graph_delete(r["ad_id"])
+            ad_set(r["id"], ad_id="")
+        ad_set(r["id"], status="failed", error=str(e)[:300])
         raise
+
+
+def clean_audience(au):
+    """Countries, ages, gender, interests and placements, checked."""
+    cs = [c for c in (au.get("countries") or []) if c in AD_COUNTRIES][:7] or ["KE"]
+    def num(v, df):
+        try:
+            return max(13, min(65, int(v)))
+        except (TypeError, ValueError):
+            return df
+    lo = num(au.get("age_min"), 18)
+    hi = max(lo, num(au.get("age_max"), 45))
+    g = str(au.get("genders") or "")
+    ints = []
+    for i in (au.get("interests") or [])[:25]:
+        if isinstance(i, dict) and re.match(r"^\d{5,25}$", str(i.get("id") or "")):
+            ints.append({"id": str(i["id"]), "name": clean_text(i.get("name"), 80)})
+    return {"countries": ",".join(cs), "age_min": lo, "age_max": hi, "genders": g if g in ("1", "2") else "",
+            "interests": json.dumps(ints), "platforms": au.get("platforms") if au.get("platforms") in ("all", "facebook", "instagram") else "all"}
+
+
+def interest_search(qtext):
+    d = graph_get("search", {"type": "adinterest", "q": qtext[:60], "limit": 20, "locale": "en_US"})
+    out = []
+    for i in d.get("data") or []:
+        out.append({"id": str(i.get("id")), "name": i.get("name") or "", "lo": i.get("audience_size_lower_bound") or i.get("audience_size") or 0,
+                    "hi": i.get("audience_size_upper_bound") or 0, "path": " › ".join((i.get("path") or [])[:-1]), "topic": i.get("topic") or ""})
+    return out
+
+
+def audience_estimate(r):
+    try:
+        d = graph_get("act_%s/delivery_estimate" % META_ACCOUNT, {"optimization_goal": "REACH" if r.get("objective") == "OUTCOME_AWARENESS" else "LINK_CLICKS",
+                                                                 "targeting_spec": json.dumps(targeting_spec(r))})
+        e = (d.get("data") or [{}])[0]
+        return {"lo": e.get("estimate_mau_lower_bound") or 0, "hi": e.get("estimate_mau_upper_bound") or 0, "ready": e.get("estimate_ready", True)}
+    except RuntimeError as e:
+        return {"error": str(e)[:200]}
 
 
 def ad_sweeper():
@@ -2446,8 +2535,10 @@ def ads_runs_report(t):
     rows = []
     for r in q("SELECT * FROM ad_runs WHERE created>? OR status IN ('active','paused','processing') ORDER BY id DESC LIMIT 60", (t - 120 * 86400,)):
         d = dict(r)
+        # count only what this run made: its campaign, its ad set, or just its ad
+        col, key = ("campaign_id", r["campaign_id"]) if r["made_campaign"] else ("adset_id", r["adset_id"]) if r["made_adset"] else ("ad_id", r["ad_id"])
         sp = q("SELECT COALESCE(SUM(spend),0) s, COALESCE(SUM(impressions),0) i, COALESCE(SUM(reach),0) re, COALESCE(SUM(link_clicks),0) c "
-               "FROM meta_daily WHERE campaign_id=?", (r["campaign_id"] or "-",), one=True) if r["campaign_id"] else None
+               "FROM meta_daily WHERE %s=?" % col, (key,), one=True) if key else None
         d.update({"spend": sp["s"] if sp else 0, "impressions": sp["i"] if sp else 0, "reach": sp["re"] if sp else 0, "clicks": sp["c"] if sp else 0})
         code = "ad-%d" % r["id"]
         d["visitors"] = q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND stage<>'login'", (code,), one=True)["n"]
@@ -2463,8 +2554,15 @@ def ads_runs_report(t):
     except (TypeError, ValueError):
         tok = {}
     scopes = tok.get("scopes") or []
-    return {"runs": rows, "cap": AD_DAILY_CAP, "maxDays": AD_MAX_DAYS, "ctas": AD_CTAS, "countries": AD_COUNTRIES,
-            "currency": account_currency(), "canRun": "ads_management" in scopes, "now": t}
+    auds = []
+    for a in q("SELECT * FROM audiences ORDER BY name"):
+        try:
+            sp = json.loads(a["spec"] or "{}")
+        except ValueError:
+            sp = {}
+        auds.append({"id": a["id"], "name": a["name"], "spec": sp})
+    return {"runs": rows, "cap": AD_DAILY_CAP, "maxDays": AD_MAX_DAYS, "ctas": AD_CTAS, "countries": AD_COUNTRIES, "objectives": AD_OBJECTIVES,
+            "audiences": auds, "currency": account_currency(), "canRun": "ads_management" in scopes, "now": t}
 
 
 def posts_report(t):
@@ -2918,6 +3016,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_admin_posts(path)
         if path.startswith("/api/admin/adruns/"):
             return self.api_admin_adruns(path)
+        if path.startswith("/api/admin/audiences/"):
+            return self.api_admin_audiences(path)
         if path in ("/api/admin/manager/toggle", "/api/admin/manager/budget"):
             return self.api_admin_manager(path)
         if path in ("/api/admin/ads/sync", "/api/admin/ads/link"):
@@ -4235,6 +4335,41 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, posts_report(t))
         self.error(404, "Not found.")
 
+    def api_admin_audiences(self, path):
+        if not self.is_admin():
+            return self.error(401, "Log in as admin.")
+        d = self.read_json()
+        if d is None:
+            return
+        t = now()
+        if path.endswith("/save"):
+            name = clean_text(d.get("name"), 60)
+            if not name:
+                return self.error(400, "Give the audience a name.")
+            spec = clean_audience(d.get("spec") if isinstance(d.get("spec"), dict) else {})
+            spec["interests"] = json.loads(spec["interests"])
+            try:
+                aid = int(d.get("id") or 0)
+            except (TypeError, ValueError):
+                aid = 0
+            if aid and q("SELECT 1 FROM audiences WHERE id=?", (aid,), one=True):
+                q("UPDATE audiences SET name=?, spec=?, updated=? WHERE id=?", (name, json.dumps(spec), t, aid))
+            else:
+                aid = tx(lambda db: db.execute("INSERT INTO audiences(name,spec,created,updated) VALUES(?,?,?,?)", (name, json.dumps(spec), t, t)).lastrowid)
+            return self.send_json(200, {"ok": True, "id": aid, "report": ads_runs_report(now())})
+        if path.endswith("/delete"):
+            q("DELETE FROM audiences WHERE id=?", (int(d.get("id") or 0),))
+            return self.send_json(200, {"ok": True, "report": ads_runs_report(now())})
+        if path.endswith("/estimate"):
+            if not meta_ready():
+                return self.error(400, "Connect Meta first.")
+            if rate_limited("estimate", limit=60, window=600):
+                return self.error(429, "Too many estimates. Wait a few minutes.")
+            r = clean_audience(d.get("spec") if isinstance(d.get("spec"), dict) else {})
+            r["objective"] = d.get("objective")
+            return self.send_json(200, audience_estimate(r))
+        self.error(404, "Not found.")
+
     def api_admin_manager(self, path):
         """Switch a campaign, ad set or ad on or off, or change a daily budget, with the same KSh cap as ads started here."""
         if not self.is_admin():
@@ -4318,28 +4453,80 @@ class Handler(BaseHTTPRequestHandler):
                 return None
             return b if 100 <= b <= AD_DAILY_CAP else None
         if path == "/api/admin/adruns/start":
-            kind = d.get("kind")
+            C = d.get("campaign") if isinstance(d.get("campaign"), dict) else {}
+            S = d.get("adset") if isinstance(d.get("adset"), dict) else {}
+            A = d.get("ad") if isinstance(d.get("ad"), dict) else {}
+            ints = lambda v, lo, hi, df: max(lo, min(hi, int(v))) if str(v or "").strip().lstrip("-").isdigit() else df
+            # ---- campaign: new, or one already on the account
+            camp_id = re.sub(r"[^0-9]", "", str(C.get("id") or ""))[:30]
+            objective, budget_level, camp_daily, camp_name = "OUTCOME_TRAFFIC", "campaign", 0, ""
+            if camp_id:
+                c = q("SELECT * FROM meta_campaigns WHERE campaign_id=?", (camp_id,), one=True)
+                if not c:
+                    return self.error(404, "That campaign isn't in the list yet. Press Refresh from Meta.")
+                objective = c["objective"] if c["objective"] in AD_OBJECTIVES else "OUTCOME_TRAFFIC"
+                budget_level = "campaign" if (c["daily_budget"] or c["lifetime_budget"]) else "adset"
+            else:
+                objective = C.get("objective") if C.get("objective") in AD_OBJECTIVES else "OUTCOME_TRAFFIC"
+                budget_level = "adset" if C.get("budget_level") == "adset" else "campaign"
+                camp_name = clean_text(C.get("name"), 80)
+                if not camp_name:
+                    return self.error(400, "Give the campaign a name.")
+                if budget_level == "campaign":
+                    camp_daily = budget(C.get("daily"))
+                    if camp_daily is None:
+                        return self.error(400, "The campaign's daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
+            # ---- ad set: new, or one already in that campaign
+            set_id = re.sub(r"[^0-9]", "", str(S.get("id") or ""))[:30]
+            set_daily, set_name, start, end = 0, "", 0, 0
+            aud = {"countries": "KE", "age_min": 18, "age_max": 45, "genders": "", "interests": "[]", "platforms": "all"}
+            if set_id:
+                sr = q("SELECT * FROM meta_adsets WHERE adset_id=?", (set_id,), one=True)
+                if not sr:
+                    return self.error(404, "That ad set isn't in the list yet. Press Refresh from Meta.")
+                if camp_id and sr["campaign_id"] != camp_id:
+                    return self.error(400, "That ad set belongs to another campaign.")
+                camp_id = sr["campaign_id"]
+                try:
+                    et = sr["end_time"] or ""
+                    end = int(datetime.datetime.strptime(et[:24], "%Y-%m-%dT%H:%M:%S%z").timestamp()) if len(et) >= 24 else \
+                        int(datetime.datetime.strptime(et[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=datetime.timezone.utc).timestamp()) if et else t + 365 * 86400
+                except ValueError:
+                    end = t + 365 * 86400
+                start = t
+            else:
+                if not camp_id and budget_level == "adset" or camp_id and budget_level == "adset":
+                    set_daily = budget(S.get("daily"))
+                    if set_daily is None:
+                        return self.error(400, "The ad set's daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
+                    if camp_id:
+                        other = q("SELECT COALESCE(SUM(daily_budget),0) s FROM meta_adsets WHERE campaign_id=? AND status NOT IN ('DELETED','ARCHIVED')", (camp_id,), one=True)["s"]
+                        if other + set_daily > AD_DAILY_CAP:
+                            return self.error(400, "This campaign's ad sets already spend up to KSh {:,} a day. Adding KSh {:,} would pass the KSh {:,} limit.".format(int(other), set_daily, AD_DAILY_CAP))
+                set_name = clean_text(S.get("name"), 80)
+                au = S.get("audience") if isinstance(S.get("audience"), dict) else {}
+                aud = clean_audience(au)
+                try:
+                    days = int(S.get("days") or 0)
+                except (TypeError, ValueError):
+                    days = 0
+                if not 1 <= days <= AD_MAX_DAYS:
+                    return self.error(400, "Ad sets can run from 1 to %d days." % AD_MAX_DAYS)
+                try:
+                    start = max(t + 120, int(S.get("start") or 0))
+                except (TypeError, ValueError):
+                    start = t + 120
+                end = start + days * 86400
+            # ---- the ad
+            kind = A.get("kind")
             if kind not in ("boost_fb", "boost_ig", "new"):
-                return self.error(400, "Choose what to advertise.")
-            b = budget(d.get("daily"))
-            if b is None:
-                return self.error(400, "The daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
-            try:
-                days = int(d.get("days") or 0)
-                age_min = max(13, min(65, int(d.get("age_min") or 18)))
-                age_max = max(age_min, min(65, int(d.get("age_max") or 45)))
-            except (TypeError, ValueError):
-                return self.error(400, "Check the number of days and the ages.")
-            if not 1 <= days <= AD_MAX_DAYS:
-                return self.error(400, "Ads can run from 1 to %d days." % AD_MAX_DAYS)
-            countries = [c for c in (d.get("countries") or []) if c in AD_COUNTRIES][:7] or ["KE"]
-            platforms = d.get("platforms") if d.get("platforms") in ("all", "facebook", "instagram") else "all"
-            cta = d.get("cta") if d.get("cta") in AD_CTAS else "PLAY_GAME"
-            name = clean_text(d.get("name"), 60)
+                return self.error(400, "Choose what the ad shows.")
+            cta = A.get("cta") if A.get("cta") in AD_CTAS else "PLAY_GAME"
+            name = clean_text(A.get("name"), 60)
             post_id, media, caption, headline = 0, "", "", ""
             if kind in ("boost_fb", "boost_ig"):
                 try:
-                    post_id = int(d.get("post_id") or 0)
+                    post_id = int(A.get("post_id") or 0)
                 except (TypeError, ValueError):
                     post_id = 0
                 p = q("SELECT * FROM posts WHERE id=?", (post_id,), one=True)
@@ -4347,33 +4534,43 @@ class Handler(BaseHTTPRequestHandler):
                 if not p or p[pf + "_status"] != "posted" or not p[pf + "_id"]:
                     return self.error(400, "That post isn't published on %s." % ("Facebook" if pf == "fb" else "Instagram"))
                 name = name or re.sub(r"\s+", " ", p["caption"]).strip()[:40] or "Post %d" % post_id
-                platforms = "facebook" if kind == "boost_fb" and platforms == "all" else platforms
-                if kind == "boost_ig":
-                    platforms = "instagram" if platforms == "all" else platforms
+                if not set_id:
+                    want = "facebook" if kind == "boost_fb" else "instagram"
+                    if aud["platforms"] not in ("all", want):
+                        return self.error(400, "A boosted %s post can only show on %s." % (want.title(), want.title()))
+                    aud["platforms"] = want
             else:
-                media = str(d.get("media") or "")
+                media = str(A.get("media") or "")
                 if not MEDIA_RE.match(media) or not os.path.isfile(os.path.join(MEDIA_DIR, media)):
                     return self.error(400, "Upload the photo or video first.")
-                caption = (d.get("caption") if isinstance(d.get("caption"), str) else "").replace("\r", "")[:2000]
-                headline = clean_text(d.get("headline"), 40)
+                caption = (A.get("caption") if isinstance(A.get("caption"), str) else "").replace("\r", "")[:2000]
+                headline = clean_text(A.get("headline"), 40)
                 if not caption.strip():
                     return self.error(400, "Write the ad text.")
                 name = name or re.sub(r"\s+", " ", caption).strip()[:40]
-            start = max(t + 120, int(d.get("start") or 0))
-            end = start + days * 86400
-            if not d.get("confirm") or int(d.get("confirm")) != b * days:
-                return self.error(400, "Confirm the most this ad can spend (KSh {:,}) first.".format(b * days))
+            # ---- the most this can add to spending, which must be confirmed
+            new_daily = camp_daily or set_daily
+            most = new_daily * max(1, (end - start + 86399) // 86400) if new_daily else 0
+            if most and (not str(d.get("confirm") or "").isdigit() or int(d.get("confirm")) != most):
+                return self.error(400, "Confirm the most this can spend (KSh {:,}) first.".format(most))
             aid = tx(lambda db: db.execute(
-                "INSERT INTO ad_runs(created,kind,post_id,name,caption,headline,media,cta,countries,age_min,age_max,platforms,daily_kes,start_ts,end_ts,status,updated) "
-                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'creating',?)",
-                (t, kind, post_id, name, caption, headline, media, cta, ",".join(countries), age_min, age_max, platforms, b, start, end, t)).lastrowid)
+                "INSERT INTO ad_runs(created,kind,post_id,name,caption,headline,media,cta,countries,age_min,age_max,platforms,daily_kes,start_ts,end_ts,status,updated,"
+                "objective,budget_level,genders,interests,campaign_name,adset_name,adset_daily,campaign_id,adset_id) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'creating',?,?,?,?,?,?,?,?,?,?)",
+                (t, kind, post_id, name, caption, headline, media, cta, aud["countries"], aud["age_min"], aud["age_max"], aud["platforms"],
+                 camp_daily or set_daily, start, end, t, objective, budget_level, aud["genders"], aud["interests"], camp_name, set_name, set_daily,
+                 camp_id, set_id)).lastrowid)
             q("INSERT OR IGNORE INTO campaigns(code,name,channel,cost,note,created) VALUES(?,?,?,0,?,?)",
-              ("ad-%d" % aid, "Ad: %s" % name, "ads", "Run from the admin, KSh {:,}/day for {} days".format(b, days), t))
+              ("ad-%d" % aid, "Ad: %s" % name, "ads", "Run from the admin", t))
             with AD_LOCK:
                 try:
                     st = ad_build(dict(q("SELECT * FROM ad_runs WHERE id=?", (aid,), one=True)))
                 except Exception as e:
                     return self.send_json(502, {"error": str(e), "report": ads_runs_report(now())})
+            try:
+                meta_sync()
+            except Exception:
+                pass
             return self.send_json(200, {"ok": True, "status": st, "report": ads_runs_report(now())})
         try:
             aid = int(d.get("id") or 0)
@@ -4382,22 +4579,32 @@ class Handler(BaseHTTPRequestHandler):
         r = q("SELECT * FROM ad_runs WHERE id=?", (aid,), one=True)
         if not r:
             return self.error(404, "No such ad.")
+        # what to switch: the whole campaign if this run made it, otherwise only this run's ad set or ad
+        target = r["campaign_id"] if r["made_campaign"] else r["adset_id"] if r["made_adset"] else r["ad_id"]
         if path == "/api/admin/adruns/pause" or path == "/api/admin/adruns/stop":
-            if r["campaign_id"]:
-                graph_post(r["campaign_id"], {"status": "PAUSED"})
+            if target:
+                graph_post(target, {"status": "PAUSED"})
             ad_set(aid, status="stopped" if path.endswith("stop") else "paused")
         elif path == "/api/admin/adruns/resume":
             if r["status"] not in ("paused",) or r["end_ts"] < t:
                 return self.error(400, "Only paused ads that haven't reached their end date can be resumed.")
-            graph_post(r["campaign_id"], {"status": "ACTIVE"})
+            graph_post(target, {"status": "ACTIVE"})
             ad_set(aid, status="active")
         elif path == "/api/admin/adruns/budget":
             b = budget(d.get("daily"))
             if b is None:
                 return self.error(400, "The daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
-            if not r["campaign_id"]:
-                return self.error(400, "This ad isn't on Meta yet.")
-            graph_post(r["campaign_id"], {"daily_budget": str(b * 100)})
+            if r["made_campaign"] and r["budget_level"] != "adset" and r["campaign_id"]:
+                graph_post(r["campaign_id"], {"daily_budget": str(b * 100)})
+            elif r["made_adset"] and r["adset_daily"] and r["adset_id"]:
+                other = q("SELECT COALESCE(SUM(daily_budget),0) s FROM meta_adsets WHERE campaign_id=? AND adset_id<>? AND status NOT IN ('DELETED','ARCHIVED')",
+                          (r["campaign_id"], r["adset_id"]), one=True)["s"]
+                if other + b > AD_DAILY_CAP:
+                    return self.error(400, "With the campaign's other ad sets that would pass KSh {:,} a day.".format(AD_DAILY_CAP))
+                graph_post(r["adset_id"], {"daily_budget": str(b * 100)})
+                ad_set(aid, adset_daily=b)
+            else:
+                return self.error(400, "This ad uses an existing budget. Change it in the Ads Manager table.")
             ad_set(aid, daily_kes=b)
         elif path == "/api/admin/adruns/remove":
             if r["status"] in ("active", "processing", "creating", "paused"):
@@ -4447,6 +4654,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, posts_report(now()))
         if path == "/api/admin/adruns":
             return self.send_json(200, ads_runs_report(now()))
+        if path == "/api/admin/interests":
+            qt = clean_text((parse_qs(urlparse(self.path).query).get("q") or [""])[0], 60)
+            if len(qt) < 2:
+                return self.send_json(200, {"data": []})
+            if rate_limited("interests", limit=120, window=600):
+                return self.error(429, "Too many searches. Wait a few minutes.")
+            try:
+                return self.send_json(200, {"data": interest_search(qt)})
+            except RuntimeError as e:
+                return self.error(502, str(e))
         if path == "/api/admin/manager":
             try:
                 days = int((parse_qs(urlparse(self.path).query).get("days") or ["30"])[0])
