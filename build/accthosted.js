@@ -59,12 +59,12 @@ function authForm(){const su=authMode==='signup';const inv=su&&refInfo?'<p class
  if(authMsg)h+='<p class="amsg">'+esc(authMsg)+'</p>';
  h+='<form id="acctform" class="aform" novalidate>'+
   '<label for="acc-user">Username</label><input id="acc-user" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="'+(su?'e.g. wanjiku_k':'')+'" required>'+
-  (su?'<p class="hint">3 to 20 characters: letters, numbers, dots and underscores. You log in with this.</p>':'')+
+  (su?'<p class="cotaken" id="acc-user-chk" hidden></p><p class="hint">3 to 20 characters: letters, numbers, dots and underscores. You log in with this. Every username is unique, and if you leave the company name blank, your company is named after it.</p>':'')+
   '<label for="acc-pass">Password</label><input id="acc-pass" type="password" maxlength="128" autocomplete="'+(su?'new-password':'current-password')+'" required>'+(su?'<p class="hint">At least 8 characters.</p>':'')+
   (su?'<label for="acc-email">Email</label><input id="acc-email" type="email" maxlength="120" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required><p class="hint">Only used to reset your password if you forget it.</p>':'');
  if(su)h+='<label for="acc-name">Your name</label><input id="acc-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Wanjiku Kamau" required>'+GENDER_FS+
   '<details class="moreopts"><summary><b>More options</b><span>Company brand, home town, country, money, starting background and colour. All optional: you can skip this.</span></summary>'+
-  '<label for="acc-company">Your company brand</label><input id="acc-company" maxlength="16" placeholder="e.g. Savanna"><p class="hint">Used across your empire: <i>Brand</i> Racing, <i>Brand</i> Tower Dubai, the <i>Brand</i> Foundation.</p>'+
+  '<label for="acc-company">Your company brand</label><input id="acc-company" maxlength="16" placeholder="Leave blank to use your username"><p class="cotaken" id="acc-company-chk" hidden></p><p class="hint">Every company name is unique. Used across your empire: <i>Brand</i> Racing, <i>Brand</i> Tower Dubai, the <i>Brand</i> Foundation.</p>'+
   '<label for="acc-town">Home town</label><select id="acc-town">'+(countryRow(detectCountry())||{towns:TOWNS}).towns.map(t=>'<option>'+esc(t)+'</option>').join('')+'</select>'+regionFormHTML(detectCountry(),'USD')+
   '<fieldset><legend>Starting background</legend>'+BGS.map((b,i)=>'<label class="bgopt"><input type="radio" name="acc-bg" id="acc-bg-'+b.id+'" value="'+b.id+'"'+(i===0?' checked':'')+'><span><b>'+b.name+'</b><span>'+dollars(b.desc)+'</span></span></label>').join('')+'</fieldset>'+
   '<fieldset><legend>Avatar colour</legend><div class="swatches">'+AVCOL.map((c,i)=>'<label class="sw"><input type="radio" name="acc-col" id="acc-col-'+i+'" value="'+i+'"'+(i===0?' checked':'')+' aria-label="Colour '+(i+1)+'"><span style="background:'+c+'"></span></label>').join('')+'</div></fieldset></details>';
@@ -330,7 +330,15 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  const cf=$('coform');if(cf)cf.addEventListener('submit',e=>{e.preventDefault();submitCompany();});
  const ef=$('emailform');if(ef){ef.addEventListener('submit',e=>{e.preventDefault();submitEmail();});if(acctView==='addemail')$('em-email').focus();}}
 function companyHTML(){if(ACC.renamed)return'<h3>Company name</h3><p class="sub">Your company is <b>'+esc(ACC.company)+'</b>. You have already used your one rename.</p>';
- return'<h3>Company name</h3><p class="sub">Your company is <b>'+esc(ACC.company)+'</b>. It names your racing team, towers, foundation and more. You can rename it <b>once</b>.</p><form id="coform" class="aform" novalidate><label for="co-name">New company name</label><input id="co-name" maxlength="16" autocomplete="off" placeholder="e.g. Zuri" required><p class="hint">Up to 16 characters. You cannot change it again after this.</p><p class="aerr" id="co-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="co-submit">Rename company</button></div></form>';}
+ return'<h3>Company name</h3><p class="sub">Your company is <b>'+esc(ACC.company)+'</b>. It names your racing team, towers, foundation and more. You can rename it <b>once</b>.</p><form id="coform" class="aform" novalidate><label for="co-name">New company name</label><input id="co-name" maxlength="16" autocomplete="off" placeholder="e.g. Zuri" required><p class="cotaken" id="co-name-chk" hidden></p><p class="hint">Up to 16 characters. You cannot change it again after this.</p><p class="aerr" id="co-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="co-submit">Rename company</button></div></form>';}
+/* live check that a company name is free, as the player types it */
+let coChkT=null;
+document.addEventListener('input',e=>{const t=e.target;if(!t||t.id!=='acc-user'||authMode!=='signup')return;clearTimeout(unChkT);const out=document.getElementById('acc-user-chk');if(!out)return;const v=t.value.trim().toLowerCase();
+ if(!v){out.hidden=true;return;}unChkT=setTimeout(async()=>{try{const r=await api('GET','/api/username/check?name='+encodeURIComponent(v));if(t.value.trim().toLowerCase()!==v)return;out.hidden=false;
+  out.className='cotaken '+(r.valid&&!r.taken?'ok':'bad');out.textContent=!r.valid?'✗ Use 3 to 20 letters, numbers, dots or underscores.':r.taken?'✗ '+v+' is already taken. Try another.':'✓ '+v+' is available.';}catch(x){out.hidden=true;}},400);});
+let unChkT=null;
+document.addEventListener('input',e=>{const t=e.target;if(!t||(t.id!=='acc-company'&&t.id!=='co-name'))return;clearTimeout(coChkT);const out=document.getElementById(t.id+'-chk');if(!out)return;const v=t.value.trim();
+ if(!v){out.hidden=true;return;}coChkT=setTimeout(async()=>{try{const r=await api('GET','/api/company/check?name='+encodeURIComponent(v));if(t.value.trim()!==v)return;out.hidden=false;out.className='cotaken '+(r.taken?'bad':'ok');out.textContent=r.taken?'✗ '+v+' is already taken. Try another.':'✓ '+v+' is available.';}catch(x){out.hidden=true;}},400);});
 async function submitCompany(){const v=$('co-name').value.trim().replace(/\s+/g,' '),btn=$('co-submit'),err=$('co-err'),bad=m=>{err.textContent=m;err.hidden=false;};
  if(!v)return bad('Enter a company name.');if(v===ACC.company)return bad('That is already your company name.');
  if(!confirm('Rename '+ACC.company+' to '+v+'? You can only do this once.'))return;
@@ -352,7 +360,7 @@ async function submitReset(){const a=$('rs-pass').value,b=$('rs-pass2').value,bt
  if(a.length<8)return showErr('Passwords need at least 8 characters.');if(a!==b)return showErr('The two passwords don\'t match.');
  btn.disabled=true;btn.textContent='Saving…';try{const d=await api('POST','/api/reset',{token:resetToken,password:a});resetToken='';startWith(d.user,d.save,d.bill,d.ver);}
  catch(e){btn.disabled=false;btn.textContent='Save new password';showErr(e.message);}}
-function showErr(msg){const e=$('acc-err');if(e){e.textContent=msg;e.hidden=false;try{e.scrollIntoView({block:'center',behavior:'smooth'});}catch(x){}}}
+function showErr(msg){if(/company name/i.test(msg||'')){const c=$('acc-company');if(c){const d=c.closest('details');if(d)d.open=true;setTimeout(()=>c.focus(),50);}}const e=$('acc-err');if(e){e.textContent=msg;e.hidden=false;try{e.scrollIntoView({block:'center',behavior:'smooth'});}catch(x){}}}
 /* anonymous visit counting: a random id per browser, so the admin can see how many people open the game but never sign up */
 function visitorId(){try{let v=localStorage.getItem('hs-vid');if(!v){v=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(36).padStart(2,'0')).join('').replace(/[^a-z0-9]/gi,'').slice(0,20);if(v.length<12)v=(v+Math.random().toString(36).slice(2)).slice(0,20);localStorage.setItem('hs-vid',v);}return v;}catch(e){return'';}}
 let visitFormSent=false,campCode='';
@@ -365,7 +373,7 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
   const email=$('acc-email').value.trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))return showErr('Enter a valid email address. It\'s how you reset your password.');
   signupGender=(document.querySelector('input[name="acc-g"]:checked')||{}).value||'';if(!signupGender){const g=document.querySelector('.gopts');if(g){g.classList.add('need');g.scrollIntoView({block:'center',behavior:'smooth'});}return showErr('One more thing: choose whether you are a man or a woman (just above).');}
   signupRegion=($('acc-region')||{}).value||detectCountry();signupCur=(document.querySelector('input[name="acc-cur"]:checked')||{}).value||'USD';
-  body=Object.assign(body,{ref:refCode||undefined,camp:campCode||undefined,email,name,company:$('acc-company').value.trim()||'Savanna',town:$('acc-town').value,bg:(document.querySelector('input[name="acc-bg"]:checked')||{}).value||'hustler',color:+((document.querySelector('input[name="acc-col"]:checked')||{}).value||0)});}
+  body=Object.assign(body,{ref:refCode||undefined,camp:campCode||undefined,email,name,company:$('acc-company').value.trim(),town:$('acc-town').value,bg:(document.querySelector('input[name="acc-bg"]:checked')||{}).value||'hustler',color:+((document.querySelector('input[name="acc-col"]:checked')||{}).value||0)});}
  btn.disabled=true;btn.textContent=authMode==='signup'?'Creating your account…':'Logging in…';
  try{const d=await api('POST',authMode==='signup'?'/api/signup':'/api/login',body);
   if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S,d.bill,d.ver);}else startWith(d.user,d.save,d.bill,d.ver);}

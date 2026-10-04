@@ -829,6 +829,38 @@ def backfill_lifeboard():
     tx(run)
 
 
+def company_key(name):
+    """Two company names clash if they match ignoring case, spaces and punctuation."""
+    return re.sub(r"[^a-z0-9]", "", (name or "").lower())
+
+
+def company_taken(name, except_uid=None):
+    k = company_key(name)
+    if not k:
+        return False
+    for r in q("SELECT id, company FROM users"):
+        if r["id"] != except_uid and company_key(r["company"]) == k:
+            return True
+    return False
+
+
+def company_default(person, username=""):
+    """A unique brand for players who leave the company name blank: their username first, then their first name."""
+    u = " ".join(w.capitalize() for w in re.split(r"[._]+", username or "") if w)[:16].strip()
+    if u and not company_taken(u):
+        return u
+    first = re.sub(r"[^A-Za-z]", "", (person or "").split(" ")[0])[:9].capitalize() or "Hustle"
+    for suffix in (" Group", " Holdings", " Ventures", " Capital", " & Co", " Empire"):
+        c = (first + suffix)[:16]
+        if not company_taken(c):
+            return c
+    for n in range(2, 10000):
+        c = ("%s Group %d" % (first, n))[:16]
+        if not company_taken(c):
+            return c
+    return "Hustle %s" % secrets.token_hex(3)
+
+
 def clean_text(value, max_len):
     """Trim a player-supplied string and drop control characters."""
     if not isinstance(value, str):
@@ -3050,6 +3082,18 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_me()
         if path == "/api/save/ver":
             return self.api_save_ver()
+        if path == "/api/username/check":
+            un = clean_text((parse_qs(urlparse(self.path).query).get("name") or [""])[0], 40).lower()
+            if rate_limited("uncheck:" + self.client_ip(), limit=120, window=600):
+                return self.error(429, "Too many checks. Wait a moment.")
+            ok = bool(USERNAME_RE.match(un))
+            return self.send_json(200, {"name": un, "valid": ok, "taken": ok and bool(q("SELECT 1 FROM users WHERE username=?", (un,), one=True))})
+        if path == "/api/company/check":
+            nm = clean_text((parse_qs(urlparse(self.path).query).get("name") or [""])[0], 16)
+            if rate_limited("cocheck:" + self.client_ip(), limit=120, window=600):
+                return self.error(429, "Too many checks. Wait a moment.")
+            me = self.session_user()
+            return self.send_json(200, {"name": nm, "taken": bool(nm) and company_taken(nm, me["id"] if me else None)})
         if path == "/api/leaderboard":
             return self.api_leaderboard()
         if path == "/api/lives":
@@ -3169,7 +3213,9 @@ class Handler(BaseHTTPRequestHandler):
         username = clean_text(d.get("username"), 40).lower()
         password = d.get("password") if isinstance(d.get("password"), str) else ""
         name = clean_text(d.get("name"), 24)
-        company = clean_text(d.get("company"), 16) or "Savanna"
+        company = clean_text(d.get("company"), 16)
+        if company == "Savanna" and company_taken(company):
+            company = ""  # the old placeholder: give them their own brand instead
         town = clean_text(d.get("town"), 20) or "Nairobi"
         bg = d.get("bg") if d.get("bg") in BACKGROUNDS else "hustler"
         email = clean_email(d.get("email"))
@@ -3192,6 +3238,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(400, "Enter a valid email address. It's how you reset your password.")
         if q("SELECT 1 FROM users WHERE username=?", (username,), one=True):
             return self.error(409, "That username is taken. Try another.")
+        if company and company_taken(company):
+            return self.error(409, "The company name %s is already taken. Open More options and pick another, or leave it blank and we will make you one." % company)
+        if not company:
+            company = company_default(name, username)
         salt, digest = hash_password(password)
         t = now()
         token = secrets.token_urlsafe(32)
@@ -3829,6 +3879,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.error(400, "Enter a company name.")
         if company == user["company"]:
             return self.error(400, "That is already your company name.")
+        if company_taken(company, user["id"]):
+            return self.error(409, "The company name %s is already taken. Try another." % company)
         q("UPDATE users SET company=?, company_renamed=1 WHERE id=?", (company, user["id"]))
         q("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'account',?)",
           (user["id"], now(), self.current_game(user["id"]), "Renamed their company from %s to %s" % (user["company"], company)))
