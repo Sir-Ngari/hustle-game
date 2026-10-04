@@ -200,6 +200,7 @@ table.lt.small{min-width:0;font-size:12.5px}
 .hof{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .hof li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
 .hof li:first-child{border-top:0}
+.hofh{margin:18px 0 2px}.hofsec{margin:12px 0 4px}.hofsec h4{margin:0 0 4px;font-size:15px}.hofnone{color:var(--muted);font-size:14px;margin:4px 0 8px}.hofmore summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 .hpos{font-family:var(--display);font-weight:800;font-size:18px;width:22px}
 .hnum{margin-left:auto;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-bottom:12px;border-bottom:2px solid var(--ink)}
@@ -4357,10 +4358,13 @@ function legacyHTML(){const ctx=legacyCtx(true),e=earned(ctx),got=ACH.filter(a=>
  h+='<h3 class="achh">Achievements <span>'+got+' of '+ACH.length+'</span></h3><ul class="achs">'+ACH.map(a=>'<li class="ach'+(e[a[0]]?' got':'')+'"><b>'+(e[a[0]]?'✓ ':'')+a[1]+'</b><span>'+dollars(a[2])+'</span></li>').join('')+'</ul><h3 class="achh">Lives</h3>';
  return h;}
 /* ================= Past lives ================= */
+/* what the player's company is worth: businesses, subsidiaries, developments and teams, not personal wealth */
+function coValue(){try{return Math.max(0,bizAssets()+propValue()+sportsValue()+(typeof subValue==='function'?subValue():0));}catch(e){return 0;}}
+function msAges(){const H=S.hist||[],a0=(S.age0||24)*12,o={};[['m',1e6],['b',1e9],['t',1e12],['q',1e15]].forEach(([k,v])=>{const i=H.findIndex(x=>x>=v);if(i>=0)o[k]=a0+i;});return o;}
 function lifeSummary(){const nw=netWorth(),H=S.hist||[],bm=H.findIndex(v=>v>=1e9);
  return {ts:Date.now(),region:S.region||'KE',months:S.month,age:age(),nw:Math.round(nw),best:Math.round(Math.max(nw,...H)),start:Math.round(H[0]||1000),
   end:S.vanished?'vanished':S.died?'died':S.over?'bankrupt':'restarted',dirty:!!(S.law&&S.law.dirty),bribed:!!(S.law&&S.law.bribed),jailed:!!(S.law&&S.law.convictions),cause:S.died?String(S.deathCause||'').slice(0,160):'',billionAge:bm>=0?(S.age0||24)+Math.floor(bm/12):null,gen:S.gnum||1,who:S.who||(ACC&&ACC.name)||'',
-  bcw:(S.bc&&S.bc.done||[]).length,rank:(TITLES[S.peak||0]||TITLES[0])[1],spouse:S.spouse?S.spouse.name:'',kids:S.kids.length,inds:S.inds.length,props:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,fdn:!!S.fdn};}
+  ms:msAges(),bcw:(S.bc&&S.bc.done||[]).length,rank:(TITLES[S.peak||0]||TITLES[0])[1],spouse:S.spouse?S.spouse.name:'',kids:S.kids.length,inds:S.inds.length,props:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,fdn:!!S.fdn};}
 function lifeRecord(){const l=lifeSummary();try{const d=obitData();l.ob={name:d.name,dek:d.dek,role:d.role,lead:d.lead,surv:d.surv,high:d.high,ach:d.ach,bornY:d.bornY,diedY:d.diedY,years:d.years};}catch(e){}return l;}
 /* ================= Obituary: a shareable front page for a life that ended ================= */
 function obitData(){const L=lifeSummary(),name=(S.who||(ACC&&ACC.name)||'The founder').trim(),first=name.split(/\s+/)[0],brand=BR(),a=L.age,a0=S.age0||24;

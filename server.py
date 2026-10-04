@@ -192,6 +192,21 @@ CREATE TABLE IF NOT EXISTS lives(
   data TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS lives_game ON lives(user_id, game);
+CREATE TABLE IF NOT EXISTS lifeboard(
+  user_id INTEGER NOT NULL,
+  game INTEGER NOT NULL,
+  gen INTEGER NOT NULL DEFAULT 1,
+  who TEXT NOT NULL DEFAULT '',
+  region TEXT NOT NULL DEFAULT '',
+  best REAL NOT NULL DEFAULT 0,
+  ms_m INTEGER,
+  ms_b INTEGER,
+  ms_t INTEGER,
+  ms_q INTEGER,
+  updated INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(user_id, game)
+);
+CREATE INDEX IF NOT EXISTS lifeboard_gen ON lifeboard(gen, best);
 CREATE TABLE IF NOT EXISTS season_scores(
   user_id INTEGER NOT NULL,
   season TEXT NOT NULL,
@@ -492,6 +507,8 @@ _db.execute("CREATE INDEX IF NOT EXISTS users_email ON users(email)")
 if "ref_code" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
     _db.execute("ALTER TABLE users ADD COLUMN ref_code TEXT NOT NULL DEFAULT ''")
 _db.execute("CREATE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)")
+if "co" not in [r[1] for r in _db.execute("PRAGMA table_info(lifeboard)").fetchall()]:
+    _db.execute("ALTER TABLE lifeboard ADD COLUMN co REAL NOT NULL DEFAULT 0")
 if "ver" not in [r[1] for r in _db.execute("PRAGMA table_info(saves)").fetchall()]:
     _db.execute("ALTER TABLE saves ADD COLUMN ver INTEGER NOT NULL DEFAULT 0")
 if "company_renamed" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
@@ -599,6 +616,9 @@ def clean_life(d):
             out[k] = num(d.get(k))
     for k in ("fdn", "dirty", "bribed", "jailed"):
         out[k] = bool(d.get(k))
+    ms = clean_ms(d.get("ms"))
+    if ms:
+        out["ms"] = ms
     ba = d.get("billionAge")
     out["billionAge"] = int(ba) if isinstance(ba, (int, float)) and not isinstance(ba, bool) and 0 < ba < 200 else None
     if out.get("end") not in ("died", "bankrupt", "restarted", "vanished"):
@@ -734,6 +754,78 @@ def backfill_lives():
                 life = life_from_records(db, uid, g)
                 db.execute("INSERT OR IGNORE INTO lives(user_id,game,ended,data) VALUES(?,?,?,?)",
                            (uid, g, int(life["ts"] // 1000) or now(), json.dumps(life)))
+    tx(run)
+
+
+MS_KEYS = (("m", 1e6), ("b", 1e9), ("t", 1e12), ("q", 1e15))
+
+
+def clean_ms(d):
+    """Age in months when a life first reached $1M, $1B, $1T and $1Q."""
+    out = {}
+    if isinstance(d, dict):
+        for k, _ in MS_KEYS:
+            v = d.get(k)
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and 12 * 12 <= v <= 140 * 12:
+                out[k] = int(v)
+    return out
+
+
+def ms_from_state(st):
+    """Work out the milestone ages of a saved game from its net worth history."""
+    hist = st.get("hist") if isinstance(st.get("hist"), list) else []
+    a0 = st.get("age0") if isinstance(st.get("age0"), (int, float)) else 24
+    out = {}
+    for k, v in MS_KEYS:
+        for i, x in enumerate(hist):
+            if isinstance(x, (int, float)) and x >= v:
+                out[k] = int(a0 * 12 + i)
+                break
+    return out
+
+
+def lifeboard_put(db, uid, game, gen, who, region, best, ms, t, co=None):
+    """Record one life for the hall of fame, keeping its best worth and earliest milestones."""
+    db.execute("INSERT INTO lifeboard(user_id,game,gen,who,region,best,ms_m,ms_b,ms_t,ms_q,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?) "
+               "ON CONFLICT(user_id,game) DO UPDATE SET gen=excluded.gen, who=CASE WHEN excluded.who<>'' THEN excluded.who ELSE lifeboard.who END, "
+               "region=CASE WHEN excluded.region<>'' THEN excluded.region ELSE lifeboard.region END, best=MAX(lifeboard.best,excluded.best), "
+               "ms_m=COALESCE(MIN(lifeboard.ms_m,excluded.ms_m),lifeboard.ms_m,excluded.ms_m), "
+               "ms_b=COALESCE(MIN(lifeboard.ms_b,excluded.ms_b),lifeboard.ms_b,excluded.ms_b), "
+               "ms_t=COALESCE(MIN(lifeboard.ms_t,excluded.ms_t),lifeboard.ms_t,excluded.ms_t), "
+               "ms_q=COALESCE(MIN(lifeboard.ms_q,excluded.ms_q),lifeboard.ms_q,excluded.ms_q), updated=excluded.updated",
+               (uid, game, max(1, int(gen or 1)), clean_text(who or "", 40), clean_text(region or "", 3), float(best or 0),
+                ms.get("m"), ms.get("b"), ms.get("t"), ms.get("q"), t))
+    if co is not None:
+        db.execute("UPDATE lifeboard SET co=? WHERE user_id=? AND game=?", (max(0.0, min(1e30, float(co))), uid, game))
+
+
+def backfill_lifeboard():
+    """Fill the hall of fame from past lives and games in progress."""
+    def run(db):
+        if db.execute("SELECT 1 FROM lifeboard LIMIT 1").fetchone():
+            return
+        t = now()
+        for r in db.execute("SELECT user_id, game, ended, data FROM lives").fetchall():
+            try:
+                d = json.loads(r["data"] or "{}")
+            except ValueError:
+                continue
+            ms = clean_ms(d.get("ms"))
+            if not ms and d.get("billionAge"):
+                ms = {"b": int(d["billionAge"]) * 12}
+            lifeboard_put(db, r["user_id"], r["game"], d.get("gen") or 1, d.get("who") or "", d.get("region") or "",
+                          num(d.get("best")), ms, r["ended"] or t)
+        for r in db.execute("SELECT s.user_id, s.games, s.best, s.detail, v.state FROM stats s JOIN saves v ON v.user_id=s.user_id").fetchall():
+            try:
+                st = json.loads(r["state"] or "{}")
+            except ValueError:
+                continue
+            if not isinstance(st, dict) or not st.get("month"):
+                continue
+            gen = 2 if st.get("headstart") else (st.get("gnum") or 1)
+            lifeboard_put(db, r["user_id"], r["games"], gen, st.get("who") or "", st.get("region") or "",
+                          max(num(r["best"]), max([x for x in (st.get("hist") or []) if isinstance(x, (int, float))] or [0])),
+                          ms_from_state(st), t)
     tx(run)
 
 
@@ -3889,6 +3981,10 @@ class Handler(BaseHTTPRequestHandler):
                        "detail=excluded.detail, updated=excluded.updated",
                        (uid, nw, best, num(summary.get("cash")), month, clean_text(summary.get("rank"), 30), billion,
                         1 if summary.get("over") else 0, game, played, json.dumps(detail), t, played))
+            if month > 0:
+                lifeboard_put(db, uid, game, num(summary.get("gen"), 1), summary.get("who") if isinstance(summary.get("who"), str) else "",
+                              summary.get("region") if isinstance(summary.get("region"), str) else "", best, clean_ms(summary.get("ms")), t,
+                              num(summary.get("co")) if summary.get("co") is not None else None)
             if month % 3 == 0 or month != prev_month:
                 db.execute("INSERT OR REPLACE INTO snapshots(user_id,game,month,nw,ts) VALUES(?,?,?,?,?)",
                            (uid, game, month, nw, t))
@@ -4141,7 +4237,21 @@ class Handler(BaseHTTPRequestHandler):
         rows = q("SELECT u.name,u.company,u.color,s.best,s.nw,s.month,s.billion_month,s.bankrupt FROM users u "
                  "JOIN stats s ON s.user_id=u.id WHERE u.disabled=0 AND s.best>0 "
                  "ORDER BY (s.billion_month IS NULL), s.billion_month, s.best DESC LIMIT 25")
-        self.send_json(200, {"players": [dict(r) for r in rows]})
+        out = {"players": [dict(r) for r in rows], "ms": {}, "gens": {}}
+        base = ("SELECT u.name,u.company,u.color,l.who,l.region,l.gen,l.best,%s FROM lifeboard l JOIN users u ON u.id=l.user_id "
+                "WHERE u.disabled=0 AND %s")
+        for k, _ in MS_KEYS:
+            col = "ms_" + k
+            # one entry per player: their youngest founder life to reach it
+            out["ms"][k] = [dict(r) for r in q(base % ("MIN(l.%s) age_m" % col, "l.gen=1 AND l.%s IS NOT NULL GROUP BY l.user_id ORDER BY age_m, MIN(l.updated) LIMIT 10" % col))]
+        # the company each player runs today, valued by everything it owns
+        out["companies"] = [dict(r) for r in q("SELECT u.name,u.company,u.color,l.who,l.region,l.gen,l.co FROM lifeboard l JOIN users u ON u.id=l.user_id "
+                                               "JOIN stats s ON s.user_id=l.user_id AND s.games=l.game WHERE u.disabled=0 AND l.co>0 ORDER BY l.co DESC LIMIT 10")]
+        out["founders"] = [dict(r) for r in q(base % ("MAX(l.best) top", "l.gen=1 AND l.best>0 GROUP BY l.user_id ORDER BY top DESC LIMIT 15"))]
+        for r in q("SELECT DISTINCT gen FROM lifeboard WHERE gen>1 ORDER BY gen LIMIT 12"):
+            g = r["gen"]
+            out["gens"][str(g)] = [dict(x) for x in q(base % ("MAX(l.best) top", "l.gen=? AND l.best>0 GROUP BY l.user_id ORDER BY top DESC LIMIT 10"), (g,))]
+        self.send_json(200, out)
 
     # ---------- admin API ----------
     def api_admin_login(self):
@@ -4893,6 +5003,10 @@ def main():
         backfill_lives()
     except Exception as e:  # never stop the game starting over this
         print("Past lives backfill skipped: %s" % e, flush=True)
+    try:
+        backfill_lifeboard()
+    except Exception as e:
+        print("Hall of fame backfill skipped: %s" % e, flush=True)
     ThreadingHTTPServer.request_queue_size = 512
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.daemon_threads = True
