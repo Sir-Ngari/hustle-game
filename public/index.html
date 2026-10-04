@@ -728,7 +728,7 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
   <div class="bar">
     <div class="barrow">
       <div class="date" id="date">Year 1 · January</div>
-      <button class="btn primary" id="next">Next month</button>
+      <button class="btn primary" id="next" aria-label="Play the next month">PLAY</button>
       <button class="btn" id="auto" aria-pressed="false">Auto-play</button>
       <button class="btn ghost" id="tourbtn" data-a="tour" aria-label="Take the game tour">Tour</button>
       <button class="btn ghost sndbtn" id="sndbtn" data-a="sndtoggle" aria-label="Mute sounds" aria-pressed="true"></button>
@@ -1025,7 +1025,7 @@ function coinBurst(n){if(!gm()||RM)return;const tgt=document.querySelector('.qui
 function rankUpFx(name,tier){if(!gm())return;scene.redraw();if(RM)return;document.querySelectorAll('.rankup').forEach(e=>e.remove());const d=document.createElement('div');d.className='rankup';d.dataset.tier=tier==null?5:tier;d.innerHTML='<div><small>New rank</small><b>'+esc(name)+'</b></div>';document.body.appendChild(d);setTimeout(()=>d.remove(),2700);coinBurst(10);}
 function confettiFx(){if(!gm()||RM)return;const cols=['#ffc53d','#3fd06b','#4f86e8','#ff6159','#c993ff','#fff'];for(let i=0;i<90;i++){const c=document.createElement('i');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];document.body.appendChild(c);
  c.animate([{transform:'translateY(0) rotate(0)'},{transform:'translateY('+(innerHeight+40)+'px) rotate('+(Math.random()*720-360)+'deg) translateX('+(Math.random()*120-60)+'px)'}],{duration:2200+Math.random()*1800,delay:Math.random()*600,easing:'ease-in'}).onfinish=()=>c.remove();}}
-function skinMenuHTML(){const v=skinGet();return'<h3 style="margin-top:18px">Look</h3><div class="seg" role="group" aria-label="Game look" style="grid-template-columns:1fr 1fr"><button data-a="skin" data-v="game" aria-pressed="'+(v==='game')+'">Game</button><button data-a="skin" data-v="classic" aria-pressed="'+(v!=='game')+'">Classic</button></div><p class="hint">Game shows your city skyline growing behind the empire, with animations. Classic is the calm, paper-style look.</p>'+'<h3 style="margin-top:18px">Sound</h3><div class="seg" role="group" aria-label="Money sounds" style="grid-template-columns:1fr 1fr"><button data-a="sound" data-v="on" aria-pressed="'+soundOn()+'">On</button><button data-a="sound" data-v="off" aria-pressed="'+!soundOn()+'">Off</button></div><p class="hint">A cha-ching when cash comes in, a soft whoosh when it goes out. The speaker button by Next month mutes everything.</p>'+'<h3 style="margin-top:18px">Music</h3><div class="seg" role="group" aria-label="Music" style="grid-template-columns:1fr 1fr"><button data-a="music" data-v="on" aria-pressed="'+musicOn()+'">On</button><button data-a="music" data-v="off" aria-pressed="'+!musicOn()+'">Off</button></div><p class="hint">A soundtrack that follows your story: calm, happy, tough or sad.</p>';}
+function skinMenuHTML(){const v=skinGet();return'<h3 style="margin-top:18px">Look</h3><div class="seg" role="group" aria-label="Game look" style="grid-template-columns:1fr 1fr"><button data-a="skin" data-v="game" aria-pressed="'+(v==='game')+'">Game</button><button data-a="skin" data-v="classic" aria-pressed="'+(v!=='game')+'">Classic</button></div><p class="hint">Game shows your city skyline growing behind the empire, with animations. Classic is the calm, paper-style look.</p>'+'<h3 style="margin-top:18px">Sound</h3><div class="seg" role="group" aria-label="Money sounds" style="grid-template-columns:1fr 1fr"><button data-a="sound" data-v="on" aria-pressed="'+soundOn()+'">On</button><button data-a="sound" data-v="off" aria-pressed="'+!soundOn()+'">Off</button></div><p class="hint">A cha-ching when cash comes in, a soft whoosh when it goes out. The speaker button by PLAY mutes everything.</p>'+'<h3 style="margin-top:18px">Music</h3><div class="seg" role="group" aria-label="Music" style="grid-template-columns:1fr 1fr"><button data-a="music" data-v="on" aria-pressed="'+musicOn()+'">On</button><button data-a="music" data-v="off" aria-pressed="'+!musicOn()+'">Off</button></div><p class="hint">A soundtrack that follows your story: calm, happy, tough or sad.</p>';}
 scene.kick();
 
 
@@ -1279,7 +1279,7 @@ const TOUR=[
  {el:()=>document.querySelector('.note .head-l'),t:'Your scoreboard',x:()=>'<b>Net worth</b> is everything you own minus what you owe. Reach '+fmt(1e9)+' to win.<ul><li><b>Cash</b>: money you can spend right now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li><li><b>Debt</b>: interest on it eats your profit.</li></ul>'},
  {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Police</b> attention rises with every Darkworld deal you take. Too much brings audits, raids, then arrest.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:()=>'Your net worth over time, and your progress to '+fmt(1e9)+'. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
- {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Each click of <b>Next month</b> collects profit, pays your bills, ages you a month and may bring a decision. <b>Auto-play</b> runs the months for you and pauses whenever a decision comes up. You can also press <b>N</b> on a keyboard.'},
+ {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Each press of <b>PLAY</b> moves the game one month on. It collects profit, pays your bills, ages you a month and may bring a decision. <b>Auto-play</b> runs the months for you and pauses whenever a decision comes up. You can also press <b>N</b> on a keyboard.'},
  {el:()=>document.querySelector('.tabs'),t:'Nine sections',x:'The tabs hold everything you can do. Some are quiet at first and come alive as you get richer: sports teams, a foundation and political power. <b>News</b> keeps a record of every move you make.'},
  {tab:'overview',el:()=>panelOf('today'),t:'Come back every day',x:'Every day you play, you collect a <b>daily bonus</b> that grows with your streak. Day 7 pays six times day 1. Miss a day and the streak starts again. There is also <b>one special deal</b> each day, such as a discounted outlet, a hot stock tip or a bargain, and it disappears at midnight.'},
  {tab:'overview',el:()=>panelOf('attention'),t:'Overview: what needs you',x:'<b>Needs attention</b> lists anything you must deal with, like staff the law now requires or a lifestyle you have outgrown. Check it often. Next to it, the <b>monthly statement</b> shows exactly where your money comes from and where it goes.'},
@@ -1291,7 +1291,7 @@ const TOUR=[
  {tab:'life',el:()=>panelOf('life'),t:'Family and balance',x:()=>'Marriage is mandatory by 35, children need schools, and your '+(S.g==='f'?'husband':S.g==='m'?'wife':'spouse')+'\'s happiness matters: an unhappy marriage can end in an expensive divorce. Choose your <b>work-life balance</b> here: Hustle earns more, Family first keeps everyone happy.'},
  {tab:'power',el:()=>panelOf('svcs'),t:'Power: your professional team',x:'As you grow, the law requires a bookkeeper, an auditor, a marketing team and executives. Their fees rise with your size. Hire them when asked or pay penalties. <b>Politics &amp; street</b> is where you fund politicians and deal with the mob.'},
  {t:'Decisions will find you',x:'Life throws events at you: politicians asking for money, family needs, deals and crises. Each choice shows what it costs and what it does. Choices you cannot afford are greyed out.'},
- {el:()=>$('tourbtn'),t:'You\'re ready',x:'Start by clicking <b>Next month</b> and watch your first profit come in. You can take this tour again any time with the <b>Tour</b> button. Good luck, and build something big.'}
+ {el:()=>$('tourbtn'),t:'You\'re ready',x:'Start by clicking <b>PLAY</b> and watch your first profit come in. You can take this tour again any time with the <b>Tour</b> button. Good luck, and build something big.'}
 ];
 function maybeTour(){paintGuide();}
 function startTour(){if(current)return;stopAuto();tourOn=true;tourI=0;paintTour();}
@@ -1327,7 +1327,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 /* ================= State ================= */
 function fresh(){return{y0:new Date().getFullYear(),health:92,care:0,conds:{},month:0,cash:1000,debt:0,rep:50,s:1,owned:{},ups:{},market:0,perm:1,buffs:[],pending:[],hist:[1000],strikes:0,
- log:[{m:0,t:'You are 24, with $1,000 and a big idea. Open your first kiosk, then press Next month.',k:'gold'}],won:false,over:false,title:0,cool:3,
+ log:[{m:0,t:'You are 24, with $1,000 and a big idea. Open your first kiosk, then press PLAY.',k:'gold'}],won:false,over:false,title:0,cool:3,
  happy:60,mode:'balanced',spouse:null,exes:0,kids:[],alimony:null,lastSplit:-99,
  assets:{},af:{},influence:10,heat:0,protection:0,mobMet:false,mobQuiet:0,policies:[],nextElection:36,
  divorcedAt:-99,gen:{},latest:{},relAt:{},relPending:[],props:[],pcOpen:['nairobi'],reIdx:1,teams:{},race:null,f1Offer:false,cust:{},fdn:null,inds:[],peak:0,indPending:false,rent:0,travel:0,lifeSince:0,lifePending:false,ver:4,svc:{},svcPending:[],cbr:.1,cbrAnn:.1,mktTrend:0,port:{},ord:.1,float:0,...genMarket()};}
@@ -1494,7 +1494,7 @@ function awayWelcome(seen){if(!S||S.over||!S.inds.length||S.month<1||!seen)retur
   if(me){const fell=old&&old.id===d.season&&me.rankRegion>old.r?me.rankRegion-old.r:0;
    rows.push('<li><span>🏆</span><span><b>You are #'+me.rankRegion+' in your country this season</b>'+(fell?fell+' player'+(fell>1?'s':'')+' passed you while you were away. ':'')+(me.ahead?esc(me.ahead.name)+' is just '+me.ahead.gap.toLocaleString('en-US')+' points ahead.':'Nobody is ahead of you. Stay there.')+'</span></li>');}
   seaRemember(d);
-  const dl=(S.daily||{});if(dl.streak>=2&&dl.last===yesterdayKey())rows.push('<li><span>🔥</span><span><b>Your '+dl.streak+'-day streak is still alive</b>Press Next month to claim today\'s bonus and keep it going.</span></li>');
+  const dl=(S.daily||{});if(dl.streak>=2&&dl.last===yesterdayKey())rows.push('<li><span>🔥</span><span><b>Your '+dl.streak+'-day streak is still alive</b>Press PLAY to claim today\'s bonus and keep it going.</span></li>');
   if(!rows.length){startEvents();return;}
   showCard('Welcome back'+(nm?', '+esc(nm):''),'You were away for '+days+'. Here is what happened.<ul class="awaylist">'+rows.join('')+'</ul>',
    '<button class="choice" data-a="awaygo"><b>'+(awayAmt>0?'Collect '+fmt(awayAmt):'Back to my empire')+'</b><span>'+(awayAmt>0?'Then carry on building.':'Pick up where you left off.')+'</span></button>');};
@@ -1756,7 +1756,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='7773ecb71d3b';let updShown=false;
+const APP_VER='70a914e840bf';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -3719,7 +3719,7 @@ function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{pai
  $('buffs').innerHTML=chips.length?chips.map(c=>'<span class="buff '+c[1]+'">'+c[0]+'</span>').join(''):'<p class="seghint" style="margin:0">No special effects right now. Booms, busts, deals and your work–life balance show up here.</p>';
  const A=attention(F),urgent=A.filter(a=>a[0]!=='info').length;
  $('attention').innerHTML=A.length?A.map(a=>'<div class="alert"><span class="sev '+(a[0]==='bad'?'':a[0])+'"></span><p>'+a[1]+'</p>'+(a[2]&&a[3]?'<button class="btn small" data-a="tab" data-v="'+a[2]+'">'+a[3]+'</button>':'<span></span>')+'</div>').join('')
-  :'<p class="allclear">All clear. Press Next month.</p>';
+  :'<p class="allclear">All clear. Press PLAY.</p>';
  $('badge').hidden=!urgent;$('badge').textContent=urgent;
  $('ladder').style.width=(mileBar(nw).p*100)+'%';
 
@@ -4270,7 +4270,7 @@ function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
  if(!S.inds.length)return null;
  if(totalUnits()===0)return'buy';
  if(S.month<1)return'play';
- S.guideDone=true;log('You are up and running. Keep pressing Next month, or use Auto-play, and grow your empire.','gold');return null;}
+ S.guideDone=true;log('You are up and running. Keep pressing PLAY, or use Auto-play, and grow your empire.','gold');return null;}
 function cheapestBuy(){const bs=[...document.querySelectorAll('.tabpane[data-tab="business"] [data-a="buy"]')];return bs.find(b=>!b.disabled)||bs[0]||null;}
 function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.id='guide';g.className='guide';g.setAttribute('role','status');document.body.appendChild(g);}
  document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));
@@ -4279,7 +4279,7 @@ function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.
  if(st==='buy'){g.innerHTML=curTab==='business'?'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Press the glowing <b>Open</b> button on the '+esc(unit.name)+'. It earns money for you every month.</p>'
   :'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Your empire starts with one '+esc(unit.name.lc())+'. Go to the <b>Business</b> tab and press <b>Open</b>. It earns money for you every month.</p><div class="chips"><button class="btn primary small" data-a="guidego" data-v="buy">Show me</button></div>';
   if(curTab==='business'){const b=cheapestBuy();if(b)b.classList.add('coach');}else{const t=$('tab-business');if(t)t.classList.add('coach');}}
- else{g.innerHTML='<span class="gstep">Step 2 of 2</span><b>Start the clock</b><p>Press <b>Next month</b> to move time forward. Your businesses earn, events happen, and your choices shape the empire. Press <b>Auto-play</b> to let the months roll by themselves.</p><div class="chips"><button class="btn primary small" data-a="guidenext">Next month</button><button class="btn small" data-a="guideauto">Auto-play</button><button class="btn ghost small" data-a="tour">Full tour</button></div>';
+ else{g.innerHTML='<span class="gstep">Step 2 of 2</span><b>Start the clock</b><p>Press <b>PLAY</b> to move time forward. Your businesses earn, events happen, and your choices shape the empire. Press <b>Auto-play</b> to let the months roll by themselves.</p><div class="chips"><button class="btn primary small" data-a="guidenext">PLAY</button><button class="btn small" data-a="guideauto">Auto-play</button><button class="btn ghost small" data-a="tour">Full tour</button></div>';
   $('next').classList.add('coach');$('auto').classList.add('coach');}
  g.insertAdjacentHTML('afterbegin','<button class="gclose" data-a="guideclose" aria-label="Close the guide" title="Close">&times;</button>');g.hidden=false;}
 ['openEvent','showCard','closeModal'].forEach(n=>{const f=window[n];if(typeof f==='function')window[n]=function(){const r=f.apply(this,arguments);try{paintGuide();}catch(e){}return r;};});
@@ -4288,7 +4288,7 @@ function guideClose(){if(S&&S.month<1&&!S.over){guideSnooze=Date.now();paintGuid
 function guideGo(v){if(v==='buy'){showTab('business');setTimeout(()=>{const b=cheapestBuy();if(b){b.scrollIntoView({block:'center',behavior:'smooth'});}paintGuide();},60);}
  else{window.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{const n=$('next');if(n)n.scrollIntoView({block:'center',behavior:'smooth'});},100);}}
 function nextClick(){if(S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){
-  showCard('Buy a business first','The clock is ready, but you have nothing earning money yet. Buy your first business, then press Next month and watch it earn.',
+  showCard('Buy a business first','The clock is ready, but you have nothing earning money yet. Buy your first business, then press PLAY and watch it earn.',
    '<button class="btn primary" data-a="guidebuy">Show me where</button><button class="btn ghost" data-a="guideskip">Skip a month anyway</button>');return;}
  nextMonth();}
 function autoClick(){if(!timer&&S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){nextClick();return;}toggleAuto();}

@@ -128,7 +128,7 @@ function awayWelcome(seen){if(!S||S.over||!S.inds.length||S.month<1||!seen)retur
   if(me){const fell=old&&old.id===d.season&&me.rankRegion>old.r?me.rankRegion-old.r:0;
    rows.push('<li><span>🏆</span><span><b>You are #'+me.rankRegion+' in your country this season</b>'+(fell?fell+' player'+(fell>1?'s':'')+' passed you while you were away. ':'')+(me.ahead?esc(me.ahead.name)+' is just '+me.ahead.gap.toLocaleString('en-US')+' points ahead.':'Nobody is ahead of you. Stay there.')+'</span></li>');}
   seaRemember(d);
-  const dl=(S.daily||{});if(dl.streak>=2&&dl.last===yesterdayKey())rows.push('<li><span>🔥</span><span><b>Your '+dl.streak+'-day streak is still alive</b>Press Next month to claim today\'s bonus and keep it going.</span></li>');
+  const dl=(S.daily||{});if(dl.streak>=2&&dl.last===yesterdayKey())rows.push('<li><span>🔥</span><span><b>Your '+dl.streak+'-day streak is still alive</b>Press PLAY to claim today\'s bonus and keep it going.</span></li>');
   if(!rows.length){startEvents();return;}
   showCard('Welcome back'+(nm?', '+esc(nm):''),'You were away for '+days+'. Here is what happened.<ul class="awaylist">'+rows.join('')+'</ul>',
    '<button class="choice" data-a="awaygo"><b>'+(awayAmt>0?'Collect '+fmt(awayAmt):'Back to my empire')+'</b><span>'+(awayAmt>0?'Then carry on building.':'Pick up where you left off.')+'</span></button>');};
