@@ -3121,6 +3121,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.serve_file("index.html")
         if path in ("/admin", "/admin/", "/admin.html"):
             return self.serve_file("admin.html")
+        if path in ("/privacy", "/privacy/", "/privacy-policy"):
+            return self.serve_file("privacy.html")
+        if path in ("/data-deletion", "/data-deletion/", "/delete-data"):
+            return self.serve_file("data-deletion.html")
         if path == "/healthz":
             return self.send_json(200, {"ok": True})
         if path.startswith("/media/"):
