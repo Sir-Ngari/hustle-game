@@ -1950,7 +1950,7 @@ def graph_get(path, params=None, url=None):
             err = (json.loads(e.read().decode("utf-8")) or {}).get("error") or {}
         except Exception:
             err = {}
-        msg = err.get("message") or ("HTTP %s" % e.code)
+        msg = err.get("error_user_msg") or err.get("message") or ("HTTP %s" % e.code)
         msg = re.sub(r"EAA[A-Za-z0-9]{20,}", "[token]", msg)
         raise RuntimeError("Meta said: %s (code %s)" % (msg[:300], err.get("code", e.code)))
     except urllib.error.URLError as e:
@@ -2408,6 +2408,7 @@ AD_DAILY_CAP = env_int("HUSTLE_AD_DAILY_CAP", 2000)   # KSh; no ad can be set to
 AD_MAX_DAYS = 30
 AD_CTAS = {"PLAY_GAME": "Play game", "LEARN_MORE": "Learn more", "SIGN_UP": "Sign up"}
 AD_MAX_SETS, AD_MAX_PER_SET, AD_MAX_ADS = 5, 6, 12   # one publish: ad sets, ads in each, ads in all
+AD_MAX_INTERESTS = 50
 AD_COUNTRIES = {"KE": "Kenya", "UG": "Uganda", "TZ": "Tanzania", "RW": "Rwanda", "NG": "Nigeria", "GH": "Ghana", "ZA": "South Africa"}
 AD_LOCK = threading.Lock()
 
@@ -2453,7 +2454,7 @@ def targeting_spec(r):
         ints = json.loads(r["interests"] or "[]")
     except (TypeError, ValueError):
         ints = []
-    ints = [{"id": str(i["id"]), "name": str(i.get("name") or "")} for i in ints if isinstance(i, dict) and re.match(r"^\d{5,25}$", str(i.get("id") or ""))][:25]
+    ints = [{"id": str(i["id"]), "name": str(i.get("name") or "")} for i in ints if isinstance(i, dict) and re.match(r"^\d{5,25}$", str(i.get("id") or ""))][:AD_MAX_INTERESTS]
     if ints:
         tg["flexible_spec"] = [{"interests": ints}]
     if r["platforms"] in ("facebook", "instagram"):
@@ -2600,7 +2601,7 @@ def clean_audience(au):
     hi = max(lo, num(au.get("age_max"), 45))
     g = str(au.get("genders") or "")
     ints = []
-    for i in (au.get("interests") or [])[:25]:
+    for i in (au.get("interests") or [])[:AD_MAX_INTERESTS]:
         if isinstance(i, dict) and re.match(r"^\d{5,25}$", str(i.get("id") or "")):
             ints.append({"id": str(i["id"]), "name": clean_text(i.get("name"), 80)})
     return {"countries": ",".join(cs), "age_min": lo, "age_max": hi, "genders": g if g in ("1", "2") else "",
@@ -2616,7 +2617,26 @@ def interest_search(qtext):
     return out
 
 
+def interests_invalid(r):
+    """Interests in an audience that Meta no longer lets ads target (old or merged interests can still turn up in search)."""
+    try:
+        ints = [i for i in json.loads(r.get("interests") or "[]") if isinstance(i, dict) and i.get("id")]
+    except (TypeError, ValueError):
+        return []
+    if not ints:
+        return []
+    try:
+        d = graph_get("search", {"type": "adinterestvalid", "interest_fbid_list": json.dumps([str(i["id"]) for i in ints])})
+    except RuntimeError:
+        return []
+    bad = {str(x.get("id")) for x in (d.get("data") or []) if x.get("valid") is False}
+    return [{"id": str(i["id"]), "name": i.get("name") or str(i["id"])} for i in ints if str(i["id"]) in bad]
+
+
 def audience_estimate(r):
+    bad = interests_invalid(r)
+    if bad:
+        return {"error": "Meta no longer accepts %s. Remove %s and try again." % (", ".join(b["name"] for b in bad), "it" if len(bad) == 1 else "them"), "invalid": bad}
     try:
         d = graph_get("act_%s/delivery_estimate" % META_ACCOUNT, {"optimization_goal": "REACH" if r.get("objective") == "OUTCOME_AWARENESS" else "LINK_CLICKS",
                                                                  "targeting_spec": json.dumps(targeting_spec(r))})
@@ -4786,6 +4806,11 @@ class Handler(BaseHTTPRequestHandler):
                         if aud["platforms"] not in ("all", want):
                             return self.error(400, where + "a boosted %s post can only show on %s." % (want.title(), want.title()))
                         aud["platforms"] = want
+                if not set_id:
+                    bad = interests_invalid(aud)
+                    if bad:
+                        return self.error(400, where + "Meta no longer accepts the interest%s %s. Remove %s and publish again." % (
+                            "" if len(bad) == 1 else "s", ", ".join(b["name"] for b in bad), "it" if len(bad) == 1 else "them"))
                 plan.append({"set_id": set_id, "set_name": set_name, "set_daily": set_daily, "start": start, "end": end, "aud": aud, "ads": ads})
             if budget_level == "adset" and existing_daily + new_set_daily > AD_DAILY_CAP:
                 return self.error(400, ("This campaign's ad sets already spend up to KSh {:,} a day. Adding KSh {:,} would pass the KSh {:,} limit." if existing_daily else

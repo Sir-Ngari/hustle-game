@@ -183,6 +183,7 @@ tr.arch td{opacity:.55}
 .intres li button{display:flex;justify-content:space-between;gap:10px;width:100%;border:0;background:transparent;padding:7px 8px;text-align:left;border-radius:3px;font-size:13.5px;color:var(--ink)}
 .intres li button:hover,.intres li button:focus-visible{background:var(--grid)}.intres small{color:var(--muted);white-space:nowrap}
 .dset{border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin-top:8px;background:var(--paper)}.dset>div{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}.dset ul{margin:6px 0 0;padding:0;list-style:none}.dset li{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:4px 0;border-top:1px solid var(--line);font-size:13.5px}.dset.cur{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass)}
+.chips2 span.bad{background:var(--red-soft,#f6d6d3);color:var(--red);text-decoration:line-through}
 .chips2{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.chips2 span{display:inline-flex;gap:4px;align-items:center;background:var(--green-soft);color:var(--green);border-radius:12px;padding:2px 4px 2px 10px;font-weight:700;font-size:12.5px}
 .chips2 button{border:0;background:transparent;color:inherit;font-weight:700;padding:0 4px}
 
@@ -823,7 +824,7 @@ function bSetAudience(sp){sp=sp||{};const cs=(sp.countries||'KE').split?(sp.coun
  document.querySelectorAll('input[name=sGen]').forEach(x=>x.checked=x.value===(sp.genders||''));
  $('rAgeMin').value=sp.age_min||18;$('rAgeMax').value=sp.age_max||40;rInts=(sp.interests||[]).slice();
  document.querySelectorAll('input[name=rPlace]').forEach(x=>x.checked=x.value===(sp.platforms||'all'));renderInts();$('sEst').textContent='Press Estimate to see how many people this reaches.';}
-function renderInts(){$('sInts').innerHTML=rInts.map((i,k)=>'<span>'+esc(i.name)+'<button type="button" data-intdel="'+k+'" aria-label="Remove '+esc(i.name)+'">×</button></span>').join('');}
+function renderInts(){$('sInts').innerHTML=rInts.map((i,k)=>'<span'+(i.bad?' class="bad" title="Meta no longer accepts this interest"':'')+'>'+esc(i.name)+'<button type="button" data-intdel="'+k+'" aria-label="Remove '+esc(i.name)+'">×</button></span>').join('');}
 function bSync(){const cm=radio('cMode'),sm=radio('sMode');
  $('cNew').hidden=cm!=='new';$('cOld').hidden=cm!=='old';
  const lockC=bDraft.length>0;$('cStep').querySelectorAll('input,select').forEach(x=>{x.disabled=lockC;});
@@ -946,7 +947,8 @@ $('sIntQ').addEventListener('input',()=>{clearTimeout(rIntTimer);const v=$('sInt
  catch(e){$('sIntRes').innerHTML='<li style="padding:8px;color:var(--red);font-size:13px">'+esc(e.message)+'</li>';$('sIntRes').hidden=false;}},300);});
 $('sIntQ').addEventListener('keydown',e=>{if(e.key==='Escape')$('sIntRes').hidden=true;});
 document.addEventListener('click',e=>{if(!e.target.closest('#sIntRes')&&e.target!==$('sIntQ'))$('sIntRes').hidden=true;});
-$('sIntRes').addEventListener('click',e=>{const b=e.target.closest('button[data-intadd]');if(!b)return;if(rInts.length>=25)return;rInts.push({id:b.dataset.intadd,name:b.dataset.name});renderInts();$('sIntRes').hidden=true;$('sIntQ').value='';$('sIntQ').focus();});
+$('sIntRes').addEventListener('click',e=>{const b=e.target.closest('button[data-intadd]');if(!b)return;if(rInts.length>=50){$('sIntRes').hidden=true;$('sEst').innerHTML='<span style="color:var(--red)">Up to 50 interests per ad set. Remove one to add another.</span>';return;}rInts.push({id:b.dataset.intadd,name:b.dataset.name});renderInts();$('sIntRes').hidden=true;$('sIntQ').value='';$('sIntQ').focus();});
+$('sEst').addEventListener('click',e=>{if(e.target.id==='sIntDropBad'){rInts=rInts.filter(i=>!i.bad);renderInts();$('sEst').textContent='Removed. Press Estimate again.';}});
 $('sInts').addEventListener('click',e=>{const b=e.target.closest('button[data-intdel]');if(!b)return;rInts.splice(+b.dataset.intdel,1);renderInts();});
 // saved audiences
 $('sAud').addEventListener('change',()=>{const a=(runs.audiences||[]).find(x=>String(x.id)===$('sAud').value);$('sAudDel').hidden=!a;if(a){bSetAudience(a.spec);$('sAudName').value=a.name;}else $('sAudName').value='';});
@@ -956,7 +958,8 @@ $('sAudSave').addEventListener('click',async()=>{const name=$('sAudName').value.
 $('sAudDel').addEventListener('click',async()=>{const b=$('sAudDel');if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Tap again to delete';setTimeout(()=>{b.dataset.armed='';b.textContent='Delete';},4000);return;}
  try{const r=await api('POST','/api/admin/audiences/delete',{id:+$('sAud').value});runs.audiences=r.report.audiences;$('sAud').value='';renderRuns();$('rMsg').textContent='Audience deleted.';}catch(e){$('rMsg').textContent=e.message;}b.dataset.armed='';b.textContent='Delete';});
 $('sEstBtn').addEventListener('click',async()=>{$('sEst').textContent='Asking Meta…';try{const r=await api('POST','/api/admin/audiences/estimate',{spec:bAudience(),objective:radio('cObjR')});
- $('sEst').innerHTML=r.error?'<span style="color:var(--red)">'+esc(r.error)+'</span>':r.hi?'About <b>'+N0(r.lo)+' – '+N0(r.hi)+'</b> people a month.':'Meta could not estimate this audience yet.';}catch(e){$('sEst').textContent=e.message;}});
+ if(r.invalid&&r.invalid.length){const ids=r.invalid.map(x=>String(x.id));rInts.forEach(i=>{i.bad=ids.includes(String(i.id));});renderInts();}
+ $('sEst').innerHTML=r.error?'<span style="color:var(--red)">'+esc(r.error)+'</span>'+(r.invalid&&r.invalid.length?' <button class="btn xs" type="button" id="sIntDropBad">Remove '+(r.invalid.length>1?'them':'it')+'</button>':''):r.hi?'About <b>'+N0(r.lo)+' – '+N0(r.hi)+'</b> people a month.':'Meta could not estimate this audience yet.';}catch(e){$('sEst').textContent=e.message;}});
 // upload
 async function rUpload(){const f=rFile,bar=$('rBar'),fill=bar.querySelector('i');bar.hidden=false;fill.style.width='0';
  const st=await api('POST','/api/admin/media/start',{type:f.type,size:f.blob.size}),step=st.chunk||2500000;let off=0;
