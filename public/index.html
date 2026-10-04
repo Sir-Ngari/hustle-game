@@ -1802,6 +1802,7 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
   body=Object.assign(body,{ref:refCode||undefined,camp:campCode||undefined,email,name,company:$('acc-company').value.trim(),town:$('acc-town').value,bg:(document.querySelector('input[name="acc-bg"]:checked')||{}).value||'hustler',color:+((document.querySelector('input[name="acc-col"]:checked')||{}).value||0)});}
  btn.disabled=true;btn.textContent=authMode==='signup'?'Creating your account…':'Logging in…';
  try{const d=await api('POST',authMode==='signup'?'/api/signup':'/api/login',body);
+  if(authMode==='signup')try{if(window.fbq)fbq('track','CompleteRegistration',{content_name:'Hustlempires account'});}catch(x){}
   if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S,d.bill,d.ver);}else startWith(d.user,d.save,d.bill,d.ver);}
  catch(e){btn.disabled=false;btn.textContent=authMode==='signup'?'Create account and start':'Log in';showErr(e.message);}}
 function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('reset'),pr=u.searchParams.get('paid');if(t){resetToken=t;u.searchParams.delete('reset');}

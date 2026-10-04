@@ -2623,6 +2623,14 @@ def interest_search(qtext):
     return out
 
 
+PIXEL_CODE = "<!-- Meta Pixel --><script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','%s');fbq('track','PageView');</script><!-- End Meta Pixel -->"
+
+
+def pixel_id():
+    v = meta_get("pixel_id") or ""
+    return v if re.match(r"^\d{8,20}$", v) else ""
+
+
 def interests_invalid(r):
     """Interests in an audience that Meta no longer lets ads target (old or merged interests can still turn up in search)."""
     try:
@@ -2956,9 +2964,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "same-origin")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Content-Security-Policy",
-                         "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+                         "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net; "
                          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                         "font-src https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; "
+                         "font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com; media-src 'self' blob:; "
+                         "connect-src 'self' https://www.facebook.com https://connect.facebook.net; "
                          "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
     def send_json(self, status, payload, cookies=()):
@@ -3043,6 +3052,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         with open(path, "rb") as f:
             data = f.read()
+        if name == "index.html":
+            pid = pixel_id()
+            if pid:   # Meta Pixel on the game page: visits and new accounts, no personal details
+                data = data.replace(b"</head>", (PIXEL_CODE % pid).encode() + b"</head>", 1)
         ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
         if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
             ctype += "; charset=utf-8"
@@ -3228,6 +3241,19 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_admin_adruns(path)
         if path.startswith("/api/admin/audiences/"):
             return self.api_admin_audiences(path)
+        if path == "/api/admin/pixel":
+            if not self.is_admin():
+                return self.error(401, "Log in as admin.")
+            d = self.read_json()
+            if d is None:
+                return
+            v = re.sub(r"\s", "", str(d.get("id") or ""))
+            m = re.search(r"fbq\(\s*['\"]init['\"]\s*,\s*['\"](\d{8,20})", v)   # the whole pixel code pasted
+            v = m.group(1) if m else v
+            if v and not re.match(r"^\d{8,20}$", v):
+                return self.error(400, "That doesn't look like a Pixel ID. It is a long number, like 1234567890123456.")
+            meta_set("pixel_id", v)
+            return self.send_json(200, {"ok": True, "id": pixel_id()})
         if path in ("/api/admin/manager/toggle", "/api/admin/manager/budget"):
             return self.api_admin_manager(path)
         if path in ("/api/admin/ads/sync", "/api/admin/ads/link"):
@@ -4964,6 +4990,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, posts_report(now()))
         if path == "/api/admin/adruns":
             return self.send_json(200, ads_runs_report(now()))
+        if path == "/api/admin/pixel":
+            return self.send_json(200, {"id": pixel_id()})
         if path == "/api/admin/interests":
             qt = clean_text((parse_qs(urlparse(self.path).query).get("q") or [""])[0], 60)
             if len(qt) < 2:

@@ -413,6 +413,12 @@ body.navhide .main{margin-left:0}
       <h3 class="eyebrow" style="margin:18px 0 6px">Upcoming and recent posts</h3>
       <div class="tablewrap"><table style="min-width:1080px"><thead><tr><th>When</th><th>Post</th><th>Facebook</th><th>Instagram</th><th>Both combined</th><th></th></tr></thead><tbody id="pRows"></tbody></table></div>
     </section>
+    <section class="panel" id="pixPanel">
+      <h2>Meta Pixel</h2>
+      <p class="sub" id="pixSub">The Pixel tells Meta when someone opens the game and when they create an account, so ads can be measured on sign-ups. It never sends names, emails or usernames.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="pixId" maxlength="4000" placeholder="Pixel ID, or paste the whole Pixel code" style="flex:1;min-width:240px;padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"><button class="btn primary" type="button" id="pixSave">Save</button><button class="btn ghost" type="button" id="pixOff" hidden>Turn off</button></div>
+      <p class="mmsg" id="pixMsg" role="status" style="margin-top:8px"></p>
+    </section>
     <section class="panel" id="runPanel">
       <h2>Create an ad</h2>
       <p class="sub" id="rSub">Loading…</p>
@@ -747,7 +753,7 @@ $('mCamps').addEventListener('click',async e=>{const b=e.target.closest('button'
 /* ---------- Meta page: connection, scheduled posts, ads ---------- */
 let metaLoading=false;
 async function loadMeta(quiet){if(metaLoading)return;metaLoading=true;if(!quiet)$('aLoad').textContent='Loading…';
- await Promise.all([loadAds(),loadPosts(),loadRuns(),loadMg()]);if(runs)renderRuns();renderConn();$('aLoad').textContent='';metaLoading=false;}
+ await Promise.all([loadAds(),loadPosts(),loadRuns(),loadMg(),loadPixel()]);if(runs)renderRuns();renderConn();$('aLoad').textContent='';metaLoading=false;}
 $('aDays').addEventListener('change',()=>loadAds());
 function renderConn(){const A=ads||{},P=posts||{},sy=A.sync||{},tk=A.token||{},pg=(P.pages||{});
  if(!A.ready){$('connKpis').innerHTML='';$('connNote').innerHTML='<b style="color:var(--red)">Not connected.</b> Add a Meta token with the console token step.';navMeta(0);return;}
@@ -1020,6 +1026,11 @@ function bStartFrom(campId,setId){bDraft=[];bCur=null;renderDraft();document.que
  if(setId){document.querySelector('input[name=sMode][value=old]').checked=true;bSync();$('sExisting').value=setId;}else document.querySelector('input[name=sMode][value=new]').checked=true;
  bSync();$('runPanel').scrollIntoView({behavior:'smooth',block:'start'});$('rMsg').textContent=setId?'Adding a new ad to this ad set. Fill in step 3 and publish.':'Adding a new ad set to this campaign. Fill in steps 2 and 3 and publish.';}
 
+/* ---------- Meta Pixel ---------- */
+function pixShow(id){$('pixId').value=id||'';$('pixOff').hidden=!id;$('pixMsg').innerHTML=id?'<b style="color:var(--green)">On.</b> Pixel '+esc(id)+' is on hustlempires.com, counting visits (PageView) and new accounts (CompleteRegistration).':'Off. Paste your Pixel ID from Meta Events Manager and press Save.';}
+async function loadPixel(){try{const d=await api('GET','/api/admin/pixel');pixShow(d.id);}catch(e){}}
+$('pixSave').addEventListener('click',async()=>{try{const d=await api('POST','/api/admin/pixel',{id:$('pixId').value});pixShow(d.id);if(d.id)$('pixMsg').innerHTML+=' Open the game once and check Events Manager to see it arrive.';}catch(e){$('pixMsg').textContent=e.message;}});
+$('pixOff').addEventListener('click',async()=>{try{const d=await api('POST','/api/admin/pixel',{id:''});pixShow(d.id);}catch(e){$('pixMsg').textContent=e.message;}});
 /* ---------- Scheduled posts ---------- */
 let posts=null,pFile=null,pMedia=null,pBusy=false;
 const PST2={scheduled:['Scheduled',''],processing:['Instagram is processing',''],posted:['Posted','good'],failed:['Failed','bad'],cancelled:['Cancelled','idle']};
