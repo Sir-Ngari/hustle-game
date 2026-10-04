@@ -214,6 +214,17 @@ table.lt.small{min-width:0;font-size:12.5px}
 .lbsubs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}.lbsubs::-webkit-scrollbar{display:none}.lbsub{flex:0 0 auto;border:1px solid var(--line);background:transparent;color:inherit;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}.lbsub[aria-selected=true]{background:var(--ink,#fff);color:var(--bg,#111);border-color:transparent}
 .outdelta{list-style:none;margin:6px 0 12px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}.outdelta li{display:flex;justify-content:space-between;gap:8px;padding:7px 10px;border-radius:9px;background:rgba(255,255,255,.06);font-size:14px}.outdelta li.up b{color:var(--green)}.outdelta li.down b{color:var(--red)}.outnone{color:var(--muted);font-size:14px}.outcard.out-good{box-shadow:0 0 0 1px rgba(52,211,153,.45),0 18px 50px rgba(0,0,0,.45)}.outcard.out-bad{box-shadow:0 0 0 1px rgba(248,113,113,.45),0 18px 50px rgba(0,0,0,.45)}
 .regsec{margin-top:12px;border:1px solid rgba(248,113,113,.35);border-radius:12px;padding:10px 12px}.regh{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.regh span{color:var(--muted);font-size:13px}
+.bkx{margin:14px 0 14px;padding:14px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12)}
+.bkx-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.bkx-l{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.bkx-amt{display:flex;align-items:baseline;gap:4px;padding:4px 10px;border-radius:10px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.14)}.bkx-amt:focus-within{border-color:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.25)}
+.bkx-amt span{font-weight:800;opacity:.7}html.gm .bkx-amt input,.bkx-amt input,.bkx-amt input:focus{width:9ch;border:0!important;outline:0;box-shadow:none!important;padding:0!important;margin:0;min-height:0;background:transparent!important;color:inherit;font:inherit;font-size:24px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+#bkrange{width:100%;margin:14px 0 8px;accent-color:#fbbf24;height:22px}
+.bkx-chips{display:flex;gap:6px;flex-wrap:wrap}.bkchip{flex:1 1 auto;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit;border-radius:999px;padding:6px 10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.bkchip.on{background:#fbbf24;color:#3b2200;border-color:transparent}
+.bkx-split{height:8px;border-radius:999px;background:rgba(96,165,250,.45);margin:14px 0 10px;overflow:hidden}.bkx-split i{display:block;height:100%;background:#fbbf24;border-radius:999px;transition:width .15s}
+.bkx-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.bkx-stats div{display:flex;flex-direction:column;gap:2px}.bkx-stats small{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}.bkx-stats b{font-size:17px;font-variant-numeric:tabular-nums}.bkx-stats div:first-child b{color:#fbbf24}.bkx-stats div:nth-child(2) b{color:#93c5fd}
+html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,.05);color:#fff;box-shadow:none;border:1px solid rgba(255,255,255,.15)}html.gm .card:has(.bkx) .choices .choice:only-child span{color:#c9d7f5}
+.bkx-go{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12)}.bkx-go span{font-size:13px;opacity:.8}.bkx-go .btn{min-width:140px}
+.bkx-msg{margin:10px 0 0;font-size:13px;opacity:.8}.bkx-msg.bkwarn{color:#fca5a5;opacity:1}
 .hofh{margin:18px 0 2px}.hofsec{margin:12px 0 4px}.hofsec h4{margin:0 0 4px;font-size:15px}.hofnone{color:var(--muted);font-size:14px;margin:4px 0 8px}.hofmore summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 .hpos{font-family:var(--display);font-weight:800;font-size:18px;width:22px}
 .hnum{margin-left:auto;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -1520,11 +1531,36 @@ function bankCands(){if(!+ECONT().bank||S.over||!S.inds.length)return[];const nw
    const locked=!owned(b.id)&&!(nw>=b.cost*ECONT().unlock);
    if((S.cash<price||locked)&&S.cash>=dep&&nw>=price*.15&&net>=pay*.8)out.push({b,price,dep,loan,pay});});});
  return out.sort((a,c)=>c.price-a.price);}
-function bankOffer(){if(S.month<6||S.month-(S.bankLast||-99)<4)return null;const c=bankCands()[0];if(!c)return null;S.bankLast=S.month;const b=c.b,yr=((S.cbr+.08)*100).toFixed(1);
- return{cat:'Bank',title:'The bank will finance '+(owned(b.id)?'another '+b.name:'your next business'),text:'Your bank manager has looked at your books and you qualify for a business loan. Put down '+fmt(c.dep)+' ('+Math.round(LOAN_DEP*100)+'%) and the bank lends you the other '+fmt(c.loan)+' to open '+(owned(b.id)?'another '+b.name:aN(b.name.lc()))+' now. You repay about '+fmt(c.pay)+' a month for 5 years, at '+yr+'% a year. Miss payments and the bank can take the business back.',
-  choices:[{l:'Take the loan and open it',d:'Deposit '+fmt(c.dep)+' now. Loan '+fmt(c.loan)+' over 5 years.',dis:S.cash<c.dep||!S.inds.includes(b.ind),f(){S.cash-=c.dep;S.debt+=c.loan;S.owned[b.id]=owned(b.id)+1;S.bankOK=S.bankOK||{};S.bankOK[b.id]=1;
-     S.loans=(S.loans||[]).concat([{id:b.id,name:b.name,prin:c.loan/LOAN_MONTHS,left:LOAN_MONTHS}]);wkInc('units');return['The bank financed your '+(owned(b.id)>1?'new ':'first ')+b.name+'. Repayments start next month.','good'];}},
-   {l:'Not now',d:'The bank will ask again in a few months.',f(){return['You turned down the loan for now.','']}}]};}
+function bankTake(b,price,dep){dep=Math.min(dep,S.cash,price);const loan=Math.max(0,price-dep);S.cash-=dep;S.owned[b.id]=owned(b.id)+1;S.bankOK=S.bankOK||{};S.bankOK[b.id]=1;
+ if(loan>0){S.debt+=loan;S.loans=(S.loans||[]).concat([{id:b.id,name:b.name,prin:loan/LOAN_MONTHS,left:LOAN_MONTHS}]);}wkInc('units');
+ return['You put down '+fmt(dep)+(loan>0?' and the bank lent you '+fmt(loan)+' to open your '+(owned(b.id)>1?'new ':'first ')+b.name+'. Repayments of about '+fmt(loan/LOAN_MONTHS+loan*loanRate())+' a month start next month.':' and opened your '+b.name+' with no loan.'),'good'];}
+function bankOffer(){if(S.month<6||S.month-(S.bankLast||-99)<4)return null;const c=bankCands()[0];if(!c)return null;S.bankLast=S.month;const b=c.b,yr=((S.cbr+.08)*100).toFixed(1),price=c.price;
+ const maxDep=Math.min(S.cash,price),ok=S.inds.includes(b.ind),what=owned(b.id)?'another '+b.name:aN(b.name.lc());
+ BANKDEP={min:c.dep,max:maxDep,price,v:maxDep};
+ const rt=curLocal()?R.rate:1,lo=Math.ceil(c.dep*rt),hi=Math.floor(maxDep*rt),pc=[[.25,'25%'],[.5,'50%'],[.75,'75%']].filter(x=>x[0]*price<=maxDep*1.0001);
+ const box='</p><div class="bkx"><div class="bkx-top"><span class="bkx-l">Your deposit</span><div class="bkx-amt"><span>'+curSym().trim()+'</span><input id="bkdep" type="text" inputmode="numeric" autocomplete="off" aria-label="Your deposit" value="'+hi.toLocaleString('en-US')+'"></div></div>'+
+  '<input id="bkrange" type="range" min="'+lo+'" max="'+hi+'" step="'+Math.max(1,Math.round((hi-lo)/200))+'" value="'+hi+'" aria-label="Deposit slider"'+(hi<=lo?' disabled':'')+'>'+
+  '<div class="bkx-chips">'+pc.map(x=>'<button type="button" class="bkchip" data-bkp="'+x[0]+'">'+x[1]+'</button>').join('')+'<button type="button" class="bkchip" data-bkp="max">'+(maxDep>=price?'Full price':'All my cash')+'</button></div>'+
+  '<div class="bkx-split"><i id="bkbar"></i></div>'+
+  '<div class="bkx-stats"><div><small>You pay now</small><b id="bks1"></b></div><div><small>Bank lends</small><b id="bks2"></b></div><div><small>Per month</small><b id="bks3"></b></div></div><p class="bkx-msg" id="bkdepinfo"></p><div class="bkx-go"><span>Repay over 5 years at '+yr+'% a year</span><button type="button" class="btn primary" data-a="choose" data-i="0"'+(S.cash<c.dep||!ok?' disabled':'')+'>Approve</button></div></div><p style="margin:0">';
+ const ch=[{l:'Approve',d:'',hide:1,dis:S.cash<c.dep||!ok,f(){return bankTake(b,price,bankDepRead());}},
+  {l:'Not now',d:'The bank will ask again in a few months.',f(){return['You turned down the loan for now.','']}}];
+ setTimeout(()=>bankDepPaint(maxDep),0);
+ return{cat:'Bank',title:'The bank will finance '+(owned(b.id)?'another '+b.name:'your next business'),text:'You qualify for a business loan to open '+what+' for <b>'+fmt(price)+'</b>. Put down at least '+fmt(c.dep)+' and the bank lends you the rest. The bigger your deposit, the smaller your repayments. Miss payments and the bank can take the business back.'+box,choices:ch,focus:'#bkdep'};}
+let BANKDEP=null;
+function bankDepRead(){const D=BANKDEP||{min:0,max:0,v:0};return clamp(D.v,D.min,D.max);}
+function bankDepPaint(dep,from){const D=BANKDEP;if(!D)return;const rt=curLocal()?R.rate:1,ok=dep>=D.min-.5&&dep<=D.max+.5,use=clamp(dep,D.min,D.max),L=Math.max(0,D.price-use);D.v=use;
+ const q=id=>document.getElementById(id);if(!q('bks1'))return;
+ q('bks1').textContent=fmt(use);q('bks2').textContent=L>0?fmt(L):'Nothing';q('bks3').textContent=L>0?fmt(L/LOAN_MONTHS+L*loanRate()):'—';q('bkbar').style.width=Math.round(100*use/D.price)+'%';
+ if(from!=='range'&&q('bkrange'))q('bkrange').value=String(Math.round(use*rt));if(from!=='text'&&q('bkdep'))q('bkdep').value=Math.round(use*rt).toLocaleString('en-US');
+ document.querySelectorAll('.bkchip').forEach(x=>{const v=x.dataset.bkp==='max'?D.max:D.price*+x.dataset.bkp;x.classList.toggle('on',Math.abs(v-use)<Math.max(1,D.price*.002));});
+ q('bkdepinfo').textContent=ok?(L>0?Math.round(100*use/D.price)+'% down, '+Math.round(100*L/D.price)+'% financed over 5 years.':'You pay the whole price yourself. No loan.'):dep<D.min?'The bank needs at least '+fmt(D.min)+'. Using that.':'You only have '+fmt(D.max)+' in cash. Using that.';
+ q('bkdepinfo').classList.toggle('bkwarn',!ok);}
+document.addEventListener('input',e=>{const t=e.target;if(!t||!BANKDEP)return;const rt=curLocal()?R.rate:1;
+ if(t.id==='bkrange')bankDepPaint(+t.value/rt,'range');
+ if(t.id==='bkdep'){const n=parseFloat(String(t.value).replace(/[^0-9.]/g,''));if(n>=0)bankDepPaint(n/rt,'text');}});
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='bkdep'&&BANKDEP)bankDepPaint(BANKDEP.v);});
+document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('.bkchip');if(!c||!BANKDEP)return;const D=BANKDEP;bankDepPaint(c.dataset.bkp==='max'?D.max:D.price*+c.dataset.bkp);});
 function loansHTML(){const L=S.loans||[];if(!L.length)return'';return'<div class="pcbox on" style="margin-bottom:10px"><b>Business loans</b>'+L.map(x=>'<span>'+esc(x.name)+': about '+fmt(x.prin+x.prin*x.left*loanRate())+' a month with interest, '+x.left+' more month'+(x.left===1?'':'s')+' · '+fmt(x.prin*x.left)+' still owed</span>').join('')+'</div>';}
 function econHTML(){const E=econS(),P=ECON[E.ph],lost=1-1/S.cpi;return'<div class="pcbox'+(E.ph==='recession'||E.ph==='slowdown'?'':' on')+'" style="margin-bottom:10px"><b>Economy: '+P.name.toLowerCase()+'</b><span>Inflation '+(S.infl*100).toFixed(1)+'% a year · central bank rate '+(S.cbr*100).toFixed(1)+'%</span><span>Prices are '+Math.round((S.cpi-1)*100)+'% higher than when you started'+(lost>.005?': cash you have held since then buys '+Math.round(lost*100)+'% less. Cash loses value; buildings, businesses and shares keep up.':'.')+'</span></div>';}
 function netWorth(){return S.cash+assets()-S.debt;}
@@ -2853,7 +2889,7 @@ function evIconKey(ev){const cat=String(ev.cat||''),t=String(ev.title||'').repla
 function evIconHTML(ev){const k=evIconKey(ev),x=EVI[k]||EVI.spark;return'<span class="evic" style="--ec:'+x[0]+'" aria-hidden="true"><svg viewBox="0 0 24 24">'+x[1]+'</svg></span>';}
 function openEvent(ev){current=ev;stopAuto();const m=$('modal');m.hidden=false;
  m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true" aria-labelledby="et">'+evIconHTML(ev)+'<span class="pill cat gold">'+ev.cat+'</span><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3 id="et">'+ev.title+'</h3><p>'+ev.text+'</p><div class="choices">'+
- ev.choices.map((c,i)=>'<button class="choice" data-a="choose" data-i="'+i+'"'+(c.dis?' disabled':'')+'><b>'+c.l+'</b><span>'+c.d+(c.dis?' Not enough cash.':'')+'</span></button>').join('')+'</div></div></div>';
+ ev.choices.map((c,i)=>c.hide?'':'<button class="choice" data-a="choose" data-i="'+i+'"'+(c.dis?' disabled':'')+'><b>'+c.l+'</b><span>'+c.d+(c.dis?' Not enough cash.':'')+'</span></button>').join('')+'</div></div></div>';
  (m.querySelector('.choice:not(:disabled)')||m.querySelector('.choice')).focus();if(ev.focus){const f=m.querySelector(ev.focus);if(f)setTimeout(()=>f.focus(),60);}try{musicTick();}catch(e){}}
 /* ================= Industry risks: the dangers of each kind of business ================= */
 function riskBiz(ids){let best=null;ids.forEach(id=>{const b=BIZ.find(x=>x.id===id);if(b&&owned(id)>0&&(!best||b.cost>best.cost))best=b;});return best;}
