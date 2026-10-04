@@ -309,6 +309,14 @@ CREATE TABLE IF NOT EXISTS posts(
   updated INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS posts_due ON posts(due);
+CREATE TABLE IF NOT EXISTS post_stats(
+  post_id INTEGER NOT NULL,
+  platform TEXT NOT NULL,
+  fetched INTEGER NOT NULL DEFAULT 0,
+  data TEXT NOT NULL DEFAULT '{}',
+  error TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY(post_id, platform)
+);
 CREATE TABLE IF NOT EXISTS campaigns(
   code TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -1874,6 +1882,7 @@ def meta_sweeper():
 
 # ---- scheduled posts: Facebook Page and Instagram ----
 POST_SCOPES = ["pages_show_list", "pages_read_engagement", "pages_manage_posts", "instagram_basic", "instagram_content_publish"]
+STATS_SCOPES = ["read_insights", "instagram_manage_insights"]
 POST_LOCK = threading.Lock()
 MEDIA_TYPES = {"image/jpeg": "jpg", "video/mp4": "mp4", "video/quicktime": "mov"}
 MEDIA_MAX = {"jpg": 8 * 1024 * 1024, "mp4": 300 * 1024 * 1024, "mov": 300 * 1024 * 1024}
@@ -2024,6 +2033,153 @@ def post_sweeper():
         time.sleep(30)
 
 
+# ---- how each published post performed on Facebook and Instagram ----
+BAD_METRICS = set()      # metric names Meta rejected for an object type; skipped from then on
+STATS_LOCK = threading.Lock()
+
+
+def _metric_value(v):
+    if isinstance(v, dict):
+        return sum(x for x in v.values() if isinstance(x, (int, float)))
+    return v if isinstance(v, (int, float)) else 0
+
+
+def graph_metrics(obj, edge, kind, names, tok):
+    """Ask Meta for several insight metrics at once; if it refuses one, ask one by one and remember which names it rejects."""
+    names = [n for n in names if (kind, n) not in BAD_METRICS]
+    out = {}
+    if not names:
+        return out
+
+    def read(ns):
+        d = graph_get("%s/%s" % (obj, edge), {"metric": ",".join(ns), "access_token": tok})
+        for m in d.get("data") or []:
+            vals = m.get("values") or []
+            v = vals[-1].get("value") if vals else m.get("total_value", {}).get("value")
+            if v is None and isinstance(m.get("total_value"), dict):
+                v = m["total_value"].get("value")
+            out[m.get("name")] = _metric_value(v)
+    try:
+        read(names)
+    except RuntimeError:
+        for n in names:
+            try:
+                read([n])
+            except RuntimeError as e:
+                if "(code 100)" in str(e) or "metric" in str(e).lower():
+                    BAD_METRICS.add((kind, n))
+    return out
+
+
+def graph_fields(obj, fields, tok):
+    out = {}
+    for f in fields:
+        try:
+            out.update(graph_get(obj, {"fields": f, "access_token": tok}))
+        except RuntimeError:
+            pass
+    return out
+
+
+def first(d, *names):
+    for n in names:
+        if d.get(n):
+            return d[n]
+    return 0
+
+
+def fb_post_stats(p, tok):
+    if p["kind"] == "video":
+        vid = p["fb_id"]
+        f = graph_fields(vid, ["likes.summary(true).limit(0)", "comments.summary(true).limit(0)", "views"], tok)
+        m = graph_metrics(vid, "video_insights", "fbvideo",
+                          ["total_video_views", "total_video_media_view_unique", "total_video_impressions_unique",
+                           "total_video_avg_time_watched", "total_video_reactions_by_type_total", "total_video_stories_by_action_type"], tok)
+        acts = m.get("total_video_stories_by_action_type") or 0
+        return {"views": first(m, "total_video_views") or f.get("views") or 0,
+                "reach": first(m, "total_video_media_view_unique", "total_video_impressions_unique"),
+                "likes": first(m, "total_video_reactions_by_type_total") or ((f.get("likes") or {}).get("summary") or {}).get("total_count", 0),
+                "comments": ((f.get("comments") or {}).get("summary") or {}).get("total_count", 0),
+                "shares": 0, "saves": 0,
+                "watch": round((m.get("total_video_avg_time_watched") or 0) / 1000.0, 1),
+                "clicks": 0, "actions": acts}
+    pid = p["fb_id"]
+    f = graph_fields(pid, ["reactions.summary(total_count).limit(0)", "comments.summary(total_count).limit(0)", "shares"], tok)
+    m = graph_metrics(pid, "insights", "fbpost",
+                      ["post_media_view", "post_total_media_view_unique", "post_impressions", "post_impressions_unique",
+                       "post_clicks", "post_video_views", "post_video_avg_time_watched"], tok)
+    reach = first(m, "post_total_media_view_unique", "post_impressions_unique")
+    return {"views": first(m, "post_media_view", "post_impressions", "post_video_views") or reach,   # Meta stopped some view counts; reach is the closest
+            "reach": reach,
+            "likes": ((f.get("reactions") or {}).get("summary") or {}).get("total_count", 0),
+            "comments": ((f.get("comments") or {}).get("summary") or {}).get("total_count", 0),
+            "shares": (f.get("shares") or {}).get("count", 0), "saves": 0,
+            "watch": round((m.get("post_video_avg_time_watched") or 0) / 1000.0, 1),
+            "clicks": m.get("post_clicks") or 0}
+
+
+def ig_post_stats(p, tok):
+    mid = p["ig_id"]
+    f = graph_fields(mid, ["like_count,comments_count,media_product_type"], tok)
+    reel = (f.get("media_product_type") or "").upper() == "REELS" or p["kind"] == "video"
+    names = ["views", "reach", "likes", "comments", "shares", "saved", "total_interactions"]
+    if reel:
+        names += ["ig_reels_avg_watch_time", "ig_reels_video_view_total_time"]
+    m = graph_metrics(mid, "insights", "igreel" if reel else "igpost", names, tok)
+    return {"views": m.get("views") or 0, "reach": m.get("reach") or 0,
+            "likes": m.get("likes") or f.get("like_count") or 0,
+            "comments": m.get("comments") or f.get("comments_count") or 0,
+            "shares": m.get("shares") or 0, "saves": m.get("saved") or 0,
+            "watch": round((m.get("ig_reels_avg_watch_time") or 0) / 1000.0, 1),
+            "clicks": 0, "interactions": m.get("total_interactions") or 0}
+
+
+def stats_refresh(force_ids=()):
+    """Read the numbers for published posts: hourly for the first 3 days, then every 6 hours up to 30 days, then daily up to 90 days."""
+    if not meta_ready() or not STATS_LOCK.acquire(blocking=False):
+        return 0
+    n = 0
+    try:
+        info = pages_info()
+        page = (info.get("page") or {}).get("id")
+        if not page:
+            return 0
+        tok = page_token(page)
+        if not tok:
+            return 0
+        t = now()
+        for p in q("SELECT * FROM posts WHERE (fb_status='posted' OR ig_status='posted') AND due>? ORDER BY due DESC LIMIT 60", (t - 90 * 86400,)):
+            age = t - p["due"]
+            gap = 3600 if age < 3 * 86400 else 6 * 3600 if age < 30 * 86400 else 86400
+            for pf, fn in (("fb", fb_post_stats), ("ig", ig_post_stats)):
+                if p[pf + "_status"] != "posted" or not p[pf + "_id"]:
+                    continue
+                old = q("SELECT fetched FROM post_stats WHERE post_id=? AND platform=?", (p["id"], pf), one=True)
+                if old and t - old["fetched"] < gap and p["id"] not in force_ids:
+                    continue
+                try:
+                    d = fn(p, tok)
+                    q("INSERT INTO post_stats(post_id,platform,fetched,data,error) VALUES(?,?,?,?,'') ON CONFLICT(post_id,platform) DO UPDATE SET "
+                      "fetched=excluded.fetched, data=excluded.data, error=''", (p["id"], pf, t, json.dumps(d)))
+                except Exception as e:
+                    q("INSERT INTO post_stats(post_id,platform,fetched,error) VALUES(?,?,?,?) ON CONFLICT(post_id,platform) DO UPDATE SET "
+                      "fetched=excluded.fetched, error=excluded.error", (p["id"], pf, t, str(e)[:300]))
+                n += 1
+    finally:
+        STATS_LOCK.release()
+    return n
+
+
+def stats_sweeper():
+    time.sleep(60)
+    while True:
+        try:
+            stats_refresh()
+        except Exception as e:
+            print("Post stats problem: %s" % e, flush=True)
+        time.sleep(900)
+
+
 def posts_report(t):
     try:
         tok = json.loads(meta_get("meta_token") or "{}")
@@ -2041,9 +2197,18 @@ def posts_report(t):
                 d[pf + "_visitors"] = q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND stage<>'login'", (code,), one=True)["n"]
                 d[pf + "_code"] = code
         d.pop("ig_container", None)
+        for sr in q("SELECT platform, fetched, data, error FROM post_stats WHERE post_id=?", (d["id"],)):
+            try:
+                d[sr["platform"] + "_stats"] = json.loads(sr["data"] or "{}")
+            except ValueError:
+                d[sr["platform"] + "_stats"] = {}
+            d[sr["platform"] + "_stats_at"] = sr["fetched"]
+            d[sr["platform"] + "_stats_error"] = sr["error"]
         rows.append(d)
     return {"ready": meta_ready(), "pages": pages_info(), "scopes": scopes,
-            "missing": [x for x in POST_SCOPES if scopes and x not in scopes], "posts": rows, "site": SITE_DOMAIN or "hustlempires.com", "now": t}
+            "missing": [x for x in POST_SCOPES if scopes and x not in scopes],
+            "missingStats": [x for x in STATS_SCOPES if scopes and x not in scopes],
+            "posts": rows, "site": SITE_DOMAIN or "hustlempires.com", "now": t}
 
 
 def ads_report(t, days):
@@ -3762,9 +3927,20 @@ class Handler(BaseHTTPRequestHandler):
             if p["fb_status"] == "scheduled" or p["ig_status"] in ("scheduled", "processing"):
                 return self.error(400, "Cancel the post before removing it.")
             q("DELETE FROM posts WHERE id=?", (pid,))
+            q("DELETE FROM post_stats WHERE post_id=?", (pid,))
             return self.send_json(200, {"ok": True})
+        if path == "/api/admin/posts/stats":
+            if rate_limited("poststats", limit=10, window=3600):
+                return self.error(429, "Meta limits how often we can ask. Try again in a few minutes.")
+            stats_refresh(force_ids={pid})
+            return self.send_json(200, posts_report(t))
         if path == "/api/admin/posts/check":
             page_discover()
+            try:
+                dbg = graph_get("debug_token", {"input_token": META_TOKEN}).get("data") or {}
+                meta_set("meta_token", json.dumps({"expires": dbg.get("expires_at") or 0, "valid": dbg.get("is_valid"), "scopes": dbg.get("scopes") or []}))
+            except Exception:
+                pass
             return self.send_json(200, posts_report(t))
         self.error(404, "Not found.")
 
@@ -4017,6 +4193,7 @@ def main():
     threading.Thread(target=push_sweeper, daemon=True).start()
     threading.Thread(target=meta_sweeper, daemon=True).start()
     threading.Thread(target=post_sweeper, daemon=True).start()
+    threading.Thread(target=stats_sweeper, daemon=True).start()
     print("Meta ads: %s" % ("connected to ad account %s, refreshed every hour" % META_ACCOUNT if meta_ready() else "not connected"), flush=True)
     try:
         backfill_friends()

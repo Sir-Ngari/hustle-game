@@ -150,7 +150,7 @@ tbody tr:hover td{background:var(--brass-soft)}
 .btn.xs{padding:2px 8px;font-size:12px}
 .mmsg{font-size:13px;color:var(--muted);min-height:1.2em;margin:0}
 tr.arch td{opacity:.55}
-#mKpis{grid-template-columns:repeat(6,minmax(0,1fr))}@media (max-width:1100px){#mKpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:560px){#mKpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#mKpis,#pKpis{grid-template-columns:repeat(6,minmax(0,1fr))}@media (max-width:1100px){#mKpis,#pKpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:560px){#mKpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .mtip{font-size:13px;color:var(--muted);border-left:3px solid var(--brass);padding:4px 0 4px 10px;margin:0 0 12px}
 @media (max-width:760px){.mform{grid-template-columns:1fr 1fr}}
 
@@ -171,6 +171,7 @@ tr.arch td{opacity:.55}
 .pform .full{grid-column:1/-1}
 .prow td{vertical-align:top}.pthumb{width:52px;height:52px;border-radius:3px;object-fit:cover;background:var(--grid);display:block}
 .pcap{max-width:340px;white-space:pre-line;font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pst{display:block;font-size:12.5px;line-height:1.45;margin-top:4px;color:var(--ink);font-variant-numeric:tabular-nums}.pst span{color:var(--muted)}.pst b{font-weight:700}
 .perr{display:block;font-size:12px;color:var(--red);max-width:260px;white-space:normal}
 @media (max-width:760px){.pform{grid-template-columns:1fr}}
 
@@ -378,8 +379,11 @@ body.navhide .main{margin-left:0}
         <fieldset><legend>When</legend><div class="opts"><label class="opt"><input type="radio" name="pWhen" value="later" checked> Schedule</label><label class="opt"><input type="radio" name="pWhen" value="now"> Post now</label></div><input type="datetime-local" id="pTime" aria-label="Date and time to post"><p class="pnote" id="pTz"></p></fieldset>
         <div class="acts full" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="submit" id="pSave">Schedule post</button><p class="mmsg" id="pMsg" role="status"></p></div>
       </form>
+      <h3 class="eyebrow" style="margin:18px 0 6px">How posts performed, last 30 days</h3>
+      <p class="mmsg" id="pStatsNote" style="margin:0 0 8px"></p>
+      <div class="kpis" id="pKpis"></div>
       <h3 class="eyebrow" style="margin:18px 0 6px">Upcoming and recent posts</h3>
-      <div class="tablewrap"><table style="min-width:900px"><thead><tr><th>When</th><th>Post</th><th>Facebook</th><th>Instagram</th><th class="r">Visitors</th><th class="r">New players</th><th></th></tr></thead><tbody id="pRows"></tbody></table></div>
+      <div class="tablewrap"><table style="min-width:1080px"><thead><tr><th>When</th><th>Post</th><th>Facebook</th><th>Instagram</th><th>Both combined</th><th></th></tr></thead><tbody id="pRows"></tbody></table></div>
     </section>
     <section class="panel" id="adsPanel">
       <h2>Facebook &amp; Instagram ads</h2>
@@ -657,17 +661,40 @@ function renderPosts(){const P=posts,pg=(P.pages||{}),page=pg.page,ig=pg.ig;
  $('pIg').disabled=P.ready&&page&&!ig;if($('pIg').disabled)$('pIg').checked=false;
  const R=P.posts||[],when=ts=>new Date(ts*1000).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
  const cell=(p,pf)=>{const st=p[pf+'_status'];if(!st)return'<td><span style="color:var(--muted)">—</span></td>';const x=PST2[st]||[st,''],url=p[pf+'_url'],err=p[pf+'_error'];
-  return'<td><span class="pill '+x[1]+'">'+x[0]+'</span>'+(url?' <a href="'+esc(url)+'" target="_blank" rel="noopener" style="font-size:12.5px">View</a>':'')+(err?'<small class="perr">'+esc(err)+'</small>':'')+'</td>';};
+  return'<td><span class="pill '+x[1]+'">'+x[0]+'</span>'+(url?' <a href="'+esc(url)+'" target="_blank" rel="noopener" style="font-size:12.5px">View</a>':'')+(err?'<small class="perr">'+esc(err)+'</small>':'')+(st==='posted'?statLines(p[pf+'_stats'],p[pf+'_stats_at'],p[pf+'_stats_error']):'')+'</td>';};
  const sum=(p,k)=>(p['fb_'+k]||0)+(p['ig_'+k]||0);
  $('pRows').innerHTML=R.length?R.map(p=>{const live=p.fb_status==='scheduled'||p.ig_status==='scheduled',fail=p.fb_status==='failed'||p.ig_status==='failed'||p.fb_status==='cancelled'||p.ig_status==='cancelled',busy=p.ig_status==='processing';
   const th=p.media?(p.kind==='video'?'<video class="pthumb" src="/media/'+esc(p.media)+'#t=1" muted preload="metadata"></video>':'<img class="pthumb" src="/media/'+esc(p.media)+'" alt="">'):'<span class="pthumb" style="display:grid;place-items:center;font-size:11px;color:var(--muted)">Text</span>';
   return'<tr class="prow"><td style="white-space:nowrap"><b>'+when(p.due)+'</b>'+(live&&p.due>serverNow?'<small style="display:block;color:var(--muted)">in '+(p.due-serverNow<3600?Math.max(1,Math.round((p.due-serverNow)/60))+' min':p.due-serverNow<172800?Math.round((p.due-serverNow)/3600)+' h':Math.round((p.due-serverNow)/86400)+' days')+'</small>':'')+'</td>'+
    '<td><div style="display:flex;gap:10px">'+th+'<div class="pcap">'+esc(p.caption||'(no caption)')+'</div></div></td>'+cell(p,'fb')+cell(p,'ig')+
-   '<td class="r num">'+(p.link?sum(p,'visitors'):'—')+'</td><td class="r num"><b>'+(p.link?sum(p,'players'):'—')+'</b></td>'+
-   '<td style="white-space:nowrap">'+(live?'<button class="btn xs" type="button" data-pmove="'+p.id+'">Change time</button> <button class="btn xs ghost" type="button" data-pcancel="'+p.id+'">Cancel</button>':'')+(fail?'<button class="btn xs" type="button" data-pretry="'+p.id+'">Post again now</button> ':'')+(!live&&!busy?'<button class="btn xs ghost" type="button" data-pdel="'+p.id+'">Remove</button>':'')+
+   bothCell(p)+
+   '<td style="white-space:nowrap">'+(live?'<button class="btn xs" type="button" data-pmove="'+p.id+'">Change time</button> <button class="btn xs ghost" type="button" data-pcancel="'+p.id+'">Cancel</button>':'')+(fail?'<button class="btn xs" type="button" data-pretry="'+p.id+'">Post again now</button> ':'')+(p.fb_status==='posted'||p.ig_status==='posted'?'<button class="btn xs" type="button" data-pstats="'+p.id+'">Refresh numbers</button> ':'')+(!live&&!busy?'<button class="btn xs ghost" type="button" data-pdel="'+p.id+'">Remove</button>':'')+
    '<div data-pmovebox="'+p.id+'" hidden style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><input type="datetime-local" aria-label="New time" style="padding:4px 6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"><button class="btn xs primary" type="button" data-pmovesave="'+p.id+'">Save</button></div></td></tr>';}).join('')
   :'<tr><td colspan="7" class="empty">No posts yet. Schedule your first one above.</td></tr>';
- const n=R.filter(p=>p.fb_status==='scheduled'||p.ig_status==='scheduled').length;}
+ const n=R.filter(p=>p.fb_status==='scheduled'||p.ig_status==='scheduled').length;
+ renderPostKpis(P);}
+const N0=n=>(+n||0).toLocaleString('en-US');
+function statLines(st,at,err){if(!st&&!err)return'<span class="pst"><span>Numbers appear within the hour.</span></span>';if(!st)return'<small class="perr">'+esc(err)+'</small>';
+ let h='<span class="pst"><b>'+N0(st.views)+'</b> <span>views</span> · <b>'+N0(st.reach)+'</b> <span>reached</span><br><b>'+N0(st.likes)+'</b> <span>likes</span> · <b>'+N0(st.comments)+'</b> <span>comments</span> · <b>'+N0(st.shares)+'</b> <span>shares</span>'+(st.saves?' · <b>'+N0(st.saves)+'</b> <span>saves</span>':'');
+ if(st.watch)h+='<br><span>average watch</span> <b>'+st.watch+'s</b>';
+ return h+'<br><span>updated '+ago(at)+'</span></span>';}
+function eng(st){return st?(st.likes||0)+(st.comments||0)+(st.shares||0)+(st.saves||0):0;}
+function bothCell(p){const f=p.fb_stats,i=p.ig_stats,has=f||i;const views=(f?f.views||0:0)+(i?i.views||0:0),e=eng(f)+eng(i);
+ const vis=(p.fb_visitors||0)+(p.ig_visitors||0),pl=(p.fb_players||0)+(p.ig_players||0);
+ let h='<td><span class="pst">';
+ if(has)h+='<b>'+N0(views)+'</b> <span>views</span> · <b>'+N0(e)+'</b> <span>engagements</span>'+(views?' <span>('+(100*e/views).toFixed(1)+'%)</span>':'')+'<br>';
+ h+=p.link?'<b>'+N0(vis)+'</b> <span>opened the game</span> · <b>'+N0(pl)+'</b> <span>new players</span>':'<span>No game link on this post</span>';
+ if(p.link&&vis)h+='<br><span>'+(100*pl/vis).toFixed(0)+'% of visitors signed up</span>';
+ return h+'</span></td>';}
+function renderPostKpis(P){const R=(P.posts||[]).filter(p=>p.due>serverNow-30*86400&&(p.fb_status==='posted'||p.ig_status==='posted'));
+ const t={fv:0,iv:0,fe:0,ie:0,vis:0,pl:0,n:R.length};
+ R.forEach(p=>{if(p.fb_stats){t.fv+=p.fb_stats.views||0;t.fe+=eng(p.fb_stats);}if(p.ig_stats){t.iv+=p.ig_stats.views||0;t.ie+=eng(p.ig_stats);}t.vis+=(p.fb_visitors||0)+(p.ig_visitors||0);t.pl+=(p.fb_players||0)+(p.ig_players||0);});
+ const tv=t.fv+t.iv,te=t.fe+t.ie;
+ const tiles=[['Views, both',N0(tv),t.n+' post'+(t.n===1?'':'s')+' published','lead'],['Facebook views',N0(t.fv),N0(t.fe)+' engagements'],['Instagram views',N0(t.iv),N0(t.ie)+' engagements'],
+  ['Engagement rate',tv?(100*te/tv).toFixed(1)+'%':'—','likes, comments, shares and saves per view'],['Opened the game',N0(t.vis),'from post links'],['New players',N0(t.pl),t.vis?(100*t.pl/t.vis).toFixed(0)+'% of those visitors':'from post links']];
+ $('pKpis').innerHTML=tiles.map(x=>'<div class="kpi '+(x[3]||'')+'"><span class="eyebrow">'+x[0]+'</span><b class="num">'+x[1]+'</b><small>'+esc(x[2])+'</small></div>').join('');
+ const ms=P.missingStats||[];
+ $('pStatsNote').innerHTML=ms.length?'<b style="color:var(--red)">Views and likes need two more permissions:</b> '+ms.map(esc).join(', ')+'. Tick them when you make the next token, then run the console token step. Until then only game visitors and new players show.':'Views, reach, likes, comments, shares and saves come from Facebook and Instagram and refresh every hour for new posts. Reach is counted separately on each platform, so the same person can be counted twice in "both".';}
 function pKind(){return(document.querySelector('input[name=pKind]:checked')||{}).value||'photo';}
 function pSync(){const k=pKind(),now_=(document.querySelector('input[name=pWhen]:checked')||{}).value==='now';
  $('pFileBox').hidden=k==='text';$('pTime').disabled=now_;$('pSave').textContent=now_?'Post now':'Schedule post';
@@ -719,6 +746,7 @@ $('postPanel').addEventListener('click',async e=>{const b=e.target.closest('butt
  if(b.id==='pCheck'){b.disabled=true;try{posts=await api('POST','/api/admin/posts/check',{});renderPostsThenConn();}catch(x){$('pMsg').textContent=x.message;}return;}
  if(b.dataset.pmove){const box=document.querySelector('[data-pmovebox="'+b.dataset.pmove+'"]');box.hidden=!box.hidden;const p=posts.posts.find(x=>x.id==b.dataset.pmove);
   if(p){const d=new Date(p.due*1000),z=n=>String(n).padStart(2,'0');box.querySelector('input').value=d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':'+z(d.getMinutes());}return;}
+ if(b.dataset.pstats){b.disabled=true;b.textContent='Asking Meta…';try{posts=await api('POST','/api/admin/posts/stats',{id:+b.dataset.pstats});renderPostsThenConn();}catch(x){$('pMsg').textContent=x.message;b.disabled=false;b.textContent='Refresh numbers';}return;}
  const act=b.dataset.pmovesave?'time':b.dataset.pcancel?'cancel':b.dataset.pretry?'retry':b.dataset.pdel?'delete':null;if(!act)return;
  const id=+(b.dataset.pmovesave||b.dataset.pcancel||b.dataset.pretry||b.dataset.pdel),body={id};
  if(act==='time'){const v=document.querySelector('[data-pmovebox="'+id+'"] input').value;if(!v)return;body.due=Math.floor(new Date(v).getTime()/1000);}

@@ -24,6 +24,8 @@ try:
     sc=get('debug_token',{'input_token':good,'access_token':good}).get('data',{}).get('scopes',[])
     need=['ads_read','pages_show_list','pages_read_engagement','pages_manage_posts','instagram_basic','instagram_content_publish'];miss=[x for x in need if x not in sc]
     print('PERMISSIONS OK' if not miss else 'MISSING PERMISSIONS: '+', '.join(miss))
+    ms=[x for x in ['read_insights','instagram_manage_insights'] if x not in sc]
+    print('POST STATS PERMISSIONS OK' if not ms else 'POST STATS NEED: '+', '.join(ms))
 except Exception as e:print('Could not read the permissions list')
 try:
     pg=get('me/accounts',{'fields':'name,instagram_business_account{username}','access_token':good}).get('data',[])
