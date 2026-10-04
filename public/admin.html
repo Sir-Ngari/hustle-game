@@ -182,6 +182,7 @@ tr.arch td{opacity:.55}
 .intres{position:absolute;left:0;right:0;top:100%;z-index:4;list-style:none;margin:2px 0 0;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:4px;max-height:260px;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.15)}
 .intres li button{display:flex;justify-content:space-between;gap:10px;width:100%;border:0;background:transparent;padding:7px 8px;text-align:left;border-radius:3px;font-size:13.5px;color:var(--ink)}
 .intres li button:hover,.intres li button:focus-visible{background:var(--grid)}.intres small{color:var(--muted);white-space:nowrap}
+.dset{border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin-top:8px;background:var(--paper)}.dset>div{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}.dset ul{margin:6px 0 0;padding:0;list-style:none}.dset li{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:4px 0;border-top:1px solid var(--line);font-size:13.5px}.dset.cur{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass)}
 .chips2{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.chips2 span{display:inline-flex;gap:4px;align-items:center;background:var(--green-soft);color:var(--green);border-radius:12px;padding:2px 4px 2px 10px;font-weight:700;font-size:12.5px}
 .chips2 button{border:0;background:transparent;color:inherit;font-weight:700;padding:0 4px}
 
@@ -415,7 +416,7 @@ body.navhide .main{margin-left:0}
       <h2>Create an ad</h2>
       <p class="sub" id="rSub">Loading…</p>
       <form id="rForm" novalidate style="display:flex;flex-direction:column;gap:14px">
-        <div class="bstep"><div class="bhead"><span class="bnum">1</span><h3>Campaign</h3><div class="opts"><label class="opt"><input type="radio" name="cMode" value="new" checked> New campaign</label><label class="opt"><input type="radio" name="cMode" value="old"> Add to an existing campaign</label></div></div>
+        <div class="bstep" id="cStep"><div class="bhead"><span class="bnum">1</span><h3>Campaign</h3><div class="opts"><label class="opt"><input type="radio" name="cMode" value="new" checked> New campaign</label><label class="opt"><input type="radio" name="cMode" value="old"> Add to an existing campaign</label></div></div>
           <div id="cNew" class="pform">
             <fieldset><label class="plbl" for="cName">Campaign name</label><input id="cName" maxlength="80" placeholder="e.g. October launch · Kenya" style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"></fieldset>
             <fieldset><legend>Objective</legend><div class="opts" id="cObj"></div></fieldset>
@@ -425,7 +426,8 @@ body.navhide .main{margin-left:0}
           </div>
           <div id="cOld" hidden><label class="plbl" for="cExisting">Campaign</label><select id="cExisting" style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"></select><p class="pnote" id="cOldNote"></p></div>
         </div>
-        <div class="bstep"><div class="bhead"><span class="bnum">2</span><h3>Ad set</h3><div class="opts"><label class="opt"><input type="radio" name="sMode" value="new" checked> New ad set</label><label class="opt"><input type="radio" name="sMode" value="old"> Add to an existing ad set</label></div></div>
+        <div class="bstep"><div class="bhead"><span class="bnum">2</span><h3>Ad set</h3><div class="opts" id="sModeOpts"><label class="opt"><input type="radio" name="sMode" value="new" checked> New ad set</label><label class="opt"><input type="radio" name="sMode" value="old"> Add to an existing ad set</label></div></div>
+          <div id="sLock" class="mtip" hidden></div>
           <div id="sNew" class="pform">
             <fieldset class="full"><label class="plbl" for="sName">Ad set name</label><input id="sName" maxlength="80" placeholder="e.g. Kenya · 18–34 · business lovers" style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"></fieldset>
             <fieldset class="full"><legend>Audience</legend>
@@ -460,7 +462,10 @@ body.navhide .main{margin-left:0}
             </div></fieldset>
             <fieldset><label class="plbl" for="rCta">Button</label><select id="rCta" style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"></select></fieldset>
           </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)"><button class="btn" type="button" id="bAddAd">+ Save this ad, add another ad to this ad set</button><button class="btn" type="button" id="bAddSet">+ Save this ad, add another ad set</button></div>
+          <p class="pnote" style="margin:6px 0 0">Build as many ad sets and ads as you need in this campaign, then publish them together.</p>
         </div>
+        <div class="bstep" id="bDraft" hidden><div class="bhead"><span class="bnum">✓</span><h3>Ready to publish</h3></div><div id="bDraftList"></div></div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <p class="mtip" id="rTotal" style="margin:0"></p>
           <label class="toggle" id="rOkBox"><input type="checkbox" id="rOk"> <span id="rOkTxt">I confirm</span></label>
@@ -821,30 +826,89 @@ function bSetAudience(sp){sp=sp||{};const cs=(sp.countries||'KE').split?(sp.coun
 function renderInts(){$('sInts').innerHTML=rInts.map((i,k)=>'<span>'+esc(i.name)+'<button type="button" data-intdel="'+k+'" aria-label="Remove '+esc(i.name)+'">×</button></span>').join('');}
 function bSync(){const cm=radio('cMode'),sm=radio('sMode');
  $('cNew').hidden=cm!=='new';$('cOld').hidden=cm!=='old';
+ const lockC=bDraft.length>0;$('cStep').querySelectorAll('input,select').forEach(x=>{x.disabled=lockC;});
  const camps=(mg&&mg.campaigns||[]).filter(c=>c.status!=='DELETED');
  if(cm==='old'){const cur=$('cExisting').value;$('cExisting').innerHTML=camps.length?camps.map(c=>'<option value="'+c.id+'"'+(c.id===cur?' selected':'')+'>'+esc(c.name)+' · '+(c.daily?'KSh '+N0(c.daily)+'/day campaign budget':c.lifetime?'lifetime budget':'ad set budgets')+'</option>').join(''):'<option value="">No campaigns yet</option>';
   const c=bCamp();$('cOldNote').textContent=c?(c.daily?'New ad sets share this campaign\'s KSh '+N0(c.daily)+' a day.':c.lifetime?'New ad sets share this campaign\'s lifetime budget.':'Each new ad set needs its own daily budget; all ad sets together can be at most KSh '+N0(runs?runs.cap:2000)+' a day.'):'';}
  const lvl=bBudgetLevel();$('cDailyBox').hidden=lvl!=='campaign';$('cBudNote').textContent=lvl==='campaign'?'Meta shares one daily budget across the campaign\'s ad sets.':'Each ad set gets its own daily budget.';
  // existing ad sets need an existing campaign
  const oldSet=document.querySelector('input[name=sMode][value=old]');oldSet.disabled=cm!=='old';if(oldSet.disabled&&sm==='old')document.querySelector('input[name=sMode][value=new]').checked=true;
- const sm2=radio('sMode');$('sNew').hidden=sm2!=='new';$('sOld').hidden=sm2!=='old';
+ const sm2=radio('sMode'),locked=bCur!=null&&!!bDraft[bCur];$('sNew').hidden=locked||sm2!=='new';$('sOld').hidden=locked||sm2!=='old';$('sModeOpts').hidden=locked;$('sLock').hidden=!locked;
+ if(locked)$('sLock').innerHTML='Adding ads to <b>ad set '+(bCur+1)+': '+esc(bDraft[bCur].set.label)+'</b>. Its audience, budget and schedule are already set. <button class="btn xs ghost" type="button" data-bnewset="1">Start a new ad set instead</button>';
  if(sm2==='old'){const c=bCamp(),cur=$('sExisting').value,sets=(mg&&mg.adsets||[]).filter(a=>c&&a.campaign_id===c.id&&a.status!=='DELETED');
   $('sExisting').innerHTML=sets.length?sets.map(a=>'<option value="'+a.id+'"'+(a.id===cur?' selected':'')+'>'+esc(a.name)+'</option>').join(''):'<option value="">This campaign has no ad sets</option>';}
  $('sDailyBox').hidden=!(sm2==='new'&&lvl==='adset');
  $('rBoostBox').hidden=rKind()!=='boost';$('rNewBox').hidden=rKind()!=='new';
  $('rStart').disabled=radio('rWhen')!=='later';
- const cap=runs?runs.cap:2000,d=bNewDaily(),n=bDays(),tot=d*n;
- const over=(radio('cMode')==='new'&&lvl==='campaign'&&+$('cDaily').value>cap)||(sm2==='new'&&lvl==='adset'&&+$('sDaily').value>cap);
- if(tot){$('rTotal').innerHTML=(over?'<b style="color:var(--red)">The most per day is KSh '+N0(cap)+'.</b> ':'')+'Most this can spend: <b>KSh '+N0(tot)+'</b> (KSh '+N0(d)+' a day for '+n+' day'+(n===1?'':'s')+'). Meta usually spends a little less; it never goes over the daily amount on average.';
+ const cap=runs?runs.cap:2000,fs=bFormSet(),sets=bDraft.map(x=>x.set).concat(fs&&(bAdFilled()||!bDraft.length)?[fs]:[]),M=bMost(sets),tot=M.tot;
+ const over=(radio('cMode')==='new'&&lvl==='campaign'&&+$('cDaily').value>cap)||(!locked&&sm2==='new'&&lvl==='adset'&&+$('sDaily').value>cap)||(lvl==='adset'&&sets.reduce((t,x)=>t+x.daily,0)>cap);
+ const nAds=bCount()+(bAdFilled()?1:0);$('rGo').textContent=nAds>1?'Publish '+nAds+' ads':'Publish';
+ if(tot){$('rTotal').innerHTML=(over?'<b style="color:var(--red)">The most per day is KSh '+N0(cap)+' for the whole campaign.</b> ':'')+'Most this can spend: <b>KSh '+N0(tot)+'</b> ('+M.text+'). Meta usually spends a little less; it never goes over the daily amount on average.';
   $('rOkBox').hidden=false;$('rOkTxt').textContent='I confirm this can spend up to KSh '+N0(tot);}
- else{$('rTotal').innerHTML=sm2==='old'?'This ad joins an existing ad set and uses its budget, so it adds no new spending limit.':'This ad set shares the campaign\'s existing budget, so it adds no new spending limit.';$('rOkBox').hidden=true;}
+ else{$('rTotal').innerHTML=sets.length&&sets.every(x=>x.old)?'These ads join existing ad sets and use their budgets, so they add no new spending limit.':'These ad sets share the campaign\'s existing budget, so they add no new spending limit.';$('rOkBox').hidden=true;}
  if(+$('rOk').dataset.total!==tot){$('rOk').checked=false;$('rOk').dataset.total=tot;}}
 ['input','change'].forEach(ev=>['cDaily','sDaily','rDays'].forEach(id=>$(id).addEventListener(ev,bSync)));
 ['cMode','sMode','cBud','rKind','rWhen'].forEach(n=>document.querySelectorAll('input[name='+n+']').forEach(r=>r.addEventListener('change',bSync)));
-$('cExisting').addEventListener('change',bSync);
+$('cExisting').addEventListener('change',bSync);['rPost','rFile','sExisting'].forEach(id=>$(id).addEventListener('change',()=>setTimeout(bSync,50)));
+// several ad sets and ads in one campaign: saved ads wait here until Publish
+let bDraft=[],bCur=null,bPostCleared=false;const B_MAX_SETS=5,B_MAX_PER_SET=6,B_MAX_ADS=12;
+function bReadCampaign(){const cap=runs.cap;
+ if(radio('cMode')==='old'){if(!$('cExisting').value)return'Choose a campaign.';return{id:$('cExisting').value};}
+ const c={name:$('cName').value.trim(),objective:radio('cObjR'),budget_level:radio('cBud')};if(!c.name)return'Give the campaign a name.';
+ if(c.budget_level==='campaign'){c.daily=+$('cDaily').value||0;if(c.daily<100||c.daily>cap)return'Set the campaign budget from KSh 100 to KSh '+N0(cap)+' a day.';}return c;}
+function bReadSet(){const cap=runs.cap;
+ if(radio('sMode')==='old'){const id=$('sExisting').value;if(!id)return'Choose an ad set.';const a=(mg&&mg.adsets||[]).find(x=>x.id===id);return{payload:{id},label:a?a.name:'Existing ad set',old:true,daily:0,days:0};}
+ const au=bAudience();if(!au.countries.length)return'Choose at least one country.';const days=bDays();if(days<1)return'Ad sets can run from 1 to '+runs.maxDays+' days.';
+ const pl={name:$('sName').value.trim(),audience:au,days};let daily=0;
+ if(bBudgetLevel()==='adset'){daily=+$('sDaily').value||0;if(daily<100||daily>cap)return'Set the ad set budget from KSh 100 to KSh '+N0(cap)+' a day.';pl.daily=daily;}
+ if(radio('rWhen')==='later'){const v=$('rStart').value;if(!v)return'Pick a start time.';pl.start=Math.floor(new Date(v).getTime()/1000);}
+ const where=au.countries.map(c=>runs.countries[c]||c).join(', ')+' · '+au.age_min+'–'+au.age_max+(au.interests.length?' · '+au.interests.length+' interest'+(au.interests.length>1?'s':''):'');
+ return{payload:pl,label:pl.name||where,where,daily,days};}
+function bAdFilled(){return rKind()==='boost'?!!$('rPost').value:!!rFile;}
+async function bReadAd(){const k=rKind(),a={name:$('aName').value.trim(),cta:$('rCta').value};let label;
+ if(k==='boost'){a.kind=radio('rWhich');a.post_id=+$('rPost').value||0;if(!a.post_id)return'Choose a published post.';const p=(posts&&posts.posts||[]).find(x=>x.id===a.post_id);
+  label=(a.kind==='boost_ig'?'Boost Instagram post: ':'Boost Facebook post: ')+((p&&p.caption)||'').replace(/\s+/g,' ').slice(0,50);}
+ else{a.kind='new';if(!rFile)return'Choose a photo or video.';if(!$('rCap').value.trim())return'Write the ad text.';a.caption=$('rCap').value;a.headline=$('rHead').value.trim();
+  if(!rMedia)rMedia=await rUpload();a.media=rMedia;label='New ad: '+(rFile.type.startsWith('video')?'video':'photo')+' · '+a.caption.replace(/\s+/g,' ').slice(0,50);}
+ return{payload:a,label:a.name?a.name+' · '+label:label};}
+function bResetAd(){$('aName').value='';rClearFile();$('rCap').value='';$('rHead').value='';$('rPost').value='';bPostCleared=true;rWhichSync();}
+function bCount(){return bDraft.reduce((t,s)=>t+s.ads.length,0);}
+async function bSave(next){const msg=t=>$('rMsg').textContent=t;if(rBusy)return;
+ if(!runs||!runs.canRun)return msg('Creating ads needs the ads_management permission first.');
+ if(!bAdFilled()){if(next==='set'&&bCur!=null){bCur=null;$('sName').value='';renderDraft();bSync();return msg('Set up the next ad set, then its ads.');}return msg(rKind()==='boost'?'Choose the post to boost first.':'Choose a photo or video first.');}
+ const c=bReadCampaign();if(typeof c==='string')return msg(c);
+ if(bCount()>=B_MAX_ADS)return msg('Publish up to '+B_MAX_ADS+' ads at a time. Publish these first.');
+ let s=null;if(bCur==null){if(bDraft.length>=B_MAX_SETS)return msg('Up to '+B_MAX_SETS+' ad sets at a time. Publish these first.');s=bReadSet();if(typeof s==='string')return msg(s);}
+ else if(bDraft[bCur].ads.length>=B_MAX_PER_SET)return msg('Up to '+B_MAX_PER_SET+' ads in one ad set. Start another ad set.');
+ rBusy=true;let a;try{a=await bReadAd();}catch(e){a=e.message||'Upload failed.';}rBusy=false;if(typeof a==='string')return msg(a);
+ if(bCur==null){bDraft.push({set:s,ads:[]});bCur=bDraft.length-1;}
+ bDraft[bCur].ads.push(a);bResetAd();
+ if(next==='set'){bCur=null;$('sName').value='';msg('Saved. Now set up the next ad set: the audience is copied from the last one, so change what you need.');}
+ else msg('Saved. Set up the next ad for "'+bDraft[bCur].set.label+'".');
+ renderDraft();bSync();}
+function renderDraft(){const box=$('bDraft');box.hidden=!bDraft.length;
+ $('bDraftList').innerHTML=bDraft.map((S,i)=>'<div class="dset'+(i===bCur?' cur':'')+'"><div><span><b>Ad set '+(i+1)+':</b> '+esc(S.set.label)+(S.set.old?' <small style="color:var(--muted)">(existing)</small>':'')+
+  '<small style="display:block;color:var(--muted)">'+(S.set.old?'Uses its own audience, budget and schedule':(S.set.where&&S.set.where!==S.set.label?esc(S.set.where)+' · ':'')+(S.set.daily?'KSh '+N0(S.set.daily)+'/day · ':'')+S.set.days+' day'+(S.set.days>1?'s':''))+'</small></span>'+
+  '<span style="display:flex;gap:6px">'+(i===bCur?'<span class="pill">Adding ads here</span>':'<button class="btn xs ghost" type="button" data-bpick="'+i+'">Add ads here</button>')+'<button class="btn xs ghost" type="button" data-bdelset="'+i+'" aria-label="Remove ad set '+(i+1)+'">Remove</button></span></div>'+
+  '<ul>'+S.ads.map((A,j)=>'<li><span>'+esc(A.label)+'</span><button class="btn xs ghost" type="button" data-bdelad="'+i+':'+j+'" aria-label="Remove this ad">×</button></li>').join('')+'</ul></div>').join('')+
+  (bDraft.length?'<p class="pnote" style="margin:8px 0 0">'+bCount()+' ad'+(bCount()>1?'s':'')+' in '+bDraft.length+' ad set'+(bDraft.length>1?'s':'')+' saved. Anything filled in above is added too when you publish. <button class="btn xs ghost" type="button" data-bclear="1">Clear all</button></p>':'');}
+$('bAddAd').addEventListener('click',()=>bSave('ad'));$('bAddSet').addEventListener('click',()=>bSave('set'));
+$('bDraftList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.bpick){bCur=+b.dataset.bpick;}
+ else if(b.dataset.bdelset){const i=+b.dataset.bdelset;bDraft.splice(i,1);bCur=bCur===i?null:bCur>i?bCur-1:bCur;}
+ else if(b.dataset.bdelad){const[i,j]=b.dataset.bdelad.split(':').map(Number);bDraft[i].ads.splice(j,1);if(!bDraft[i].ads.length){bDraft.splice(i,1);bCur=bCur===i?null:bCur>i?bCur-1:bCur;}}
+ else if(b.dataset.bclear){if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Tap again to clear';return;}bDraft=[];bCur=null;}
+ renderDraft();bSync();});
+$('sLock').addEventListener('click',e=>{if(e.target.closest('[data-bnewset]')){bCur=null;$('sName').value='';renderDraft();bSync();}});
+// the most the publish can spend: the campaign budget for the longest new ad set, or every new ad set's budget for its days
+function bMost(sets){const lvl=bBudgetLevel(),nw=sets.filter(x=>!x.old);
+ if(radio('cMode')==='new'&&lvl==='campaign'){const d=Math.min(runs?runs.cap:2000,+$('cDaily').value||0),n=Math.max(0,...nw.map(x=>x.days));return{tot:nw.length?d*n:0,text:nw.length?'KSh '+N0(d)+' a day for up to '+n+' day'+(n===1?'':'s'):''};}
+ if(lvl==='adset'){const tot=nw.reduce((t,x)=>t+x.daily*x.days,0),day=nw.reduce((t,x)=>t+x.daily,0);return{tot,text:nw.length>1?nw.length+' ad sets, KSh '+N0(day)+' a day together':nw.length?'KSh '+N0(day)+' a day for '+nw[0].days+' day'+(nw[0].days===1?'':'s'):''};}
+ return{tot:0,text:''};}
+function bFormSet(){if(bCur!=null)return null;if(radio('sMode')==='old')return{old:true,daily:0,days:0};const lvl=bBudgetLevel();return{old:false,daily:lvl==='adset'?Math.min(runs?runs.cap:2000,+$('sDaily').value||0):0,days:bDays()};}
 function renderRuns(){const R=runs;
  const P=(posts&&posts.posts||[]).filter(p=>p.fb_status==='posted'||p.ig_status==='posted');
- const cur=$('rPost').value;$('rPost').innerHTML=P.length?P.map(p=>'<option value="'+p.id+'"'+(String(p.id)===cur?' selected':'')+'>'+esc(new Date(p.due*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' · '+(p.caption||'(no caption)').replace(/\s+/g,' ').slice(0,70))+(p.ig_status==='posted'&&p.fb_status==='posted'?' (Facebook + Instagram)':p.ig_status==='posted'?' (Instagram)':' (Facebook)')+'</option>').join(''):'<option value="">No published posts yet</option>';
+ const cur=$('rPost').value||(bPostCleared?'':String((P[0]||{}).id||''));$('rPost').innerHTML=P.length?'<option value="">Choose a post to boost</option>'+P.map(p=>'<option value="'+p.id+'"'+(String(p.id)===cur?' selected':'')+'>'+esc(new Date(p.due*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' · '+(p.caption||'(no caption)').replace(/\s+/g,' ').slice(0,70))+(p.ig_status==='posted'&&p.fb_status==='posted'?' (Facebook + Instagram)':p.ig_status==='posted'?' (Instagram)':' (Facebook)')+'</option>').join(''):'<option value="">No published posts yet</option>';
  rWhichSync();
  if(!$('rCountries').children.length){$('rCountries').innerHTML=Object.entries(R.countries).map(([c,n])=>'<label class="opt"><input type="checkbox" value="'+c+'"'+(c==='KE'?' checked':'')+'> '+esc(n)+'</label>').join('');
   $('rCta').innerHTML=Object.entries(R.ctas).map(([c,n])=>'<option value="'+c+'">'+esc(n)+'</option>').join('');$('cDaily').max=R.cap;$('sDaily').max=R.cap;
@@ -859,13 +923,14 @@ function renderRuns(){const R=runs;
  $('rRows').innerHTML=L.length?L.map(r=>{const st=RST[r.status]||[r.status,''],cpp=r.players?'KSh '+N0(Math.round(r.spend/r.players)):'—';
   const what=r.kind==='new'?'New ad':r.kind==='boost_ig'?'Boosted Instagram post':'Boosted Facebook post';
   let ints=[];try{ints=JSON.parse(r.interests||'[]');}catch(e){}
-  const act=(r.status==='active'?'<button class="btn xs" type="button" data-rpause="'+r.id+'">Pause</button> ':'')+(r.status==='paused'&&r.end_ts>serverNow?'<button class="btn xs" type="button" data-rresume="'+r.id+'">Resume</button> ':'')+
-   (r.status==='active'||r.status==='paused'?((r.made_campaign&&r.budget_level!=='adset')||(r.made_adset&&r.adset_daily)?'<button class="btn xs" type="button" data-rbud="'+r.id+'">Change budget</button> ':'')+'<button class="btn xs danger" type="button" data-rstop="'+r.id+'">Stop</button>':'')+
+  const tg=r.made_campaign?' campaign':r.made_adset?' ad set':'';
+  const act=(r.status==='active'?'<button class="btn xs" type="button" data-rpause="'+r.id+'">Pause'+tg+'</button> ':'')+(r.status==='paused'&&r.end_ts>serverNow?'<button class="btn xs" type="button" data-rresume="'+r.id+'">Resume'+tg+'</button> ':'')+
+   (r.status==='active'||r.status==='paused'?((r.made_campaign&&r.budget_level!=='adset')||(r.made_adset&&r.adset_daily)?'<button class="btn xs" type="button" data-rbud="'+r.id+'">Change budget</button> ':'')+'<button class="btn xs danger" type="button" data-rstop="'+r.id+'" data-label="Stop'+tg+'">Stop'+tg+'</button>':'')+
    (['failed','stopped','ended'].includes(r.status)?'<button class="btn xs ghost" type="button" data-rdel="'+r.id+'">Remove</button>':'');
-  const scope=r.made_campaign?'new campaign':r.made_adset?'new ad set in an existing campaign':'added to an existing ad set';
-  return'<tr class="prow"><td><b>'+esc(r.name)+'</b><small style="display:block;color:var(--muted)">'+what+' · '+scope+'</small><small style="display:block;color:var(--muted)">'+esc(r.countries.split(',').map(c=>R.countries[c]||c).join(', '))+' · ages '+r.age_min+'–'+r.age_max+(r.genders==='1'?' · men':r.genders==='2'?' · women':'')+(ints.length?' · '+esc(ints.map(i=>i.name).slice(0,3).join(', '))+(ints.length>3?' +'+(ints.length-3):''):'')+'</small></td>'+
+  const scope=(r.campaign_label?'Campaign: '+esc(r.campaign_label):'')+(r.adset_label?' · Ad set: '+esc(r.adset_label):'');
+  return'<tr class="prow"><td><b>'+esc(r.name)+'</b><small style="display:block;color:var(--muted)">'+what+(scope?' · '+scope:'')+'</small><small style="display:block;color:var(--muted)">'+esc(r.countries.split(',').map(c=>R.countries[c]||c).join(', '))+' · ages '+r.age_min+'–'+r.age_max+(r.genders==='1'?' · men':r.genders==='2'?' · women':'')+(ints.length?' · '+esc(ints.map(i=>i.name).slice(0,3).join(', '))+(ints.length>3?' +'+(ints.length-3):''):'')+'</small></td>'+
    '<td><span class="pill '+st[1]+'">'+st[0]+'</span>'+(r.error?'<small class="perr">'+esc(r.error)+'</small>':'')+'</td>'+
-   '<td style="white-space:nowrap">'+(r.daily_kes?'KSh '+N0(r.daily_kes)+'/day':'existing budget')+'<small style="display:block;color:var(--muted)">'+new Date(r.start_ts*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+(r.end_ts-r.start_ts<200*86400?' – '+new Date(r.end_ts*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+'</small></td>'+
+   '<td style="white-space:nowrap">'+(r.daily_kes?'KSh '+N0(r.daily_kes)+'/day'+(r.made_campaign&&r.budget_level!=='adset'?'<small style="display:block;color:var(--muted)">campaign budget</small>':r.adset_daily?'<small style="display:block;color:var(--muted)">ad set budget</small>':''):'shared budget')+'<small style="display:block;color:var(--muted)">'+new Date(r.start_ts*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+(r.end_ts-r.start_ts<200*86400?' – '+new Date(r.end_ts*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+'</small></td>'+
    '<td class="r num">KSh '+N0(Math.round(r.spend))+'</td><td class="r num">'+N0(r.clicks)+'</td><td class="r num">'+N0(r.visitors)+'</td><td class="r num"><b>'+N0(r.players)+'</b></td><td class="r num">'+cpp+'</td>'+
    '<td style="white-space:nowrap">'+act+'<div data-rbudbox="'+r.id+'" hidden style="margin-top:6px;display:flex;gap:6px;align-items:center"><input type="number" min="100" max="'+R.cap+'" step="50" value="'+(r.daily_kes||500)+'" aria-label="New daily budget" style="width:100px;padding:4px 6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"><button class="btn xs primary" type="button" data-rbudsave="'+r.id+'">Save</button></div></td></tr>';}).join('')
   :'<tr><td colspan="9" class="empty">No ads yet. Spend shows here within the hour after an ad starts.</td></tr>';}
@@ -910,36 +975,34 @@ $('rFile').addEventListener('change',async()=>{const f=$('rFile').files[0];rMedi
 // publish
 $('rForm').addEventListener('submit',async e=>{e.preventDefault();if(rBusy)return;const msg=t=>$('rMsg').textContent=t;
  if(!runs||!runs.canRun)return msg('Creating ads needs the ads_management permission first.');
- const cap=runs.cap,body={campaign:{},adset:{},ad:{}};
- if(radio('cMode')==='old'){if(!$('cExisting').value)return msg('Choose a campaign.');body.campaign.id=$('cExisting').value;}
- else{body.campaign={name:$('cName').value.trim(),objective:radio('cObjR'),budget_level:radio('cBud')};if(!body.campaign.name)return msg('Give the campaign a name.');
-  if(body.campaign.budget_level==='campaign'){body.campaign.daily=+$('cDaily').value||0;if(body.campaign.daily<100||body.campaign.daily>cap)return msg('Set the campaign budget from KSh 100 to KSh '+N0(cap)+' a day.');}}
- if(radio('sMode')==='old'){if(!$('sExisting').value)return msg('Choose an ad set.');body.adset.id=$('sExisting').value;}
- else{const au=bAudience();if(!au.countries.length)return msg('Choose at least one country.');const days=bDays();if(days<1)return msg('Ad sets can run from 1 to '+runs.maxDays+' days.');
-  body.adset={name:$('sName').value.trim(),audience:au,days};if(bBudgetLevel()==='adset'){body.adset.daily=+$('sDaily').value||0;if(body.adset.daily<100||body.adset.daily>cap)return msg('Set the ad set budget from KSh 100 to KSh '+N0(cap)+' a day.');}
-  if(radio('rWhen')==='later'){const v=$('rStart').value;if(!v)return msg('Pick a start time.');body.adset.start=Math.floor(new Date(v).getTime()/1000);}}
- const k=rKind();body.ad={name:$('aName').value.trim(),cta:$('rCta').value};
- if(k==='boost'){body.ad.kind=radio('rWhich');body.ad.post_id=+$('rPost').value||0;if(!body.ad.post_id)return msg('Choose a published post.');}
- else{body.ad.kind='new';if(!rFile)return msg('Choose a photo or video.');if(!$('rCap').value.trim())return msg('Write the ad text.');body.ad.caption=$('rCap').value;body.ad.headline=$('rHead').value.trim();}
- const tot=bNewDaily()*(radio('sMode')==='old'?0:bDays());
- if(tot){if(!$('rOk').checked)return msg('Tick the box to confirm the most this can spend (KSh '+N0(tot)+').');body.confirm=tot;}
+ const c=bReadCampaign();if(typeof c==='string')return msg(c);
+ // everything saved, plus whatever is filled in on the form now
+ const sets=bDraft.map(S=>({set:S.set,ads:S.ads.slice()}));let extra=null;
+ if(bAdFilled()||!sets.length){if(bCur==null&&sets.length>=B_MAX_SETS)return msg('Up to '+B_MAX_SETS+' ad sets at a time.');
+  const st=bCur==null?bReadSet():null;if(typeof st==='string')return msg(st);extra={st};}
+ if(extra&&!bAdFilled())return msg(rKind()==='boost'?'Choose a published post.':'Choose a photo or video.');
+ if(extra&&rKind()==='new'&&!$('rCap').value.trim())return msg('Write the ad text.');
+ const allSets=sets.map(S=>S.set).concat(extra&&extra.st?[extra.st]:[]),M=bMost(allSets),tot=M.tot;
+ if(tot){if(!$('rOk').checked||+$('rOk').dataset.total!==tot){bSync();return msg('Tick the box to confirm the most this can spend (KSh '+N0(tot)+').');}}
  rBusy=true;$('rGo').disabled=true;
- try{if(k==='new'){if(!rMedia)rMedia=await rUpload();body.ad.media=rMedia;}msg('Creating it on Meta…');
-  const r=await api('POST','/api/admin/adruns/start',body);runs=r.report;renderRuns();loadMg();
-  msg(r.status==='processing'?'Meta is processing the video. The ad switches on by itself when it is ready (usually a few minutes).':'Published. Meta reviews new ads, usually within an hour; spend and results show here and in Ads Manager.');
-  if(k==='new'){rClearFile();$('rCap').value='';$('rHead').value='';}$('aName').value='';$('rOk').checked=false;}
+ try{if(extra){const a=await bReadAd();if(typeof a==='string')throw new Error(a);if(extra.st)sets.push({set:extra.st,ads:[a]});else sets[bCur].ads.push(a);}
+  const body={campaign:c,adsets:sets.map(S=>Object.assign({},S.set.payload,{ads:S.ads.map(A=>A.payload)}))};if(tot)body.confirm=tot;
+  const n=sets.reduce((t,S)=>t+S.ads.length,0);msg('Creating '+(n>1?n+' ads':'it')+' on Meta…');
+  const r=await api('POST','/api/admin/adruns/start',body);runs=r.report;bDraft=[];bCur=null;bResetAd();bPostCleared=false;renderDraft();renderRuns();loadMg();
+  msg((r.failed?r.made+' of '+(r.made+r.failed)+' ads were created. '+(r.errors||[]).join(' · ')+' ':n>1?'Published '+n+' ads. ':'Published. ')+(r.status==='processing'?'Meta is processing a video; that ad switches on by itself when it is ready (usually a few minutes). ':'')+'Meta reviews new ads, usually within an hour; spend and results show here and in Ads Manager.');
+  $('rOk').checked=false;}
  catch(err){msg(err.message||'Something went wrong.');try{await loadRuns();}catch(x){}}
- rBusy=false;$('rGo').disabled=!(runs&&runs.canRun);});
+ rBusy=false;$('rGo').disabled=!(runs&&runs.canRun);bSync();});
 $('runPanel').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b||b.closest('#rForm'))return;
  if(b.dataset.rbud){const box=document.querySelector('[data-rbudbox="'+b.dataset.rbud+'"]');box.hidden=!box.hidden;return;}
  const act=b.dataset.rpause?'pause':b.dataset.rresume?'resume':b.dataset.rstop?'stop':b.dataset.rdel?'remove':b.dataset.rbudsave?'budget':null;if(!act)return;
  const id=+(b.dataset.rpause||b.dataset.rresume||b.dataset.rstop||b.dataset.rdel||b.dataset.rbudsave),body={id};
  if(act==='budget'){body.daily=+document.querySelector('[data-rbudbox="'+id+'"] input').value||0;if(body.daily>runs.cap){$('rMsg').textContent='The most per day is KSh '+N0(runs.cap)+'.';return;}}
- if(act==='stop'&&b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Tap again to stop';setTimeout(()=>{b.dataset.armed='';b.textContent='Stop';},4000);return;}
+ if(act==='stop'&&b.dataset.armed!=='1'){const L=b.dataset.label||'Stop';b.dataset.armed='1';b.textContent='Tap again: '+L.toLowerCase();setTimeout(()=>{b.dataset.armed='';b.textContent=L;},4000);return;}
  b.disabled=true;try{const r=await api('POST','/api/admin/adruns/'+act,body);runs=r.report;renderRuns();loadMg();$('rMsg').textContent={pause:'Paused.',resume:'Running again.',stop:'Stopped. It won\'t spend any more.',remove:'Removed from the list.',budget:'Daily budget changed.'}[act];}
  catch(x){$('rMsg').textContent=x.message;b.disabled=false;}});
 // shortcuts from the Ads Manager table
-function bStartFrom(campId,setId){document.querySelector('input[name=cMode][value=old]').checked=true;bSync();$('cExisting').value=campId;bSync();
+function bStartFrom(campId,setId){bDraft=[];bCur=null;renderDraft();document.querySelector('input[name=cMode][value=old]').checked=true;bSync();$('cExisting').value=campId;bSync();
  if(setId){document.querySelector('input[name=sMode][value=old]').checked=true;bSync();$('sExisting').value=setId;}else document.querySelector('input[name=sMode][value=new]').checked=true;
  bSync();$('runPanel').scrollIntoView({behavior:'smooth',block:'start'});$('rMsg').textContent=setId?'Adding a new ad to this ad set. Fill in step 3 and publish.':'Adding a new ad set to this campaign. Fill in steps 2 and 3 and publish.';}
 

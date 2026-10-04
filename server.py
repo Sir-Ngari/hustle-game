@@ -524,7 +524,7 @@ _old_runs = False
 for _c, _d in (("objective", "TEXT NOT NULL DEFAULT 'OUTCOME_TRAFFIC'"), ("budget_level", "TEXT NOT NULL DEFAULT 'campaign'"),
                ("genders", "TEXT NOT NULL DEFAULT ''"), ("interests", "TEXT NOT NULL DEFAULT '[]'"), ("campaign_name", "TEXT NOT NULL DEFAULT ''"),
                ("adset_name", "TEXT NOT NULL DEFAULT ''"), ("made_campaign", "INTEGER NOT NULL DEFAULT 0"), ("made_adset", "INTEGER NOT NULL DEFAULT 0"),
-               ("adset_daily", "INTEGER NOT NULL DEFAULT 0")):
+               ("adset_daily", "INTEGER NOT NULL DEFAULT 0"), ("batch", "TEXT NOT NULL DEFAULT ''"), ("bset", "INTEGER NOT NULL DEFAULT 0")):
     if _c not in [r[1] for r in _db.execute("PRAGMA table_info(ad_runs)").fetchall()]:
         _db.execute("ALTER TABLE ad_runs ADD COLUMN %s %s" % (_c, _d))
         if _c == "made_campaign":
@@ -2407,6 +2407,7 @@ def stats_sweeper():
 AD_DAILY_CAP = env_int("HUSTLE_AD_DAILY_CAP", 2000)   # KSh; no ad can be set to spend more than this a day
 AD_MAX_DAYS = 30
 AD_CTAS = {"PLAY_GAME": "Play game", "LEARN_MORE": "Learn more", "SIGN_UP": "Sign up"}
+AD_MAX_SETS, AD_MAX_PER_SET, AD_MAX_ADS = 5, 6, 12   # one publish: ad sets, ads in each, ads in all
 AD_COUNTRIES = {"KE": "Kenya", "UG": "Uganda", "TZ": "Tanzania", "RW": "Rwanda", "NG": "Nigeria", "GH": "Ghana", "ZA": "South Africa"}
 AD_LOCK = threading.Lock()
 
@@ -2541,6 +2542,12 @@ def ad_build(r):
                                             "creative": json.dumps({"creative_id": r["creative_id"]}), "status": "PAUSED"})
             ad_set(r["id"], ad_id=ad["id"]); r.update(ad_id=ad["id"])
         graph_post(r["ad_id"], {"status": "ACTIVE"})
+        if r.get("batch"):
+            # an ad in a batch also switches on the campaign and ad set its batch made, so it can start delivering
+            if not r.get("made_adset") and q("SELECT 1 FROM ad_runs WHERE batch=? AND made_adset=1 AND adset_id=? AND id<>?", (r["batch"], r["adset_id"], r["id"]), one=True):
+                graph_post(r["adset_id"], {"status": "ACTIVE"})
+            if not r.get("made_campaign") and q("SELECT 1 FROM ad_runs WHERE batch=? AND made_campaign=1 AND campaign_id=? AND id<>?", (r["batch"], r["campaign_id"], r["id"]), one=True):
+                graph_post(r["campaign_id"], {"status": "ACTIVE"})
         if r.get("made_adset"):
             graph_post(r["adset_id"], {"status": "ACTIVE"})
         if r.get("made_campaign"):
@@ -2548,6 +2555,26 @@ def ad_build(r):
         ad_set(r["id"], status="active", error="")
         return "active"
     except Exception as e:
+        if r.get("batch") and (r.get("made_campaign") or r.get("made_adset")):
+            # other ads in this batch already sit in the campaign or ad set this ad made: keep those, hand them over
+            sib_c = r.get("made_campaign") and r.get("campaign_id") and q("SELECT id FROM ad_runs WHERE batch=? AND campaign_id=? AND id<>? AND status<>'failed' ORDER BY id LIMIT 1",
+                                                                          (r["batch"], r["campaign_id"], r["id"]), one=True)
+            sib_s = r.get("made_adset") and r.get("adset_id") and q("SELECT id FROM ad_runs WHERE batch=? AND adset_id=? AND id<>? AND status<>'failed' ORDER BY id LIMIT 1",
+                                                                       (r["batch"], r["adset_id"], r["id"]), one=True)
+            if sib_c:
+                if r.get("budget_level") == "adset":
+                    ad_set(sib_c["id"], made_campaign=1)
+                else:
+                    ad_set(sib_c["id"], made_campaign=1, daily_kes=r.get("daily_kes") or 0)
+                ad_set(r["id"], made_campaign=0)
+                r["made_campaign"] = 0
+            if sib_s:
+                if r.get("adset_daily"):
+                    ad_set(sib_s["id"], made_adset=1, adset_daily=r["adset_daily"], daily_kes=r["adset_daily"])
+                else:
+                    ad_set(sib_s["id"], made_adset=1)
+                ad_set(r["id"], made_adset=0)
+                r["made_adset"] = 0
         if r.get("made_campaign") and r.get("campaign_id"):
             graph_delete(r["campaign_id"])      # removes its ad set and ad too
             ad_set(r["id"], campaign_id="", adset_id="", creative_id="", ad_id="")
@@ -2673,9 +2700,13 @@ def ads_runs_report(t):
     for r in q("SELECT * FROM ad_runs WHERE created>? OR status IN ('active','paused','processing') ORDER BY id DESC LIMIT 60", (t - 120 * 86400,)):
         d = dict(r)
         # count only what this run made: its campaign, its ad set, or just its ad
-        col, key = ("campaign_id", r["campaign_id"]) if r["made_campaign"] else ("adset_id", r["adset_id"]) if r["made_adset"] else ("ad_id", r["ad_id"])
+        # each ad's own results, so ads that share a campaign or ad set are not counted twice
         sp = q("SELECT COALESCE(SUM(spend),0) s, COALESCE(SUM(impressions),0) i, COALESCE(SUM(reach),0) re, COALESCE(SUM(link_clicks),0) c "
-               "FROM meta_daily WHERE %s=?" % col, (key,), one=True) if key else None
+               "FROM meta_daily WHERE ad_id=?", (r["ad_id"],), one=True) if r["ad_id"] else None
+        cn = q("SELECT name FROM meta_campaigns WHERE campaign_id=?", (r["campaign_id"],), one=True) if r["campaign_id"] else None
+        sn = q("SELECT name FROM meta_adsets WHERE adset_id=?", (r["adset_id"],), one=True) if r["adset_id"] else None
+        d["campaign_label"] = (cn and cn["name"]) or r["campaign_name"]
+        d["adset_label"] = (sn and sn["name"]) or r["adset_name"]
         d.update({"spend": sp["s"] if sp else 0, "impressions": sp["i"] if sp else 0, "reach": sp["re"] if sp else 0, "clicks": sp["c"] if sp else 0})
         code = "ad-%d" % r["id"]
         d["visitors"] = q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND stage<>'login'", (code,), one=True)["n"]
@@ -4631,10 +4662,22 @@ class Handler(BaseHTTPRequestHandler):
                 return None
             return b if 100 <= b <= AD_DAILY_CAP else None
         if path == "/api/admin/adruns/start":
+            # One campaign (new or existing) with one or more ad sets (new or existing), each with one or more ads.
+            # Older pages send {campaign, adset, ad}; that is one ad set with one ad.
             C = d.get("campaign") if isinstance(d.get("campaign"), dict) else {}
-            S = d.get("adset") if isinstance(d.get("adset"), dict) else {}
-            A = d.get("ad") if isinstance(d.get("ad"), dict) else {}
-            ints = lambda v, lo, hi, df: max(lo, min(hi, int(v))) if str(v or "").strip().lstrip("-").isdigit() else df
+            SETS = d.get("adsets")
+            if not isinstance(SETS, list):
+                S0 = dict(d.get("adset")) if isinstance(d.get("adset"), dict) else {}
+                S0["ads"] = [d.get("ad")] if isinstance(d.get("ad"), dict) else []
+                SETS = [S0]
+            SETS = [s for s in SETS if isinstance(s, dict)]
+            if not SETS:
+                return self.error(400, "Add at least one ad set.")
+            if len(SETS) > AD_MAX_SETS:
+                return self.error(400, "One campaign can get up to %d new ad sets at a time." % AD_MAX_SETS)
+            n_ads = sum(len(s.get("ads") or []) for s in SETS)
+            if n_ads > AD_MAX_ADS:
+                return self.error(400, "Publish up to %d ads at a time." % AD_MAX_ADS)
             # ---- campaign: new, or one already on the account
             camp_id = re.sub(r"[^0-9]", "", str(C.get("id") or ""))[:30]
             objective, budget_level, camp_daily, camp_name = "OUTCOME_TRAFFIC", "campaign", 0, ""
@@ -4644,6 +4687,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.error(404, "That campaign isn't in the list yet. Press Refresh from Meta.")
                 objective = c["objective"] if c["objective"] in AD_OBJECTIVES else "OUTCOME_TRAFFIC"
                 budget_level = "campaign" if (c["daily_budget"] or c["lifetime_budget"]) else "adset"
+                camp_name = c["name"]
             else:
                 objective = C.get("objective") if C.get("objective") in AD_OBJECTIVES else "OUTCOME_TRAFFIC"
                 budget_level = "adset" if C.get("budget_level") == "adset" else "campaign"
@@ -4654,102 +4698,155 @@ class Handler(BaseHTTPRequestHandler):
                     camp_daily = budget(C.get("daily"))
                     if camp_daily is None:
                         return self.error(400, "The campaign's daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
-            # ---- ad set: new, or one already in that campaign
-            set_id = re.sub(r"[^0-9]", "", str(S.get("id") or ""))[:30]
-            set_daily, set_name, start, end = 0, "", 0, 0
-            aud = {"countries": "KE", "age_min": 18, "age_max": 45, "genders": "", "interests": "[]", "platforms": "all"}
-            if set_id:
-                sr = q("SELECT * FROM meta_adsets WHERE adset_id=?", (set_id,), one=True)
-                if not sr:
-                    return self.error(404, "That ad set isn't in the list yet. Press Refresh from Meta.")
-                if camp_id and sr["campaign_id"] != camp_id:
-                    return self.error(400, "That ad set belongs to another campaign.")
-                camp_id = sr["campaign_id"]
-                try:
-                    et = sr["end_time"] or ""
-                    end = int(datetime.datetime.strptime(et[:24], "%Y-%m-%dT%H:%M:%S%z").timestamp()) if len(et) >= 24 else \
-                        int(datetime.datetime.strptime(et[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=datetime.timezone.utc).timestamp()) if et else t + 365 * 86400
-                except ValueError:
-                    end = t + 365 * 86400
-                start = t
-            else:
-                if not camp_id and budget_level == "adset" or camp_id and budget_level == "adset":
-                    set_daily = budget(S.get("daily"))
-                    if set_daily is None:
-                        return self.error(400, "The ad set's daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
-                    if camp_id:
-                        other = q("SELECT COALESCE(SUM(daily_budget),0) s FROM meta_adsets WHERE campaign_id=? AND status NOT IN ('DELETED','ARCHIVED')", (camp_id,), one=True)["s"]
-                        if other + set_daily > AD_DAILY_CAP:
-                            return self.error(400, "This campaign's ad sets already spend up to KSh {:,} a day. Adding KSh {:,} would pass the KSh {:,} limit.".format(int(other), set_daily, AD_DAILY_CAP))
-                set_name = clean_text(S.get("name"), 80)
-                au = S.get("audience") if isinstance(S.get("audience"), dict) else {}
-                aud = clean_audience(au)
-                try:
-                    days = int(S.get("days") or 0)
-                except (TypeError, ValueError):
-                    days = 0
-                if not 1 <= days <= AD_MAX_DAYS:
-                    return self.error(400, "Ad sets can run from 1 to %d days." % AD_MAX_DAYS)
-                try:
-                    start = max(t + 120, int(S.get("start") or 0))
-                except (TypeError, ValueError):
-                    start = t + 120
-                end = start + days * 86400
-            # ---- the ad
-            kind = A.get("kind")
-            if kind not in ("boost_fb", "boost_ig", "new"):
-                return self.error(400, "Choose what the ad shows.")
-            cta = A.get("cta") if A.get("cta") in AD_CTAS else "PLAY_GAME"
-            name = clean_text(A.get("name"), 60)
-            post_id, media, caption, headline = 0, "", "", ""
-            if kind in ("boost_fb", "boost_ig"):
-                try:
-                    post_id = int(A.get("post_id") or 0)
-                except (TypeError, ValueError):
-                    post_id = 0
-                p = q("SELECT * FROM posts WHERE id=?", (post_id,), one=True)
-                pf = "fb" if kind == "boost_fb" else "ig"
-                if not p or p[pf + "_status"] != "posted" or not p[pf + "_id"]:
-                    return self.error(400, "That post isn't published on %s." % ("Facebook" if pf == "fb" else "Instagram"))
-                name = name or re.sub(r"\s+", " ", p["caption"]).strip()[:40] or "Post %d" % post_id
+            existing_daily = q("SELECT COALESCE(SUM(daily_budget),0) s FROM meta_adsets WHERE campaign_id=? AND status NOT IN ('DELETED','ARCHIVED')",
+                               (camp_id,), one=True)["s"] if camp_id else 0
+            plan, new_set_daily, longest = [], 0, 0
+            for si, S in enumerate(SETS):
+                where = "Ad set %d: " % (si + 1) if len(SETS) > 1 else ""
+                set_id = re.sub(r"[^0-9]", "", str(S.get("id") or ""))[:30]
+                set_daily, set_name, start, end = 0, "", 0, 0
+                aud = {"countries": "KE", "age_min": 18, "age_max": 45, "genders": "", "interests": "[]", "platforms": "all"}
+                if set_id:
+                    if not camp_id:
+                        return self.error(400, where + "an existing ad set can only be used with its own campaign.")
+                    sr = q("SELECT * FROM meta_adsets WHERE adset_id=?", (set_id,), one=True)
+                    if not sr:
+                        return self.error(404, where + "that ad set isn't in the list yet. Press Refresh from Meta.")
+                    if sr["campaign_id"] != camp_id:
+                        return self.error(400, where + "that ad set belongs to another campaign.")
+                    set_name = sr["name"]
+                    try:
+                        et = sr["end_time"] or ""
+                        end = int(datetime.datetime.strptime(et[:24], "%Y-%m-%dT%H:%M:%S%z").timestamp()) if len(et) >= 24 else \
+                            int(datetime.datetime.strptime(et[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=datetime.timezone.utc).timestamp()) if et else t + 365 * 86400
+                    except ValueError:
+                        end = t + 365 * 86400
+                    start = t
+                else:
+                    if budget_level == "adset":
+                        set_daily = budget(S.get("daily"))
+                        if set_daily is None:
+                            return self.error(400, where + "the daily budget must be between KSh 100 and KSh {:,}.".format(AD_DAILY_CAP))
+                        new_set_daily += set_daily
+                    set_name = clean_text(S.get("name"), 80)
+                    aud = clean_audience(S.get("audience") if isinstance(S.get("audience"), dict) else {})
+                    try:
+                        days = int(S.get("days") or 0)
+                    except (TypeError, ValueError):
+                        days = 0
+                    if not 1 <= days <= AD_MAX_DAYS:
+                        return self.error(400, where + "ad sets can run from 1 to %d days." % AD_MAX_DAYS)
+                    try:
+                        start = max(t + 120, int(S.get("start") or 0))
+                    except (TypeError, ValueError):
+                        start = t + 120
+                    end = start + days * 86400
+                    longest = max(longest, days)
+                ADS = [a for a in (S.get("ads") or []) if isinstance(a, dict)]
+                if not ADS:
+                    return self.error(400, where + "add at least one ad.")
+                if len(ADS) > AD_MAX_PER_SET:
+                    return self.error(400, where + "up to %d ads per ad set." % AD_MAX_PER_SET)
+                ads = []
+                for ai, A in enumerate(ADS):
+                    w2 = where + ("ad %d: " % (ai + 1) if len(ADS) > 1 else "")
+                    kind = A.get("kind")
+                    if kind not in ("boost_fb", "boost_ig", "new"):
+                        return self.error(400, w2 + "choose what the ad shows.")
+                    cta = A.get("cta") if A.get("cta") in AD_CTAS else "PLAY_GAME"
+                    name = clean_text(A.get("name"), 60)
+                    post_id, media, caption, headline = 0, "", "", ""
+                    if kind in ("boost_fb", "boost_ig"):
+                        try:
+                            post_id = int(A.get("post_id") or 0)
+                        except (TypeError, ValueError):
+                            post_id = 0
+                        p = q("SELECT * FROM posts WHERE id=?", (post_id,), one=True)
+                        pf = "fb" if kind == "boost_fb" else "ig"
+                        if not p or p[pf + "_status"] != "posted" or not p[pf + "_id"]:
+                            return self.error(400, w2 + "that post isn't published on %s." % ("Facebook" if pf == "fb" else "Instagram"))
+                        name = name or re.sub(r"\s+", " ", p["caption"]).strip()[:40] or "Post %d" % post_id
+                    else:
+                        media = str(A.get("media") or "")
+                        if not MEDIA_RE.match(media) or not os.path.isfile(os.path.join(MEDIA_DIR, media)):
+                            return self.error(400, w2 + "upload the photo or video first.")
+                        caption = (A.get("caption") if isinstance(A.get("caption"), str) else "").replace("\r", "")[:2000]
+                        headline = clean_text(A.get("headline"), 40)
+                        if not caption.strip():
+                            return self.error(400, w2 + "write the ad text.")
+                        name = name or re.sub(r"\s+", " ", caption).strip()[:40]
+                    ads.append({"kind": kind, "cta": cta, "name": name, "post_id": post_id, "media": media, "caption": caption, "headline": headline})
                 if not set_id:
-                    want = "facebook" if kind == "boost_fb" else "instagram"
-                    if aud["platforms"] not in ("all", want):
-                        return self.error(400, "A boosted %s post can only show on %s." % (want.title(), want.title()))
-                    aud["platforms"] = want
-            else:
-                media = str(A.get("media") or "")
-                if not MEDIA_RE.match(media) or not os.path.isfile(os.path.join(MEDIA_DIR, media)):
-                    return self.error(400, "Upload the photo or video first.")
-                caption = (A.get("caption") if isinstance(A.get("caption"), str) else "").replace("\r", "")[:2000]
-                headline = clean_text(A.get("headline"), 40)
-                if not caption.strip():
-                    return self.error(400, "Write the ad text.")
-                name = name or re.sub(r"\s+", " ", caption).strip()[:40]
+                    # a boosted post can only run where it was posted, so a new ad set follows its boosts
+                    boosts = {a["kind"] for a in ads if a["kind"] != "new"}
+                    if len(boosts) > 1:
+                        return self.error(400, where + "a boosted Facebook post and a boosted Instagram post can't share an ad set. Put them in separate ad sets.")
+                    if boosts:
+                        want = "facebook" if "boost_fb" in boosts else "instagram"
+                        if aud["platforms"] not in ("all", want):
+                            return self.error(400, where + "a boosted %s post can only show on %s." % (want.title(), want.title()))
+                        aud["platforms"] = want
+                plan.append({"set_id": set_id, "set_name": set_name, "set_daily": set_daily, "start": start, "end": end, "aud": aud, "ads": ads})
+            if budget_level == "adset" and existing_daily + new_set_daily > AD_DAILY_CAP:
+                return self.error(400, ("This campaign's ad sets already spend up to KSh {:,} a day. Adding KSh {:,} would pass the KSh {:,} limit." if existing_daily else
+                                        "Together these ad sets spend KSh {1:,} a day, more than the KSh {2:,} limit.").format(int(existing_daily), new_set_daily, AD_DAILY_CAP))
             # ---- the most this can add to spending, which must be confirmed
-            new_daily = camp_daily or set_daily
-            most = new_daily * max(1, (end - start + 86399) // 86400) if new_daily else 0
+            most = camp_daily * longest if camp_daily else sum(p["set_daily"] * max(1, (p["end"] - p["start"] + 86399) // 86400) for p in plan if p["set_daily"])
             if most and (not str(d.get("confirm") or "").isdigit() or int(d.get("confirm")) != most):
                 return self.error(400, "Confirm the most this can spend (KSh {:,}) first.".format(most))
-            aid = tx(lambda db: db.execute(
-                "INSERT INTO ad_runs(created,kind,post_id,name,caption,headline,media,cta,countries,age_min,age_max,platforms,daily_kes,start_ts,end_ts,status,updated,"
-                "objective,budget_level,genders,interests,campaign_name,adset_name,adset_daily,campaign_id,adset_id) "
-                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'creating',?,?,?,?,?,?,?,?,?,?)",
-                (t, kind, post_id, name, caption, headline, media, cta, aud["countries"], aud["age_min"], aud["age_max"], aud["platforms"],
-                 camp_daily or set_daily, start, end, t, objective, budget_level, aud["genders"], aud["interests"], camp_name, set_name, set_daily,
-                 camp_id, set_id)).lastrowid)
-            q("INSERT OR IGNORE INTO campaigns(code,name,channel,cost,note,created) VALUES(?,?,?,0,?,?)",
-              ("ad-%d" % aid, "Ad: %s" % name, "ads", "Run from the admin", t))
+            batch = "b%d%04d" % (t, secrets.randbelow(10000))
+            ids = []
+            for si, p in enumerate(plan):
+                for ai, a in enumerate(p["ads"]):
+                    first_camp = not camp_id and not ids
+                    first_set = not p["set_id"] and ai == 0
+                    aud = p["aud"]
+                    aid = tx(lambda db: db.execute(
+                        "INSERT INTO ad_runs(created,kind,post_id,name,caption,headline,media,cta,countries,age_min,age_max,platforms,daily_kes,start_ts,end_ts,status,updated,"
+                        "objective,budget_level,genders,interests,campaign_name,adset_name,adset_daily,campaign_id,adset_id,batch,bset) "
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'creating',?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (t, a["kind"], a["post_id"], a["name"], a["caption"], a["headline"], a["media"], a["cta"], aud["countries"], aud["age_min"], aud["age_max"],
+                         aud["platforms"], camp_daily if (first_camp and camp_daily) else (p["set_daily"] if first_set else 0), p["start"], p["end"], t, objective, budget_level,
+                         aud["genders"], aud["interests"], camp_name, p["set_name"], p["set_daily"] if first_set else 0, camp_id, p["set_id"], batch, si)).lastrowid)
+                    q("INSERT OR IGNORE INTO campaigns(code,name,channel,cost,note,created) VALUES(?,?,?,0,?,?)",
+                      ("ad-%d" % aid, "Ad: %s" % a["name"], "ads", "Run from the admin", t))
+                    ids.append((aid, si))
+            st, failed, errors = "active", 0, []
             with AD_LOCK:
-                try:
-                    st = ad_build(dict(q("SELECT * FROM ad_runs WHERE id=?", (aid,), one=True)))
-                except Exception as e:
-                    return self.send_json(502, {"error": str(e), "report": ads_runs_report(now())})
+                for aid, si in ids:
+                    r = dict(q("SELECT * FROM ad_runs WHERE id=?", (aid,), one=True))
+                    # reuse the campaign and ad set that earlier ads in this batch already made; if those failed, this ad makes them
+                    if not r["campaign_id"]:
+                        prev = q("SELECT campaign_id FROM ad_runs WHERE batch=? AND campaign_id<>'' AND status<>'failed' LIMIT 1", (batch,), one=True)
+                        if prev:
+                            r["campaign_id"] = prev["campaign_id"]
+                            ad_set(aid, campaign_id=prev["campaign_id"])
+                        elif budget_level == "campaign" and not r["daily_kes"]:
+                            r["daily_kes"] = camp_daily
+                            ad_set(aid, daily_kes=camp_daily)
+                    if not r["adset_id"] and not plan[si]["set_id"]:
+                        prev = q("SELECT adset_id FROM ad_runs WHERE batch=? AND bset=? AND adset_id<>'' AND status<>'failed' LIMIT 1", (batch, si), one=True)
+                        if prev:
+                            r["adset_id"] = prev["adset_id"]
+                            ad_set(aid, adset_id=prev["adset_id"])
+                        elif plan[si]["set_daily"] and not r["adset_daily"]:
+                            r["adset_daily"] = plan[si]["set_daily"]
+                            ad_set(aid, adset_daily=r["adset_daily"], daily_kes=r["daily_kes"] or r["adset_daily"])
+                    try:
+                        s1 = ad_build(r)
+                        if s1 == "processing":
+                            st = "processing"
+                    except Exception as e:
+                        failed += 1
+                        errors.append("%s: %s" % (r["name"], e))
             try:
                 meta_sync()
             except Exception:
                 pass
-            return self.send_json(200, {"ok": True, "status": st, "report": ads_runs_report(now())})
+            rep = ads_runs_report(now())
+            if failed == len(ids):
+                return self.send_json(502, {"error": errors[0] if len(errors) == 1 else "None of the ads could be created. " + " · ".join(errors[:3]), "report": rep})
+            return self.send_json(200, {"ok": True, "status": st, "made": len(ids) - failed, "failed": failed, "errors": errors[:5], "report": rep})
         try:
             aid = int(d.get("id") or 0)
         except (TypeError, ValueError):
