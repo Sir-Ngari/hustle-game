@@ -53,7 +53,7 @@ rep(".acctbrand{",""".authtabs{display:grid;grid-template-columns:1fr 1fr;border
 .hook-kick{display:inline-flex;align-items:center;gap:6px;margin:0 0 10px;padding:5px 12px;border-radius:20px;background:var(--brass);color:#14110c;font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.05em;text-transform:uppercase}
 .hook-big{margin:0;font-family:var(--display);font-weight:900;font-size:30px;line-height:1.08;text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
 .hook-big em{font-style:normal;color:var(--brass)}
-.hook-sub{margin:8px 0 0;font-size:15px;color:var(--muted)}
+.hook-sub{margin:8px 0 0;font-size:15px;color:var(--muted)}.hook-end{text-align:center;margin:18px 0 4px}.hook-end .hook-kick{margin:0}.hook-mind{margin:0 0 12px;padding:10px 14px;border-left:4px solid var(--brass);border-radius:6px;background:rgba(201,162,39,.12);font-size:16px;font-weight:600;color:var(--ink)}.hook-mind b{color:var(--brass);font-weight:800}.hook-hl{background:var(--brass);color:#14110c;font-family:var(--display);font-weight:900;letter-spacing:.04em;padding:1px 7px;border-radius:5px;white-space:nowrap}
 .about{margin-top:4px;display:flex;flex-direction:column;gap:12px}
 .about-link{margin:14px 0 0;text-align:center}
 .linkbtn{border:0;background:none;padding:6px;color:var(--brass);font-weight:700;font-size:14.5px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
