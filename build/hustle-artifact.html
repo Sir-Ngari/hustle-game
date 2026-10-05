@@ -4003,7 +4003,7 @@ const UNL=[['money','m',2,'Your cash, bank, loans and credit score.'],['life','m
  ['property','nw',1e4,'Buy land, homes and buildings that grow in value.'],['power','nw',1e4,'Your professional team, politics and friends in high places.'],['sports','nw',5e5,'Buy and run your own sports club.'],['giving','nw',1e6,'Set up a foundation in your name and give back.']];
 const TABNAME={money:'Money',life:'Life',reports:'Reports',news:'News',property:'Property',power:'Power',sports:'Sports',giving:'Foundation'};
 /* a brand-new founder starts with Business and Overview; any game already under way keeps every tab */
-function unlOf(){if(!S.unl){/* a player starting a second game after the first one ended already knows the ropes */const fresh=(S.month||0)===0&&(S.gnum||1)<=1&&!S.over&&!S.tourDone&&!(typeof ACC!=='undefined'&&ACC&&(ACC.best||0)>5000);S.unl={business:1,overview:1};S.unlNew={};S.newbie=fresh;if(!fresh)TABS.forEach(t=>{S.unl[t]=1;});}S.unlNew=S.unlNew||{};return S.unl;}
+function unlOf(){if(!S.unl){/* every new founder game unlocks tabs as it grows; starter goals and the gentle first year are only for a first game */const fresh=(S.month||0)===0&&(S.gnum||1)<=1&&!S.over;S.unl={business:1,overview:1};S.unlNew={};S.newbie=fresh&&!S.tourDone&&!(typeof ACC!=='undefined'&&ACC&&(ACC.best||0)>5000);if(!fresh)TABS.forEach(t=>{S.unl[t]=1;});}S.unlNew=S.unlNew||{};return S.unl;}
 function unlCheck(){if(!S||S.over)return;const U=unlOf(),nw=netWorth(),got=[];
  UNL.forEach(r=>{if(U[r[0]])return;if(r[1]==='m'?S.month>=r[2]:nw>=r[2]){U[r[0]]=1;S.unlNew[r[0]]=1;got.push(r);}});
  TABS.forEach(t=>{const b=$('tab-'+t);if(!b)return;b.hidden=!U[t];b.classList.toggle('unew',!!S.unlNew[t]&&curTab!==t);});
