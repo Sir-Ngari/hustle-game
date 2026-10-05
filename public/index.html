@@ -337,6 +337,17 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .famx-list{list-style:none;margin:12px 0 10px;padding:0;display:grid;gap:8px}.famx-list li{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(70px,1fr) auto;gap:10px;align-items:center}.famx-list li div:first-child{display:flex;flex-direction:column;min-width:0}.famx-list span{font-size:12px;opacity:.7}
 .famx-m{height:7px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}.famx-m i{display:block;height:100%;background:#fbbf24;border-radius:99px}.famx-m i.up{background:var(--green)}.famx-m i.down{background:var(--red)}.famx-list em{font-style:normal;font-size:12px;font-weight:700;min-width:70px;text-align:right}
 .famx-acts{display:flex;flex-wrap:wrap;gap:8px}
+.tabs .badge[hidden],html.gm .tabs .badge[hidden],.tabs button[hidden],html.gm .tabs button[hidden],.csstat[hidden],html.gm .csstat[hidden]{display:none!important}
+.tabs button.unew{position:relative;color:#ffd75e}.tabs button.unew::after{content:'';position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:#ffc53d;box-shadow:0 0 0 0 rgba(255,197,61,.8);animation:coach 1.3s ease-in-out infinite}
+.unlfx{position:fixed;left:50%;top:14px;z-index:60;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;min-width:240px;max-width:92vw;padding:12px 20px;border:0;border-radius:14px;background:linear-gradient(180deg,#ffd75e,#ffb02e);color:#2a1a00;box-shadow:0 10px 30px rgba(0,0,0,.35);font:inherit;text-align:center;cursor:pointer;animation:unlin .5s cubic-bezier(.2,1.4,.4,1)}
+.unlfx small{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.75}.unlfx b{font-family:Oswald,Impact,sans-serif;font-size:24px;line-height:1.1;text-transform:uppercase}.unlfx span{font-size:13px;font-weight:600}
+.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
+@keyframes unlin{from{opacity:0;transform:translate(-50%,-30px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@media (prefers-reduced-motion:reduce){.unlfx{animation:none}.tabs button.unew::after{animation:none}}
+.g10{margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,197,61,.45);background:rgba(255,197,61,.08)}
+.g10-top{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.g10-top span{color:var(--brass,#ffc53d)}.g10-top em{font-style:normal;color:#5be38a}
+.g10>b{display:block;margin:4px 0 6px;font-size:16px}.g10-bar{height:8px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}.g10-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#ffc53d,#5be38a);transition:width .6s}
+.g10 p{margin:6px 0 0;font-size:12.5px;opacity:.85}
 .hofh{margin:18px 0 2px}.hofsec{margin:12px 0 4px}.hofsec h4{margin:0 0 4px;font-size:15px}.hofnone{color:var(--muted);font-size:14px;margin:4px 0 8px}.hofmore summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 .hpos{font-family:var(--display);font-weight:800;font-size:18px;width:22px}
 .hnum{margin-left:auto;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -748,6 +759,7 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
         <div class="stat"><span class="eyebrow">Age</span><b id="age">24</b></div>
         <div class="stat csstat" data-a="tab" data-v="money" title="Credit score: open the Money tab to see how it works"><span class="eyebrow">Credit score</span><b id="cscore">650</b></div>
       </div>
+      <div class="g10" id="g10" hidden></div>
     </div>
     <div class="chartbox">
       <div class="eyebrow">Net worth history (log scale)</div>
@@ -1927,7 +1939,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='f37b20a25c3e';let updShown=false;
+const APP_VER='bd651a0f1ea4';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -3130,7 +3142,7 @@ if('IntersectionObserver' in window){const mt=document.querySelector('.meters');
 window.addEventListener('resize',()=>{const q=$('quick');if(q&&q.classList.contains('on'))document.documentElement.style.setProperty('--qh',q.offsetHeight+'px');});
 function syncBar(){const b=document.querySelector('.bar');if(b)document.documentElement.style.setProperty('--barh',b.offsetHeight+'px');}
 window.addEventListener('resize',syncBar);
-function showTab(t,scroll){if(!TABS.includes(t))return;curTab=t;if(t==='reports'&&$('reports'))$('reports').innerHTML=reportsHTML();
+function showTab(t,scroll){if(!TABS.includes(t))return;if(S&&S.unl){if(!S.unl[t]){if(!showTab.boot){S.unl[t]=1;}else t='overview';}if(S.unlNew)delete S.unlNew[t];const tb=$('tab-'+t);if(tb){tb.hidden=false;tb.classList.remove('unew');}}curTab=t;if(t==='reports'&&$('reports'))$('reports').innerHTML=reportsHTML();
  document.querySelectorAll('.tabpane').forEach(p=>{p.hidden=p.dataset.tab!==t;});
  TABS.forEach(x=>{const b=$('tab-'+x);b.setAttribute('aria-selected',x===t?'true':'false');b.tabIndex=x===t?0:-1;});
  try{localStorage.setItem('hustle-tab',t);}catch(e){}
@@ -3708,7 +3720,7 @@ const HT=()=>Object.assign({repeat:.35,gap:3,gap1:2},(typeof TUNE!=='undefined'&
 /* an heir is the same player in a new life: events the family already lived through come round less often */
 const heirRep=e=>S.gnum>1&&!e.drama&&S.seenFam&&S.seenFam[e.id]?+HT().repeat:1;
 const W=e=>(typeof e.w==='function'?e.w():e.w)*tuneMult(e)*heirRep(e);
-function triggerRandom(){const pool=EVENTS.concat(RISKS).filter(e=>(!e.when||e.when())&&W(e)>0);let tot=pool.reduce((t,e)=>t+W(e),0),r=rnd()*tot,e=pool[0];
+function triggerRandom(){const pool=EVENTS.concat(RISKS).filter(e=>(!e.when||e.when())&&W(e)>0&&newbieOK(e));let tot=pool.reduce((t,e)=>t+W(e),0),r=rnd()*tot,e=pool[0];
  if(!pool.length||!(tot>0))return;
  for(const x of pool){r-=W(x);if(r<=0){e=x;break}}
  S.seen=S.seen||{};S.seen[e.id]=1;
@@ -3990,7 +4002,7 @@ function stopPaying(){S.protection=0;addHeat(30);log('You stopped paying the mob
 
 let timer=null;
 function stopAuto(){if(timer){clearInterval(timer);timer=null}const a=$('auto');a.classList.remove('on');a.setAttribute('aria-pressed','false');a.textContent='Auto-play';}
-function toggleAuto(){if(timer)return stopAuto();if(S.over)return;timer=setInterval(nextMonth,750);const a=$('auto');a.classList.add('on');a.setAttribute('aria-pressed','true');a.textContent='Pause';}
+function toggleAuto(){if(timer)return stopAuto();if(S.over)return;S.f10auto=1;timer=setInterval(nextMonth,750);const a=$('auto');a.classList.add('on');a.setAttribute('aria-pressed','true');a.textContent='Pause';}
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
@@ -4011,7 +4023,7 @@ document.addEventListener('keydown',e=>{if(e.key==='n'&&!tourOn&&!e.metaKey&&!e.
 
 /* ================= Render ================= */
 function meter(v,col){return'<div class="meter"><i style="width:'+clamp(v,0,100)+'%;background:var('+col+')"></i></div>';}
-function render(){try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
+function render(){try{unlCheck();g10Check();}catch(e){}try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
  const nw=netWorth(),F=flows(false);
  paintChip();
  $('fdn-title').textContent='The '+BR()+' Foundation';
@@ -4594,6 +4606,40 @@ function investHTML(){const P=invPending(),H=S.invHist||[];if(!P.length&&!H.leng
  const tin=H.reduce((a,r)=>a+r.inv,0),tout=H.reduce((a,r)=>a+r.ret,0);
  if(H.length)h+='<p class="seghint">Recent record: '+H.filter(r=>r.ret>=r.inv).length+' of '+H.length+' paid off, '+(tout>=tin?'+':'−')+fmt(Math.abs(tout-tin))+' overall.</p>';
  return h;}
+
+/* ================= The first ten minutes: tabs unlock as you grow, first goals with small rewards, a gentle first year ================= */
+const UNL=[['money','m',2,'Your cash, bank, loans and credit score.'],['life','m',4,'Your health, home, car, family and happiness.'],['reports','m',6,'Monthly statements and charts of how your empire is doing.'],['news','m',9,'What is happening in the economy and what your rivals are up to.'],
+ ['property','nw',1e4,'Buy land, homes and buildings that grow in value.'],['power','nw',1e4,'Your professional team, politics and friends in high places.'],['sports','nw',5e5,'Buy and run your own sports club.'],['giving','nw',1e6,'Set up a foundation in your name and give back.']];
+const TABNAME={money:'Money',life:'Life',reports:'Reports',news:'News',property:'Property',power:'Power',sports:'Sports',giving:'Foundation'};
+/* a brand-new founder starts with Business and Overview; any game already under way keeps every tab */
+function unlOf(){if(!S.unl){/* a player starting a second game after the first one ended already knows the ropes */const fresh=(S.month||0)===0&&(S.gnum||1)<=1&&!S.over&&!S.tourDone&&!(typeof ACC!=='undefined'&&ACC&&(ACC.best||0)>5000);S.unl={business:1,overview:1};S.unlNew={};S.newbie=fresh;if(!fresh)TABS.forEach(t=>{S.unl[t]=1;});}S.unlNew=S.unlNew||{};return S.unl;}
+function unlCheck(){if(!S||S.over)return;const U=unlOf(),nw=netWorth(),got=[];
+ UNL.forEach(r=>{if(U[r[0]])return;if(r[1]==='m'?S.month>=r[2]:nw>=r[2]){U[r[0]]=1;S.unlNew[r[0]]=1;got.push(r);}});
+ TABS.forEach(t=>{const b=$('tab-'+t);if(!b)return;b.hidden=!U[t];b.classList.toggle('unew',!!S.unlNew[t]&&curTab!==t);});
+ {const c=document.querySelector('.csstat');if(c)c.hidden=!U.money;}
+ if(!U[curTab]){showTab.boot=1;showTab('overview');showTab.boot=0;}
+ if(got.length)unlFx(got[got.length-1]);}
+function unlFx(r){document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('button');d.className='unlfx';d.dataset.a='tab';d.dataset.v=r[0];
+ d.innerHTML='<small>New tab unlocked</small><b>'+TABNAME[r[0]]+'</b><span>'+r[3]+'</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),5200);setTimeout(()=>d.remove(),5800);}
+/* gentle first year: no crooked deals for the first 12 months, no politicians or police for the first 6 */
+function newbieOK(e){if(!S||!S.newbie||(S.gnum||1)>1)return true;
+ if(S.month<12&&(e.cat==='Darkworld'||evGroup(e)==='Darkworld'||/^(dw|past)_/.test(e.id)))return false;
+ if(S.month<6&&(e.cat==='Politics'||e.cat==='Law'||/^law_/.test(e.id)))return false;return true;}
+/* first goals: one at a time, each with a small cash reward */
+const G10=[
+ {t:'Own 3 businesses',h:'Buy more outlets in the Business tab. Each one adds monthly profit.',p:()=>[Math.min(3,totalUnits()),3],r:150},
+ {t:'Try Auto-play',h:'Press Auto-play and let the months roll by. Press it again to pause.',p:()=>[S.f10auto?1:0,1],r:100},
+ {t:'Reach a net worth of $5,000',h:'Keep buying outlets and pressing PLAY.',p:()=>[Math.min(5e3,Math.max(0,netWorth())),5e3],r:300,money:1},
+ {t:'Open a bigger business',h:'In the Business tab, the next business up the ladder costs more but earns far more.',p:()=>[BIZ.some(b=>b.tier>=2&&owned(b.id)>0)?1:0,1],r:400},
+ {t:'Reach a net worth of $25,000',h:'You are building momentum. Keep growing.',p:()=>[Math.min(2.5e4,Math.max(0,netWorth())),2.5e4],r:1000,money:1},
+ {t:'Reach a net worth of $100,000',h:'The last starter goal. After this, the road to your first million is yours.',p:()=>[Math.min(1e5,Math.max(0,netWorth())),1e5],r:2500,money:1}];
+function g10Check(){const el=$('g10');if(!el)return;if(!S||S.over||!S.newbie||!(S.guideDone||(S.month>=1&&totalUnits()>0))||(S.g10||0)>=G10.length){el.hidden=true;return;}
+ S.g10=S.g10||0;let g=G10[S.g10],p=g.p();
+ if(p[0]>=p[1]){S.cash+=g.r;log('Goal complete: '+g.t+'. You earned a '+fmt(g.r)+' reward.','gold');S.g10++;g10Fx(g);try{coinBurst(12);}catch(e){}
+  if(S.g10>=G10.length){log('Your starter goals are done. Next stop: your first million.','gold');el.hidden=true;return;}g=G10[S.g10];p=g.p();}
+ const pc=Math.round(100*p[0]/p[1]);
+ el.innerHTML='<div class="g10-top"><span>Goal '+(S.g10+1)+' of '+G10.length+'</span><em>Reward '+fmt(g.r)+'</em></div><b>'+g.t+'</b><div class="g10-bar"><i style="width:'+pc+'%"></i></div><p>'+(g.money?fmt(p[0])+' of '+fmt(p[1]):p[1]>1?p[0]+' of '+p[1]:'')+(g.money||p[1]>1?' · ':'')+g.h+'</p>';el.hidden=false;}
+function g10Fx(g){document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('div');d.className='unlfx goal';d.innerHTML='<small>Goal complete</small><b>'+g.t+'</b><span>+'+fmt(g.r)+' reward</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),4200);setTimeout(()=>d.remove(),4800);}
 /* ================= First steps: a coach that shows new players what to press ================= */
 function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
  if(!S.inds.length)return null;
