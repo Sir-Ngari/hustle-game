@@ -355,6 +355,8 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .bcqty{display:flex;align-items:center;gap:8px;margin:4px 0 10px;flex-wrap:wrap}.bcqty span{font-weight:700;margin-right:4px}.bcqty b{min-width:36px;text-align:center;font-size:22px}
 .bcafter{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:10px;background:rgba(63,208,107,.1);border:1px solid rgba(63,208,107,.35);margin-bottom:6px}.bcafter span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.75}.bcafter small{opacity:.8}
 @media (max-width:420px){.bcgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bcloan{margin:0 0 10px;padding:12px;border-radius:12px;border:1px solid rgba(79,134,232,.5);background:rgba(79,134,232,.1)}.bcl-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}.bcl-h b{font-size:15px}.bcl-h span{font-size:12px;opacity:.8}
+.bcloan p{margin:6px 0 8px;font-size:13px;opacity:.9}.bcl-l{display:flex;justify-content:space-between;font-size:13px;font-weight:700}.bcloan input[type=range]{width:100%;margin:6px 0 10px;accent-color:#ffc53d}.bcl-g{margin-bottom:6px}.bcl-n{display:block;font-size:11.5px;opacity:.75}
 .hofh{margin:18px 0 2px}.hofsec{margin:12px 0 4px}.hofsec h4{margin:0 0 4px;font-size:15px}.hofnone{color:var(--muted);font-size:14px;margin:4px 0 8px}.hofmore summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 .hpos{font-family:var(--display);font-weight:800;font-size:18px;width:22px}
 .hnum{margin-left:auto;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -1205,31 +1207,59 @@ let bcState=null;
 function bizNet(b){const n=owned(b.id);if(!n)return 0;const p=bizPL(b,false).profit;return p>0&&isReg(b.ind)?p*(1-IND[b.ind].reg.tax):p;}
 /* what the business would earn and be worth with `add` more units, without changing the game */
 function bizWith(b,add){const o=owned(b.id);S.owned[b.id]=o+add;try{return{net:bizNet(b),worth:bizValue(b)};}finally{S.owned[b.id]=o;}}
-function bcMax(b){let n=0,tot=0;const cap=regCap(b)-owned(b.id);while(n<Math.min(cap,500)){const c=unitCost(b,owned(b.id)+n);if(tot+c>S.cash)break;tot+=c;n++;}return n;}
+/* a size the player has not unlocked yet can only be bought with the bank's help */
+const bizLocked=b=>!(owned(b.id)>0||b.tier===1||netWorth()>=b.cost*ECONT().unlock||(S.bankOK&&S.bankOK[b.id]));
+function bcMax(b){if(bizLocked(b))return 0;let n=0,tot=0;const cap=regCap(b)-owned(b.id);while(n<Math.min(cap,500)){const c=unitCost(b,owned(b.id)+n);if(tot+c>S.cash)break;tot+=c;n++;}return n;}
 function bcCost(b,n){let t=0;for(let i=0;i<n;i++)t+=unitCost(b,owned(b.id)+i);return t;}
 function buyCard(id){const b=BIZ.find(x=>x.id===id);if(!b||S.over||!S.inds.includes(b.ind))return;stopAuto();bcState={id,n:1};paintBuyCard();}
-function paintBuyCard(){const st=bcState;if(!st)return;const b=BIZ.find(x=>x.id===st.id),n0=owned(b.id),mx=bcMax(b),cap=regCap(b),capLeft=cap-n0;
- st.n=Math.max(1,Math.min(st.n,Math.max(1,mx)));const n=st.n,cost=bcCost(b,n),now={net:bizNet(b),worth:bizValue(b)},aft=bizWith(b,n),one=bizWith(b,1),each=one.net-now.net,ok=mx>=1;
- const ind=IND[b.ind],reg=isReg(b.ind),sh=Math.max(0,unitCost(b,n0)-S.cash);
+/* the bank finances a purchase when the player cannot pay it all in cash: a deposit now, the rest over 5 years */
+function finQuote(b,n){const total=bcCost(b,n),need=total>S.cash+1e-6;if(!+ECONT().bank||!loanDep()||S.over)return{ok:false,need,total,why:!loanDep()?'Your credit score is too low for a business loan.':''};
+ const minDep=total*loanDep(),loan0=total-minDep,pay0=loan0/LOAN_MONTHS+loan0*loanRate(),nw=netWorth(),net=S.last?S.last.net:0;
+ if(S.cash<minDep)return{ok:false,need,total,minDep,why:'The bank wants a deposit of at least '+fmt(minDep)+' ('+Math.round(loanDep()*100)+'%).'};
+ if(nw<total*.15)return{ok:false,need,total,minDep,why:'The bank will not lend this much against a net worth of '+fmt(nw)+'.'};
+ if(net<pay0*.8)return{ok:false,need,total,minDep,why:'Your monthly profit is too small to cover repayments of '+fmt(pay0)+'.'};
+ return{ok:true,need,total,minDep,maxDep:Math.min(S.cash,total)};}
+function finMax(b){const cap=Math.min(50,regCap(b)-owned(b.id));let k=0;while(k<cap&&finQuote(b,k+1).ok)k++;return k;}
+const finOK=b=>!atCap(b)&&S.inds.includes(b.ind)&&finQuote(b,1).ok;
+function paintBuyCard(){const st=bcState;if(!st)return;const b=BIZ.find(x=>x.id===st.id),n0=owned(b.id),mx=bcMax(b),fx=finMax(b),top=Math.max(mx,fx),cap=regCap(b),capLeft=cap-n0;
+ st.n=Math.max(1,Math.min(st.n,Math.max(1,top)));const n=st.n,cost=bcCost(b,n),now={net:bizNet(b),worth:bizValue(b)},aft=bizWith(b,n),one=bizWith(b,1),each=one.net-now.net;
+ const cashOK=n<=mx,fq=cashOK?null:finQuote(b,n),ok=cashOK||(fq&&fq.ok);
+ if(fq&&fq.ok){if(st.dep==null||st.dep<fq.minDep||st.dep>fq.maxDep)st.dep=Math.max(fq.minDep,Math.min(fq.maxDep,S.cash*.6));}
+ const ind=IND[b.ind],reg=isReg(b.ind),sh=Math.max(0,unitCost(b,n0)-S.cash),q1=finQuote(b,1);
  const m=$('modal');m.hidden=false;
+ const loanBox=fq&&fq.ok?'<div class="bcloan"><div class="bcl-h"><b>Bank loan approved</b><span>Credit score '+creditScore()+' · '+csBand()[1]+'</span></div>'+
+   '<p>You have '+fmt(S.cash)+' in cash. Put down a deposit and the bank pays the rest of the '+fmt(cost)+', repaid over 5 years at '+(loanYr()*100).toFixed(1)+'% a year.</p>'+
+   '<label class="bcl-l" for="bcdep">Your deposit <b id="bcdepv"></b></label><input type="range" id="bcdep" min="'+Math.ceil(fq.minDep)+'" max="'+Math.floor(fq.maxDep)+'" step="'+Math.max(1,Math.round((fq.maxDep-fq.minDep)/200))+'" value="'+Math.round(st.dep)+'"'+(fq.maxDep-fq.minDep<1?' disabled':'')+'>'+
+   '<div class="bcgrid bcl-g"><div><small>Bank lends</small><b id="bclend"></b></div><div><small>Per month</small><b id="bcpay" class="neg"></b></div><div><small>Cash left</small><b id="bcleft"></b></div></div>'+
+   '<small class="bcl-n">Minimum deposit '+fmt(fq.minDep)+' ('+Math.round(loanDep()*100)+'%). Miss repayments and the bank can take the business back.</small></div>':'';
  m.innerHTML='<div class="shade"><div class="card buycard" role="dialog" aria-modal="true" aria-labelledby="bct">'+
   '<canvas class="bcimg" id="bcimg" aria-hidden="true"></canvas>'+
   '<span class="eyebrow cat">'+esc(ind.name)+' · size '+b.tier+' of '+ind.biz.length+'</span><h3 id="bct">'+esc(b.name)+'</h3><p class="bcdesc">'+esc(b.tag)+'</p>'+
   '<div class="bcgrid"><div><small>You own</small><b>'+n0+'</b></div><div><small>Net income now</small><b class="'+(now.net<0?'neg':now.net>0?'pos':'')+'">'+(now.net<0?'−':'')+fmt(Math.abs(now.net))+'/mo</b></div><div><small>Worth now</small><b>'+fmt(now.worth)+'</b></div>'+
   '<div><small>Each new one earns</small><b class="pos">~'+fmt(Math.max(0,each))+'/mo</b></div><div><small>Next one costs</small><b>'+fmt(unitCost(b,n0))+'</b></div><div><small>Your cash</small><b>'+fmt(S.cash)+'</b></div></div>'+
   (reg?'<p class="bcnote">Income shown after the '+Math.round(ind.reg.tax*100)+'% tax. Your licence allows '+cap+' of these'+(capLeft<=0?': you have reached the limit.':', '+capLeft+' more.')+'</p>':'')+
-  (ok?'<div class="bcqty"><span>How many?</span><button class="btn small" data-a="bcq" data-v="-1" aria-label="One fewer"'+(n<=1?' disabled':'')+'>−</button><b id="bcn">'+n+'</b><button class="btn small" data-a="bcq" data-v="1" aria-label="One more"'+(n>=mx?' disabled':'')+'>+</button>'+
-    (mx>1?'<button class="btn small ghost" data-a="bcq" data-v="max"'+(n>=mx?' disabled':'')+'>Max ('+mx+')</button>':'')+'</div>'+
-    '<div class="bcafter"><span>After buying</span><b>'+(n0+n)+' owned · '+(aft.net<0?'−':'')+fmt(Math.abs(aft.net))+'/mo · worth '+fmt(aft.worth)+'</b><small>'+(n>1?'Each one costs 12% more than the last, so '+n+' cost '+fmt(cost)+' together. ':'')+'Cash left: '+fmt(S.cash-cost)+'</small></div>'
-   :'<p class="bcnote warnc">'+(capLeft<=0?'Your licence does not allow any more of these.':'You need '+fmt(sh)+' more cash to buy one.')+'</p>')+
-  '<div class="choices"><button class="btn primary'+(totalUnits()===0?' coach':'')+'" data-a="bcok"'+(ok?'':' disabled')+'>'+(ok?'Buy '+n+' · '+fmt(cost):'Buy')+'</button><button class="btn ghost" data-a="closecard">Cancel</button></div></div></div>';
+  (top>=1?'<div class="bcqty"><span>How many?</span><button class="btn small" data-a="bcq" data-v="-1" aria-label="One fewer"'+(n<=1?' disabled':'')+'>−</button><b id="bcn">'+n+'</b><button class="btn small" data-a="bcq" data-v="1" aria-label="One more"'+(n>=top?' disabled':'')+'>+</button>'+
+    (mx>1?'<button class="btn small ghost" data-a="bcq" data-v="'+mx+'"'+(n===mx?' disabled':'')+'>Cash max ('+mx+')</button>':'')+(fx>mx?'<button class="btn small ghost" data-a="bcq" data-v="'+fx+'"'+(n===fx?' disabled':'')+'>With a loan ('+fx+')</button>':'')+'</div>'+
+    loanBox+
+    '<div class="bcafter"><span>After buying</span><b>'+(n0+n)+' owned · '+(aft.net<0?'−':'')+fmt(Math.abs(aft.net))+'/mo · worth '+fmt(aft.worth)+'</b><small>'+(n>1?'Each one costs 12% more than the last, so '+n+' cost '+fmt(cost)+' together. ':'')+(cashOK?'Cash left: '+fmt(S.cash-cost):'Paid with a deposit and a bank loan.')+'</small></div>'
+   :'<p class="bcnote warnc">'+(capLeft<=0?'Your licence does not allow any more of these.':'You need '+fmt(sh)+' more cash to buy one.'+(q1.why?' '+q1.why:''))+'</p>')+
+  '<div class="choices"><button class="btn primary'+(totalUnits()===0?' coach':'')+'" data-a="bcok"'+(ok?'':' disabled')+'>'+(!ok?'Buy':cashOK?'Buy '+n+' · '+fmt(cost):'Approve loan and buy '+n)+'</button><button class="btn ghost" data-a="closecard">Cancel</button></div></div></div>';
+ if(fq&&fq.ok){const r=$('bcdep'),pt=()=>{const d=Math.max(fq.minDep,Math.min(fq.maxDep,+r.value||fq.minDep));st.dep=d;const loan=cost-d,pay=loan/LOAN_MONTHS+loan*loanRate();$('bcdepv').textContent=fmt(d);$('bclend').textContent=fmt(loan);$('bcpay').textContent=fmt(pay)+'/mo';$('bcleft').textContent=fmt(S.cash-d);};r.addEventListener('input',pt);pt();}
  const cv=$('bcimg');if(cv&&typeof scene!=='undefined'&&scene.paintBiz){const t0=performance.now();const loop=()=>{if(!cv.isConnected)return;try{scene.paintBiz(cv,b,(performance.now()-t0)/1000+5);}catch(e){}if(!RM)requestAnimationFrame(loop);};loop();}
  const f=m.querySelector('[data-a="bcok"]:not([disabled])')||m.querySelector('button');if(f)f.focus();try{paintGuide();}catch(e){}}
-function bcQty(v){const st=bcState;if(!st)return;if(st.gen){const mx=st.gen.max();st.n=v==='max'?mx:Math.max(1,Math.min(mx,st.n+(+v||0)));paintPCard();return;}const b=BIZ.find(x=>x.id===st.id),mx=bcMax(b);st.n=v==='max'?mx:Math.max(1,Math.min(mx,st.n+(+v||0)));paintBuyCard();}
-function bcConfirm(){const st=bcState;if(!st)return;if(st.gen){const o=st.gen,n=Math.min(st.n,o.max());bcState=null;closeModal();if(n<1)return;o.confirm(n);try{coinBurst(Math.min(14,5+n*2));}catch(e){}afterChange();return;}const b=BIZ.find(x=>x.id===st.id),n=Math.min(st.n,bcMax(b)),c0=S.cash;bcState=null;closeModal();if(n<1)return;
+function bcQty(v){const st=bcState;if(!st)return;if(st.gen){const mx=st.gen.max();st.n=v==='max'?mx:Math.max(1,Math.min(mx,st.n+(+v||0)));paintPCard();return;}const b=BIZ.find(x=>x.id===st.id),top=Math.max(bcMax(b),finMax(b));
+ st.n=v==='max'?top:(v==='-1'||v==='1')?Math.max(1,Math.min(top,st.n+(+v))):Math.max(1,Math.min(top,+v||1));paintBuyCard();}
+/* buy n units with a deposit and a bank loan for the rest */
+function bankFinance(b,n,dep){const total=bcCost(b,n),fq=finQuote(b,n);if(!fq.ok)return false;dep=Math.max(fq.minDep,Math.min(fq.maxDep,dep||fq.minDep));const loan=total-dep;
+ S.cash-=dep;const first=!owned(b.id);S.owned[b.id]=owned(b.id)+n;S.bankOK=S.bankOK||{};S.bankOK[b.id]=1;for(let i=0;i<n;i++)wkInc('units');
+ if(loan>0){csOf().used=true;S.debt+=loan;S.loans=(S.loans||[]).concat([{id:b.id,name:b.name,prin:loan/LOAN_MONTHS,left:LOAN_MONTHS}]);}
+ log((first?'Opened your first '+b.name:'Bought '+n+' × '+b.name)+' with a '+fmt(dep)+' deposit and a '+fmt(loan)+' bank loan. Repayments of about '+fmt(loan/LOAN_MONTHS+loan*loanRate())+' a month start next month.','good');return true;}
+function bcConfirm(){const st=bcState;if(!st)return;if(st.gen){const o=st.gen,n=Math.min(st.n,o.max());bcState=null;closeModal();if(n<1)return;o.confirm(n);try{coinBurst(Math.min(14,5+n*2));}catch(e){}afterChange();return;}
+ const b=BIZ.find(x=>x.id===st.id),c0=S.cash,dep=st.dep;bcState=null;closeModal();
+ if(st.n>bcMax(b)){if(bankFinance(b,st.n,dep)){try{coinBurst(Math.min(18,6+st.n*2));}catch(e){}afterChange();}return;}
+ const n=st.n;if(n<1)return;
  for(let i=0;i<n;i++){const before=owned(b.id);buy(b.id);if(owned(b.id)===before)break;}
  const got=c0-S.cash;if(n>1)log('Bought '+n+' '+b.name+(b.name.endsWith('s')?'':'s')+' for '+fmt(got)+'.','good');try{coinBurst(Math.min(18,6+n*2));}catch(e){}afterChange();}
-
 /* ================= The same purchase card for homes, cars, luxuries, rentals, city property, sports teams and venues ================= */
 const LUXE={salon:'💇🏾‍♀️',shoes:'👠',spa:'🧖🏾‍♀️',bags:'👜',glam:'💄',wardrobe:'👗',birkin:'👜',jewels:'💎',watch:'⌚',golfmember:'⛳',horses:'🐎',villa:'🏖️',art:'🖼️',yacht:'🛥️',vineyard:'🍇',golfclub:'🏌🏾',island:'🏝️',superyacht:'🛳️',trophyhotel:'🏨',masterpiece:'🖼️'};
 const TEAMPIC={athletics:'🏃🏾',rugby:'🏉',kpl:'⚽',basketball:'🏀',cricket:'🏏',football:'⚽',circuit:'🏎️'};
@@ -2088,7 +2118,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='d2244537a154';let updShown=false;
+const APP_VER='7659407c276e';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2420,7 +2450,7 @@ function teamWarn(){const L=lowTeams().filter(x=>S.month-((x.race?S.race.warnAt:
    {l:'An intensive training camp',d:'Costs '+fmt(tc)+'. Squad strength +4.',dis:S.cash<tc,f(){S.cash-=tc;t.strength=Math.min(99,t.strength+4);return['Two weeks of double sessions at altitude. The players are sharper.','good']}}]
    .concat(t.academy?[]:[{l:'Build a youth academy',d:'Costs '+fmt(ac)+'. Young players keep coming through.',dis:S.cash<ac,f(){buildAcademy(T.id);return['The academy is open. Your next stars are already training.','good']}}])
    .concat([{l:'Leave it for now',d:'You will be reminded again in a few months if it does not improve.',f(){return['You let the team play on.','']}}])};}
-function payoffOffer(){const L=S.loans||[];if(!L.length||S.month-(S.payAsk||-99)<6)return null;
+function payoffOffer(){const L=S.loans||[];if(!L.length||S.month-(S.payAsk||-99)<24)return null;
  const can=L.filter(x=>S.cash>=loanOwed(x)*1.3).sort((a,b)=>loanOwed(a)-loanOwed(b));if(!can.length)return null;S.payAsk=S.month;
  const all=L.reduce((t,x)=>t+loanOwed(x),0),allOk=S.cash>=all*1.3,one=can[0],allSave=L.reduce((t,x)=>t+loanIntLeft(x),0);
  const ch=[];
@@ -4027,7 +4057,7 @@ function nextMonth(){
  if(S.seizeQ&&S.seizeQ.length){openEvent(seizeEvent(S.seizeQ.shift()));return;}
  {const pe=polNext();if(pe){openEvent(pe);return;}}
  {const ee=econNext();if(ee){openEvent(ee);return;}}
- {const bo=bankOffer();if(bo){openEvent(bo);return;}}
+ /* bank loans now come with the purchase card, so the bank no longer pops up on its own */
  {const po=payoffOffer();if(po){openEvent(po);return;}}
  {const tw=teamWarn();if(tw){tw._id='sp_lowpos';openEvent(tw);return;}}
  {let fw=spouseWarn(),id='fw_spouse';if(!fw){fw=kidOverdose();id='fw_overdose';}if(!fw){fw=kidWarn();id='fw_kid';}if(!fw){fw=kidCrisis();id='fw_teen';}if(fw){fw._id=id;openEvent(fw);return;}}
@@ -4258,7 +4288,7 @@ function render(){try{unlCheck();g10Check();}catch(e){}try{moneySound();}catch(e
   mine.forEach(b=>{const n=owned(b.id),c=unitCost(b,n);
    mh+='<div class="mb"><div class="tier">'+b.tier+'</div><div class="mbname"><b>'+b.name+' <span class="count">×'+n+'</span></b><span>'+IND[b.ind].name+'</span><span class="plrow">Income '+fmt(pl(b).rev)+' − costs '+fmt(pl(b).cost)+(pl(b).d<.97?' · <i class="neg">sales '+Math.round((pl(b).d-1)*100)+'%</i>':pl(b).d>1.03?' · <i class="pos">sales +'+Math.round((pl(b).d-1)*100)+'%</i>':'')+'</span></div>'+
     '<div class="mbnum"><b class="'+(monthly(b)<0?'neg':'pos')+'">'+(monthly(b)<0?'−':'')+fmt(Math.abs(monthly(b)))+'/mo</b><span>worth '+fmt(bizValue(b))+'</span></div>'+
-    '<div class="acts">'+(atCap(b)?'<button class="btn small" disabled title="Your licence allows '+regCap(b)+' of these">Licence limit · '+regCap(b)+'</button>':'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+(S.cash<c||S.over?'disabled':'')+'>+1 · '+fmt(c)+'</button>')+'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1</button></div></div>';});}
+    '<div class="acts">'+(atCap(b)?'<button class="btn small" disabled title="Your licence allows '+regCap(b)+' of these">Licence limit · '+regCap(b)+'</button>':'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>+1 · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>')+'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1</button></div></div>';});}
  $('mybiz').innerHTML=mh;
  let bh='';
  if(!S.inds.length)bh+='<p class="seghint" style="margin:0">Choose your first industry to get started.</p>';
@@ -4270,10 +4300,10 @@ function render(){try{unlCheck();g10Check();}catch(e){}try{moneySound();}catch(e
   let shownLocked=false;
   bs.forEach(b=>{const n=owned(b.id),c=unitCost(b,n),pm=policyMult(b),im=indBuff(iid)*masteryMult(iid);
    if(!(n>0||nw>=b.cost*ECONT().unlock||b.tier===1||(S.bankOK&&S.bankOK[b.id]))){if(shownLocked)return;shownLocked=true;
-    bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*ECONT().unlock)+', or sooner if the bank agrees to finance it.</div></div><div></div></div>';return;}
+    bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*ECONT().unlock)+', or sooner if the bank agrees to finance it.</div></div><div class="acts">'+(finOK(b)?'<button class="btn small" data-a="buy" data-v="'+b.id+'">Ask the bank · '+fmt(c)+'</button>':'')+'</div></div>';return;}
    bh+='<div class="biz '+(n?'owned':'')+'"><div class="tier">'+b.tier+'</div><div style="min-width:0"><div class="name">'+b.name+(n?'<span class="count">×'+n+'</span>':'')+(pm!==1?' <span class="pill '+(pm<1?'bad':'good')+'">Policy ×'+pm.toFixed(2)+'</span>':'')+'</div><div class="tag">'+b.tag+'</div>'+
     '<div class="meta">Each earns ~'+fmt(RET()*regF(b)*b.profit*bmBase*pm*im*cyc(b)/S.s)+'/mo'+(isReg(iid)?' before excise':'')+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
-    '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+(S.cash<c||S.over?'disabled':'')+'>Open · '+fmt(c)+'</button>'+
+    '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>Open · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>'+
     (n?'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1 · '+fmt(unitCost(b,n-1)*.7)+'</button>':'')+'</div></div>';});
   bh+='</div>';});
  const others=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id));
