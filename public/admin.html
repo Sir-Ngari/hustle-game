@@ -121,6 +121,10 @@ tbody tr:hover td{background:var(--brass-soft)}
 .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 #billKpis{grid-template-columns:repeat(3,minmax(0,1fr))}
 .funnel{display:flex;flex-direction:column;gap:6px}
+.rangebar{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel,transparent)}
+.rangebar svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;opacity:.7}
+.rangebar select,.rangebar input{border:0;background:transparent;color:inherit;font:inherit;font-size:13px;padding:4px 2px}
+.rgcustom{display:inline-flex;align-items:center;gap:4px;font-size:13px}.rgcustom[hidden]{display:none}
 .frow{display:grid;grid-template-columns:minmax(150px,240px) minmax(0,1fr) 56px;gap:10px;align-items:center;font-size:13px}
 .fbar{height:16px;background:var(--grid);border-radius:3px;overflow:hidden}.fbar i{display:block;height:100%;background:var(--green);border-radius:3px}
 .frow.drop .fbar i{background:var(--brass)}
@@ -260,6 +264,11 @@ body.navhide .main{margin-left:0}
     <div class="bar">
       <button class="menubtn" id="menuBtn" aria-label="Show or hide the menu" aria-controls="side"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       <h1 class="ptitle" id="ptitle">Overview</h1>
+      <div class="rangebar" role="group" aria-label="Date range">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>
+        <select id="rgPreset" aria-label="Date range"><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="month">This month</option><option value="lastmonth">Last month</option><option value="year">This year</option><option value="all">All time</option><option value="custom">Custom dates…</option></select>
+        <span class="rgcustom" id="rgCustom" hidden><input type="date" id="rgFrom" aria-label="From"><span>to</span><input type="date" id="rgTo" aria-label="To"></span>
+      </div>
       <span class="updated" id="updated">Loading…</span>
       <label class="toggle"><input type="checkbox" id="autoRefresh" checked> Refresh every 30s</label>
       <button class="btn" id="refreshBtn">Refresh</button>
@@ -282,6 +291,16 @@ body.navhide .main{margin-left:0}
         <h2>Where players stop</h2>
         <p class="sub" id="dropSub">How far players get, and where the ones who went quiet stopped.</p>
         <div class="kpis" id="dropKpis"></div>
+        <h3 class="eyebrow" style="margin:16px 0 6px">Coming back, by the week players signed up</h3>
+        <p class="sub" style="margin:0 0 6px">Compare a week before a change with a week after it. Percentages need about 100 sign-ups in a week to mean much; a dash means the week is too recent to tell.</p>
+        <div class="tablewrap"><table><thead><tr><th>Week starting</th><th class="r">Sign-ups</th><th class="r">Came back next day</th><th class="r">Came back after a week</th></tr></thead><tbody id="dropCoh"></tbody></table></div>
+        <h3 class="eyebrow" style="margin:16px 0 6px">The first session: players who signed up in the date range</h3>
+        <p class="sub" style="margin:0 0 6px" id="dropFirstSub"></p>
+        <div class="tablewrap"><table><thead><tr><th>Step</th><th class="r">Players</th><th class="r">Of sign-ups</th><th class="r">Lost at this step</th><th style="width:30%"></th></tr></thead><tbody id="dropFirst"></tbody></table></div>
+        <h3 class="eyebrow" style="margin:16px 0 6px">The last screen before going quiet</h3>
+        <p class="sub" style="margin:0 0 6px" id="dropScrSub"></p>
+        <div class="tablewrap"><table><thead><tr><th>Tab they were on</th><th class="r">Players</th><th class="r">Share</th><th style="width:40%"></th></tr></thead><tbody id="dropTabs"></tbody></table></div>
+        <div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>Card left open and unanswered</th><th class="r">Players</th></tr></thead><tbody id="dropCards"></tbody></table></div>
         <h3 class="eyebrow" style="margin:16px 0 6px">How far players get</h3>
         <div class="tablewrap"><table><thead><tr><th>Step</th><th class="r">Players</th><th class="r">Of all accounts</th><th style="width:40%"></th></tr></thead><tbody id="dropFunnel"></tbody></table></div>
         <h3 class="eyebrow" style="margin:16px 0 6px">Players who went quiet (not seen for 2+ days): how far they had played</h3>
@@ -304,7 +323,7 @@ body.navhide .main{margin-left:0}
       </section>
     <section class="panel">
         <h2>Daily active players</h2>
-        <p class="sub">Players who opened or played the game each day, last 14 days (UTC).</p>
+        <p class="sub" id="dauSub">Players who opened or played the game each day in the date range (up to the last 92 days of it).</p>
         <div class="chart" id="dauChart"></div>
       </section>
     </div>
@@ -354,7 +373,7 @@ body.navhide .main{margin-left:0}
     </div>
 
     <div class="view" id="view-marketing" hidden>
-    <div class="mtools"><label class="eyebrow" for="mDays">Period</label><select id="mDays"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select><span class="mmsg" id="mLoad"></span></div>
+    <div class="mtools"><label class="eyebrow" for="mDays" hidden>Period</label><select id="mDays" hidden><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select><span class="mmsg" id="mLoad"></span></div>
     <div class="kpis" id="mKpis"></div>
     <p class="mtip" style="margin:0">Facebook and Instagram ads and scheduled posts are on the <a href="#meta">Meta</a> page.</p>
     <section class="panel">
@@ -388,7 +407,7 @@ body.navhide .main{margin-left:0}
     </div>
 
     <div class="view" id="view-meta" hidden>
-    <div class="mtools"><label class="eyebrow" for="aDays">Period</label><select id="aDays"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select><span class="mmsg" id="aLoad"></span></div>
+    <div class="mtools"><label class="eyebrow" for="aDays" hidden>Period</label><select id="aDays" hidden><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select><span class="mmsg" id="aLoad"></span></div>
     <section class="panel" id="connPanel">
       <h2>Meta connection</h2>
       <p class="sub">What the server is connected to on Facebook and Instagram, and when the access runs out.</p>
@@ -483,7 +502,7 @@ body.navhide .main{margin-left:0}
     </section>
     <section class="panel" id="mgPanel">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between"><h2>Ads Manager</h2>
-        <div class="mtools"><button class="btn xs primary" type="button" data-mgcreate="1">+ Create</button><select id="mgDays" aria-label="Period"><option value="1">Today</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select><button class="btn xs" type="button" id="mgSync">Refresh from Meta</button></div></div>
+        <div class="mtools"><button class="btn xs primary" type="button" data-mgcreate="1">+ Create</button><select id="mgDays" aria-label="Period" hidden><option value="1">Today</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select><button class="btn xs" type="button" id="mgSync">Refresh from Meta</button></div></div>
       <p class="sub" id="mgSub">Every campaign, ad set and ad on the Hustle empire ad account, including ones made in Ads Manager. Click a name to see what's inside it.</p>
       <div class="mgtabs" role="tablist"><button class="mgtab" role="tab" data-mglevel="campaign" aria-selected="true">Campaigns <span class="cnt" id="mgnC">0</span></button><button class="mgtab" role="tab" data-mglevel="adset" aria-selected="false">Ad sets <span class="cnt" id="mgnS">0</span></button><button class="mgtab" role="tab" data-mglevel="ad" aria-selected="false">Ads <span class="cnt" id="mgnA">0</span></button></div>
       <div id="mgFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px"></div>
@@ -534,7 +553,7 @@ body.navhide .main{margin-left:0}
         <label>Quiet months after each event<select id="evGap"><option value="1">1 month</option><option value="2">2 months</option><option value="3">3 months</option><option value="4">4 months</option><option value="6">6 months</option></select></label>
         <div class="evest" id="evEst"></div>
       </div>
-      <div class="tablewrap"><table class="evtable" style="min-width:760px"><thead><tr><th>Category · event</th><th class="r">Events · weight</th><th class="r">Share of random events</th><th class="r">Shown, 30 days</th><th class="r">Shown, all time</th><th>Setting</th></tr></thead><tbody id="evRows"></tbody></table></div>
+      <div class="tablewrap"><table class="evtable" style="min-width:760px"><thead><tr><th>Category · event</th><th class="r">Events · weight</th><th class="r">Share of random events</th><th class="r rgth">Shown in range</th><th class="r">Shown, all time</th><th>Setting</th></tr></thead><tbody id="evRows"></tbody></table></div>
       <p class="sub" style="margin-top:8px">Shares are measured from simulated games: the chance that a random event is this one, for a typical player across a whole life. Events marked <b>if</b> only happen when their condition is met (owning a mine, being married, having children), shown as how much of a typical life they are possible. The <b>Shown</b> columns are what real players actually got. Events at 0% depend on choices simulated players rarely make (crime, sports teams, property deals) or on rare situations; real players will still see them. Billionaire challenges run on their own timer and are not in this draw.</p>
       <div class="actions"><button class="btn primary" id="evSave" disabled>Save changes</button><button class="btn ghost" id="evReset">Reset everything to normal</button><span id="evMsgA" style="font-size:13px;color:var(--muted)"></span></div>
     </section>
@@ -545,6 +564,7 @@ body.navhide .main{margin-left:0}
       <div class="evpace">
         <label>Business returns<select id="ecRet"><option value="0.4">Very hard (40%)</option><option value="0.5">Hard (50%)</option><option value="0.6">Realistic (60%)</option><option value="0.8">Easier (80%)</option><option value="1">Original (100%)</option></select></label>
         <label>Net worth needed to unlock the next tier without a loan<select id="ecUnl"><option value="0.2">20% of its price (original)</option><option value="1">Its full price</option><option value="1.5">1.5 times its price</option><option value="2.5">2.5 times its price</option><option value="4">4 times its price</option></select></label>
+        <label>Regulated industries profit (betting, alcohol, tobacco, banking, insurance)<select id="ecReg"><option value="1">Very high: about 4 times normal before tax (original)</option><option value="0.8">Balanced: about 3 times normal before tax, with outlet limits</option><option value="0.6">Lower</option><option value="0.45">Modest</option><option value="0.3">Low</option></select></label>
         <label>Bank loan offers<select id="ecBank"><option value="1">On</option><option value="0">Off</option></select></label>
       </div>
       <div class="actions"><button class="btn primary" id="ecSave" disabled>Save changes</button><span id="ecMsg" style="font-size:13px;color:var(--muted)"></span></div>
@@ -557,7 +577,7 @@ body.navhide .main{margin-left:0}
         <label>Quiet months between family life events<select id="flGap"><option value="1">1 month</option><option value="2">2 months</option><option value="3">3 months</option><option value="4">4 months</option><option value="6">6 months</option><option value="9">9 months</option><option value="12">12 months</option></select></label>
         <div class="evest" id="flEst"></div>
       </div>
-      <div class="tablewrap"><table class="evtable" style="min-width:680px"><thead><tr><th>Family life event</th><th class="r">Share of a founder's events</th><th class="r">Shown, 30 days</th><th class="r">Shown, all time</th><th>Setting</th></tr></thead><tbody id="flRows"></tbody></table></div>
+      <div class="tablewrap"><table class="evtable" style="min-width:680px"><thead><tr><th>Family life event</th><th class="r">Share of a founder's events</th><th class="r rgth">Shown in range</th><th class="r">Shown, all time</th><th>Setting</th></tr></thead><tbody id="flRows"></tbody></table></div>
       <div class="actions"><button class="btn primary" id="flSave" disabled>Save changes</button><span id="flMsg" style="font-size:13px;color:var(--muted)"></span></div>
     </section>
     <section class="panel" id="fdPanel">
@@ -569,7 +589,7 @@ body.navhide .main{margin-left:0}
         <label>Events the parent already lived through<select id="fdRep"><option value="1">Same as a new player</option><option value="0.6">A bit rarer</option><option value="0.35">Much rarer</option><option value="0.15">Very rare</option><option value="0">Never again</option></select></label>
         <div class="evest" id="fdEst"></div>
       </div>
-      <div class="tablewrap"><table class="evtable" style="min-width:680px"><thead><tr><th>Family drama event</th><th class="r">Share of an heir's events</th><th class="r">Shown, 30 days</th><th class="r">Shown, all time</th><th>Setting</th></tr></thead><tbody id="fdRows"></tbody></table></div>
+      <div class="tablewrap"><table class="evtable" style="min-width:680px"><thead><tr><th>Family drama event</th><th class="r">Share of an heir's events</th><th class="r rgth">Shown in range</th><th class="r">Shown, all time</th><th>Setting</th></tr></thead><tbody id="fdRows"></tbody></table></div>
       <div class="actions"><button class="btn primary" id="fdSave" disabled>Save changes</button><span id="fdMsg" style="font-size:13px;color:var(--muted)"></span></div>
     </section>
     </div>
@@ -634,6 +654,26 @@ function status(p){if(p.disabled)return['Disabled','bad'];const age=serverNow-p.
 /* how the current game stands: shown under the rank */
 function gameTag(p){if(p.detail&&p.detail.died)return['Passed away','bad'];if(p.bankrupt)return['Bankrupt','bad'];if(p.billion_month!=null)return['Billionaire','gold'];return null;}
 
+/* ---------- date range: one picker in the top bar drives every report ---------- */
+const RG={p:'30',from:'',to:''};try{Object.assign(RG,JSON.parse(localStorage.getItem('hustle-admin-range')||'{}'));}catch(e){}
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function rgDates(){const now=new Date(),td=new Date(now.getFullYear(),now.getMonth(),now.getDate()),add=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+ const p=RG.p;if(p==='custom'&&RG.from&&RG.to)return RG.from<=RG.to?[RG.from,RG.to]:[RG.to,RG.from];
+ if(p==='today')return[ymd(td),ymd(td)];if(p==='yesterday')return[ymd(add(td,-1)),ymd(add(td,-1))];
+ if(p==='month')return[ymd(new Date(td.getFullYear(),td.getMonth(),1)),ymd(td)];
+ if(p==='lastmonth')return[ymd(new Date(td.getFullYear(),td.getMonth()-1,1)),ymd(new Date(td.getFullYear(),td.getMonth(),0))];
+ if(p==='year')return[ymd(new Date(td.getFullYear(),0,1)),ymd(td)];if(p==='all')return['2025-01-01',ymd(td)];
+ const n=+p||30;return[ymd(add(td,-(n-1))),ymd(td)];}
+function rgQS(){const d=rgDates();return'from='+d[0]+'&to='+d[1];}
+const rgFmt=s=>{const p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});};
+/* a short label for the range, used in tiles and table headings: "last 30 days", "in September 2026", "3 Sep 2026 to 9 Sep 2026" */
+function rgLabel(){const p=RG.p,d=rgDates();if(p==='today')return'today';if(p==='yesterday')return'yesterday';if(p==='all')return'all time';
+ if(p==='month'||p==='lastmonth'){const q=d[0].split('-');return'in '+new Date(+q[0],+q[1]-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+ if(p==='year')return'this year';if(p!=='custom')return'last '+p+' days';return d[0]===d[1]?'on '+rgFmt(d[0]):rgFmt(d[0])+' to '+rgFmt(d[1]);}
+function rgPaint(){$('rgPreset').value=RG.p;$('rgCustom').hidden=RG.p!=='custom';const d=rgDates();$('rgFrom').value=d[0];$('rgTo').value=d[1];
+ $('rgPreset').title=rgFmt(d[0])+' to '+rgFmt(d[1]);}
+function rgSave(){try{localStorage.setItem('hustle-admin-range',JSON.stringify(RG));}catch(e){}rgPaint();
+ load();if(typeof mkt!=='undefined'&&mkt)loadMarketing();if(typeof mg!=='undefined'&&mg)loadMg();if(typeof ads!=='undefined'&&ads)loadAds();}
 async function api(method,path,body){let r;
  try{r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
  catch(e){throw{status:0,message:'Could not reach the server.'};}
@@ -646,10 +686,13 @@ $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const b=$(
  try{await api('POST','/api/admin/login',{password:$('adminPass').value});$('adminPass').value='';$('loginView').hidden=true;$('appView').hidden=false;await load();startTimer();}
  catch(err){$('loginErr').textContent=err.message;$('loginErr').hidden=false;}
  b.disabled=false;b.textContent='Log in';});
+$('rgPreset').addEventListener('change',()=>{RG.p=$('rgPreset').value;if(RG.p==='custom'&&!RG.from){const d=rgDates();RG.from=d[0];RG.to=d[1];}rgSave();});
+['rgFrom','rgTo'].forEach(id=>$(id).addEventListener('change',()=>{if(!$('rgFrom').value||!$('rgTo').value)return;RG.p='custom';RG.from=$('rgFrom').value;RG.to=$('rgTo').value;rgSave();}));
+rgPaint();
 $('logoutBtn').addEventListener('click',async()=>{try{await api('POST','/api/admin/logout',{});}catch(e){}showLogin();});
 
 /* ---------- data ---------- */
-async function load(){try{const [ov,pl,pay]=await Promise.all([api('GET','/api/admin/overview'),api('GET','/api/admin/players'),api('GET','/api/admin/payments')]);
+async function load(){try{const [ov,pl,pay]=await Promise.all([api('GET','/api/admin/overview?'+rgQS()),api('GET','/api/admin/players'),api('GET','/api/admin/payments?'+rgQS())]);
   serverNow=pl.now;players=pl.players;payments=pay.payments;loadEvents();renderKpis(ov.kpis);renderVisitors(ov.kpis.visitors);renderDrop(ov.kpis.dropoff);renderPush(ov.kpis.push);renderBilling(ov.kpis.billing);renderInvites(ov.kpis.invites);renderDau(ov.days);renderFeed(ov.feed);renderPlayers();navCounts(ov.kpis);
   $('updated').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   if(openId!=null&&!$('sheet').hidden)openPlayer(openId,true);
@@ -662,9 +705,9 @@ $('autoRefresh').addEventListener('change',startTimer);
 $('refreshBtn').addEventListener('click',load);
 
 /* ---------- KPIs ---------- */
-function renderKpis(k){const tiles=[['Players',k.players,k.signups7d+' new this week','lead'],['Active today',k.active24h,'last 24 hours'],['Active this week',k.active7d,'last 7 days'],
- ['New this week',k.signups7d,'sign-ups'],['Game months played',k.monthsPlayed,'across all players'],['Billionaires',k.billionaires,'reached $1B'],['Bankruptcies',k.bankrupt,'current games']];
- const R=k.retention||{},rt=(n,l)=>{const x=R['d'+n]||{};return[l,x.pct==null?'—':x.pct+'%',x.players?x.back+' of '+x.players+' players came back after '+n+' day'+(n>1?'s':''):'not enough players yet','ret'];};
+function renderKpis(k){const L=rgLabel();const tiles=[['Players',k.players,k.signups7d+' new '+L,'lead'],['Active today',k.active24h,'last 24 hours'],['Active players',k.active7d,'played at least once, '+L],
+ ['New players',k.signups7d,'sign-ups, '+L],['Game months played',k.monthsPlayed,'across all players'],['Billionaires',k.billionaires,'reached $1B'],['Bankruptcies',k.bankrupt,'current games']];
+ const R=k.retention||{},rt=(n,l)=>{const x=R['d'+n]||{};return[l,x.pct==null?'—':x.pct+'%',x.players?x.back+' of '+x.players+' players who signed up '+L+' came back after '+n+' day'+(n>1?'s':''):'not enough players yet','ret'];};
  tiles.push(rt(1,'Came back next day'),rt(7,'Came back after a week'),rt(30,'Came back after a month'));
  $('kpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?Number(t[1]).toLocaleString('en-US'):t[1])+'</b><small>'+t[2]+'</small></div>').join('');}
 
@@ -672,9 +715,9 @@ function renderKpis(k){const tiles=[['Players',k.players,k.signups7d+' new this 
 function renderVisitors(v){const pnl=$('visPanel');if(!v){pnl.hidden=true;return;}pnl.hidden=false;
  const left=x=>(x.landed||0)+(x.form||0),rate=x=>x.n?Math.round(100*(x.signed||0)/x.n)+'%':'—';
  $('visSub').textContent='New people who opened the game while logged out. Existing players are not counted, even on a new phone or computer. Each browser counts once, and no personal details are kept.'+(v.since?' Counting since '+new Date(v.since*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'.':' Counting starts with the next visitor.');
- const tiles=[['Left without an account',left(v.d7),'last 7 days, of '+v.d7.n+' visitors · last 30 days: '+left(v.d30)+' of '+v.d30.n,'lead'],['Left today',left(v.d1),'of '+v.d1.n+' visitors in the last 24 hours'],
-  ['Started the form, then left',v.d7.form,'last 7 days: began typing, never finished'],['Sign-up rate',rate(v.d7),v.d7.signed+' new accounts from '+v.d7.n+' visitors, 7 days'],
-  ['New visitors',v.d7.n,'last 7 days, not counting existing players']];
+ const L=rgLabel(),tiles=[['Left without an account',left(v.d7),L+', of '+v.d7.n+' visitors','lead'],['Left today',left(v.d1),'of '+v.d1.n+' visitors in the last 24 hours'],
+  ['Started the form, then left',v.d7.form,L+': began typing, never finished'],['Sign-up rate',rate(v.d7),v.d7.signed+' new accounts from '+v.d7.n+' visitors, '+L],
+  ['New visitors',v.d7.n,L+', not counting existing players']];
  $('visKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):t[1])+'</b><small>'+t[2]+'</small></div>').join('');
  const days=v.days||[],box=$('visChart'),W=Math.max(280,box.clientWidth||600),H=200,pl=34,pr=8,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb;
  const max=niceMax(Math.max(1,...days.map(d=>d.signed+d.left))),band=iw/Math.max(1,days.length),bw=Math.min(24,band*.62),y=val=>pt+ih-(val/max)*ih;
@@ -698,10 +741,10 @@ const backCell=(b,e)=>'<td class="r num" title="'+b+' of '+e+' players old enoug
 function slug(x){return String(x||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,30);}
 function shortLink(code){return((mkt&&mkt.site)||'hustlempires.com')+'/go/'+code;}
 async function loadMarketing(quiet){if(mLoading)return;mLoading=true;if(!quiet)$('mLoad').textContent='Loading…';
- try{mkt=await api('GET','/api/admin/marketing?days='+$('mDays').value);serverNow=mkt.now;renderMarketing();$('mLoad').textContent='';}
+ try{mkt=await api('GET','/api/admin/marketing?'+rgQS());serverNow=mkt.now;renderMarketing();$('mLoad').textContent='';}
  catch(e){if(e.status===401)showLogin('Your admin session ended. Log in again.');else $('mLoad').textContent='Could not load: '+e.message;}
  mLoading=false;if(!chal||!quiet)loadChallenge();}
-function renderMarketing(){const m=mkt,T=m.totals,per=m.days===365?'last year':'last '+m.days+' days';
+function renderMarketing(){const m=mkt,T=m.totals,per=rgLabel();
  if(!$('mChan').options.length)$('mChan').innerHTML=m.channels.map(c=>'<option value="'+c+'">'+esc(CHAN[c]||c)+'</option>').join('');
  $('mExample').textContent=m.site+'/go/tiktok';
  const spentPlayers=m.campaigns.filter(c=>!c.archived&&c.cost>0).reduce((a,c)=>a+c.playersAll,0);
@@ -775,7 +818,7 @@ function navMeta(v){const e=$('cntMeta');e.hidden=!v;e.textContent=v||'';}
 let mg=null,mgLevel='campaign',mgPick={campaign:null,adset:null};
 const DELIV={ACTIVE:['Active','on'],PAUSED:['Off',''],CAMPAIGN_PAUSED:['Campaign off',''],ADSET_PAUSED:['Ad set off',''],IN_PROCESS:['Processing','warn'],WITH_ISSUES:['Has issues','bad'],
  DISAPPROVED:['Rejected','bad'],PENDING_REVIEW:['In review','warn'],PREAPPROVED:['Approved, waiting','warn'],PENDING_BILLING_INFO:['Needs payment method','bad'],ARCHIVED:['Archived',''],DELETED:['Deleted','bad'],ADSET_ENDED:['Finished','']};
-async function loadMg(){try{mg=await api('GET','/api/admin/manager?days='+$('mgDays').value);renderMg();if(runs)bSync();}catch(e){if(e.status!==401)$('mgSub').textContent='Could not load: '+e.message;}}
+async function loadMg(){try{mg=await api('GET','/api/admin/manager?'+rgQS());renderMg();if(runs)bSync();}catch(e){if(e.status!==401)$('mgSub').textContent='Could not load: '+e.message;}}
 $('mgDays').addEventListener('change',loadMg);
 $('mgSync').addEventListener('click',async()=>{const b=$('mgSync');b.disabled=true;$('mgMsg').textContent='Asking Meta for the latest…';
  try{await api('POST','/api/admin/ads/sync',{});await loadMg();$('mgMsg').textContent='Up to date.';}catch(e){$('mgMsg').textContent=e.message;}b.disabled=false;});
@@ -1142,7 +1185,7 @@ pSync();
 /* ---------- Meta ads ---------- */
 let ads=null;
 const ST={ACTIVE:['Running','good'],PAUSED:['Paused','idle'],CAMPAIGN_PAUSED:['Paused','idle'],ARCHIVED:['Archived','idle'],DELETED:['Deleted','bad'],IN_PROCESS:['Starting',''],WITH_ISSUES:['Has issues','bad']};
-async function loadAds(){try{ads=await api('GET','/api/admin/ads?days='+$('aDays').value);renderAds();}catch(e){if(e.status!==401)$('adsSub').textContent='Could not load ad results: '+e.message;}}
+async function loadAds(){try{ads=await api('GET','/api/admin/ads?'+rgQS());renderAds();}catch(e){if(e.status!==401)$('adsSub').textContent='Could not load ad results: '+e.message;}}
 function renderAds(){const a=ads,sy=a.sync||{},tk=a.token||{},cur=sy.currency||'',M=n=>(cur==='KES'?'KSh ':cur?cur+' ':'')+(+n||0).toLocaleString('en-US',{maximumFractionDigits:cur==='KES'?0:2});
  $('adsSync').hidden=!a.ready;$('adsBody').hidden=!a.ready||!sy.at;
  if(!a.ready){$('adsSub').innerHTML='Not connected yet. The server needs the Meta token and ad account, added with the "Connect Meta ads" console step.';return;}
@@ -1151,7 +1194,7 @@ function renderAds(){const a=ads,sy=a.sync||{},tk=a.token||{},cur=sy.currency||'
  if(exp!=null)sub+=exp<=7?' <b style="color:var(--red)">The Meta token expires in '+Math.max(0,exp)+' day'+(exp===1?'':'s')+': make a new one in Business Settings and run the "Connect Meta ads" step again.</b>':' The token expires in '+exp+' days.';
  if(sy.error&&(!sy.at||sy.errorAt>sy.at))sub+=' <b style="color:var(--red)">Last refresh failed: '+esc(sy.error)+'</b>';
  $('adsSub').innerHTML=sub;if(!sy.at)return;
- const T=a.totals||{},C=a.campaigns||[],per=a.days===365?'last year':'last '+a.days+' days';
+ const T=a.totals||{},C=a.campaigns||[],per=rgLabel();
  const tiles=[['Ad spend',M(T.spend),per,'lead'],['Reach',(T.reach||0).toLocaleString('en-US'),'people, summed per ad and day'],['Link clicks',(T.link_clicks||0).toLocaleString('en-US'),T.link_clicks?M(T.spend/T.link_clicks)+' per click':'no clicks yet'],
   ['New players from ads',a.linkedPlayers||0,'from ad campaigns with a game link'],['Cost per new player',a.linkedPlayers?M(a.linkedSpend/a.linkedPlayers):'—',a.linkedPlayers?M(a.linkedSpend)+' spent on linked campaigns':'link your ad campaigns below']];
  $('adsKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):t[1])+'</b><small>'+esc(t[2])+'</small></div>').join('');
@@ -1186,10 +1229,21 @@ $('cMonth').addEventListener('change',loadChallenge);$('cRegion').addEventListen
 
 /* ---------- Where players stop ---------- */
 let dropCat=null;
+const TABN={business:'Business',overview:'Overview',money:'Money',reports:'Reports',property:'Property',life:'Life',sports:'Sports',giving:'Foundation',power:'Power',news:'News',unknown:'Not recorded (older save)'};
+function renderDrop2(d,E){const pc=(a,b)=>b?Math.round(100*a/b):0;
+ const C=d.cohorts||[],cell=x=>x&&x.el?pc(x.back,x.el)+'% <small style="color:var(--muted)">'+x.back+' of '+x.el+'</small>':'—';
+ $('dropCoh').innerHTML=C.length?C.map(r=>'<tr><td>'+esc(r.week)+'</td><td class="r num">'+r.n+'</td><td class="r num">'+(r.n?cell(r.d1):'—')+'</td><td class="r num">'+(r.n?cell(r.d7):'—')+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">No sign-ups yet.</td></tr>';
+ const F=d.first||{},st=F.steps||[],n0=F.players||0;
+ $('dropFirstSub').textContent=n0+' players signed up '+rgLabel()+'. The starter goal rows count only the '+(F.goalPlayers||0)+' who got the starter goals (games started after that update). The biggest number in "Lost at this step" is where to look first.';
+ $('dropFirst').innerHTML=st.length?st.map((x,i)=>{const p=st[i-1];const lost=!p?'':x.goal&&!p.goal?Math.max(0,(F.goalPlayers||0)-x.n):!x.goal&&p.goal?'':Math.max(0,p.n-x.n);return'<tr><td>'+esc(x.label)+'</td><td class="r num">'+x.n+'</td><td class="r num">'+(n0?pc(x.n,n0)+'%':'—')+'</td><td class="r num">'+lost+'</td><td>'+bar(pc(x.n,n0))+'</td></tr>';}).join(''):'<tr><td colspan="5" class="empty">No new players yet.</td></tr>';
+ const Sc=d.screen||{},T=Sc.tabs||[],k=Sc.players||0;
+ $('dropScrSub').textContent=k+' players were last seen '+rgLabel()+' and have not been back for 2+ days. '+(Sc.openCard||0)+' of them left with a card open and unanswered.';
+ $('dropTabs').innerHTML=T.length?T.map(x=>'<tr><td>'+esc(TABN[x.tab]||x.tab)+'</td><td class="r num">'+x.n+'</td><td class="r num">'+pc(x.n,k)+'%</td><td>'+bar(pc(x.n,k))+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">Nobody has gone quiet yet.</td></tr>';
+ const Cd=Sc.cards||[];$('dropCards').innerHTML=Cd.length?Cd.map(x=>{const e=E[x.ev];return'<tr><td>'+esc(e?e.title:x.ev)+'</td><td class="r num">'+x.n+'</td></tr>';}).join(''):'<tr><td colspan="2" class="empty">No open cards recorded yet. This starts counting from this update.</td></tr>';}
 function bar(p){return'<div style="height:10px;border-radius:5px;background:var(--grid);overflow:hidden"><div style="height:100%;width:'+Math.max(0,Math.min(100,p))+'%;background:var(--accent,#d4a017)"></div></div>';}
 async function renderDrop(d){const pnl=$('dropPanel');if(!d){pnl.hidden=true;return;}pnl.hidden=false;
  const n=d.players||0,pc=x=>n?Math.round(100*x/n):0,g=d.gone||0;
- const qd=d.quietDays||2;$('dropSub').textContent='All '+n+' accounts. "Went quiet" means not seen for '+qd+' days or more.';
+ const qd=d.quietDays||2;$('dropSub').textContent=n+' accounts created '+rgLabel()+'. "Went quiet" means not seen for '+qd+' days or more.';
  const f=d.funnel||[],yr=(f.find(x=>/full year/.test(x.label))||{}).n||0,m1=(f.find(x=>/a month/.test(x.label))||{}).n||0,b=d.buckets||[],top=b.slice().sort((a,c)=>c.n-a.n)[0];
  const tiles=[['Went quiet',g,n?pc(g)+'% of '+n+' players':'no players yet','lead'],['Never finished a month',(b[0]||{}).n||0,'quiet players who stopped before month 1'],['Played a month',pc(m1)+'%',m1+' of '+n+' players'],['Played a full year',pc(yr)+'%',yr+' of '+n+' players'],['Most common stop',top&&top.n?top.label:'—',top&&top.n?top.n+' quiet players':'']];
  $('dropKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):esc(String(t[1])))+'</b><small>'+esc(t[2])+'</small></div>').join('');
@@ -1197,6 +1251,7 @@ async function renderDrop(d){const pnl=$('dropPanel');if(!d){pnl.hidden=true;ret
  $('dropBuckets').innerHTML=g?b.map(x=>{const p=Math.round(100*x.n/g);return'<tr><td>'+esc(x.label)+'</td><td class="r num">'+x.n+'</td><td class="r num">'+p+'%</td><td>'+bar(p)+'</td></tr>';}).join(''):'<tr><td colspan="4" class="empty">Nobody has gone quiet yet.</td></tr>';
  if(!dropCat)try{dropCat=evCat||await fetch('/events-catalog.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());}catch(e){dropCat={events:[]};}
  const E={};(dropCat.events||[]).forEach(e=>E[e.id]=e);
+ renderDrop2(d,E);
  const L=d.lastEv||[];$('dropLast').innerHTML=L.length?L.map(x=>{const e=E[x.ev];return'<tr><td>'+esc(e?e.title:x.ev)+'</td><td>'+esc(e&&e.choices&&e.choices[x.choice]!=null?e.choices[x.choice]:'Choice '+(x.choice+1))+'</td><td class="r num">'+x.n+'</td></tr>';}).join(''):'<tr><td colspan="3" class="empty">No decisions recorded for quiet players yet.</td></tr>';}
 
 /* ---------- Notifications ---------- */
@@ -1206,7 +1261,7 @@ function renderPush(p){const pnl=$('pushPanel');if(!p){pnl.hidden=true;return;}p
  $('pushSub').innerHTML=!p.ready?'<b>Not available yet:</b> the server needs the python3-cryptography package. The update installs it.':
   (p.on?'<b>On.</b> Players who switched notifications on get a nudge after 1, 3, 7, 14 and 30 days away (one at a time, only between 10:00 and 20:00 their time). Each one picks the most relevant true thing in their game: a streak about to break, a rival just ahead, a milestone close by.':'<b>Switched off.</b> No notifications are being sent. Players can still switch them on, ready for when you turn them back on.');
  const rate=(o,s)=>s?Math.round(100*o/s)+'%':'—';
- const tiles=[['Players with notifications on',p.players,p.devices+' device'+(p.devices===1?'':'s'),'lead'],['Sent this week',p.sent7,'delivered, last 7 days'],['Opened this week',p.opened7,'tapped, last 7 days'],['Open rate',rate(p.opened30,p.sent30),p.opened30+' of '+p.sent30+' in 30 days']];
+ const tiles=[['Players with notifications on',p.players,p.devices+' device'+(p.devices===1?'':'s'),'lead'],['Sent',p.sent7,'delivered, '+rgLabel()],['Opened',p.opened7,'tapped, '+rgLabel()],['Open rate',rate(p.opened30,p.sent30),p.opened30+' of '+p.sent30+', '+rgLabel()]];
  $('pushKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):t[1])+'</b><small>'+t[2]+'</small></div>').join('');
  const tg=$('pushToggle');tg.hidden=!p.ready;tg.textContent=p.on?'Switch notifications off':'Switch notifications on';
  $('pushTestBtn').disabled=!p.ready;
@@ -1228,12 +1283,12 @@ function payRowsHTML(list){return list.length?list.slice(0,50).map(p=>{const st=
   :'<tr><td colspan="7" class="empty">No payments yet.</td></tr>';}
 function renderBilling(b){billing=b;const pnl=$('billPanel');pnl.hidden=false;$('billH').textContent=b&&b.on?'Hustle Pass':'Tips';$('funnelH').hidden=!(b&&b.on);
  if(!b||!b.on){b=b||{};$('billSub').innerHTML='The game is <b>free for everyone</b>. Players can tip the developers from their account menu, and a small "Tip the developers" button appears for players who have played at least two game years (once every two weeks). Pesapal: '+(b.ready?b.env:'<b style="color:var(--red)">keys not set</b>')+'. Suggested tips: '+(b.tipAmounts||[]).map(KES).join(' · ')+'.';
-  const tiles=[['Tips, 30 days',KES(b.tips30||0),(b.tipN30||0)+' tip'+(b.tipN30===1?'':'s')+' from '+(b.tippers30||0)+' player'+(b.tippers30===1?'':'s'),'lead'],['Opened the tip page',b.opened30||0,'last 30 days'],
+  const tiles=[['Tips, '+rgLabel(),KES(b.tips30||0),(b.tipN30||0)+' tip'+(b.tipN30===1?'':'s')+' from '+(b.tippers30||0)+' player'+(b.tippers30===1?'':'s'),'lead'],['Opened the tip page',b.opened30||0,rgLabel()],
    ['Tips, all time',KES(b.tipsAll||0),(b.tipNAll||0)+' tips from '+(b.tippersAll||0)+' players'],['Old Hustle Pass sales',KES(b.passRev||0),(b.passN||0)+' passes, before the game went free']];
   $('billKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):t[1])+'</b><small>'+t[2]+'</small></div>').join('');
   $('funnel').innerHTML='';$('payRows').innerHTML=payRowsHTML(payments);return;}
  $('billSub').innerHTML='On since '+new Date(b.since*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'. '+b.trialHours+'-hour free trial, then '+b.gifts+' offers of '+b.giftDays+' more free days to players who leave the payment screen, and no free play after '+b.blockDays+' days. Pesapal: '+(b.ready?b.env:'<b style="color:var(--red)">keys not set</b>')+'. Prices: '+b.plans.map(p=>p.name.replace(' pass','')+' '+KES(p.kes)).join(' · ')+'.';
- const tiles=[['Revenue, 30 days',KES(b.rev30),b.pay30+' payment'+(b.pay30===1?'':'s'),'lead'],['Paying now',b.paid,'pass active'],['On free trial',b.trial,'first '+b.trialHours+' hours'],['On bonus days',b.bonus,'took the free days offer'],
+ const tiles=[['Revenue, '+rgLabel(),KES(b.rev30),b.pay30+' payment'+(b.pay30===1?'':'s'),'lead'],['Paying now',b.paid,'pass active'],['On free trial',b.trial,'first '+b.trialHours+' hours'],['On bonus days',b.bonus,'took the free days offer'],
   ['Locked out',b.locked,b.lapsed+' let their pass end'],['Revenue, all time',KES(b.revAll),b.payAll+' payments']];
  $('billKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):t[1])+'</b><small>'+t[2]+'</small></div>').join('');
  const top=Math.max(1,b.reachedPaywall),rows=[['Reached the payment screen',b.reachedPaywall],['Opened Pesapal',b.startedCheckout],['Left without paying ("Not now")',b.tappedLater,1],['Took bonus days, offer 1',b.gift1,1],['Took bonus days, offer 2',b.gift2,1],['Blocked: week over, never paid',b.hardBlocked,1],['Paid at least once',b.everPaid]];
@@ -1241,7 +1296,7 @@ function renderBilling(b){billing=b;const pnl=$('billPanel');pnl.hidden=false;$(
  $('payRows').innerHTML=payRowsHTML(payments);}
 
 function renderInvites(v){const el=$('invites');if(!v){el.innerHTML='';return;}
- el.innerHTML='<p class="sub" style="margin:0 0 8px"><b>'+v.joined+'</b> players joined with a friend\'s link ('+v.joined7d+' this week), from <b>'+v.inviters+'</b> inviters. <b>'+v.active+'</b> came back on a second day and <b>'+v.paid+'</b> bought a pass.</p>'+
+ el.innerHTML='<p class="sub" style="margin:0 0 8px"><b>'+v.joined+'</b> players joined with a friend\'s link ('+v.joined7d+' '+rgLabel()+'), from <b>'+v.inviters+'</b> inviters. <b>'+v.active+'</b> came back on a second day and <b>'+v.paid+'</b> bought a pass.</p>'+
   (v.top.length?'<div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Top inviters</th><th class="r">Friends joined</th><th class="r">Came back</th><th class="r">Bought a pass</th></tr></thead><tbody>'+v.top.map(r=>'<tr data-open="'+r.user_id+'"><td><div class="pcell">'+avatar(r)+'<div><b>'+esc(r.name)+'</b><small>'+esc(r.company)+'</small></div></div></td><td class="r num">'+r.n+'</td><td class="r num">'+r.active+'</td><td class="r num">'+r.paid+'</td></tr>').join('')+'</tbody></table></div>':'');}
 
 /* ---------- events & challenges ---------- */
@@ -1249,7 +1304,7 @@ let evCat=null,evStats=null,evTune=null,evOpen={},evDirty=false;
 const EVMSG={set t(v){$('evMsgA').textContent=v;$('crMsg').textContent=v;if($('fdMsg'))$('fdMsg').textContent=v;if($('ecMsg'))$('ecMsg').textContent=v;}};
 const EVM=[[0,'Off'],[0.25,'Rare'],[0.5,'Less'],[1,'Normal'],[1.5,'More'],[2,'Lots'],[3,'Max']];
 const evSel=(val,attr)=>'<select '+attr+'>'+EVM.map(m=>'<option value="'+m[0]+'"'+(Math.abs(m[0]-val)<1e-9?' selected':'')+'>'+m[1]+(m[0]&&m[0]!==1?' ×'+m[0]:'')+'</option>').join('')+(EVM.some(m=>Math.abs(m[0]-val)<1e-9)?'':'<option value="'+val+'" selected>×'+val+'</option>')+'</select>';
-async function loadEvents(force){if(evDirty&&!force)return;try{const [c,st]=await Promise.all([evCat?Promise.resolve(evCat):fetch('/events-catalog.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()),api('GET','/api/admin/events')]);
+async function loadEvents(force){if(evDirty&&!force)return;try{const [c,st]=await Promise.all([evCat?Promise.resolve(evCat):fetch('/events-catalog.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()),api('GET','/api/admin/events?'+rgQS())]);
   evCat=c;evStats=st;evTune=JSON.parse(JSON.stringify(st.tuning||{freq:1,gap:2,w:{},cat:{}}));evTune.w=evTune.w||{};evTune.cat=evTune.cat||{};evDirty=false;renderEvents();}
  catch(e){$('evRows').innerHTML='<tr><td colspan="6" class="empty">Could not load events: '+esc(e.message||'')+'</td></tr>';}}
 const CRT=[['drought','Severe drought','nature','Farming, energy and factories suffer'],['floods','Catastrophic floods','nature','Roads, farms and property damaged'],['storm','Devastating storm','nature','Coastal property and tourism hit'],['earthquake','Major earthquake','nature','Buildings and factories damaged'],['wildfire','Wildfires and a heatwave','nature','Tourism, farming and energy hit'],['pandemic','Global pandemic','world','Hotels and transport collapse, tech and health boom'],['war','World war','world','Energy soars, wartime tax on cash'],['crash','Market crash','world','Shares, property and finance fall hard']];
@@ -1259,7 +1314,7 @@ function renderCrisis(){const C=evTune.crisis=evTune.crisis||{},S=evStats.stats|
  $('crNature').innerHTML=opt(nv);$('crWorld').innerHTML=opt(wv);$('crGap').value=String(gap);
  const p=(1/150)*nv+(1/360)*wv,yrs=p>0?(gap*12+1/p)/12:0,lifeY=45,n=p>0?Math.max(0,(lifeY-2)/yrs):0;
  $('crEst').innerHTML=p>0?'About one big event every <b>'+yrs.toFixed(1)+'</b> game years, so roughly <b>'+n.toFixed(1)+'</b> in a typical 45-year life. Natural disasters make up <b>'+Math.round(100*(nv/150)/((nv/150)+(wv/360)))+'%</b> of them.':'All big events are switched off.';
- $('crTypes').innerHTML=CRT.map(t=>{const st=S['cr_'+t[0]]||{},on=!off.includes(t[0]);return'<label class="crtype"><input type="checkbox" data-cr="'+t[0]+'"'+(on?' checked':'')+'><span><b>'+t[1]+'</b>'+(t[2]==='world'?' <span class="tag">world</span>':'')+'<small>'+t[3]+' · hit players '+(st.all||0)+' time'+((st.all||0)===1?'':'s')+(st.d30?' ('+st.d30+' in 30 days)':'')+'</small></span></label>';}).join('');}
+ $('crTypes').innerHTML=CRT.map(t=>{const st=S['cr_'+t[0]]||{},on=!off.includes(t[0]);return'<label class="crtype"><input type="checkbox" data-cr="'+t[0]+'"'+(on?' checked':'')+'><span><b>'+t[1]+'</b>'+(t[2]==='world'?' <span class="tag">world</span>':'')+'<small>'+t[3]+' · hit players '+(st.all||0)+' time'+((st.all||0)===1?'':'s')+(st.d30?' ('+st.d30+' '+rgLabel()+')':'')+'</small></span></label>';}).join('');}
 function evPerYear(){const p=Math.min(.95,.34*(+evTune.freq||1)),g=+evTune.gap||2;return 12/(g-1+1/p);}
 function renderEvents(){if(!evCat)return;renderCrisis();const T=evTune,S=evStats.stats||{};$('evFreq').value=String(T.freq||1);$('evGap').value=String(T.gap||2);
  const py=evPerYear();$('evEst').innerHTML='About <b>'+py.toFixed(1)+'</b> random events per game year for each player (one every <b>'+(12/py).toFixed(1)+'</b> game months)'+(evStats.total30?' · players answered <b>'+evStats.total30.toLocaleString('en-US')+'</b> questions in the last 30 days':'')+'.';
@@ -1299,8 +1354,8 @@ $('flRows').addEventListener('change',e=>{const s=e.target;if(!s.dataset.ev)retu
 $('flSave').addEventListener('click',evSaveNow);
 /* ---------- family drama (heirs) ---------- */
 const FD_ABOUT={fam_will:'A brother or sister takes the will to court in the first years',fam_plan:'A sibling on the board pushes to change the family business',fam_debt:'The black sheep of the family is in debt again',fam_scandal:'The black sheep ends up in the newspapers',fam_spend:'The big spender runs up the company card',fam_xmas:'Brothers and sisters fight at the holiday lunch',fam_loyal:'The loyal sibling offers to run operations for a year',fam_sober:'A sibling in recovery asks for a job in the business',fam_bust:'Police search the family home because of a sibling',fam_half:'A secret half-brother or half-sister turns up wanting a share',fam_oldguard:'The managers who worked for the parent doubt the heir',fam_rivalco:'A bitter sibling opens a company to compete with the heir',fam_house:'The family argues over selling the family home',fam_memorial:'One year since the parent died: memorial, donation or work',fam_shadow:'The press asks if the heir is half the tycoon the parent was',fam_safe:'Undeclared offshore money found in the parent\'s safe',fam_widow:'The parent\'s surviving partner asks to be looked after',fam_trustee:'The trustee of the family trust is skimming money',fam_wedding:'A sibling wants the family to pay for a huge wedding',fam_startup:'A sibling wants seed money for their own start-up',fam_nephew:'A sibling\'s child expects a senior job in the business',fam_book:'A former assistant writes a tell-all book about the parent',fam_enemy:'The parent\'s old business enemy offers peace',fam_claim:'Someone arrives with an IOU signed by the parent',fam_coup:'A sibling calls a board vote to remove the heir as chair',fam_village:'The home village asks the heir to build a school',fam_dowry:'As new head of the family, the heir must lead dowry talks',fam_land:'Cousins claim the land where the parent is buried',fam_harambee:'A family fundraiser for a cousin\'s university fees'};
-function renderEcon(){if(!$('ecRet'))return;const E=evTune.econ=evTune.econ||{};$('ecRet').value=String(E.ret==null?0.6:E.ret);$('ecUnl').value=String(E.unlock==null?2.5:E.unlock);$('ecBank').value=String(E.bank===0?0:1);$('ecSave').disabled=!evDirty;}
-['ecRet','ecUnl','ecBank'].forEach(id=>$(id).addEventListener('change',()=>{const E=evTune.econ=evTune.econ||{};E.ret=+$('ecRet').value;E.unlock=+$('ecUnl').value;E.bank=+$('ecBank').value;evDirty=true;EVMSG.t='Unsaved changes';renderEvents();}));
+function renderEcon(){if(!$('ecRet'))return;const E=evTune.econ=evTune.econ||{};$('ecRet').value=String(E.ret==null?0.6:E.ret);$('ecUnl').value=String(E.unlock==null?2.5:E.unlock);$('ecReg').value=String(E.reg==null?0.8:E.reg);$('ecBank').value=String(E.bank===0?0:1);$('ecSave').disabled=!evDirty;}
+['ecRet','ecUnl','ecReg','ecBank'].forEach(id=>$(id).addEventListener('change',()=>{const E=evTune.econ=evTune.econ||{};E.ret=+$('ecRet').value;E.unlock=+$('ecUnl').value;E.reg=+$('ecReg').value;E.bank=+$('ecBank').value;evDirty=true;EVMSG.t='Unsaved changes';renderEvents();}));
 $('ecSave').addEventListener('click',evSaveNow);
 function renderDrama(){if(!evCat||!$('fdRows'))return;const T=evTune,H=T.heir=T.heir||{},S=evStats.stats||{},G='Family drama';
  const cm=T.cat[G]==null?1:+T.cat[G],rep=H.repeat==null?.35:+H.repeat,gap=H.gap==null?3:+H.gap;
@@ -1374,7 +1429,7 @@ $('deSave').addEventListener('click',async()=>{await evSaveNow();$('deMsg').text
 function niceMax(v){if(v<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return(n<=2?2:n<=5?5:10)*p;}
 function renderDau(days){const box=$('dauChart'),W=Math.max(280,box.clientWidth||600),H=220,pl=34,pr=8,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb;
  const max=niceMax(Math.max(1,...days.map(d=>d.active))),band=iw/days.length,bw=Math.min(24,band*.62);
- const y=v=>pt+ih-(v/max)*ih;let s='<svg viewBox="0 0 '+W+' '+H+'" height="'+H+'" role="img" aria-label="Daily active players over the last 14 days">';
+ const y=v=>pt+ih-(v/max)*ih;let s='<svg viewBox="0 0 '+W+' '+H+'" height="'+H+'" role="img" aria-label="Daily active players in the date range">';
  for(let i=0;i<=4;i++){const v=max*i/4,yy=y(v);s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+yy+'" y2="'+yy+'" stroke="var(--grid)" stroke-width="1"/><text class="axis" x="'+(pl-6)+'" y="'+(yy+3.5)+'" text-anchor="end">'+Math.round(v)+'</text>';}
  days.forEach((d,i)=>{const cx=pl+band*i+band/2,x0=cx-bw/2,h=Math.max(0,ih*(d.active/max)),top=pt+ih-h,r=Math.min(4,h);
   if(h>0)s+='<path d="M'+x0+','+(pt+ih)+'V'+(top+r)+'Q'+x0+','+top+' '+(x0+r)+','+top+'H'+(x0+bw-r)+'Q'+(x0+bw)+','+top+' '+(x0+bw)+','+(top+r)+'V'+(pt+ih)+'Z" fill="'+(i===days.length-1?'var(--brass)':'var(--green)')+'"/>';

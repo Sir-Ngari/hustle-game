@@ -981,6 +981,12 @@ const scene=(()=>{const c=document.createElement('canvas');c.id='scene';document
   media(cx,g,w,h,tr,t,n){const x0=cx-w/2;if(tr===1){const p=1+.08*Math.sin(t*8);[-1,1].forEach(sd=>{const sx=cx+sd*w*.22-7;R(sx,g-24,14,24,'#222');x.fillStyle='#555';x.beginPath();x.arc(sx+7,g-8,4.5*p,0,7);x.arc(sx+7,g-18,2.6*p,0,7);x.fill();});return;}
    const bw=w*.8;R(x0,g-h*.6,bw,h*.6,'#3b2f5c');wins(x0,g-h*.6+4,bw,h*.6-8,n,t,'me'+tr);const mx=x0+bw*.5;x.strokeStyle='#c9ced6';x.lineWidth=1.5;x.beginPath();x.moveTo(mx-6,g-h*.6);x.lineTo(mx,g-h-4);x.lineTo(mx+6,g-h*.6);x.stroke();blink(mx,g-h-4,t);
    if(tr>=4){x.fillStyle='#e8eef7';x.beginPath();x.ellipse(x0+bw+4,g-h*.45,6,9,-.6,0,7);x.fill();}},
+  banking(cx,g,w,h,tr,t,n){const x0=cx-w/2;if(tr===1){R(x0+w*.1,g-h*.55,w*.8,h*.55,'#e8e0cc');R(x0+w*.1,g-h*.55,w*.8,6,'#1f6f4a');R(x0+w*.35,g-h*.35,w*.3,h*.35,'#2b2f3a');return;}
+   const bw=w*.9,bx=cx-bw/2,bh=h*.7;R(bx,g-bh,bw,bh,'#efe8d6');x.fillStyle='#d8cdb0';x.beginPath();x.moveTo(bx-3,g-bh);x.lineTo(cx,g-bh-h*.2);x.lineTo(bx+bw+3,g-bh);x.fill();
+   const cols=Math.max(3,Math.min(6,Math.round(bw/9)));for(let i=0;i<cols;i++)R(bx+4+i*(bw-8)/(cols-1)-2,g-bh+6,4,bh-8,'#c9bc98');R(bx,g-6,bw,6,'#b8ab88');
+   x.fillStyle='rgba(255,197,61,'+(.7+.3*n)+')';x.beginPath();x.arc(cx,g-bh-h*.08,Math.max(3,w*.07),0,7);x.fill();if(tr>=4)tower(bx+bw*.62,g-bh,bw*.3,h*.45,'#1f4a6e','#5b8fc0',n,t,'bk');},
+  insurance(cx,g,w,h,tr,t,n){const x0=cx-w/2;if(tr===1){R(x0+w*.15,g-h*.5,w*.7,h*.5,'#d6e4f0');R(x0+w*.15,g-h*.5,w*.7,5,'#e2453c');return;}
+   tower(x0+w*.15,g,w*.7,h,'#3a3f6e','#8a90d0',n,t,'in'+tr);const ux=cx,uy=g-h-8,r=Math.max(5,w*.16);x.fillStyle='#e2453c';x.beginPath();x.arc(ux,uy,r,Math.PI,0);x.fill();x.strokeStyle='#e8eef7';x.lineWidth=1.5;x.beginPath();x.moveTo(ux,uy);x.lineTo(ux,uy+r*.9);x.arc(ux-2,uy+r*.9,2,0,Math.PI);x.stroke();},
   gambling(cx,g,w,h,tr,t,n){const x0=cx-w/2;R(x0,g-h*.7,w,h*.7,'#2a1840');wins(x0,g-h*.7+10,w,h*.7-14,n,t,'ga');const hue=Math.floor(t*90)%360;x.fillStyle='hsl('+hue+',95%,62%)';R(x0+2,g-h*.7-9,w-4,9,'hsl('+hue+',95%,62%)');x.font='800 8px Nunito, sans-serif';x.textAlign='center';x.fillStyle='#1a0f26';x.fillText(tr>=3?'CASINO':'BET',cx,g-h*.7-2);},
   alcohol(cx,g,w,h,tr,t,n){const x0=cx-w/2;R(x0,g-h*.55,w*.55,h*.55,'#9b4a2e');wins(x0,g-h*.55+4,w*.55,h*.55-8,n,t,'al');for(let i=0;i<Math.min(3,tr);i++){const tx=x0+w*.58+i*w*.14;x.fillStyle='#c98a3c';x.beginPath();x.ellipse(tx+w*.06,g-h*.7+i*6,w*.06,4,0,0,7);x.fill();R(tx,g-h*.7+i*6,w*.12,h*.7-i*6,'#c98a3c');}x.fillStyle='#7a4a1d';x.beginPath();x.ellipse(x0+w*.2,g-6,7,6,0,0,7);x.fill();},
   tobacco(cx,g,w,h,tr,t,n){const x0=cx-w/2;R(x0,g-h*.55,w*.85,h*.55,'#7a6046');R(x0+w*.6,g-h,6,h*.45,'#4b3a2a');smoke(x0+w*.6+3,g-h-2,t,'170,170,170');x.fillStyle='#4f9a3a';x.beginPath();x.ellipse(x0+w*.25,g-h*.4,6,10,.5,0,7);x.fill();wins(x0+w*.4,g-h*.55+4,w*.4,h*.55-8,n,t,'tb');}};
@@ -1140,6 +1146,18 @@ const INDS=[
   ['vape','Vape & Nicotine Pouch Brand',30e6,8.46e+06,'The fastest-growing nicotine brand among young adults'],
   ['tobaccoco','Regional Tobacco Company',300e6,7.65e+07,'Factories and distribution across East Africa'],
   ['tobaccomajor','Continental Tobacco Major',3e9,7.2e+08,'One of Africa\'s biggest tobacco companies']]},
+ {id:'banking',reg:{lic:5e6,tax:.3,why:'Banks need a central bank licence, strict capital rules and pay heavy taxes and levies on profit.'},name:'Banking',blurb:'Money makes money, but the central bank watches every shilling and bad loans can sink you.',vol:.12,vm:.9,biz:[
+  ['sacco','SACCO',400000.0,1.248e+05,'A savings and credit co-operative for traders and teachers'],
+  ['microfin','Microfinance Bank',4000000.0,1.16e+06,'Small loans to market traders and boda riders'],
+  ['combank','Commercial Bank',40000000.0,1.128e+07,'Branches, ATMs and a mobile app across the country'],
+  ['regbank','Regional Banking Group',400000000.0,1.02e+08,'Banks in every East African capital'],
+  ['panbank','Pan-African Bank',4000000000.0,9.6e+08,'One of the continent\'s biggest lenders']]},
+ {id:'insurance',reg:{lic:4e6,tax:.25,why:'Insurers need a licence from the insurance regulator and pay a levy on every premium.'},name:'Insurance',blurb:'Premiums come in every month; a flood or a pandemic brings the claims all at once.',vol:.2,vm:.9,biz:[
+  ['insagency','Insurance Agency',300000.0,9.36e+04,'Selling motor and medical cover for the big insurers'],
+  ['microins','Microinsurance Company',3000000.0,8.7e+05,'Cheap cover for farmers and boda riders, paid by phone'],
+  ['general','General Insurance Company',30000000.0,8.46e+06,'Motor, fire and business cover for the whole country'],
+  ['lifeins','Life & Health Insurer',300000000.0,7.65e+07,'Life, medical and pension cover for millions of families'],
+  ['reinsurer','Pan-African Reinsurer',3000000000.0,7.2e+08,'Insuring the insurers across Africa']]},
 ];
 const IND={};INDS.forEach(i=>IND[i.id]=i);
 const TIER_MULT=[1.2,1.5,2,2.6,3.4,4.2];
@@ -1565,21 +1583,26 @@ function entryFee(){return nwc(.02,500);}
 /* regulated industries: millionaires only, a licence to enter, a yearly renewal at half the licence, and heavy excise on profit; they do not use an industry slot */
 const REG_MIN=1e6;
 const isReg=id=>!!(IND[id]&&IND[id].reg);
+/* regulated profits are scaled by the admin's Economy setting; each licence allows only so many outlets of each size */
+const regF=b=>isReg(b.ind)?Math.max(.1,+ECONT().reg||.8):1;
+const REG_CAP=[20,12,6,3,1];
+const regCap=b=>isReg(b.ind)?REG_CAP[Math.min(4,b.tier-1)]:Infinity;
+const atCap=b=>owned(b.id)>=regCap(b);
 const slotInds=()=>S.inds.filter(id=>!isReg(id));
 function regLic(id){return IND[id].reg.lic*CPI();}
 function regEnter(id){const fee=regLic(id);if(!isReg(id)||S.inds.includes(id)||Math.max(0,netWorth())<REG_MIN||S.cash<fee||S.over)return;S.cash-=fee;S.inds.push(id);S.lic=S.lic||{};S.lic[id]={due:S.month+12};log('You were granted a '+IND[id].name.toLowerCase()+' licence for '+fmt(fee)+'. It renews every year at half the price.','gold');afterChange();}
 function licTick(){if(!S.lic)return;Object.keys(S.lic).forEach(id=>{if(!S.inds.includes(id)){delete S.lic[id];return;}const L=S.lic[id];if(S.month>=L.due){const r=regLic(id)/2;S.cash-=r;L.due+=12;L.paid=(L.paid||0)+r;log('You renewed your '+IND[id].name.toLowerCase()+' licence for '+fmt(r)+'.','');}});}
-function regHTML(){const nw=Math.max(0,netWorth()),regs=INDS.filter(i=>i.reg);let h='<div class="more regsec"><div class="regh"><b>Regulated industries</b><span>Betting, alcohol and tobacco. Millionaires only. A licence to enter, renewed every year at half the price, and heavy excise taxes on profit, but the returns are the highest in the game. They do not use an industry slot.</span></div>';
+function regHTML(){const nw=Math.max(0,netWorth()),regs=INDS.filter(i=>i.reg);let h='<div class="more regsec"><div class="regh"><b>Regulated industries</b><span>Betting, alcohol, tobacco, banking and insurance. Millionaires only. A licence to enter, renewed every year at half the price, and heavy taxes on profit, but the returns are among the best in the game. Each licence allows a limited number of outlets: 20 of the smallest business, then 12, 6, 3 and just 1 of the biggest. They do not use an industry slot.</span></div>';
  regs.forEach(i=>{const lic=regLic(i.id),own=S.inds.includes(i.id),L=(S.lic||{})[i.id];
-  h+='<div class="row"><div class="t"><b>'+i.name+'</b><span>'+i.blurb+' Starts with '+aN(i.biz[0][1].lc())+' ('+fmt(i.biz[0][2]*CPI())+'). Licence '+fmt(lic)+', renewal '+fmt(lic/2)+' a year, excise '+Math.round(i.reg.tax*100)+'% of profit.</span></div>'+
+  h+='<div class="row"><div class="t"><b>'+i.name+'</b><span>'+i.blurb+' Starts with '+aN(i.biz[0][1].lc())+' ('+fmt(i.biz[0][2]*CPI())+'). Licence '+fmt(lic)+', renewal '+fmt(lic/2)+' a year, tax '+Math.round(i.reg.tax*100)+'% of profit.</span></div>'+
    (own?'<span class="pill good">Licensed'+(L?' · renews '+dateStr(L.due):'')+'</span>':nw<REG_MIN?'<span class="pill">Millionaires only</span>':'<button class="btn small '+(S.cash>=lic?'primary':'')+'" data-a="regenter" data-v="'+i.id+'" '+(S.cash<lic?'disabled':'')+'>Get licence · '+fmt(lic)+'</button>')+'</div>';});
  return h+'</div>';}
 function enterInd(id,fee){if(isReg(id)||S.inds.includes(id)||slotInds().length>=SLOTS[S.peak])return false;S.cash-=fee;S.inds.push(id);return true;}
 const cyc=b=>1+(S.s-1)*(.6+b.vol*2);
 /* economy difficulty: how much businesses earn for what they cost, how much net worth unlocks the next tier, and whether the bank offers business loans */
-const ECONT=()=>Object.assign({ret:.6,unlock:2.5,bank:1},(typeof TUNE!=='undefined'&&TUNE.econ)||{});
+const ECONT=()=>Object.assign({ret:.6,unlock:2.5,bank:1,reg:.8},(typeof TUNE!=='undefined'&&TUNE.econ)||{});
 const RET=()=>+ECONT().ret;
-function bizValue(b){if(!owned(b.id))return 0;return (isReg(b.ind)?1-IND[b.ind].reg.tax:1)*RET()*CPI()*b.profit*owned(b.id)*policyMult(b)*masteryMult(b.ind)*12*baseMult()*b.mult*valMult()*S.s*(S.float?(1-S.float)*1.3:1);}
+function bizValue(b){if(!owned(b.id))return 0;return (isReg(b.ind)?1-IND[b.ind].reg.tax:1)*regF(b)*RET()*CPI()*b.profit*owned(b.id)*policyMult(b)*masteryMult(b.ind)*12*baseMult()*b.mult*valMult()*S.s*(S.float?(1-S.float)*1.3:1);}
 function bizAssets(){return BIZ.reduce((a,b)=>a+bizValue(b),0);}
 function assetPrice(a){if(MODELS[a.id]&&!has(a.id))return a.price*genMult(a.id);return a.price*afx(a.id)*(a.stack?Math.pow(1.06,has(a.id)):1);}
 function lifeAssets(){return ASSETS.reduce((t,a)=>t+a.price*afx(a.id)*has(a.id),0);}
@@ -1652,7 +1675,7 @@ function payoffOffer(){const L=S.loans||[];if(!L.length||S.month-(S.payAsk||-99)
 function loanLeft(){return(S.loans||[]).reduce((t,L)=>t+L.prin*L.left,0);}
 function bankCands(){if(!+ECONT().bank||S.over||!S.inds.length||!loanDep())return[];const nw=netWorth(),net=S.last?S.last.net:0,out=[];
  S.inds.forEach(iid=>{const bs=BIZ.filter(b=>b.ind===iid).sort((a,c)=>a.tier-c.tier),nb=bs.find(x=>!owned(x.id)),top=bs.filter(x=>owned(x.id)).pop();
-  [nb&&nb.tier>1?nb:null,top&&top.tier>1?top:null].forEach(b=>{if(!b)return;
+  [nb&&nb.tier>1?nb:null,top&&top.tier>1?top:null].forEach(b=>{if(!b||atCap(b))return;
    const price=unitCost(b,owned(b.id)),dep=price*loanDep(),loan=price-dep,pay=loan/LOAN_MONTHS+loan*loanRate();
    const locked=!owned(b.id)&&!(nw>=b.cost*ECONT().unlock);
    if((S.cash<price||locked)&&S.cash>=dep&&nw>=price*.15&&net>=pay*.8)out.push({b,price,dep,loan,pay});});});
@@ -1830,10 +1853,10 @@ function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e
    Planned profit P comes from the business's size and how well it is run. Income is P/margin.
    Half of the running costs are fixed (staff, rent, loans), half rise and fall with sales.
    Events, the economy, crises and industry news move demand (D), so a bad month can turn into a loss. */
-const MARGIN={retail:.25,food:.22,transport:.28,manufacturing:.22,realestate:.35,tech:.4,hospitality:.25,health:.3,energy:.35,media:.3};
+const MARGIN={banking:.45,insurance:.3,retail:.25,food:.22,transport:.28,manufacturing:.22,realestate:.35,tech:.4,hospitality:.25,health:.3,energy:.35,media:.3};
 function bizStructMult(E){return baseMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float)*(S.plan&&S.plan.mentor?.97:1)*(typeof statusMult==='function'?statusMult():1);}
 function bizPL(b,noisy,E,sm){const n=owned(b.id);if(!n)return{rev:0,cost:0,profit:0,d:1};E=E||svcEffects();if(sm==null)sm=bizStructMult(E);
- const m=MARGIN[b.ind]||.3,k=.5/m+.5,P=RET()*b.profit*n*policyMult(b)*masteryMult(b.ind)*sm*CPI();
+ const m=MARGIN[b.ind]||.3,k=.5/m+.5,P=RET()*regF(b)*b.profit*n*policyMult(b)*masteryMult(b.ind)*sm*CPI();
  let d=cyc(b)*indBuff(b.ind)*buffMult()*(typeof crisisMult==='function'?crisisMult(b.ind):1);if(noisy)d*=1+(b.vol/k)*(rnd()*2-1);
  const R0=P/m,C0=R0-P,rev=R0*d,cost=C0*.5+C0*.5*d;return{rev,cost,profit:rev-cost,d};}
 function flows(noisy){
@@ -3049,6 +3072,16 @@ function coverEvent(c){const fine=coverFine(c),yrs=S.month-c.made,ago=yrs>=12?Ma
 function coversHTML(){const C=(S.covers||[]);if(!C.length)return'';return'<div class="kv"><span>Cover-ups that could still come out</span><span>'+C.length+'</span></div><ul class="pastl">'+C.map(c=>'<li><b>'+yrOf(c.made)+'</b> You blamed '+esc(c.who)+' for '+esc(c.label)+'.</li>').join('')+'</ul>';}
 function riskEv(id,ids,w,make){return{id,cat:'Industry risk',w,when:()=>!!riskBiz(ids),build:()=>make(riskBiz(ids))};}
 const RISKS=[
+ riskEv('bankrun',['microfin','combank','regbank','panbank'],1,b=>{const inj=rc(b)*.3;return{cat:'Bank run',title:'A run on your '+b.name.lc(),
+  text:'A WhatsApp rumour says your bank is about to collapse. Queues are forming outside every branch and customers are pulling their savings out. The central bank is on the phone.',
+  choices:[{l:'Inject your own cash and calm the market',d:'Spend '+fmt(inj)+' to show the bank is safe. Reputation +3.',dis:S.cash<inj,f(){S.cash-=inj;addRep(3);return['The queues were gone in two days. Depositors trust you more than before.','good'];}},
+   {l:'Freeze withdrawals for a week',d:'Free. Profit from banking ×0.75 for 6 months, reputation −8.',f(){addBuff(.75,6,'Frozen withdrawals','banking');addRep(-8);return['The run stopped, but customers are furious and the papers called it a scandal.','bad'];}},
+   {l:'Ask the central bank for an emergency loan',d:'Free now. The regulator will be watching: profit ×0.85 for a year.',f(){addBuff(.85,12,'Central bank supervision','banking');addRep(-2);return['The central bank stepped in. You survived, with a supervisor sitting in your boardroom.',''];}}]};}),
+ riskEv('bigclaims',['microins','general','lifeins','reinsurer'],1,b=>{const cl=rc(b)*.35,ev=pick(['Floods have destroyed thousands of homes, cars and farms','A wave of fires has hit factories in the industrial area','A bad flu season has filled every hospital bed']);return{cat:'Insurance claims',title:'Claims are flooding in',
+  text:ev+'. Claims against your '+b.name.lc()+' are arriving by the thousand, and every one of them is on social media.',
+  choices:[{l:'Pay every claim quickly',d:'Spend '+fmt(cl)+'. Reputation +5: people will remember who paid.',dis:S.cash<cl,f(){S.cash-=cl;addRep(5);return['You paid out fast. Your sales agents say customers now ask for you by name.','good'];}},
+   {l:'Pay slowly and check every claim',d:'Spend '+fmt(cl*.5)+'. Reputation −5.',dis:S.cash<cl*.5,f(){S.cash-=cl*.5;addRep(-5);return['You saved money, but #'+BR().replace(/\s+/g,'')+'WontPay trended for a week.','bad'];}},
+   {l:'Reject most claims on technicalities',d:'Free now. Reputation −12, and the regulator may step in.',f(){addRep(-12);if(rnd()<.5){addBuff(.7,9,'Insurance regulator investigation','insurance');return['The regulator opened an investigation and froze new policies.','bad'];}return['Customers are angry, but the regulator let it go. This time.','bad'];}}]};}),
  riskEv('minecollapse',['goldmine','quarry'],1.1,b=>{const n=riskDead(b)+3,fix=rc(b)*.35;return{cat:'Mining accident',title:'Tunnel collapse at your '+b.name.lc(),
   text:'A wall gave way in the night shift. '+n+' workers are trapped underground and the mines inspector is on the way. Families are gathering at the gate.',
   choices:[{l:'Full rescue, then fix the mine properly',d:'Spend '+fmt(fix)+'. Rescue teams and new shoring. The mine stays shut for 4 months.',dis:S.cash<fix,f(){S.cash-=fix;addBuff(.7,4,'Mine shut for repairs','energy');addRep(6);if(rnd()<.85)return['All '+n+' miners came out alive. You rebuilt the tunnels to a higher standard and the town will not forget it.','good'];addRep(-4);return['The rescue saved most of the miners, but one did not make it. You paid the family and rebuilt the tunnels properly.','bad'];}},
@@ -3320,7 +3353,7 @@ document.addEventListener('visibilitychange',()=>{const c=SND.ctx;if(!c)return;i
 function flash(){const e=$('nw');e.classList.remove('flash');void e.offsetWidth;e.classList.add('flash');}
 
 /* ================= Actions ================= */
-function buy(id){const b=BIZ.find(x=>x.id===id),c=unitCost(b,owned(id));if(S.cash<c||S.over||!S.inds.includes(b.ind))return;S.cash-=c;S.owned[id]=owned(id)+1;if(owned(id)===1)log('Opened your first '+b.name+'.','good');wkInc('units');afterChange();}
+function buy(id){const b=BIZ.find(x=>x.id===id),c=unitCost(b,owned(id));if(S.cash<c||S.over||!S.inds.includes(b.ind)||atCap(b))return;S.cash-=c;S.owned[id]=owned(id)+1;if(owned(id)===1)log('Opened your first '+b.name+'.','good');wkInc('units');afterChange();}
 function sell(id){const b=BIZ.find(x=>x.id===id),n=owned(id);if(!n)return;const v=unitCost(b,n-1)*.7;S.cash+=v;S.owned[id]=n-1;log('Sold one '+b.name+' for '+fmt(v)+'.','');afterChange();}
 function buyAsset(id){const a=ASSETS.find(x=>x.id===id),c=assetPrice(a);if(S.cash<c||S.over||(!a.stack&&has(id)))return;S.cash-=c;S.assets[id]=has(id)+1;if(MODELS[id]){S.gen=S.gen||{};S.gen[id]=latestGen(id);S.af[id]=genMult(id);}if(!S.af[id])S.af[id]=1;
  if(a.lux&&a.rep)addRep(a.rep);
@@ -3465,7 +3498,7 @@ function render(){try{unlCheck();g10Check();}catch(e){}try{moneySound();}catch(e
   mine.forEach(b=>{const n=owned(b.id),c=unitCost(b,n);
    mh+='<div class="mb"><div class="tier">'+b.tier+'</div><div class="mbname"><b>'+b.name+' <span class="count">×'+n+'</span></b><span>'+IND[b.ind].name+'</span><span class="plrow">Income '+fmt(pl(b).rev)+' − costs '+fmt(pl(b).cost)+(pl(b).d<.97?' · <i class="neg">sales '+Math.round((pl(b).d-1)*100)+'%</i>':pl(b).d>1.03?' · <i class="pos">sales +'+Math.round((pl(b).d-1)*100)+'%</i>':'')+'</span></div>'+
     '<div class="mbnum"><b class="'+(monthly(b)<0?'neg':'pos')+'">'+(monthly(b)<0?'−':'')+fmt(Math.abs(monthly(b)))+'/mo</b><span>worth '+fmt(bizValue(b))+'</span></div>'+
-    '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+(S.cash<c||S.over?'disabled':'')+'>+1 · '+fmt(c)+'</button><button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1</button></div></div>';});}
+    '<div class="acts">'+(atCap(b)?'<button class="btn small" disabled title="Your licence allows '+regCap(b)+' of these">Licence limit · '+regCap(b)+'</button>':'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+(S.cash<c||S.over?'disabled':'')+'>+1 · '+fmt(c)+'</button>')+'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1</button></div></div>';});}
  $('mybiz').innerHTML=mh;
  let bh='';
  if(!S.inds.length)bh+='<p class="seghint" style="margin:0">Choose your first industry to get started.</p>';
@@ -3479,7 +3512,7 @@ function render(){try{unlCheck();g10Check();}catch(e){}try{moneySound();}catch(e
    if(!(n>0||nw>=b.cost*ECONT().unlock||b.tier===1||(S.bankOK&&S.bankOK[b.id]))){if(shownLocked)return;shownLocked=true;
     bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*ECONT().unlock)+', or sooner if the bank agrees to finance it.</div></div><div></div></div>';return;}
    bh+='<div class="biz '+(n?'owned':'')+'"><div class="tier">'+b.tier+'</div><div style="min-width:0"><div class="name">'+b.name+(n?'<span class="count">×'+n+'</span>':'')+(pm!==1?' <span class="pill '+(pm<1?'bad':'good')+'">Policy ×'+pm.toFixed(2)+'</span>':'')+'</div><div class="tag">'+b.tag+'</div>'+
-    '<div class="meta">Each earns ~'+fmt(RET()*b.profit*bmBase*pm*im*cyc(b)/S.s)+'/mo'+(isReg(iid)?' before excise':'')+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
+    '<div class="meta">Each earns ~'+fmt(RET()*regF(b)*b.profit*bmBase*pm*im*cyc(b)/S.s)+'/mo'+(isReg(iid)?' before excise':'')+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
     '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+(S.cash<c||S.over?'disabled':'')+'>Open · '+fmt(c)+'</button>'+
     (n?'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1 · '+fmt(unitCost(b,n-1)*.7)+'</button>':'')+'</div></div>';});
   bh+='</div>';});

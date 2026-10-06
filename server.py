@@ -685,12 +685,13 @@ def life_from_records(db, uid, game, st=None):
     return life
 
 
-def retention(t):
-    """Of players who signed up in the last 90 days, the share who came back N or more days later."""
-    users = q("SELECT id, created FROM users WHERE created>?", (t - 90 * 86400,))
+def retention(t, rg=None):
+    """Of players who signed up in the range (default: the last 90 days), the share who came back N or more days later."""
+    t0, t1 = (rg["t0"], rg["t1"]) if rg else (t - 90 * 86400, t + 1)
+    users = q("SELECT id, created FROM users WHERE created>=? AND created<?", (t0, t1))
     days = {}
-    for r in q("SELECT a.user_id, a.day FROM activity_days a JOIN users u ON u.id=a.user_id WHERE u.created>?",
-               (t - 90 * 86400,)):
+    for r in q("SELECT a.user_id, a.day FROM activity_days a JOIN users u ON u.id=a.user_id WHERE u.created>=? AND u.created<?",
+               (t0, t1)):
         days.setdefault(r["user_id"], []).append(r["day"])
     out = {}
     for n in (1, 7, 30):
@@ -712,11 +713,127 @@ FUNNEL = [(1, "Played a month"), (12, "Played a full year"), (60, "Played 5 year
 
 QUIET_DAYS = 2
 
+# the admin's date range: whole days in the admin's own time zone (Nairobi unless HUSTLE_ADMIN_TZ says otherwise)
+ADMIN_TZ = int(float(os.environ.get("HUSTLE_ADMIN_TZ", "3")) * 3600)
+DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-def dropoff(t):
-    """Where players stop: how far players got before going quiet, and the last decision they made."""
+
+def admin_range(path, t, default_days=30):
+    qs = parse_qs(urlparse(path).query)
+    today = time.strftime("%Y-%m-%d", time.gmtime(t + ADMIN_TZ))
+    d1 = (qs.get("to") or [""])[0]
+    d1 = d1 if DAY_RE.match(d1) else today
+    d0 = (qs.get("from") or [""])[0]
+    if not DAY_RE.match(d0):
+        try:
+            days = int((qs.get("days") or [str(default_days)])[0])
+        except ValueError:
+            days = default_days
+        days = max(1, min(3660, days))
+        d0 = time.strftime("%Y-%m-%d", time.gmtime(calendar.timegm(time.strptime(d1, "%Y-%m-%d")) - (days - 1) * 86400))
+    try:
+        t0 = calendar.timegm(time.strptime(d0, "%Y-%m-%d")) - ADMIN_TZ
+        t1 = calendar.timegm(time.strptime(d1, "%Y-%m-%d")) + 86400 - ADMIN_TZ
+    except ValueError:
+        return admin_range("/", t, default_days)
+    if t1 <= t0:
+        t0, t1, d0, d1 = t1 - 86400, t0 + 86400, d1, d0
+    return {"t0": t0, "t1": t1, "d0": d0, "d1": d1, "days": max(1, (t1 - t0) // 86400)}
+
+
+def range_days(rg, cap=92):
+    """The days in the range (the last `cap` of them), as (YYYY-MM-DD, start, end) in the admin's time zone."""
+    n = min(cap, rg["days"])
+    out = []
+    for i in range(n - 1, -1, -1):
+        s = rg["t1"] - (i + 1) * 86400
+        out.append((time.strftime("%Y-%m-%d", time.gmtime(s + ADMIN_TZ)), s, s + 86400))
+    return out
+
+
+def cohorts(t, weeks=10, rg=None):
+    """New players grouped by the week they signed up (weeks start on Monday, UTC), and the share who came back 1 and 7 days later."""
+    def week_of(ts):
+        d = int(ts // 86400) * 86400
+        return d - time.gmtime(d).tm_wday * 86400
+    monday = week_of(min(t, rg["t1"] - 1) if rg else t)
+    if rg:
+        weeks = min(26, int((monday - week_of(rg["t0"])) // (7 * 86400)) + 1)
+    start = monday - (weeks - 1) * 7 * 86400
+    users = q("SELECT id, created FROM users WHERE disabled=0 AND created>=? AND created<?", (start, monday + 7 * 86400))
+    days = {}
+    for r in q("SELECT a.user_id, a.day FROM activity_days a JOIN users u ON u.id=a.user_id WHERE u.created>=?", (start,)):
+        days.setdefault(r["user_id"], []).append(r["day"])
+    out = []
+    for w in range(weeks):
+        ws = start + w * 7 * 86400
+        grp = [u for u in users if ws <= u["created"] < ws + 7 * 86400]
+        row = {"week": time.strftime("%Y-%m-%d", time.gmtime(ws)), "n": len(grp)}
+        for n in (1, 7):
+            el = [u for u in grp if u["created"] <= t - n * 86400]
+            back = sum(1 for u in el if any(d >= time.strftime("%Y-%m-%d", time.gmtime(u["created"] + n * 86400)) for d in days.get(u["id"], [])))
+            row["d%d" % n] = {"el": len(el), "back": back}
+        out.append(row)
+    return out[::-1]
+
+
+G10_NAMES = ["Own 3 businesses", "Try Auto-play", "Reach $5,000", "Open a bigger business", "Reach $25,000", "Reach $100,000"]
+
+
+def first_session(t, days=30, rg=None):
+    """Players who signed up in the range (default: the last N days): how far each one got through the start of the game."""
+    t0, t1 = (rg["t0"], rg["t1"]) if rg else (t - days * 86400, t + 1)
+    if rg:
+        days = rg["days"]
+    rows = q("SELECT u.id, COALESCE(s.months_played,0) mp, COALESCE(s.detail,'{}') detail, s.user_id sid FROM users u "
+             "LEFT JOIN stats s ON s.user_id=u.id WHERE u.disabled=0 AND u.created>=? AND u.created<?", (t0, t1))
+    base = []
+    for r in rows:
+        try:
+            d = json.loads(r["detail"] or "{}") or {}
+        except ValueError:
+            d = {}
+        base.append((r, d))
+    n = len(base)
+    steps = [{"label": "Created an account", "n": n},
+             {"label": "Started a game", "n": sum(1 for r, d in base if r["sid"] is not None)},
+             {"label": "Bought a first business", "n": sum(1 for r, d in base if (d.get("units") or 0) >= 1 or r["mp"] >= 1)},
+             {"label": "Finished the first month", "n": sum(1 for r, d in base if r["mp"] >= 1)}]
+    goals = [(r, d) for r, d in base if isinstance(d.get("g10"), (int, float)) and d.get("g10") >= 0]
+    for i, nm in enumerate(G10_NAMES):
+        steps.append({"label": "Starter goal %d: %s" % (i + 1, nm), "n": sum(1 for r, d in goals if d["g10"] >= i + 1), "goal": 1})
+    steps.append({"label": "Played a full game year", "n": sum(1 for r, d in base if r["mp"] >= 12)})
+    return {"days": days, "players": n, "goalPlayers": len(goals), "steps": steps}
+
+
+def last_screen(t, rg=None):
+    """Players who went quiet (last seen in the range, default the last 60 days): the tab they were on and any card left open."""
+    t0, t1 = (rg["t0"], rg["t1"]) if rg else (t - 60 * 86400, t)
+    rows = q("SELECT s.detail FROM users u JOIN stats s ON s.user_id=u.id WHERE u.disabled=0 AND u.last_seen<? AND u.last_seen>=? AND u.last_seen<?",
+             (t - QUIET_DAYS * 86400, t0, t1))
+    tabs, cards, n, open_n = {}, {}, 0, 0
+    for r in rows:
+        try:
+            d = json.loads(r["detail"] or "{}") or {}
+        except ValueError:
+            continue
+        n += 1
+        tb = d.get("tab") or "unknown"
+        tabs[tb] = tabs.get(tb, 0) + 1
+        c = d.get("card") or ""
+        if c:
+            open_n += 1
+            cards[c] = cards.get(c, 0) + 1
+    return {"players": n, "openCard": open_n,
+            "tabs": [{"tab": k, "n": v} for k, v in sorted(tabs.items(), key=lambda x: -x[1])],
+            "cards": [{"ev": k, "n": v} for k, v in sorted(cards.items(), key=lambda x: -x[1])[:10]]}
+
+
+def dropoff(t, rg=None):
+    """Where players stop: how far players got before going quiet, and the last decision they made (players who signed up in the range)."""
+    t0, t1 = (rg["t0"], rg["t1"]) if rg else (0, t + 1)
     base = q("SELECT u.id, u.last_seen, COALESCE(s.months_played,0) mp, COALESCE(s.best,0) best, COALESCE(s.games,1) games "
-             "FROM users u LEFT JOIN stats s ON s.user_id=u.id WHERE u.disabled=0")
+             "FROM users u LEFT JOIN stats s ON s.user_id=u.id WHERE u.disabled=0 AND u.created>=? AND u.created<?", (t0, t1))
     n = len(base)
     lived = {r["user_id"] for r in q("SELECT DISTINCT user_id FROM lives")}
     funnel = [{"label": "Created an account", "n": n}]
@@ -738,7 +855,8 @@ def dropoff(t):
         k = (ev, ch)
         tally[k] = tally.get(k, 0) + 1
     lastev = [{"ev": k[0], "choice": k[1], "n": v} for k, v in sorted(tally.items(), key=lambda x: -x[1])[:10]]
-    return {"players": n, "gone": len(gone), "quietDays": QUIET_DAYS, "funnel": funnel, "buckets": buckets, "lastEv": lastev, "lastEvN": len(last)}
+    return {"players": n, "gone": len(gone), "quietDays": QUIET_DAYS, "funnel": funnel, "buckets": buckets, "lastEv": lastev, "lastEvN": len(last),
+            "cohorts": cohorts(t, rg=rg), "first": first_session(t, rg=rg), "screen": last_screen(t, rg=rg)}
 
 
 def backfill_lives():
@@ -1549,11 +1667,12 @@ def seen_label(last, t):
     return "Played yesterday" if d == 1 else "Played %d days ago" % d
 
 
-def push_overview(t):
-    since = t - 7 * 86400
-    s7 = q("SELECT COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>?", (since,), one=True)
-    s30 = q("SELECT COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>?", (t - 30 * 86400,), one=True)
-    kinds = [dict(r) for r in q("SELECT kind, COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>? GROUP BY kind ORDER BY n DESC", (t - 30 * 86400,))]
+def push_overview(t, rg=None):
+    a, b = (rg["t0"], rg["t1"]) if rg else (t - 7 * 86400, t + 1)
+    a30 = rg["t0"] if rg else t - 30 * 86400
+    s7 = q("SELECT COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>=? AND ts<?", (a, b), one=True)
+    s30 = q("SELECT COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>=? AND ts<?", (a30, b), one=True)
+    kinds = [dict(r) for r in q("SELECT kind, COUNT(*) n, SUM(delivered) d, SUM(opened) o FROM push_log WHERE ts>=? AND ts<? GROUP BY kind ORDER BY n DESC", (a30, b))]
     return {"ready": push_ready(), "on": push_on(), "players": q("SELECT COUNT(DISTINCT user_id) c FROM push_subs", one=True)["c"],
             "devices": q("SELECT COUNT(*) c FROM push_subs", one=True)["c"],
             "sent7": s7["d"] or 0, "opened7": s7["o"] or 0, "sent30": s30["d"] or 0, "opened30": s30["o"] or 0, "kinds": kinds}
@@ -1574,12 +1693,13 @@ def payment_sweeper():
                 print("Payment check for %s failed: %s" % (r["ref"], e), flush=True)
 
 
-def billing_overview(t):
+def billing_overview(t, rg=None):
+    a, b = (rg["t0"], rg["t1"]) if rg else (t - 30 * 86400, t + 1)
     if not BILLING_ON:
-        tip = lambda since: q("SELECT COALESCE(SUM(amount),0) a, COUNT(*) c, COUNT(DISTINCT user_id) u FROM payments "
-                              "WHERE status='paid' AND plan='tip' AND updated>?", (since,), one=True)
-        t30, tall = tip(t - 30 * 86400), tip(0)
-        opened = q("SELECT COUNT(*) c FROM payments WHERE plan='tip' AND created>?", (t - 30 * 86400,), one=True)["c"]
+        tip = lambda since, until: q("SELECT COALESCE(SUM(amount),0) a, COUNT(*) c, COUNT(DISTINCT user_id) u FROM payments "
+                                     "WHERE status='paid' AND plan='tip' AND updated>=? AND updated<?", (since, until), one=True)
+        t30, tall = tip(a, b), tip(0, t + 1)
+        opened = q("SELECT COUNT(*) c FROM payments WHERE plan='tip' AND created>=? AND created<?", (a, b), one=True)["c"]
         passes = q("SELECT COALESCE(SUM(amount),0) a, COUNT(*) c FROM payments WHERE status='paid' AND plan<>'tip'", one=True)
         return {"on": False, "ready": pesapal_ready(), "env": PESAPAL_ENV, "tips30": t30["a"], "tipN30": t30["c"], "tippers30": t30["u"],
                 "tipsAll": tall["a"], "tipNAll": tall["c"], "tippersAll": tall["u"], "opened30": opened,
@@ -1616,10 +1736,10 @@ def billing_overview(t):
             k["gift2"] += 1
         if pu:
             k["everPaid"] += 1
-    rev = lambda since: q("SELECT COALESCE(SUM(amount),0) a, COUNT(*) c FROM payments WHERE status='paid' AND updated>?", (since,), one=True)
-    r30, rall = rev(t - 30 * 86400), rev(0)
+    rev = lambda since, until: q("SELECT COALESCE(SUM(amount),0) a, COUNT(*) c FROM payments WHERE status='paid' AND updated>=? AND updated<?", (since, until), one=True)
+    r30, rall = rev(a, b), rev(0, t + 1)
     k.update(on=True, ready=pesapal_ready(), env=PESAPAL_ENV, since=bs, rev30=r30["a"], pay30=r30["c"], revAll=rall["a"], payAll=rall["c"],
-             byPlan={r["plan"]: r["c"] for r in q("SELECT plan, COUNT(*) c FROM payments WHERE status='paid' AND updated>? GROUP BY plan", (t - 30 * 86400,))},
+             byPlan={r["plan"]: r["c"] for r in q("SELECT plan, COUNT(*) c FROM payments WHERE status='paid' AND updated>=? AND updated<? GROUP BY plan", (a, b))},
              trialHours=TRIAL_HOURS, giftDays=GIFT_DAYS, gifts=GIFTS, blockDays=BLOCK_DAYS, plans=plans_public())
     return k
 
@@ -1692,7 +1812,7 @@ def clean_tuning(d):
         out["death"] = death
     ed = d.get("econ") if isinstance(d.get("econ"), dict) else {}
     econ = {}
-    for k, lo, hi, dflt in (("ret", 0.2, 1.5, 0.6), ("unlock", 0.2, 5.0, 2.5)):
+    for k, lo, hi, dflt in (("ret", 0.2, 1.5, 0.6), ("unlock", 0.2, 5.0, 2.5), ("reg", 0.1, 1.5, 0.8)):
         try:
             v = round(min(hi, max(lo, float(ed.get(k, dflt)))), 2)
         except (TypeError, ValueError):
@@ -1782,23 +1902,24 @@ def src_of(ref):
     return h[4:] if h.startswith("www.") else h
 
 
-def visitors_overview(t):
-    def span(since):
+def visitors_overview(t, rg=None):
+    def span(since, until=None):
         r = q("SELECT COUNT(*) n, SUM(stage='signed') signed, SUM(stage='login') login, SUM(stage='form') form, SUM(stage='landed') landed "
-              "FROM visitors WHERE first>? AND stage<>'login'", (since,), one=True)
+              "FROM visitors WHERE first>=? AND first<? AND stage<>'login'", (since, until or t + 1), one=True)
         return {k: (r[k] or 0) for k in ("n", "signed", "login", "form", "landed")}
+    rg = rg or admin_range("/", t, 14)
     days = []
-    for i in range(13, -1, -1):
-        d0 = (t // 86400 - i) * 86400
+    for day, d0, d1 in range_days(rg):
         r = q("SELECT COUNT(*) n, SUM(stage='signed') signed, SUM(stage IN ('landed','form')) lft FROM visitors WHERE first>=? AND first<? AND stage<>'login'",
-              (d0, d0 + 86400), one=True)
-        days.append({"day": time.strftime("%Y-%m-%d", time.gmtime(d0)), "n": r["n"] or 0, "signed": r["signed"] or 0, "left": r["lft"] or 0})
-    srcs = [dict(r) for r in q("SELECT src, COUNT(*) n, SUM(stage='signed') signed FROM visitors WHERE first>? AND stage<>'login' GROUP BY src ORDER BY n DESC LIMIT 8",
-                               (t - 30 * 86400,))]
-    dev = {r["device"] or "?": r["n"] for r in q("SELECT device, COUNT(*) n FROM visitors WHERE first>? AND stage IN ('landed','form') GROUP BY device",
-                                                  (t - 30 * 86400,))}
+              (d0, d1), one=True)
+        days.append({"day": day, "n": r["n"] or 0, "signed": r["signed"] or 0, "left": r["lft"] or 0})
+    srcs = [dict(r) for r in q("SELECT src, COUNT(*) n, SUM(stage='signed') signed FROM visitors WHERE first>=? AND first<? AND stage<>'login' GROUP BY src ORDER BY n DESC LIMIT 8",
+                               (rg["t0"], rg["t1"]))]
+    dev = {r["device"] or "?": r["n"] for r in q("SELECT device, COUNT(*) n FROM visitors WHERE first>=? AND first<? AND stage IN ('landed','form') GROUP BY device",
+                                                  (rg["t0"], rg["t1"]))}
     since = q("SELECT MIN(first) m FROM visitors", one=True)["m"]
-    return {"d1": span(t - 86400), "d7": span(t - 7 * 86400), "d30": span(t - 30 * 86400), "all": span(0), "days": days, "srcs": srcs, "leftDevice": dev, "since": since}
+    rs = span(rg["t0"], rg["t1"])
+    return {"d1": span(t - 86400), "d7": rs, "d30": rs, "range": rs, "all": span(0), "days": days, "srcs": srcs, "leftDevice": dev, "since": since}
 
 
 # ---- marketing: campaign links and where players come from ----
@@ -1811,21 +1932,22 @@ def clean_camp(v):
     return v if CAMP_RE.match(v) else ""
 
 
-def marketing_report(t, days):
-    """Sign-ups, return rates and tips by where players came from, over the last `days` days."""
-    since = t - days * 86400
+def marketing_report(t, days, rg=None):
+    """Sign-ups, return rates and tips by where players came from, in the date range (default: the last `days` days)."""
+    rg = rg or admin_range("/?days=%d" % days, t)
+    since, until, days = rg["t0"], rg["t1"], rg["days"]
     camps = {r["code"]: dict(r) for r in q("SELECT * FROM campaigns")}
     users = q("SELECT u.id, u.created, u.last_seen, u.camp, "
               "(SELECT 1 FROM referrals r WHERE r.user_id=u.id) AS invited, "
               "(SELECT v.src FROM visitors v WHERE v.user_id=u.id ORDER BY v.first LIMIT 1) AS src "
-              "FROM users u WHERE u.created>?", (since,))
+              "FROM users u WHERE u.created>=? AND u.created<?", (since, until))
     ids = [u["id"] for u in users]
     act, tips = {}, {}
     if ids:
-        for r in q("SELECT a.user_id, a.day FROM activity_days a JOIN users u ON u.id=a.user_id WHERE u.created>?", (since,)):
+        for r in q("SELECT a.user_id, a.day FROM activity_days a JOIN users u ON u.id=a.user_id WHERE u.created>=? AND u.created<?", (since, until)):
             act.setdefault(r["user_id"], []).append(r["day"])
         for r in q("SELECT p.user_id, SUM(p.amount) a FROM payments p JOIN users u ON u.id=p.user_id "
-                   "WHERE u.created>? AND p.status='paid' AND p.plan='tip' GROUP BY p.user_id", (since,)):
+                   "WHERE u.created>=? AND u.created<? AND p.status='paid' AND p.plan='tip' GROUP BY p.user_id", (since, until)):
             tips[r["user_id"]] = r["a"] or 0
 
     def source(u):
@@ -1856,7 +1978,7 @@ def marketing_report(t, days):
         if tips.get(u["id"]):
             r["tips"] += tips[u["id"]]
             r["tippers"] += 1
-    for v in q("SELECT camp, src, COUNT(*) n FROM visitors WHERE first>? AND stage<>'login' GROUP BY camp, src", (since,)):
+    for v in q("SELECT camp, src, COUNT(*) n FROM visitors WHERE first>=? AND first<? AND stage<>'login' GROUP BY camp, src", (since, until)):
         k = ("c:" + v["camp"]) if v["camp"] else ("r:" + (v["src"] or "unknown"))
         r = rows.setdefault(k, {"key": k, "players": 0, "e1": 0, "b1": 0, "e7": 0, "b7": 0, "active7": 0, "tips": 0.0, "tippers": 0, "visitors": 0})
         r["visitors"] += v["n"]
@@ -1878,20 +2000,19 @@ def marketing_report(t, days):
     out_c.sort(key=lambda r: (r["archived"], -r["players"], -r["created"]))
     out_s.sort(key=lambda r: -r["players"])
     daily = []
-    for i in range(min(days, 30) - 1, -1, -1):
-        d0 = (t // 86400 - i) * 86400
+    for day, d0, d1 in range_days(rg):
         n = {"camp": 0, "invite": 0, "other": 0}
         for u in users:
-            if d0 <= u["created"] < d0 + 86400:
+            if d0 <= u["created"] < d1:
                 k = source(u)
                 n["invite" if k == "invite" else "camp" if k.startswith("c:") else "other"] += 1
-        daily.append(dict(n, day=time.strftime("%Y-%m-%d", time.gmtime(d0))))
+        daily.append(dict(n, day=day))
     tot = {"players": len(users), "camp": sum(1 for u in users if source(u).startswith("c:")),
            "invite": sum(1 for u in users if u["invited"]),
            "e1": sum(1 for u in users if back(u, 1) is not None), "b1": sum(1 for u in users if back(u, 1)),
            "tips": sum(tips.values()), "spend": sum(c["cost"] for c in camps.values() if not c["archived"]),
            "visitors": sum(r["visitors"] for r in rows.values())}
-    return {"days": days, "campaigns": out_c, "sources": out_s, "daily": daily, "totals": tot, "channels": CHANNELS,
+    return {"days": days, "from": rg["d0"], "to": rg["d1"], "campaigns": out_c, "sources": out_s, "daily": daily, "totals": tot, "channels": CHANNELS,
             "site": SITE_DOMAIN or "hustlempires.com", "now": t}
 
 
@@ -2680,23 +2801,24 @@ def ad_sweeper():
         time.sleep(30)
 
 
-def manager_report(t, days):
+def manager_report(t, days, rg=None):
     """Ads Manager view: every campaign, ad set and ad on the account with its results for the period, plus game results."""
-    since = time.strftime("%Y-%m-%d", time.gmtime(t - (days - 1) * 86400))
+    rg = rg or admin_range("/?days=%d" % days, t)
+    since, until_day, days = rg["d0"], rg["d1"], rg["days"]
     def agg(col):
         out = {}
         for r in q("SELECT %s k, SUM(spend) spend, SUM(impressions) imp, SUM(reach) reach, SUM(clicks) clicks, SUM(link_clicks) lc "
-                   "FROM meta_daily WHERE day>=? GROUP BY %s" % (col, col), (since,)):
+                   "FROM meta_daily WHERE day>=? AND day<=? GROUP BY %s" % (col, col), (since, until_day)):
             out[r["k"]] = {"spend": r["spend"] or 0, "impressions": r["imp"] or 0, "reach": r["reach"] or 0, "clicks": r["clicks"] or 0, "link_clicks": r["lc"] or 0}
         return out
     zero = {"spend": 0, "impressions": 0, "reach": 0, "clicks": 0, "link_clicks": 0}
     ac, aa, ad = agg("campaign_id"), agg("adset_id"), agg("ad_id")
-    since_ts = t - days * 86400
+    since_ts, until_ts = rg["t0"], rg["t1"]
     def game(code):
         if not code:
             return {"visitors": None, "players": None}
-        return {"visitors": q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND first>? AND stage<>'login'", (code, since_ts), one=True)["n"],
-                "players": q("SELECT COUNT(*) n FROM users WHERE camp=? AND created>?", (code, since_ts), one=True)["n"]}
+        return {"visitors": q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND first>=? AND first<? AND stage<>'login'", (code, since_ts, until_ts), one=True)["n"],
+                "players": q("SELECT COUNT(*) n FROM users WHERE camp=? AND created>=? AND created<?", (code, since_ts, until_ts), one=True)["n"]}
     camps = []
     for c in q("SELECT * FROM meta_campaigns ORDER BY name"):
         if c["status"] in ("DELETED", "ARCHIVED") and not ac.get(c["campaign_id"]):
@@ -2725,7 +2847,7 @@ def manager_report(t, days):
         tok = json.loads(meta_get("meta_token") or "{}")
     except (TypeError, ValueError):
         tok = {}
-    return {"campaigns": camps, "adsets": sets, "ads": ads, "days": days, "cap": AD_DAILY_CAP, "currency": account_currency(),
+    return {"campaigns": camps, "adsets": sets, "ads": ads, "days": days, "from": rg["d0"], "to": rg["d1"], "cap": AD_DAILY_CAP, "currency": account_currency(),
             "canEdit": "ads_management" in (tok.get("scopes") or []), "sync": meta_get_state(), "now": t}
 
 
@@ -2798,33 +2920,35 @@ def posts_report(t):
             "posts": rows, "site": SITE_DOMAIN or "hustlempires.com", "now": t}
 
 
-def ads_report(t, days):
+def ads_report(t, days, rg=None):
+    rg = rg or admin_range("/?days=%d" % days, t)
+    days = rg["days"]
     st = meta_get_state()
     try:
         tok = json.loads(meta_get("meta_token") or "{}")
     except (TypeError, ValueError):
         tok = {}
-    out = {"ready": meta_ready(), "account": META_ACCOUNT, "sync": st, "token": tok, "days": days, "now": t,
+    out = {"ready": meta_ready(), "account": META_ACCOUNT, "sync": st, "token": tok, "days": days, "from": rg["d0"], "to": rg["d1"], "now": t,
            "links": [dict(r) for r in q("SELECT code, name FROM campaigns WHERE archived=0 ORDER BY name")]}
     if not meta_ready():
         return out
-    since_day = time.strftime("%Y-%m-%d", time.gmtime(t - (days - 1) * 86400))
-    since_ts = t - days * 86400
+    since_day, until_day = rg["d0"], rg["d1"]
+    since_ts, until_ts = rg["t0"], rg["t1"]
     camps = []
     for c in q("SELECT d.campaign_id, MAX(d.campaign_name) name, SUM(d.spend) spend, SUM(d.impressions) impressions, SUM(d.reach) reach, "
-               "SUM(d.clicks) clicks, SUM(d.link_clicks) link_clicks, COUNT(DISTINCT d.ad_id) ads FROM meta_daily d WHERE d.day>=? "
-               "GROUP BY d.campaign_id ORDER BY spend DESC", (since_day,)):
+               "SUM(d.clicks) clicks, SUM(d.link_clicks) link_clicks, COUNT(DISTINCT d.ad_id) ads FROM meta_daily d WHERE d.day>=? AND d.day<=? "
+               "GROUP BY d.campaign_id ORDER BY spend DESC", (since_day, until_day)):
         r = dict(c)
         m = q("SELECT name, status, code, manual FROM meta_campaigns WHERE campaign_id=?", (c["campaign_id"],), one=True)
         r.update({"status": m["status"] if m else "", "code": m["code"] if m else "", "manual": bool(m and m["manual"])})
         if m and m["name"]:
             r["name"] = m["name"]
         if r["code"]:
-            u = q("SELECT COUNT(*) n FROM users WHERE camp=? AND created>?", (r["code"], since_ts), one=True)["n"]
-            v = q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND first>? AND stage<>'login'", (r["code"], since_ts), one=True)["n"]
+            u = q("SELECT COUNT(*) n FROM users WHERE camp=? AND created>=? AND created<?", (r["code"], since_ts, until_ts), one=True)["n"]
+            v = q("SELECT COUNT(*) n FROM visitors WHERE camp=? AND first>=? AND first<? AND stage<>'login'", (r["code"], since_ts, until_ts), one=True)["n"]
             back = 0
             elig = 0
-            for x in q("SELECT id, created FROM users WHERE camp=? AND created>? AND created<=?", (r["code"], since_ts, t - 86400)):
+            for x in q("SELECT id, created FROM users WHERE camp=? AND created>=? AND created<? AND created<=?", (r["code"], since_ts, until_ts, t - 86400)):
                 elig += 1
                 cut = time.strftime("%Y-%m-%d", time.gmtime(x["created"] + 86400))
                 if q("SELECT 1 FROM activity_days WHERE user_id=? AND day>=?", (x["id"], cut), one=True):
@@ -2832,12 +2956,11 @@ def ads_report(t, days):
             r.update({"players": u, "visitors": v, "b1": back, "e1": elig})
         camps.append(r)
     daily = []
-    for i in range(min(days, 30) - 1, -1, -1):
-        d = time.strftime("%Y-%m-%d", time.gmtime(t - i * 86400))
+    for d, _a, _b in range_days(rg):
         x = q("SELECT COALESCE(SUM(spend),0) s, COALESCE(SUM(link_clicks),0) c FROM meta_daily WHERE day=?", (d,), one=True)
         daily.append({"day": d, "spend": x["s"], "clicks": x["c"]})
     tot = q("SELECT COALESCE(SUM(spend),0) spend, COALESCE(SUM(impressions),0) impressions, COALESCE(SUM(reach),0) reach, "
-            "COALESCE(SUM(link_clicks),0) link_clicks FROM meta_daily WHERE day>=?", (since_day,), one=True)
+            "COALESCE(SUM(link_clicks),0) link_clicks FROM meta_daily WHERE day>=? AND day<=?", (since_day, until_day), one=True)
     out.update({"campaigns": camps, "daily": daily, "totals": dict(tot),
                 "linkedPlayers": sum(c.get("players", 0) for c in camps), "linkedSpend": sum(c["spend"] for c in camps if c.get("code"))})
     return out
@@ -4095,7 +4218,7 @@ class Handler(BaseHTTPRequestHandler):
         nw = num(summary.get("nw"))
         new_game = bool(summary.get("newGame"))
         detail_keys = ("industries", "units", "properties", "teams", "happiness", "reputation", "influence",
-                       "debt", "married", "kids", "age", "tab", "race", "foundation", "cities", "gender", "spouse", "health", "died", "streak", "region", "currency", "gen")
+                       "debt", "married", "kids", "age", "tab", "card", "g10", "race", "foundation", "cities", "gender", "spouse", "health", "died", "streak", "region", "currency", "gen")
         detail = {k: summary.get(k) for k in detail_keys if isinstance(summary.get(k), (int, float, str, bool))}
         detail = {k: (clean_text(v, 40) if isinstance(v, str) else v) for k, v in detail.items()}
 
@@ -5007,13 +5130,13 @@ class Handler(BaseHTTPRequestHandler):
                 days = int((parse_qs(urlparse(self.path).query).get("days") or ["30"])[0])
             except ValueError:
                 days = 30
-            return self.send_json(200, manager_report(now(), days if days in (1, 7, 30, 90, 365) else 30))
+            return self.send_json(200, manager_report(now(), days if days in (1, 7, 30, 90, 365) else 30, admin_range(self.path, now())))
         if path == "/api/admin/ads":
             try:
                 days = int((parse_qs(urlparse(self.path).query).get("days") or ["30"])[0])
             except ValueError:
                 days = 30
-            return self.send_json(200, ads_report(now(), days if days in (7, 30, 90, 365) else 30))
+            return self.send_json(200, ads_report(now(), days if days in (7, 30, 90, 365) else 30, admin_range(self.path, now())))
         if path in ("/api/admin/marketing", "/api/admin/challenge"):
             qs = parse_qs(urlparse(self.path).query)
             t = now()
@@ -5022,7 +5145,7 @@ class Handler(BaseHTTPRequestHandler):
                     days = int((qs.get("days") or ["30"])[0])
                 except ValueError:
                     days = 30
-                return self.send_json(200, marketing_report(t, days if days in (7, 30, 90, 365) else 30))
+                return self.send_json(200, marketing_report(t, days if days in (7, 30, 90, 365) else 30, admin_range(self.path, t)))
             try:
                 mo = max(0, min(12, int((qs.get("m") or ["0"])[0])))
             except ValueError:
@@ -5032,14 +5155,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/events":
             t = now()
             q("DELETE FROM ev_log WHERE ts<?", (t - 400 * 86400,))
+            rg = admin_range(self.path, t)
             rows = {}
-            for r in q("SELECT ev, COUNT(*) n, SUM(ts>?) n30, COUNT(DISTINCT user_id) players FROM ev_log GROUP BY ev", (t - 30 * 86400,)):
+            # "d30" is now "shown in the date range"; choices count only the range too
+            for r in q("SELECT ev, COUNT(*) n, SUM(ts>=? AND ts<?) n30, COUNT(DISTINCT user_id) players FROM ev_log GROUP BY ev", (rg["t0"], rg["t1"])):
                 rows[r["ev"]] = {"all": r["n"], "d30": r["n30"] or 0, "players": r["players"], "choices": {}}
-            for r in q("SELECT ev, choice, COUNT(*) n FROM ev_log GROUP BY ev, choice"):
+            for r in q("SELECT ev, choice, COUNT(*) n FROM ev_log WHERE ts>=? AND ts<? GROUP BY ev, choice", (rg["t0"], rg["t1"])):
                 if r["ev"] in rows:
                     rows[r["ev"]]["choices"][str(r["choice"])] = r["n"]
-            tot = q("SELECT COUNT(*) n, SUM(ts>?) n30, COUNT(DISTINCT user_id) p FROM ev_log", (t - 30 * 86400,), one=True)
-            return self.send_json(200, {"tuning": tuning(), "stats": rows, "total": tot["n"], "total30": tot["n30"] or 0, "players": tot["p"], "now": t})
+            tot = q("SELECT COUNT(*) n, SUM(ts>=? AND ts<?) n30, COUNT(DISTINCT user_id) p FROM ev_log", (rg["t0"], rg["t1"]), one=True)
+            return self.send_json(200, {"tuning": tuning(), "stats": rows, "total": tot["n"], "total30": tot["n30"] or 0, "players": tot["p"], "now": t,
+                                        "from": rg["d0"], "to": rg["d1"]})
         if path == "/api/admin/deaths":
             t = now()
             counts, recent, total = {}, [], 0
@@ -5057,9 +5183,10 @@ class Handler(BaseHTTPRequestHandler):
                     recent.append({"when": r["ended"], "name": r["name"] or "", "age": d.get("age"), "cause": (d.get("cause") or "")[:160], "kind": k})
             return self.send_json(200, {"counts": counts, "total": total, "recent": recent, "now": t})
         if path == "/api/admin/payments":
+            rg = admin_range(self.path, now(), 3660)
             rows = q("SELECT p.ref,p.plan,p.amount,p.currency,p.status,p.method,p.code,p.created,p.updated,p.user_id,u.name,u.username,u.color "
-                     "FROM payments p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 200")
-            return self.send_json(200, {"payments": [dict(r) for r in rows], "now": now()})
+                     "FROM payments p LEFT JOIN users u ON u.id=p.user_id WHERE p.created>=? AND p.created<? ORDER BY p.id DESC LIMIT 500", (rg["t0"], rg["t1"]))
+            return self.send_json(200, {"payments": [dict(r) for r in rows], "now": now(), "from": rg["d0"], "to": rg["d1"]})
         if path == "/api/admin/players":
             rows = q("SELECT u.id,u.username,u.name,u.company,u.town,u.bg,u.color,u.created,u.last_seen,u.logins,u.disabled,u.email,"
                      "s.nw,s.best,s.cash,s.month,s.rank,s.billion_month,s.bankrupt,s.games,s.months_played,s.detail,"
@@ -5099,50 +5226,51 @@ class Handler(BaseHTTPRequestHandler):
 
     def admin_overview(self):
         t = now()
+        rg = admin_range(self.path, t)
         k = {
             "players": q("SELECT COUNT(*) c FROM users", one=True)["c"],
             "active24h": q("SELECT COUNT(*) c FROM users WHERE last_seen>?", (t - 86400,), one=True)["c"],
-            "active7d": q("SELECT COUNT(*) c FROM users WHERE last_seen>?", (t - 7 * 86400,), one=True)["c"],
-            "signups7d": q("SELECT COUNT(*) c FROM users WHERE created>?", (t - 7 * 86400,), one=True)["c"],
+            # "active7d" and "signups7d" now cover the admin's date range
+            "active7d": q("SELECT COUNT(DISTINCT user_id) c FROM activity_days WHERE day>=? AND day<=?", (rg["d0"], rg["d1"]), one=True)["c"],
+            "signups7d": q("SELECT COUNT(*) c FROM users WHERE created>=? AND created<?", (rg["t0"], rg["t1"]), one=True)["c"],
+            "from": rg["d0"], "to": rg["d1"], "days": rg["days"],
             "monthsPlayed": q("SELECT COALESCE(SUM(months_played),0) c FROM stats", one=True)["c"],
             "billionaires": q("SELECT COUNT(*) c FROM stats WHERE billion_month IS NOT NULL", one=True)["c"],
             "bankrupt": q("SELECT COUNT(*) c FROM stats WHERE bankrupt=1", one=True)["c"],
         }
-        k["retention"] = retention(t)
+        k["retention"] = retention(t, rg)
         try:
-            k["dropoff"] = dropoff(t)
+            k["dropoff"] = dropoff(t, rg)
         except Exception as e:
             print("Drop-off summary failed: %s" % e, flush=True)
             k["dropoff"] = None
         try:
-            k["push"] = push_overview(t)
+            k["push"] = push_overview(t, rg)
         except Exception as e:
             print("Notification summary failed: %s" % e, flush=True)
             k["push"] = None
-        k["billing"] = billing_overview(t)
+        k["billing"] = billing_overview(t, rg)
         try:
-            k["visitors"] = visitors_overview(t)
+            k["visitors"] = visitors_overview(t, rg)
         except Exception as e:
             print("Visitor summary failed: %s" % e, flush=True)
             k["visitors"] = None
         k["invites"] = {"joined": q("SELECT COUNT(*) c FROM referrals", one=True)["c"],
-                        "joined7d": q("SELECT COUNT(*) c FROM referrals WHERE created>?", (t - 7 * 86400,), one=True)["c"],
+                        "joined7d": q("SELECT COUNT(*) c FROM referrals WHERE created>=? AND created<?", (rg["t0"], rg["t1"]), one=True)["c"],
                         "active": q("SELECT COUNT(*) c FROM referrals WHERE active_at>0", one=True)["c"],
                         "paid": q("SELECT COUNT(*) c FROM referrals WHERE paid_at>0", one=True)["c"],
                         "inviters": q("SELECT COUNT(DISTINCT inviter_id) c FROM referrals", one=True)["c"],
                         "top": [dict(r) for r in q("SELECT u.id AS user_id, u.name, u.company, u.color, COUNT(*) n, SUM(r.active_at>0) active, SUM(r.paid_at>0) paid "
                                                     "FROM referrals r JOIN users u ON u.id=r.inviter_id GROUP BY r.inviter_id ORDER BY n DESC LIMIT 10")]}
         days = []
-        for i in range(13, -1, -1):
-            day = time.strftime("%Y-%m-%d", time.gmtime(t - i * 86400))
-            start = int(time.mktime(time.strptime(day, "%Y-%m-%d"))) - time.timezone
+        for day, start, end in range_days(rg):
             days.append({
                 "day": day,
                 "active": q("SELECT COUNT(*) c FROM activity_days WHERE day=?", (day,), one=True)["c"],
-                "signups": q("SELECT COUNT(*) c FROM users WHERE created>=? AND created<?", (start, start + 86400), one=True)["c"],
+                "signups": q("SELECT COUNT(*) c FROM users WHERE created>=? AND created<?", (start, end), one=True)["c"],
             })
         feed = q("SELECT e.ts,e.game_month,e.kind,e.text,u.id AS user_id,u.name,u.company,u.color FROM events e "
-                 "JOIN users u ON u.id=e.user_id ORDER BY e.id DESC LIMIT 60")
+                 "JOIN users u ON u.id=e.user_id WHERE e.ts>=? AND e.ts<? ORDER BY e.id DESC LIMIT 60", (rg["t0"], rg["t1"]))
         self.send_json(200, {"kpis": k, "days": days, "feed": [dict(f) for f in feed], "now": t})
 
     def api_admin_action(self, uid, action):
