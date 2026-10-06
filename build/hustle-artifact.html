@@ -2658,7 +2658,7 @@ function divorceEvent(){const sp=S.spouse,pers=Math.max(0,S.cash)+lifeAssets(),b
 function divorce(share,msg,head){const sp=S.spouse;let owed=(Math.max(0,S.cash)+lifeAssets())*share+(sp.prenup?0:bizAssets()*share*.4);let note='';
  if(!sp.prenup){const home=ASSETS.filter(a=>a.kind==='Homes'&&has(a.id)).pop();if(home){const v=home.price*afx(home.id);S.assets[home.id]--;owed=Math.max(0,owed-v);note=' '+sp.name+' keeps the '+home.name+'.';if(homeTier()<0){S.rent=home.tier;note+=' You moved into a rented '+HOMES[home.tier].name.lc()+'.';}}}
  const fromCash=Math.min(Math.max(0,S.cash),owed);S.cash-=fromCash;if(owed>fromCash){S.debt+=owed-fromCash;note+=' '+fmt(owed-fromCash)+' of the settlement became debt.';}
- const kids=S.kids.filter(k=>!k.grown&&!k.withEx);kids.forEach(k=>k.withEx=true);
+ const kids=S.kids.filter(k=>!k.grown&&!k.withEx);kids.forEach(k=>k.withEx=true);S.kids.forEach(k=>{k.mood=clamp((k.mood==null?70:k.mood)-25,0,100);});if(S.kids.length)note+=' The children took it hard: their happiness fell sharply.';
  if(!sp.prenup){const amt=Math.max(100,flows(false).biz*.04);S.alimony={amt,left:48,to:sp.name};note+=' Alimony: '+fmt(amt)+' a month for 4 years.';}
  addHappy(-25);S.exes++;S.spouse=null;S.lastSplit=S.month;S.divorcedAt=S.month;S.lastEx=sp.name;
  const paid=fromCash+Math.max(0,owed-fromCash);
@@ -2708,6 +2708,7 @@ function showTab(t,scroll){if(!TABS.includes(t))return;if(S&&S.unl){if(!S.unl[t]
  if(scroll){const bar=document.querySelector('.bar'),m=$('main');const top=m.getBoundingClientRect().top+window.scrollY-bar.offsetHeight-8;if(window.scrollY>top)window.scrollTo(0,top);}
  syncBar();drawChart();}
 function attention(F){const A=[],L=lifestyle();
+ famAlerts(F).forEach(x=>A.push(x));
  lowTeams().forEach(x=>A.push(['warn',x.race?esc(BR())+' Racing is '+ord(x.pos)+' of '+x.n+' in the championship. Upgrade the car or change drivers to get back on the podium.':'Your '+x.T.ref+' is '+ord(x.pos)+' of '+x.n+' in the '+x.comp+'. Sign players, run a training camp or build an academy to get back into the top three.','sports','Fix it']));
  if(S.strikes)A.push(['bad','You have missed '+S.strikes+' of 3 payments. Borrow or sell something now, or you go bankrupt.','money','Go to bank']);
  if(F.net<0)A.push(['bad','You are losing '+fmt(-F.net)+' a month. Check the statement.',null,null]);
@@ -3418,6 +3419,7 @@ function nextMonth(){
  {const bo=bankOffer();if(bo){openEvent(bo);return;}}
  {const po=payoffOffer();if(po){openEvent(po);return;}}
  {const tw=teamWarn();if(tw){tw._id='sp_lowpos';openEvent(tw);return;}}
+ {let fw=spouseWarn(),id='fw_spouse';if(!fw){fw=kidOverdose();id='fw_overdose';}if(!fw){fw=kidWarn();id='fw_kid';}if(!fw){fw=kidCrisis();id='fw_teen';}if(fw){fw._id=id;openEvent(fw);return;}}
  if(moonDue()){openEvent(moonPickEvent());return;}
  if(!S.g){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
@@ -5044,6 +5046,59 @@ const SP_EVENTS=[
      {l:'Host it, but stay in the box',d:'Costs '+fmt(c)+'. Reputation +2.',dis:!canPay(c),f(){S.cash-=c;addRep(2);return['A great day for a great cause.','good']}},
      {l:'Not this year',d:'Free.',f(){return['The legends played somewhere else.','']}}]};}}];
 EVENTS.push(...SP_EVENTS);
+/* ================= Family warnings: an unhappy spouse or child gets a warning card, and unhappy teenagers can go off the rails ================= */
+const HAPPY_LV=[[60,'unhappy'],[35,'very unhappy'],[22,'close to leaving']];
+function lvOf(v,lv){let k=0;HAPPY_LV.forEach((x,i)=>{if(v<x[0])k=i+1;});return k;}
+/* a card the first time a mood falls through 60, 35 and 22; it re-arms once the mood recovers */
+function spouseWarn(){const sp=S.spouse;if(!sp)return null;const lv=lvOf(sp.happy);sp.wlv=sp.wlv||0;
+ if(sp.wlv>0&&sp.happy>HAPPY_LV[sp.wlv-1][0]+8)sp.wlv=lv;if(lv<=sp.wlv)return null;sp.wlv=lv;
+ const hol=nwc(.006,500),cou=nwc(.003,300),pct=Math.round(sp.happy),last=lv>=3;
+ return{cat:'Family',title:last?sp.name+' is close to leaving you':sp.name+' is '+HAPPY_LV[lv-1][1],
+  text:(last?'This is your last warning. ':'')+'Your '+spW()+'\'s happiness has fallen to '+pct+'%. '+(last?'Below 20% '+sp.name+' may walk out and file for divorce at any time, taking half of what you own'+(sp.prenup?' (your prenup protects the businesses)':'')+'.':lv===2?'The arguments are getting worse and '+sp.name+' has started sleeping in the guest room.':'You have been home late every night and '+sp.name+' has noticed.')+(S.kids.some(k=>!k.withEx&&!k.grown)?' The children can feel it too.':''),
+  choices:[{l:'Take '+sp.name+' on a romantic holiday',d:'Costs '+fmt(hol)+'. Happiness +18.',dis:!canPay(hol),f(){S.cash-=hol;addSH(18);addHappy(3);return['A week away, just the two of you. You remembered why you fell in love.','good']}},
+   S.mode==='family'?null:{l:'Switch to Family first',d:'Less time at work, more at home. Your '+spW()+' and children are happier every month.',f(){S.mode='family';addSH(6);return['You moved to Family first. Dinner at home is a thing again.','good']}},
+   {l:'Go to marriage counselling',d:'Costs '+fmt(cou)+'. Happiness +12.',dis:!canPay(cou),f(){S.cash-=cou;addSH(12);return['The counsellor helped you say things you had never said. It was hard, and it helped.','good']}},
+   {l:'Ignore it',d:last?'Divorce is now very likely.':'It may get worse.',f(){addSH(-3);return['You told yourself it would blow over.','bad']}}].filter(Boolean)};}
+function kidWarn(){const L=S.kids.filter(k=>!k.dead&&kidAge(k)>=36&&kidAge(k)<264);for(const k of L){if(k.mood==null)k.mood=70;const lv=Math.min(2,lvOf(k.mood));k.wlv=k.wlv||0;if(k.wlv>0&&k.mood>HAPPY_LV[k.wlv-1][0]+8)k.wlv=lv;if(lv<=k.wlv)continue;k.wlv=lv;
+  const a=Math.floor(kidAge(k)/12),th=nwc(.003,250),pct=Math.round(k.mood);
+  return{cat:'Family',title:k.name+' is '+(lv>=2?'very unhappy':'unhappy'),
+   text:k.name+' ('+a+') is '+(lv>=2?'withdrawn, angry and hardly talks to anyone at home':'quieter than usual and spends more time alone')+'. Happiness '+pct+'%. '+(a>=12?'Unhappy teenagers look for approval somewhere else, and not always from good people.':'Children notice when their parents are never there.'),
+   choices:[{l:'Spend real time with '+k.name,d:'Weekends together for a month. Profit ×0.97 for 2 months. Happiness +15.',f(){kidM(k,15);addBuff(.97,2,'Time with '+k.name);addHappy(2);return['Football on Saturdays and long talks on Sundays. '+k.name+' smiled for the first time in weeks.','good']}},
+    {l:'Book a counsellor',d:'Costs '+fmt(th)+'. Happiness +12.',dis:!canPay(th),f(){S.cash-=th;kidM(k,12);return[k.name+' talks to a counsellor every week now, and it is helping.','good']}},
+    {l:'Buy something nice',d:'Costs '+fmt(th/2)+'. Happiness +5 for now.',dis:!canPay(th/2),f(){S.cash-=th/2;kidM(k,5);return[k.name+' liked the new phone. The problem is still there.','']}},
+    {l:'Ignore it',d:'It may get worse.',f(){kidM(k,-3);return['You were busy. '+k.name+' noticed.','bad']}}]};}
+ return null;}
+/* teenagers and young adults whose happiness stays low can drift: bad friends, drugs, a pregnancy, depression; drugs left untreated can kill */
+function kidCrisis(){const L=S.kids.filter(k=>!k.dead&&kidAge(k)>=144&&kidAge(k)<300&&(k.mood==null?70:k.mood)<40&&S.month-(k.crisisAt||-99)>=6);
+ for(const k of L){const a=Math.floor(kidAge(k)/12),p=k.mood<25?.09:.05;if(rnd()>p)continue;k.crisisAt=S.month;
+  const opts=[];if(!k.crowd)opts.push('crowd');if(k.crowd&&!k.drugs&&a>=14)opts.push('drugs','drugs');if(!k.preg&&a>=15&&a<=20)opts.push('preg');if(!k.dep)opts.push('dep');if(!opts.length)continue;
+  const kind=pick(opts),rh=nwc(.025,20000),th=nwc(.004,400),sup=nwc(.006,1500);
+  if(kind==='crowd'){k.crowd=true;return{cat:'Family',title:k.name+' has a new crowd',text:k.name+' ('+a+') has stopped bringing friends home. The new friends are older, have money nobody can explain, and '+k.name+' copies everything they do. Teachers say '+k.name+' skips class.',
+   choices:[{l:'Sit down and talk, no shouting',d:'Happiness +10. Might turn things around.',f(){kidM(k,10);if(rnd()<.5){k.crowd=false;return[k.name+' cried and admitted feeling invisible at home. The old friends are back.','good'];}return[k.name+' listened, then went out with them anyway.','']}},
+    {l:'Move '+k.name+' to a boarding school',d:'Costs '+fmt(sup)+'. A fresh start, but '+k.name+' will resent it.',dis:!canPay(sup),f(){S.cash-=sup;k.crowd=false;kidM(k,-6);return[k.name+' is at a strict boarding school upcountry, and not talking to you.','']}},
+    {l:'Ground them for a month',d:'Happiness −10.',f(){kidM(k,-10);return[k.name+' climbed out of the window on the second night.','bad']}}]};}
+  if(kind==='drugs'){k.drugs=true;return{cat:'Family',title:k.name+' is using drugs',text:'You found pills and powder in '+k.name+'\'s room. '+k.name+' ('+a+') has lost weight, stopped eating with the family and money has been going missing from your wallet.',
+   choices:[{l:'Send '+k.name+' to a residential rehab',d:'Costs '+fmt(rh)+'. Three months away, about 70% chance of getting clean.',dis:!canPay(rh),f(){S.cash-=rh;if(rnd()<.7){k.drugs=false;k.crowd=false;kidM(k,22);addHappy(3);return[k.name+' came home clean after three months, and is thinking about the future again.','good'];}kidM(k,5);return[k.name+' left rehab after six weeks and went back to the same friends.','bad']}},
+    {l:'Deal with it at home',d:'Costs '+fmt(th)+' for a counsellor. Cheaper, less likely to work.',dis:!canPay(th),f(){S.cash-=th;kidM(k,8);if(rnd()<.35){k.drugs=false;return[k.name+' stopped. For now. The family is watching closely.','good'];}return[k.name+' promised to stop, and did not.','bad']}},
+    {l:'Pretend you did not see it',d:'Free. Very dangerous.',f(){kidM(k,-5);return['You said nothing. The money keeps going missing.','bad']}}]};}
+  if(kind==='preg'){k.preg=true;return{cat:'Family',title:k.name+' is expecting a baby',text:k.name+' ('+a+') sat you down and said it straight: there is a baby on the way. '+k.name+' is terrified of what you will say.',
+   choices:[{l:'Support '+k.name+' fully',d:'Costs '+fmt(sup)+' for doctors, a nanny and school fees. Happiness +15.',dis:!canPay(sup),f(){S.cash-=sup;kidM(k,15);addSH(3);S.grandkids=(S.grandkids||0)+1;return['You hugged '+k.name+' and said the family would manage. A healthy grandchild arrived months later, and '+k.name+' stayed in school.','good']}},
+    {l:'Support them, but quietly',d:'Costs '+fmt(sup/2)+'. Keep it out of the papers.',dis:!canPay(sup/2),f(){S.cash-=sup/2;kidM(k,4);S.grandkids=(S.grandkids||0)+1;return['The family managed it quietly. '+k.name+' felt like a secret.','']}},
+    {l:'Explode in anger',d:'Happiness −25. Your '+spW()+' will not forgive you easily.',f(){kidM(k,-25);addSH(-8);addHappy(-4);return[k.name+' moved in with a friend and stopped answering your calls.','bad']}}]};}
+  k.dep=true;return{cat:'Family',title:k.name+' is struggling with depression',text:k.name+' ('+a+') sleeps most of the day, has stopped seeing friends and says nothing matters. A school counsellor called you: '+k.name+' needs professional help.',
+   choices:[{l:'Get professional help and be there',d:'Costs '+fmt(th*2)+' for a psychiatrist and therapy. Switch to Family first. Happiness +20.',dis:!canPay(th*2),f(){S.cash-=th*2;S.mode='family';kidM(k,20);k.dep=rnd()<.3;return['Therapy, medication and you at the dinner table every night. Slowly, '+k.name+' is coming back.','good']}},
+    {l:'Pay for therapy',d:'Costs '+fmt(th)+'. Happiness +10.',dis:!canPay(th),f(){S.cash-=th;kidM(k,10);return[k.name+' sees a therapist every week. It helps a little.','']}},
+    {l:'Tell them to snap out of it',d:'Happiness −12.',f(){kidM(k,-12);return[k.name+' went quiet and closed the bedroom door.','bad']}}]};}
+ return null;}
+/* drugs left untreated: a small chance each month of a fatal overdose */
+function kidOverdose(){const k=S.kids.find(x=>!x.dead&&x.drugs&&(x.mood==null?70:x.mood)<45&&rnd()<.015);if(!k)return null;
+ k.dead=true;const a=Math.floor(kidAge(k)/12);S.kids=S.kids.filter(x=>x!==k);addHappy(-35);addSH(-30);S.kids.forEach(x=>kidM(x,-25));parM(-25);sibM(-10);log(k.name+' died of an overdose at '+a+'. The family is shattered.','bad');
+ return{cat:'Family',noOut:1,title:'The worst phone call',text:'At 3 a.m. the police called. '+k.name+' was found unconscious at a party and could not be saved. '+k.name+' was '+a+'. Your '+(S.spouse?spW()+' has not stopped crying and ':'')+'the house is full of family who do not know what to say.',
+  choices:[{l:'Hold the family together',d:'Happiness −35. The grief will take years.',f(){return['You buried '+k.name+' under the jacaranda tree at the family home.','bad']}},
+   {l:'Start a foundation in '+k.name+'\'s name',d:'Costs '+fmt(nwc(.01,2000))+'. Help other families. Reputation +6.',dis:!canPay(nwc(.01,2000)),f(){S.cash-=nwc(.01,2000);addRep(6);addHappy(6);return['The '+k.name+' Foundation now pays for rehab for young people who cannot afford it.','good']}}]};}
+function famAlerts(F){const A=[];if(S.spouse&&S.spouse.happy<60)A.push([S.spouse.happy<25?'bad':'warn','Your '+spW()+' '+S.spouse.name+' is '+(S.spouse.happy<25?'close to leaving you':'unhappy')+' ('+Math.round(S.spouse.happy)+'%). Below 20% a divorce can come any month.','life','Family']);
+ S.kids.filter(k=>!k.dead&&kidAge(k)>=36&&kidAge(k)<264&&(k.mood==null?70:k.mood)<60).forEach(k=>A.push([k.mood<35?'bad':'warn',k.name+' is '+(k.mood<35?'very unhappy':'unhappy')+' ('+Math.round(k.mood)+'%)'+(k.drugs?' and using drugs':k.dep?' and struggling with depression':k.crowd?' and running with a bad crowd':'')+'. Spend time with them, get them help, or switch to Family first.','life','Family']));return A;}
+
 
 
 function sibsHTML(){const xs=S.sibs||[];if(!xs.length)return'';
