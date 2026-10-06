@@ -1845,6 +1845,13 @@ def clean_tuning(d):
         heir["gap1"] = hg1
     if heir:
         out["heir"] = heir
+    sd = d.get("sport") if isinstance(d.get("sport"), dict) else {}
+    try:
+        sg = int(min(24, max(1, int(sd.get("gap", 2)))))
+    except (TypeError, ValueError):
+        sg = 2
+    if sg != 2:
+        out["sport"] = {"gap": sg}
     return out
 
 

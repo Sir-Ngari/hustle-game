@@ -1793,6 +1793,22 @@ function loanTick(){if(!S.loans||!S.loans.length)return;
 const loanOwed=L=>L.prin*L.left;
 const loanIntLeft=L=>L.prin*loanRate()*L.left*(L.left+1)/2;
 function loanPayOff(list){let paid=0,saved=0;csOf().early+=list.length;list.forEach(L=>{const a=Math.min(loanOwed(L),S.debt);S.cash-=a;S.debt=Math.max(0,S.debt-a);paid+=a;saved+=loanIntLeft(L);});S.loans=(S.loans||[]).filter(L=>!list.includes(L));return{paid,saved};}
+
+/* ---- a team below 3rd place: a reminder on the dashboard and, at most every 4 months, a card asking the owner to act ---- */
+function lowTeams(){const out=[];TEAMS.forEach(T=>{const t=S.teams&&S.teams[T.id];if(!t||!t.lg)return;const me=t.lg.rows[0];if(!me||(me.p||0)<4)return;const pos=lgPos(t);if(pos>3)out.push({T,t,pos,n:t.lg.rows.length,gap:lgSorted(t)[2].pts-me.pts,comp:lgCfg(T,t).comp});});
+ if(S.race&&S.race.pts&&S.race.pts[0]!=null&&(S.race.pts.some(x=>x>0))){const pos=standing(S.race);if(pos>3)out.push({race:1,pos,n:S.race.pts.length});}return out;}
+function teamWarn(){const L=lowTeams().filter(x=>S.month-((x.race?S.race.warnAt:x.t.warnAt)||-99)>=4);if(!L.length)return null;const x=L[0];
+ if(x.race){S.race.warnAt=S.month;const R=S.race,c=8e6*rk(R);
+  return{cat:'Sports',title:esc(BR())+' Racing is '+ord(x.pos)+' in the championship',text:'Your racing team has slipped to '+ord(x.pos)+' of '+x.n+'. Sponsors pay for podiums, and the paddock is starting to talk.',
+   choices:[{l:'Upgrade the aero package',d:'Costs '+fmt(c)+'. A faster car.',dis:S.cash<c||R.aero>=10,f(){raceAero();return['The new aero package is on the car for the next race.','good']}},
+    {l:'Open the racing page',d:'Look at drivers, engines and upgrades yourself.',f(){setTimeout(()=>showTab('sports',true),50);return['You went to see the team.','']}},
+    {l:'Leave it for now',d:'Nothing changes.',f(){return['You let the team carry on as it is.','']}}]};}
+ const T=x.T,t=x.t,sc=teamValue(T)*.06,ac=teamValue(T)*.1,tc=teamValue(T)*.02;t.warnAt=S.month;
+ return{cat:'Sports',title:'Your '+T.ref+' is '+ord(x.pos)+' of '+x.n,text:'Your '+T.ref+' has dropped to '+ord(x.pos)+' in the '+x.comp+', '+(x.gap>0?x.gap+' point'+(x.gap===1?'':'s')+' off the top three':'just outside the top three')+'. Fans and sponsors expect a top-3 finish. Squad strength is '+Math.round(t.strength)+'.',
+  choices:[{l:'Sign new players',d:'Costs '+fmt(sc)+'. Squad strength +10.',dis:S.cash<sc||t.strength>=99,f(){signPlayers(T.id);return['New players arrived this week. The squad is much stronger.','good']}},
+   {l:'An intensive training camp',d:'Costs '+fmt(tc)+'. Squad strength +4.',dis:S.cash<tc,f(){S.cash-=tc;t.strength=Math.min(99,t.strength+4);return['Two weeks of double sessions at altitude. The players are sharper.','good']}}]
+   .concat(t.academy?[]:[{l:'Build a youth academy',d:'Costs '+fmt(ac)+'. Young players keep coming through.',dis:S.cash<ac,f(){buildAcademy(T.id);return['The academy is open. Your next stars are already training.','good']}}])
+   .concat([{l:'Leave it for now',d:'You will be reminded again in a few months if it does not improve.',f(){return['You let the team play on.','']}}])};}
 function payoffOffer(){const L=S.loans||[];if(!L.length||S.month-(S.payAsk||-99)<6)return null;
  const can=L.filter(x=>S.cash>=loanOwed(x)*1.3).sort((a,b)=>loanOwed(a)-loanOwed(b));if(!can.length)return null;S.payAsk=S.month;
  const all=L.reduce((t,x)=>t+loanOwed(x),0),allOk=S.cash>=all*1.3,one=can[0],allSave=L.reduce((t,x)=>t+loanIntLeft(x),0);
@@ -2692,6 +2708,7 @@ function showTab(t,scroll){if(!TABS.includes(t))return;if(S&&S.unl){if(!S.unl[t]
  if(scroll){const bar=document.querySelector('.bar'),m=$('main');const top=m.getBoundingClientRect().top+window.scrollY-bar.offsetHeight-8;if(window.scrollY>top)window.scrollTo(0,top);}
  syncBar();drawChart();}
 function attention(F){const A=[],L=lifestyle();
+ lowTeams().forEach(x=>A.push(['warn',x.race?esc(BR())+' Racing is '+ord(x.pos)+' of '+x.n+' in the championship. Upgrade the car or change drivers to get back on the podium.':'Your '+x.T.ref+' is '+ord(x.pos)+' of '+x.n+' in the '+x.comp+'. Sign players, run a training camp or build an academy to get back into the top three.','sports','Fix it']));
  if(S.strikes)A.push(['bad','You have missed '+S.strikes+' of 3 payments. Borrow or sell something now, or you go bankrupt.','money','Go to bank']);
  if(F.net<0)A.push(['bad','You are losing '+fmt(-F.net)+' a month. Check the statement.',null,null]);
  if(S.ill){const I=illOf(S.ill.id);if(I)A.push(['bad','You are fighting '+illName(I)+'.'+(S.ill.how==='none'?' You chose not to treat it.':''),'life','Health']);}
@@ -3400,6 +3417,7 @@ function nextMonth(){
  {const ee=econNext();if(ee){openEvent(ee);return;}}
  {const bo=bankOffer();if(bo){openEvent(bo);return;}}
  {const po=payoffOffer();if(po){openEvent(po);return;}}
+ {const tw=teamWarn();if(tw){tw._id='sp_lowpos';openEvent(tw);return;}}
  if(moonDue()){openEvent(moonPickEvent());return;}
  if(!S.g){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
@@ -4910,6 +4928,123 @@ const FAM1_EVENTS=[
      {l:'Go as a guest',d:'Costs '+fmt(c/6)+'. A good time, nothing more.',dis:!canPay(c/6),f(){S.cash-=c/6;parM(4);sibM(3);kidsM(3);addHappy(2);return['You ate, danced and slept in your old room.','good']}},
      {l:'Stay in the city and work',d:'Profit ×1.03 for 6 months. Everyone is upset.',f(){addBuff(1.03,6,'Worked over December');parM(-10);sibM(-8);kidsM(-8);addSH(-5);addHappy(-3);return['The reunion photos arrived on WhatsApp. You were not in any of them.','bad']}}]};}}];
 EVENTS.push(...FAM1_EVENTS);
+/* ---- Sports events: life as an owner of teams, venues and a racing team. The admin controls them in the Sports panel ---- */
+const SPT=()=>Object.assign({gap:2},(typeof TUNE!=='undefined'&&TUNE.sport)||{});
+const spGap=()=>S.month-(S.spLast==null?-99:S.spLast)>=Math.max(1,+SPT().gap||2);
+const spMark=()=>{S.spLast=S.month;};
+const spIds=f=>Object.keys(S.teams||{}).filter(k=>TEAMS.some(T=>T.id===k)&&(!f||f(k)));
+const spHas=f=>spIds(f).length>0;
+function spTeam(f){const ids=spIds(f);if(!ids.length)return null;const id=pick(ids);return{T:TEAMS.find(x=>x.id===id),t:S.teams[id],id};}
+const spStr=(t,d)=>{t.strength=clamp((t.strength||50)+d,20,99);};
+const spV=T=>Math.max(1e5,teamValue(T));
+const SP_EVENTS=[
+ {id:'sp_coach',cat:'Sports',sport:1,w:1.2,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,c=spV(T)*.04,c2=spV(T)*.008;spMark();
+   return{cat:'Sports',title:'A famous coach is available',text:'A coach who has won titles abroad has just left his club. His agent says he would consider your '+T.ref+', for the right money.',
+    choices:[{l:'Hire him',d:'Costs '+fmt(c)+'. Squad strength +8.',dis:!canPay(c),f(){S.cash-=c;spStr(s.t,8);addRep(2);return['The new coach arrived to a crowd at the airport. Training has never been this intense.','good']}},
+     {l:'Promote your assistant coach',d:'Costs '+fmt(c2)+'. Strength +2, and the players love it.',dis:!canPay(c2),f(){S.cash-=c2;spStr(s.t,2);addHappy(1);return['Your assistant got the job. The dressing room is united behind him.','good']}},
+     {l:'Keep the current coach',d:'Free.',f(){return['You kept faith with your coach. The papers called it loyal, or lazy.','']}}]};}},
+ {id:'sp_injury',cat:'Sports',sport:1,w:1.1,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,c=spV(T)*.01;spMark();
+   return{cat:'Sports',title:'Your best player is injured',text:'Your star at the '+T.ref+' tore a ligament two weeks before the biggest game of the season. The doctors disagree on what to do.',
+    choices:[{l:'Fly him to a top surgeon in Europe',d:'Costs '+fmt(c)+'. He will be back stronger next season.',dis:!canPay(c),f(){S.cash-=c;spStr(s.t,1);return['The operation went perfectly. He sent you a video of his first training session.','good']}},
+     {l:'Rush him back with painkillers',d:'Free. He might win you the game, or never be the same.',f(){if(rnd()<.45){spStr(s.t,4);addRep(1);return['He played through the pain and scored the winner. A legend was born.','good'];}spStr(s.t,-7);addRep(-2);return['He lasted twenty minutes. Now he is out for a year, and fans blame you.','bad']}},
+     {l:'Rest him for the season',d:'Free. Strength −4 for now.',f(){spStr(s.t,-4);return['Without him the team struggled, but he will be fit next season.','']}}]};}},
+ {id:'sp_fixing',cat:'Sports',sport:1,w:.7,when:()=>spGap()&&spHas()&&!(S.newbie&&S.month<12),
+  build(){const s=spTeam(),T=s.T,bribe=spV(T)*.05;spMark();
+   return{cat:'Sports',title:'Someone wants your team to lose',text:'A man from an Asian betting syndicate asks to meet in a hotel lobby. He will pay '+fmt(bribe)+' if your '+T.ref+' loses next weekend by two goals. "Nobody will ever know."',
+    choices:[{l:'Report him to the federation',d:'Reputation +5. Fans will hear about it.',f(){addRep(5);return['The federation thanked you publicly. The syndicate is banned from the league.','good']}},
+     {l:'Say no and walk away',d:'Nothing happens. Probably.',f(){return['You walked away. You never saw him again.','']}},
+     {l:'Take the money',d:'Get '+fmt(bribe)+'. Police attention +18. If it leaks, it is a scandal.',f(){S.cash+=bribe;lawOf().att=Math.min(100,lawOf().att+18);lawOf().dirty=true;if(rnd()<.35){addRep(-15);spStr(s.t,-5);return['A player recorded the team talk. The match-fixing scandal is on every front page.','bad'];}return['Your team lost 2–0. The money arrived in a Dubai account.','']}}]};}},
+ {id:'sp_sponsor',cat:'Sports',sport:1,w:1.2,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,big=spV(T)*.06,small=spV(T)*.025;spMark();
+   return{cat:'Sports',title:'Who goes on the shirt?',text:'Two companies want their name on the front of your '+T.ref+' shirt next season, and your marketing team has a third idea.',
+    choices:[{l:'A betting company',d:'Get '+fmt(big)+'. Reputation −3: churches and parents complain.',f(){S.cash+=big;addRep(-3);return['The betting logo is on every shirt. So are the angry sermons.','']}},
+     {l:'A local bank',d:'Get '+fmt(small)+'. Reputation +2.',f(){S.cash+=small;addRep(2);return['A respected sponsor and a clean image.','good']}},
+     {l:'Put your own brand on it',d:'Free. Business profit ×1.05 for a year as fans buy '+esc(BR())+'.',f(){addBuff(1.05,12,BR()+' on the shirt');addRep(1);return['The '+BR()+' name is on every replica shirt in the country.','good']}}]};}},
+ {id:'sp_wonderkid',cat:'Sports',sport:1,w:1,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,nm=pick(['Ochieng','Wanyama','Kiprop','Mwangi','Abdalla','Njoroge']),c=spV(T)*.005,sale=spV(T)*.04;spMark();
+   return{cat:'Sports',title:'A 16-year-old wonderkid',text:'Your scouts found '+nm+', a 16-year-old from Kibera who plays like a professional. Three European clubs are already watching.',
+    choices:[{l:'Sign him and build around him',d:'Costs '+fmt(c)+'. Strength +5 over time, and fans adore him.',dis:!canPay(c),f(){S.cash-=c;spStr(s.t,5);addRep(2);addHappy(2);return[nm+' signed in front of his whole neighbourhood. He scored on his debut.','good']}},
+     {l:'Sign him, then sell him to Europe',d:'Get '+fmt(sale)+' profit.',f(){S.cash+=sale;return[nm+' joined a European club. You made '+fmt(sale)+' and a few enemies.','']}},
+     {l:'Let him go',d:'Free.',f(){return[nm+' signed for your rivals.','bad']}}]};}},
+ {id:'sp_tickets',cat:'Sports',sport:1,w:.9,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T;spMark();
+   return{cat:'Sports',title:'Fans march against ticket prices',text:'Two thousand supporters of your '+T.ref+' marched to your office with banners: "Football is for the people". The cameras are rolling.',
+    choices:[{l:'Cut ticket prices',d:'The club is worth a little less (×0.97). Reputation +4, happiness +2.',f(){s.t.af*=.97;addRep(4);addHappy(2);return['Prices are down. The stadium was full and loud on Saturday.','good']}},
+     {l:'Meet the supporters\' leaders',d:'Free. Could calm things down, or make it worse.',f(){if(rnd()<.6){addRep(2);return['An honest conversation and a cup of tea. The fans went home satisfied.','good'];}addRep(-3);return['The meeting turned into a shouting match. The march is now weekly.','bad']}},
+     {l:'Ignore them',d:'Reputation −3.',f(){addRep(-3);return['The fans keep marching, and the club keeps earning.','']}}]};}},
+ {id:'sp_wages',cat:'Sports',sport:1,w:.8,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,c=spV(T)*.015;spMark();
+   return{cat:'Sports',title:'Players threaten to strike',text:'The players at your '+T.ref+' say they will refuse to play on Sunday unless they get the win bonuses they were promised last season.',
+    choices:[{l:'Pay the bonuses',d:'Costs '+fmt(c)+'.',dis:!canPay(c),f(){S.cash-=c;spStr(s.t,2);return['You paid. The players dedicated Sunday\'s win to you.','good']}},
+     {l:'Pay half, promise the rest',d:'Costs '+fmt(c/2)+'.',dis:!canPay(c/2),f(){S.cash-=c/2;return['The players accepted, grudgingly.','']}},
+     {l:'Refuse',d:'Free. Strength −6, reputation −3.',f(){spStr(s.t,-6);addRep(-3);return['The players went on strike and the youth team lost 5–0 on live TV.','bad']}}]};}},
+ {id:'sp_final',cat:'Sports',sport:1,w:1,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,c=spV(T)*.01,prize=spV(T)*.05;spMark();
+   return{cat:'Sports',title:'Your team is in the final',text:'Your '+T.ref+' has reached the cup final. The whole city is painted in your colours and everyone wants to know what you will do.',
+    choices:[{l:'Double bonuses and fly the fans in',d:'Costs '+fmt(c)+'. Better chance to win '+fmt(prize)+' and the trophy.',dis:!canPay(c),f(){S.cash-=c;if(rnd()<.62){S.cash+=prize;s.t.titles=(s.t.titles||0)+1;addRep(5);addHappy(6);return['CHAMPIONS. The open-top bus parade lasted six hours. Prize money: '+fmt(prize)+'.','good'];}addRep(1);return['A heartbreaking loss on penalties. The fans still sang your name.','bad']}},
+     {l:'Prepare like any other game',d:'Free. About an even chance.',f(){if(rnd()<.45){S.cash+=prize;s.t.titles=(s.t.titles||0)+1;addRep(3);addHappy(5);return['You won the cup and '+fmt(prize)+' in prize money.','good'];}return['You lost the final 2–1.','bad']}}]};}},
+ {id:'sp_referee',cat:'Sports',sport:1,w:.8,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,c=spV(T)*.004;spMark();
+   return{cat:'Sports',title:'Robbed by the referee',text:'A clear goal for your '+T.ref+' was ruled out in the last minute, and the replay proves it. Your phone is full of furious messages.',
+    choices:[{l:'Lodge an official appeal',d:'Costs '+fmt(c)+' in legal fees. About half the time the result is changed.',dis:!canPay(c),f(){S.cash-=c;if(rnd()<.5){spStr(s.t,2);return['The league overturned the result. Justice!','good'];}return['The appeal was rejected. The referee is still refereeing.','']}},
+     {l:'Blast the referee on TV',d:'A fine, but the fans will love you. Reputation +2 with fans.',f(){S.cash-=c*.5;addRep(2);addHappy(2);return['Your rant went viral and you were fined '+fmt(c*.5)+'. Worth it.','']}},
+     {l:'Accept it with dignity',d:'Reputation +1.',f(){addRep(1);return['You shook the referee\'s hand. Commentators praised your class.','good']}}]};}},
+ {id:'sp_tv',cat:'Sports',sport:1,w:.8,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,lump=spV(T)*.08;spMark();
+   return{cat:'Sports',title:'A TV deal for your matches',text:'A pay-TV company wants the rights to show every match of your '+T.ref+' for five years.',
+    choices:[{l:'Sign the five-year deal',d:'Get '+fmt(lump)+' now.',f(){S.cash+=lump;return['Your matches are on TV across the continent. The cheque has cleared.','good']}},
+     {l:'Stream the matches yourself',d:'Free. The club is worth more over time (×1.06), and fans can watch for free.',f(){s.t.af*=1.06;addRep(2);return['Your free stream drew a million viewers on the first weekend.','good']}},
+     {l:'Hold out for a better offer',d:'Maybe more next year, maybe nothing.',f(){if(rnd()<.5){S.cash+=lump*1.4;return['A rival broadcaster came in with a bigger offer: '+fmt(lump*1.4)+'.','good'];}return['Nobody else bid. The first company walked away.','bad']}}]};}},
+ {id:'sp_doping',cat:'Sports',sport:1,w:1,when:()=>spGap()&&spHas(k=>k==='athletics'),
+  build(){const s=spTeam(k=>k==='athletics'),c=spV(s.T)*.02;spMark();
+   return{cat:'Sports',title:'A runner fails a drug test',text:'One of the marathon runners at your Iten camp has tested positive for a banned substance. The anti-doping agency is asking what you knew.',
+    choices:[{l:'Suspend her and cooperate fully',d:'Reputation +3. The camp loses a star.',f(){addRep(3);spStr(s.t,-3);return['You cooperated and the agency cleared your camp. Clean athletes thank you.','good']}},
+     {l:'Pay for a top lawyer to fight it',d:'Costs '+fmt(c)+'. She might be cleared.',dis:!canPay(c),f(){S.cash-=c;if(rnd()<.4){addRep(1);return['The lab made a mistake. She was cleared and won Boston a month later.','good'];}addRep(-6);return['The ban was upheld. Your camp is now linked to doping in every article.','bad']}},
+     {l:'Quietly pay her to retire',d:'Costs '+fmt(c/2)+'. If it leaks, reputation −12.',dis:!canPay(c/2),f(){S.cash-=c/2;if(rnd()<.35){addRep(-12);return['A journalist found the payment. The cover-up is worse than the test.','bad'];}return['She retired "for family reasons". The story died.','']}}]};}},
+ {id:'sp_marathon',cat:'Sports',sport:1,w:1.1,when:()=>spGap()&&spHas(k=>k==='athletics'),
+  build(){const s=spTeam(k=>k==='athletics'),prize=spV(s.T)*.06,city=pick(['Berlin','London','Boston','Chicago','Tokyo']);spMark();
+   return{cat:'Sports',title:'Your runner won the '+city+' Marathon',text:'A runner from your Iten camp broke the tape in '+city+', just seconds off the world record. The prize money is '+fmt(prize)+'.',
+    choices:[{l:'Give her the whole prize and a bonus',d:'Reputation +5, the camp gets stronger.',f(){addRep(5);spStr(s.t,4);addHappy(3);return['She bought her parents a house. Every young runner in Iten now wants to join your camp.','good']}},
+     {l:'Split the prize with the camp',d:'Get '+fmt(prize/2)+'.',f(){S.cash+=prize/2;spStr(s.t,1);return['A fair split. The camp has a new track.','good']}},
+     {l:'Keep the agreed share',d:'Get '+fmt(prize*.8)+'. Reputation −2.',f(){S.cash+=prize*.8;addRep(-2);return['You kept your share. She thanked you politely in the interview.','']}}]};}},
+ {id:'sp_relegation',cat:'Sports',sport:1,w:.8,when:()=>spGap()&&spHas(k=>(S.teams[k].strength||50)<52),
+  build(){const s=spTeam(k=>(S.teams[k].strength||50)<52),T=s.T,c=spV(T)*.03;spMark();
+   return{cat:'Sports',title:'Fighting relegation',text:'Your '+T.ref+' is second from bottom with ten games left. Relegation would cut the club\'s value and its TV money.',
+    choices:[{l:'Emergency signings',d:'Costs '+fmt(c)+'. Strength +7.',dis:!canPay(c),f(){S.cash-=c;spStr(s.t,7);return['Four new players arrived on deadline day. The team is fighting back.','good']}},
+     {l:'Sack the coach',d:'Costs '+fmt(c/5)+'. A gamble.',dis:!canPay(c/5),f(){S.cash-=c/5;if(rnd()<.55){spStr(s.t,5);return['The new coach won his first four games. Survival is in sight.','good'];}spStr(s.t,-3);return['The new coach lost his first four games.','bad']}},
+     {l:'Trust the youth team',d:'Free. Fans like it, results may not.',f(){addHappy(1);if(rnd()<.4){spStr(s.t,3);return['The kids played without fear and kept the club up.','good'];}s.t.af*=.94;return['The club went down. Its value fell, but the young players gained experience.','bad']}}]};}},
+ {id:'sp_crowd',cat:'Sports',sport:1,w:.9,when:()=>spGap()&&Object.keys(S.venues||{}).some(k=>k!=='circuit'&&S.venues[k].left<=0),
+  build(){const k=pick(Object.keys(S.venues).filter(x=>x!=='circuit'&&S.venues[x].left<=0)),V=VENUES[k],c=venueCost(k)*.004,extra=venueCost(k)*.01;spMark();
+   return{cat:'Sports',title:'A sold-out stadium, and more fans outside',text:'Tickets for the big match at your '+V.name.toLowerCase()+' sold out in an hour. Thousands without tickets are gathering outside. The security chief is worried.',
+    choices:[{l:'Hire extra police and close the gates',d:'Costs '+fmt(c)+'.',dis:!canPay(c),f(){S.cash-=c;addRep(1);return['A tense evening, but everyone went home safe.','good']}},
+     {l:'Open the terraces and sell more tickets',d:'Get '+fmt(extra)+'. Risky.',f(){S.cash+=extra;if(rnd()<.25){addRep(-15);addHappy(-8);return['A crush at the north gate injured dozens of fans. The inquiry blames your management.','bad'];}return['A record crowd and '+fmt(extra)+' extra. You got away with it.','']}},
+     {l:'Put up giant screens outside for free',d:'Costs '+fmt(c/2)+'. Reputation +3.',dis:!canPay(c/2),f(){S.cash-=c/2;addRep(3);addHappy(2);return['The fan zone outside was nearly as loud as the stadium.','good']}}]};}},
+ {id:'sp_driver',cat:'Sports',sport:1,title:'Your lead driver wants a new contract',w:1,when:()=>spGap()&&!!S.race,
+  build(){const c=Math.max(2e6,raceCost(S.race)*.15);spMark();
+   return{cat:'Sports',title:'Your lead driver wants a new contract',text:'Your lead driver at '+esc(BR())+' Racing has an offer from a bigger team. He will stay for a big pay rise and a say in the car\'s design.',
+    choices:[{l:'Pay him what he wants',d:'Costs '+fmt(c)+'.',dis:!canPay(c),f(){S.cash-=c;addRep(1);return['He signed for three more years and finished on the podium that weekend.','good']}},
+     {l:'Let him go and promote the rookie',d:'Free. Sponsors may be nervous.',f(){if(rnd()<.5){addRep(2);return['The rookie scored points in his first race. A star is born.','good'];}addRep(-2);return['The rookie spun out twice. Sponsors are asking questions.','bad']}}]};}},
+ {id:'sp_crash',cat:'Sports',sport:1,title:'A huge crash',w:.8,when:()=>spGap()&&!!S.race,
+  build(){const c=Math.max(1.5e6,raceCost(S.race)*.1);spMark();
+   return{cat:'Sports',title:'A huge crash',text:'Your car flipped at 300 km/h. The driver walked away, thank God, but the car is destroyed and the next race is in ten days.',
+    choices:[{l:'Build a new car overnight',d:'Costs '+fmt(c)+'.',dis:!canPay(c),f(){S.cash-=c;addRep(2);return['Your mechanics worked through the night. The car made the grid.','good']}},
+     {l:'Miss the next race',d:'Free. Fewer points this season.',f(){if(S.race.pts)S.race.pts[0]=Math.max(0,(S.race.pts[0]||0)-10);return['You missed the race and lost ground in the championship.','bad']}}]};}},
+ {id:'sp_stake',cat:'Sports',sport:1,w:.7,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,v=spV(T)*.12;spMark();
+   return{cat:'Sports',title:'A celebrity wants a stake in your club',text:'A world-famous musician wants to buy 10% of your '+T.ref+' and bring his fans and his cameras with him.',
+    choices:[{l:'Sell him 10%',d:'Get '+fmt(v)+'. Your share of the club drops (×0.9), but its fame rises.',f(){S.cash+=v;s.t.af*=.9;addRep(3);addInf(2);return['The announcement video got fifty million views.','good']}},
+     {l:'Make him an ambassador instead',d:'Free. Reputation +2.',f(){addRep(2);return['He wears your shirt in his next music video.','good']}},
+     {l:'Say no',d:'The club stays fully yours.',f(){return['You turned down the offer. Some fans loved it, others did not.','']}}]};}},
+ {id:'sp_legends',cat:'Sports',sport:1,w:.8,when:()=>spGap()&&spHas(),
+  build(){const s=spTeam(),T=s.T,c=spV(T)*.006;spMark();
+   return{cat:'Sports',title:'A legends charity match',text:'Retired stars want to play a charity match at your '+T.ref+' to raise money for children\'s cancer care, and they want you to play too.',
+    choices:[{l:'Host it and play',d:'Costs '+fmt(c)+'. Reputation +4, happiness +3.',dis:!canPay(c),f(){S.cash-=c;addRep(4);addHappy(3);return['You even got a touch of the ball. The match raised a fortune for the hospital.','good']}},
+     {l:'Host it, but stay in the box',d:'Costs '+fmt(c)+'. Reputation +2.',dis:!canPay(c),f(){S.cash-=c;addRep(2);return['A great day for a great cause.','good']}},
+     {l:'Not this year',d:'Free.',f(){return['The legends played somewhere else.','']}}]};}}];
+EVENTS.push(...SP_EVENTS);
+
 
 function sibsHTML(){const xs=S.sibs||[];if(!xs.length)return'';
  return'<h3 class="sibh">Your brothers and sisters</h3><ul class="sibs">'+xs.map(x=>{const tr=SIB_TRAITS[x.t]||['',''];const r=x.rel>=65?'Close':x.rel>=40?'Civil':x.rel>=20?'Strained':'Not speaking';
