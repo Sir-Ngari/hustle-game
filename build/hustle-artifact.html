@@ -2281,8 +2281,15 @@ const EVENTS=[
   choices:()=>{const c=pct(.06),ch=clamp(.3+S.influence/200,0,.8);return[{l:'Bid for it',d:'Spend '+fmt(c)+'. '+Math.round(ch*100)+'% chance of '+fmt(c*3.2)+' in 3 months (better odds with influence).',f(){S.cash-=c;S.pending.push({due:S.month+3,cash:c*3.2,chance:ch,inv:c,made:S.month,label:'The government tender',good:'You won the government tender.',bad:'The tender went to someone better connected.',xgood:'Reputation +4.',rep:4});return['Bid submitted.','']}},
    {l:'Skip it',d:'Keep your cash.',f(){return['You skipped the tender.','']}}]}},
  {id:'mp',cat:'Politics',w:1,when:()=>S.month>5,title:()=>'Your '+R.mpShort+' wants campaign money',text:()=>'Your local '+R.mpShort+' is running again. Over lunch, he makes it clear a "contribution" would be remembered, and so would a refusal.',
-  choices:()=>{const c=nwc(.015,500);return[{l:'Fund the campaign',d:'Pay '+fmt(c)+'. +15 influence. 20% risk the donation leaks to the press later.',f(){S.cash-=c;addInf(15);S.pending.push({due:S.month+8,chance:.8,good:'',bad:'Journalists exposed your donations to the MP. −10 reputation.',brep:-10});const won=rnd()<.65;S.pending.push({due:S.month+4,chance:won?1:0,pol:true,label:'Your '+R.mpShort+'\'s campaign',rep:0,good:'Your '+R.mpShort+' held the seat. Your '+fmt(c)+' was money well spent.',bad:'Your '+R.mpShort+' lost the seat. The new '+R.mpShort+' knows whose side you were on.',xgood:'Influence +10.',xbad:'Influence −10.'});S.mpBet=won?10:-10;return['You funded the '+R.mpShort+'\'s campaign. The vote is in 4 months.','']}},
+  choices:()=>{const c=nwc(.015,500);return[{l:'Fund the campaign',d:'Pay '+fmt(c)+'. +15 influence. 20% risk the donation leaks to the press later.',f(){const tE=stageOn()&&toElec()>0&&toElec()<=8?toElec():4;S.cash-=c;addInf(15);S.pending.push({due:S.month+8,chance:.8,good:'',bad:'Journalists exposed your donations to the MP. −10 reputation.',brep:-10});const won=rnd()<.65;S.pending.push({due:S.month+tE,chance:won?1:0,pol:true,label:'Your '+R.mpShort+'\'s campaign',rep:0,good:'Your '+R.mpShort+' held the seat. Your '+fmt(c)+' was money well spent.',bad:'Your '+R.mpShort+' lost the seat. The new '+R.mpShort+' knows whose side you were on.',xgood:'Influence +10.',xbad:'Influence −10.'});S.mpBet=won?10:-10;return['You funded the '+R.mpShort+'\'s campaign. The vote is in '+tE+' month'+(tE>1?'s':'')+'.','']}},
    {l:'Politely decline',d:'−8 influence. His allies may make life hard.',f(){addInf(-8);if(rnd()<.4){addBuff(.88,3,'Inspections');return[R.pol.county.charAt(0).toUpperCase()+R.pol.county.slice(1)+' inspectors suddenly found "violations" at your outlets.','bad']}return['You declined. Nothing happened, yet.','']}}]}},
+ {id:'elec_collect',cat:'Politics',w:1.2,when:()=>{if(!stageOn()||S.elecLast==null||S.elecCall===S.elecLast||!S.elecSide)return false;const a=sinceElec();return a>=3&&a<=14;},setup(){S.elecCall=S.elecLast;},
+  title:()=>S.elecSide>0?(S.elecWho||'The winner')+' calls in a favour':'The new '+(S.elecOffice||'office holder')+' remembers',
+  text:()=>S.elecSide>0?'You backed '+(S.elecWho||'the winner')+' and they won. Now the bill comes: a nephew needs a senior job in your company, and an ally wants a supply contract at a generous price.':'You backed '+(S.elecWho||'the loser')+' and they lost. The winner\'s people have been asking about your permits, your taxes and your tenders.',
+  choices:()=>{if(S.elecSide>0)return[{l:'Do the favour',d:'+10 influence. Profit ×0.95 for a year while the nephew learns the job.',f(){addInf(10);addBuff(.95,12,'Political hires');return['The nephew has a corner office. The '+(S.elecOffice||'office')+' returns your calls on the first ring.','']}},
+    {l:'Say no',d:'−12 influence. They will remember at the next election.',f(){addInf(-12);return['You said no. The calls from the '+(S.elecOffice||'office')+' have stopped.','bad']}}];
+   const c=nwc(.01,500);return[{l:'Make peace',d:'Pay '+fmt(c)+' to the winner\'s "development fund". +5 influence.',dis:!canPay(c),f(){S.cash-=c;addInf(5);return['The new '+(S.elecOffice||'office holder')+' accepted your gift. The questions stopped.','']}},
+    {l:'Stand your ground',d:'No cost. 50% chance of inspections that cut profit for 4 months.',f(){if(rnd()<.5){addBuff(.88,4,'Inspections');return['Inspectors turned up at your outlets the next week. Profit ×0.88 for 4 months.','bad']}addRep(3);return['They tested you and backed off. Your staff noticed. +3 reputation.','good']}}];}},
  {id:'permits',cat:'Politics',w:.9,when:()=>totalUnits()>=2,title:'Your permits are stuck',text:()=>'The '+R.pol.county+' office is sitting on your licence renewals. An aide hints that a "facilitation fee" would speed things up.',
   choices:()=>{const c=nwc(.01,300);return[{l:'Pay the fee',d:'Pay '+fmt(c)+'. Permits cleared. +3 influence.',f(){S.cash-=c;addInf(3);return['Permits cleared overnight.','']}},
    {l:'Wait it out',d:'Profit ×0.85 for 3 months.',f(){addBuff(.85,3,'Permit delays');return['Your permits took months.','bad']}},
@@ -2657,16 +2664,16 @@ function polCareerHTML(){const P=pcS();let h='<h4>Your political career</h4>';
   h+='<div class="row"><div class="t"><b>'+esc(pcName(i))+'</b><span>'+(why?why:wait?'You can run again in '+(P.next-S.month)+' months.':'You can run. A campaign costs '+fmt(pcCost(i))+', half your wealth, and donors want favours.')+'</span></div><div class="acts"><button class="btn small '+(!why&&!wait?'primary':'')+'" data-a="polrun" data-v="'+i+'"'+(!why&&!wait&&!jailed()?'':' disabled')+'>Run</button></div></div>';});}
  return h;}
 function electionEvent(){const O=OFFICES[rank()],inc=clamp(.5+(rnd()-.5)*.2,.35,.65),odds=[inc,1-inc],L=O.w;
- const done=()=>{S.nextElection=S.month+60;};
+ const done=()=>{S.nextElection=S.month+60;S.elecLast=S.month;S.elecSide=0;S.elecWho=O.cands[ci0]?O.cands[ci0][0]:'';S.elecOffice=O.office;};let ci0=0;
  const goodPol=n=>{const got=[];for(let i=0;i<n;i++){const g=pick(Object.keys(POLICIES).filter(id=>!POLICIES[id].bad&&relevant(id)&&!got.includes(id)));if(g){addPolicy(g);got.push(POLICIES[g].name);}}return got;};
  const badPol=n=>{const got=[];for(let i=0;i<n;i++){const b=pick(Object.keys(POLICIES).filter(id=>POLICIES[id].bad&&relevant(id)&&!got.includes(id)));if(b){addPolicy(b);got.push(POLICIES[b].name.lc());}}return got;};
- const fundCard=ci=>{const [name,who]=O.cands[ci];
+ const fundCard=ci=>{ci0=ci;const [name,who]=O.cands[ci];
   return{cat:'Politics',title:'How much will you give '+name+'?',text:name+', '+who+', is polling at '+Math.round(odds[ci]*100)+'% for '+O.office+'. The more you give, the better their chances, and the more they owe you if they win. Lose, and the winner will remember.',
    choices:FUND.map(F=>{const c=nwc(F.p*(L>=2.5?1.3:1),[300,1500,8000][FUND.indexOf(F)]*L),ch=Math.min(.9,odds[ci]+F.odds);
     return{l:F.name+' · '+fmt(c),d:Math.round(ch*100)+'% chance they win. Win: +'+Math.round(F.inf*L>100?100:F.inf*L)+' influence'+(O.pol?' and '+(O.pol+(F.biz?1:0))+' friendly polic'+(O.pol+(F.biz?1:0)>1?'ies':'y'):'')+(F.biz?', plus government contracts (profit ×1.1 for 2 years)':'')+'. Lose: −'+Math.round((F.biz?40:20)*Math.min(L,1.5))+' influence'+(O.pol?' and a hostile policy':'')+'.',dis:!canPay(c),
-     f(){S.cash-=c;done();if(rnd()<ch){addInf(Math.min(100,F.inf*L));const g=O.pol?goodPol(O.pol+(F.biz?1:0)):[];if(F.biz)addBuff(1.1,24,'Government contracts');addRep(F.biz?-3:0);
+     f(){S.cash-=c;done();if(rnd()<ch){S.elecSide=1;addInf(Math.min(100,F.inf*L));const g=O.pol?goodPol(O.pol+(F.biz?1:0)):[];if(F.biz)addBuff(1.1,24,'Government contracts');addRep(F.biz?-3:0);
        const m=name+' won '+O.office+'! +'+Math.round(Math.min(100,F.inf*L))+' influence'+(g.length?'. New friendly polic'+(g.length>1?'ies':'y')+': '+g.join(', '):'')+(F.biz?'. The contracts are already flowing.':'.');return[m,'gold',resultEvent({pol:true,ok:true,label:O.title,msg:'You gave '+fmt(c)+' to '+name+'. '+m})];}
-      addInf(-(F.biz?40:20)*Math.min(L,1.5));const b=O.pol?badPol(F.biz?2:1):[];
+      S.elecSide=-1;addInf(-(F.biz?40:20)*Math.min(L,1.5));const b=O.pol?badPol(F.biz?2:1):[];
       const m=name+' lost '+O.office+'. The winner punished you'+(b.length?' with a '+b.join(' and a '):'')+'.';return[m,'bad',resultEvent({pol:true,ok:false,label:O.title,msg:'You gave '+fmt(c)+' to '+name+'. '+m+' Influence −'+Math.round((F.biz?40:20)*Math.min(L,1.5))+'.'})];}};}).concat([{l:'Back out',d:'Change your mind and stay neutral.',f(){done();addInf(-3);return['You stayed out of the '+O.title.lc()+'.','']}}])};};
  const bothCost=nwc(.04*(L>=2.5?1.3:1),2500*L);
  return{cat:'Politics',title:O.title,
@@ -3324,12 +3331,34 @@ const HT=()=>Object.assign({repeat:.35,gap:3,gap1:2},(typeof TUNE!=='undefined'&
 const heirRep=e=>S.gnum>1&&!e.drama&&S.seenFam&&S.seenFam[e.id]?+HT().repeat:1;
 const W=e=>(typeof e.w==='function'?e.w():e.w)*tuneMult(e)*heirRep(e);
 /* ---- pacing: the same event waits before it can come back, and after one kind of event (family, sports, politics...) the same kind is rarer for a while ---- */
-const PACE=()=>Object.assign({cd:24,grp:9},(typeof TUNE!=='undefined'&&TUNE.pace)||{});
+const PACE=()=>Object.assign({cd:24,grp:9,stage:1,dw:1},(typeof TUNE!=='undefined'&&TUNE.pace)||{});
 const grpKey=e=>{const g=evGroup(e);return/^Family/.test(g)||e.cat==='Family'?'family':g;};
-function paceMult(e){const P=PACE(),m=S.month,L=S.evLast||{},G=S.grpLast||{};if(L[e.id]!=null&&m-L[e.id]<(e.cd!=null?e.cd:+P.cd))return 0;
+/* ---- life-stage plan: each event belongs to a range of life stages (0 Start, 1 Young hustler, 2 Business owner, 3 Millionaire, 4 Tycoon, 5 Elder).
+   [first stage, last stage, weight factor, months before it can come back (999 = once per life, 0 = its own rules)]. First stage -1 = it has its own trigger, so no stage gate. */
+const SPLAN={elec_collect:[-1,5,1,0],viral:[0,5,1,18],supply:[0,5,1,18],rival:[0,5,1,18],strike:[1,5,1,24],fakes:[1,5,1,24],order:[0,5,1,18],fire:[2,5,1,36],friend:[0,3,1,24],acq:[1,5,1,24],mentor:[0,2,1,999],recession:[-1,5,1,60],boom:[0,5,1,24],fx:[1,5,1,36],power:[0,5,1,24],fund:[1,2,1,999],audit:[1,5,1,36],rivalbuy:[4,5,1,36],tender:[1,5,0.8,24],mp:[1,5,0.7,24],permits:[0,5,1,24],hires:[2,5,1,36],lobbybad:[0,5,0.7,24],lobbygood:[0,5,0.7,24],blacktax:[0,5,0.7,18],harambee:[0,5,0.8,18],friends:[1,3,1,999],gala:[3,5,1,24],fitclub:[0,2,1,999],back:[2,5,1,999],bp:[3,5,1,999],diab:[3,5,1,999],heart:[4,5,1,999],knee:[5,5,1,999],scan:[4,5,1,999],stroke:[5,5,1,999],memory:[5,5,1,999],adventure:[3,5,1,36],fitcheck:[-1,5,1,60],romance:[0,2,1,18],baby:[1,3,1,12],anniv:[1,5,0.7,12],spousebiz:[2,5,1,999],inlaws:[1,5,0.6,48],schoolpeer:[2,3,1,36],teen:[3,3,1,36],drought:[-1,5,1,36],tourism:[-1,5,1,36],oil:[-1,5,1,36],piracy:[-1,5,1,36],outbreak:[-1,5,1,36],hack:[-1,5,1,36],cracks:[-1,5,1,36],craze:[-1,5,1,36],recall:[-1,5,1,36],yachtparty:[-1,5,1,36],backnine:[-1,5,1,36],artdemand:[-1,5,1,36],islandrent:[-1,5,1,36],horsesrace:[-1,5,1,36],citybooom:[-1,5,1,36],cityslump:[-1,5,1,36],overrun:[-1,5,1,24],anchor:[-1,5,1,36],naming:[-1,5,1,999],transferbid:[-1,5,1,24],budgetcap:[-1,5,1,48],kenyagp:[-1,5,1,48],fdnscandal:[-1,5,1,60],crash:[1,5,1,48],bull:[1,5,1,24],tip:[1,5,1,24],ipo:[-1,4,1,999],feehike:[-1,5,1,36],protect:[1,3,0.6,999],mobraise:[-1,5,1,36],ledger:[-1,5,1,36],law_audit:[-1,5,1,0],law_raid:[-1,5,1,0],law_arrest:[-1,5,1,0],law_informant:[-1,5,1,0],law_amnesty:[-1,5,1,0],jail_appeal:[-1,5,1,0],jail_rough:[-1,5,1,0],hide_extradite:[-1,5,1,0],hide_return:[-1,5,1,0],breakdown:[-1,5,1,12],fam_bust:[-1,5,1,0],dw_evasion:[1,5,0.35,36],dw_bribes:[1,5,0.35,36],dw_smuggle:[2,5,0.4,36],dw_tenders:[3,5,0.6,36],dw_launder:[3,5,1,36],dw_fire:[1,5,0.3,36],dw_fakes:[1,5,0.3,36],dw_land:[2,5,0.3,36],dw_campaign:[2,5,0.3,36],dw_rival:[1,5,0.3,36],dw_casino:[2,5,0.3,36],dw_hacker:[2,5,0.3,36],dw_customs:[1,5,0.3,36],dw_photos:[3,5,0.6,36],dw_club:[2,5,0.3,36],dw_witness:[-1,5,1,24],dw_file:[-1,5,1,24],past_press:[-1,5,1,36],past_partner:[-1,5,1,36],past_case:[-1,5,1,36],past_rival:[-1,5,1,36],fam_lawyer:[3,5,0.4,999],f1_parmed:[1,4,1,60],f1_parhome:[2,3,1,999],f1_parbday:[1,5,1,120],f1_parcare:[3,5,1,999],f1_sibfees:[0,1,1,999],f1_sibjob:[0,2,1,999],f1_sibloan:[2,4,1,48],f1_sibwed:[0,2,1,999],f1_sibtrouble:[1,3,1,999],f1_ruracio:[-1,2,1,999],f1_inlawmoney:[2,5,0.8,36],f1_inlawvisit:[1,4,1,24],f1_feud:[1,3,1,999],f1_spousestudy:[1,3,1,999],f1_kidtrouble:[3,3,1,36],f1_kidgrad:[4,4,1,999],f1_kidabroad:[3,3,1,999],f1_kidbiz:[4,5,1,999],f1_reunion:[1,5,1,48],sp_coach:[-1,5,1,24],sp_injury:[-1,5,1,24],sp_fixing:[-1,5,1,24],sp_sponsor:[-1,5,1,24],sp_wonderkid:[-1,5,1,24],sp_tickets:[-1,5,1,24],sp_wages:[-1,5,1,24],sp_final:[-1,5,1,24],sp_referee:[-1,5,1,24],sp_tv:[-1,5,1,24],sp_doping:[-1,5,1,24],sp_marathon:[-1,5,1,24],sp_relegation:[-1,5,1,12],sp_crowd:[-1,5,1,24],sp_driver:[-1,5,1,24],sp_crash:[-1,5,1,24],sp_stake:[-1,5,1,24],sp_legends:[-1,5,1,24],bankrun:[-1,5,1,48],bigclaims:[-1,5,1,48],minecollapse:[-1,5,1,48],gasblast:[-1,5,1,48],oilspill:[-1,5,1,48],roadcrash:[-1,5,1,48],airincident:[-1,5,1,48],factoryfire:[-1,5,1,48],collapse:[-1,5,1,48],foodscare:[-1,5,1,48],hackattack:[-1,5,1,48],malpractice:[-1,5,1,48],hotelterror:[-1,5,1,48],defamation:[-1,5,1,48],mallfire:[-1,5,1,48]};
+const STG_AGE=[27,33,41,51,63],STG_NW=[1e4,1e5,1e6,1e8];
+const stgAge=()=>{const a=age();return STG_AGE.filter(x=>a>=x).length;};
+const stgNw=()=>{const n=Math.max(0,netWorth());return STG_NW.filter(x=>n>=x).length;};
+const stageOn=()=>+PACE().stage!==0;
+/* family and health events follow age only (they have their own age rules); everything else needs the money of its first stage */
+const stgLife=e=>/^(Family|Health)/.test(evGroup(e))||e.cat==='Family';
+function stageMult(e){const dw=evGroup(e)==='Darkworld'?+(PACE().dw==null?1:PACE().dw):1;if(!stageOn())return dw;const p=SPLAN[e.id];if(!p)return dw;
+ if(p[0]>=0){const ai=stgAge();if(stgLife(e)){if(ai>p[1])return 0;}else{const ni=stgNw();if(ni<p[0]||Math.max(ai,ni)>p[1])return 0;}}
+ return p[2]*dw;}
+function lifeStage(){return Math.max(stgAge(),stgNw());}
+function evCd(e){const p=stageOn()&&SPLAN[e.id];return p&&p[3]!=null?p[3]:(e.cd!=null?e.cd:+PACE().cd);}
+function paceMult(e){const P=PACE(),m=S.month,L=S.evLast||{},G=S.grpLast||{};if(L[e.id]!=null){const c=evCd(e);if(c>=999||m-L[e.id]<c)return 0;}
  const g=grpKey(e);return G[g]!=null&&m-G[g]<+P.grp?.12:1;}
 function paceMark(id,g){S.evLast=S.evLast||{};S.grpLast=S.grpLast||{};if(id)S.evLast[id]=S.month;if(g)S.grpLast[g]=S.month;}
-const W2=e=>W(e)*paceMult(e);
+/* ---- the election cycle (every 5 years): campaign money comes in the run-up to the vote, new laws come mid-term, winners and losers come back after ---- */
+const toElec=()=>(S.nextElection==null?36:S.nextElection)-S.month;
+const sinceElec=()=>S.elecLast==null?S.month:S.month-S.elecLast;
+function elecMult(e){if(!stageOn())return 1;const t=toElec(),a=sinceElec();
+ if(e.id==='mp')return t>=2&&t<=8?(t<=5?2:1):0;
+ if(e.id==='dw_campaign')return t>=1&&t<=18?(t<=6?2:1):0;
+ if(e.id==='lobbybad'||e.id==='lobbygood')return t<=12?.4:(S.elecLast!=null&&a>=12?1.5:1);
+ return 1;}
+const W2=e=>W(e)*paceMult(e)*stageMult(e)*elecMult(e);
 function triggerRandom(){const pool=EVENTS.concat(RISKS).filter(e=>(!e.when||e.when())&&W2(e)>0&&newbieOK(e));let tot=pool.reduce((t,e)=>t+W2(e),0),r=rnd()*tot,e=pool[0];
  if(!pool.length||!(tot>0))return;
  for(const x of pool){r-=W2(x);if(r<=0){e=x;break}}
@@ -3472,7 +3501,7 @@ function nextMonth(){
  if(S.lifePending){S.lifePending=false;const L=lifestyle();if(L.steps>0){openEvent(lifeEvent(L));return;}}
  if(S.svcPending.length){const ids=S.svcPending.filter(id=>sv(id).lvl<reqLvl(SERVICES.find(d=>d.id===id)));S.svcPending=[];if(ids.length){openEvent(svcEvent(ids));return;}}
  if(S.month>=S.nextElection&&totalUnits()>0&&!pcBusy()){openEvent(electionEvent());return;}
- if(S.nextElection<=S.month)S.nextElection=S.month+60;
+ if(S.nextElection<=S.month){S.nextElection=S.month+60;S.elecLast=S.month;S.elecSide=0;}
  if(S.spouse&&S.spouse.happy<20&&rnd()<.3){openEvent(divorceEvent());return;}
  if(S.heat>=50&&S.month>=S.mobQuiet&&rnd()<S.heat/220){const ev=mobHitEvent();log(ev.log[0],'bad');afterChange();openEvent(ev);return;}
  if(S.happy<25&&rnd()<.2){openEvent(burnoutEvent());return;}

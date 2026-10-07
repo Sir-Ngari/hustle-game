@@ -1799,6 +1799,15 @@ def clean_tuning(d):
         pgr = int(min(24, max(0, int(pd.get("grp", 9)))))
     except (TypeError, ValueError):
         pgr = 9
+    pst = 0 if str(pd.get("stage", 1)) in ("0", "False", "false") else 1
+    try:
+        pdw = round(min(3.0, max(0.0, float(pd.get("dw", 1)))), 2)
+    except (TypeError, ValueError):
+        pdw = 1.0
+    if pst != 1:
+        pace["stage"] = pst
+    if pdw != 1:
+        pace["dw"] = pdw
     if pcd != 24:
         pace["cd"] = pcd
     if pgr != 9:
