@@ -608,7 +608,7 @@ html.gm .date{font-family:var(--display);font-size:21px;letter-spacing:.04em;tex
 html.gm .tabs button{font-size:16px;color:#9fb2d8}
 html.gm .tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--brass)}
 html.gm .tabs svg{width:18px;height:18px;flex:0 0 auto}
-html.gm .quick{background:linear-gradient(180deg,rgba(12,30,60,.97),rgba(12,30,60,.92));border-bottom:1px solid rgba(190,215,255,.18)}
+html.gm .quick{background:linear-gradient(180deg,#0c1e3c,#0e2244);border-bottom:1px solid rgba(190,215,255,.18)}
 html.gm .q b{font-family:var(--display);font-size:18px;line-height:1.1}
 html.gm #q-cash::before,html.gm #cash::before{content:"";display:inline-block;width:.8em;height:.8em;margin-right:.25em;vertical-align:-.05em;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c4,#ffcf3a 40%,#c98400);box-shadow:0 1px 0 #8a5a00}
 html.gm .stat b{font-family:var(--display);font-size:21px;line-height:1.1}
@@ -2120,7 +2120,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='2ba8a4645fd4';let updShown=false;
+const APP_VER='3c8196bff838';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -3347,7 +3347,8 @@ function paintQuick(){const nw=netWorth(),F=flows(false);
  qset('q-nw',$('nw').textContent);qset('q-cash',fmt(S.cash),S.cash<0?'neg':'');qset('q-flow',(F.net>=0?'+':'')+fmt(F.net),F.net>=0?'pos':'neg');qset('q-debt',fmt(S.debt),S.debt>0?'neg':'');
  qset('q-rep',String(Math.round(S.rep)));qset('q-hap',String(Math.round(S.happy)),S.happy<30?'neg':S.happy>70?'pos':'');qset('q-inf',String(Math.round(S.influence)));qset('q-heat',$('heat').textContent,S.heat>=50?'neg':'');qset('q-cop',$('cop').textContent,S.law&&S.law.att>=45?'neg':'');qset('q-hlth',String(Math.round(S.health)),S.health<40?'neg':'');}
 function setQuick(on){const q=$('quick');if(!q||q.classList.contains('on')===on)return;q.classList.toggle('on',on);document.documentElement.style.setProperty('--qh',on?q.offsetHeight+'px':'0px');}
-if('IntersectionObserver' in window){const mt=document.querySelector('.meters');if(mt)new IntersectionObserver(es=>es.forEach(e=>setQuick(!e.isIntersecting&&e.boundingClientRect.top<0))).observe(mt);}
+/* the money strip pins to the top as soon as the cash row scrolls away, not only after the whole meters panel has gone */
+if('IntersectionObserver' in window){const mt=document.querySelector('.note .stats')||document.querySelector('.meters');if(mt)new IntersectionObserver(es=>es.forEach(e=>setQuick(!e.isIntersecting&&e.boundingClientRect.top<0))).observe(mt);}
 window.addEventListener('resize',()=>{const q=$('quick');if(q&&q.classList.contains('on'))document.documentElement.style.setProperty('--qh',q.offsetHeight+'px');});
 function syncBar(){const b=document.querySelector('.bar');if(b)document.documentElement.style.setProperty('--barh',b.offsetHeight+'px');}
 window.addEventListener('resize',syncBar);
