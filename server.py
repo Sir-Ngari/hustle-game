@@ -1789,6 +1789,22 @@ def clean_tuning(d):
     if off:
         crisis["off"] = sorted(set(off))
     out = {"freq": freq, "gap": gap, "w": dict(list(w.items())[:500]), "cat": dict(list(cat.items())[:60])}
+    pd = d.get("pace") if isinstance(d.get("pace"), dict) else {}
+    pace = {}
+    try:
+        pcd = int(min(120, max(1, int(pd.get("cd", 24)))))
+    except (TypeError, ValueError):
+        pcd = 24
+    try:
+        pgr = int(min(24, max(0, int(pd.get("grp", 9)))))
+    except (TypeError, ValueError):
+        pgr = 9
+    if pcd != 24:
+        pace["cd"] = pcd
+    if pgr != 9:
+        pace["grp"] = pgr
+    if pace:
+        out["pace"] = pace
     if crisis:
         out["crisis"] = crisis
     dd = d.get("death") if isinstance(d.get("death"), dict) else {}
