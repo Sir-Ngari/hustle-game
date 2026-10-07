@@ -1613,7 +1613,7 @@ const TOUR=[
  {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Police</b> attention rises with every Darkworld deal you take. Too much brings audits, raids, then arrest.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:()=>'Your progress to the next milestone, and on to '+fmt(1e9)+'. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
  {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Press <b>PLAY</b> and the months roll on by themselves: profit comes in, bills are paid and you get older, until a decision comes up. Then it waits for you. Press <b>PAUSE</b> to stop the clock. You can also press <b>N</b> on a keyboard.'},
- {el:()=>document.querySelector('.tabs'),t:'Nine sections',x:'The tabs hold everything you can do. Some are quiet at first and come alive as you get richer: sports teams, a foundation and political power. <b>News</b> keeps a record of every move you make.'},
+ {el:()=>document.querySelector('.tabs'),t:'Your tabs',x:'The tabs hold everything you can do. Some are quiet at first and come alive as you get richer: sports teams, a foundation and political power. <b>News</b> keeps a record of every move you make.'},
  {tab:'overview',el:()=>panelOf('today'),t:'Come back every day',x:'Every day you play, you collect a <b>daily bonus</b> that grows with your streak. Day 7 pays six times day 1. Miss a day and the streak starts again. There is also <b>one special deal</b> each day, such as a discounted outlet, a hot stock tip or a bargain, and it disappears at midnight.'},
  {tab:'overview',el:()=>panelOf('attention'),t:'Overview: what needs you',x:'<b>Needs attention</b> lists anything you must deal with, like staff the law now requires or a lifestyle you have outgrown. Check it often. Next to it, the <b>monthly statement</b> shows exactly where your money comes from and where it goes.'},
  {tab:'business',el:()=>panelOf('biz'),t:'Business: build your empire',x:'This is where you make money. Open outlets in your industry. Each extra outlet costs 12% more than the last, and owning all six tiers of an industry earns a 10% mastery bonus. Higher ranks let you enter more industries.'},
@@ -1626,27 +1626,41 @@ const TOUR=[
  {t:'Decisions will find you',x:'Life throws events at you: politicians asking for money, family needs, deals and crises. Each choice shows what it costs and what it does. Choices you cannot afford are greyed out.'},
  {el:()=>$('tourbtn'),t:'You\'re ready',x:'Start by tapping <b>PLAY</b> and watch your first profit come in. You can take this tour again any time with the <b>Tour</b> button. Good luck, and build something big.'}
 ];
+/* a new player's tour: six steps, only what they can see now. Tabs they have already unlocked add their own steps; locked tabs are never opened by the tour */
+const TOUR_NEW=[
+ {el:()=>document.querySelector('.note .head-l'),t:'Welcome to Hustlempires',x:()=>'You are 24, with a street kiosk and a big idea. This is your scoreboard. <b>Net worth</b> is everything you own minus what you owe. Your first goal: <b>'+(curLocal()?fmt(1e6):'$1 million')+'</b>. Then a billion, and beyond.<ul><li><b>Cash</b>: money you can spend now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li></ul>'},
+ TOUR[4],
+ {tab:'business',el:()=>panelOf('biz'),t:'Grow your business',x:'Your kiosk earns money every month. Open more outlets here to earn more. Each one costs a little more than the last, and the bigger businesses further up the ladder earn far more.'},
+ TOUR[6],
+ {el:()=>document.querySelector('.tabs'),t:'More opens as you grow',x:()=>{const U=unlOf(),on=TABS.filter(t=>U[t]).map(t=>TABNAME[t]||t.charAt(0).toUpperCase()+t.slice(1)),off=TABS.filter(t=>!U[t]).map(t=>TABNAME[t]||t);const and=L=>L.length>1?L.slice(0,-1).join(', ')+' and '+L[L.length-1]:L.join('');return'Right now you have '+and(on.map(x=>'<b>'+x+'</b>'))+'.'+(off.length?' Keep playing and new tabs open up: '+and(off)+'. Each one explains itself the first time you open it.':'');}},
+ {el:()=>$('tourbtn'),t:'Decisions will find you',x:'Life throws events at you: deals, family needs, politicians and crises. Each choice shows what it costs, and choices you cannot afford are greyed out. Tap <b>PLAY</b> to start. You can take this tour again any time with the <b>Tour</b> button.'}];
+let TOURL=TOUR,tourIntro=false;
+function tourList(){const U=unlOf();if(!TABS.some(t=>!U[t]))return TOUR;
+ const extra=TOUR.filter(s=>s.tab&&s.tab!=='business'&&s.tab!=='overview'&&U[s.tab]);return TOUR_NEW.slice(0,-1).concat(extra,TOUR_NEW.slice(-1));}
+/* the first time a player opens a tab that has just unlocked, its tour card explains it */
+function tabIntro(t){if(tourOn||current||acctView||!S||S.over||curTab!==t)return;S.introSeen=S.introSeen||{};if(S.introSeen[t])return;const st=TOUR.filter(x=>x.tab===t);if(!st.length)return;
+ S.introSeen[t]=1;stopAuto();TOURL=st;tourIntro=true;tourOn=true;tourI=0;paintTour();try{paintGuide();}catch(e){}}
 function maybeTour(){paintGuide();}
-function startTour(){if(current)return;stopAuto();tourOn=true;tourI=0;paintTour();try{paintGuide();}catch(e){}}
-function endTour(){if(!tourOn)return;tourOn=false;setTimeout(()=>{try{paintGuide();}catch(e){}},0);const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(S.month>0&&bonusDue()&&!current)openEvent(bonusEvent());}
-function tourGo(d){const n=tourI+d;if(n<0)return;if(n>=TOUR.length){endTour();return;}tourI=n;paintTour();}
+function startTour(){if(current)return;stopAuto();TOURL=tourList();tourIntro=false;tourOn=true;tourI=0;paintTour();try{paintGuide();}catch(e){}}
+function endTour(){if(!tourOn)return;tourOn=false;setTimeout(()=>{try{paintGuide();}catch(e){}},0);const o=$('tour');o.hidden=true;o.innerHTML='';if(tourIntro){tourIntro=false;TOURL=TOUR;save();return;}S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(S.month>0&&bonusDue()&&!current)openEvent(bonusEvent());}
+function tourGo(d){const n=tourI+d;if(n<0)return;if(n>=TOURL.length){endTour();return;}tourI=n;paintTour();}
 function tourScroll(el){if(!el){return;}if(el.closest('.note')){window.scrollTo(0,0);return;}
  const bar=document.querySelector('.bar'),q=$('quick'),hdr=(bar?bar.offsetHeight:0)+(q?q.offsetHeight:0)+14,r=el.getBoundingClientRect(),vh=innerHeight;
  const room=vh-hdr-200;window.scrollTo(0,Math.max(0,window.scrollY+r.top-(r.height>room?hdr:hdr+Math.max(0,(room-r.height)/2))));}
-function paintTour(){const st=TOUR[tourI];if(st.tab&&curTab!==st.tab)showTab(st.tab);
- const o=$('tour'),el=st.el?st.el():null,last=tourI===TOUR.length-1;o.hidden=false;tourScroll(el);
- o.innerHTML='<div class="tspot" id="tspot"></div><div class="tcard" role="dialog" aria-modal="true" aria-labelledby="tt" aria-describedby="tx"><span class="eyebrow">Tour · '+(tourI+1)+' of '+TOUR.length+'</span><h3 id="tt">'+st.t+'</h3><div id="tx"><p>'+(typeof st.x==='function'?st.x():st.x)+'</p></div>'+
-  '<div class="tdots" aria-hidden="true">'+TOUR.map((_,i)=>'<i'+(i<=tourI?' class="on"':'')+'></i>').join('')+'</div>'+
-  '<div class="tnav">'+(last?'':'<button class="btn ghost small" data-a="tourskip">Skip tour</button>')+'<span class="tgap"></span>'+(tourI?'<button class="btn small" data-a="tourback">Back</button>':'')+'<button class="btn primary small" data-a="tournext" id="tnext">'+(last?'Start playing':tourI?'Next':'Show me around')+'</button></div></div>';
+function paintTour(){const st=TOURL[tourI];if(st.tab&&curTab!==st.tab)showTab(st.tab);
+ const o=$('tour'),el=st.el?st.el():null,last=tourI===TOURL.length-1;o.hidden=false;tourScroll(el);
+ o.innerHTML='<div class="tspot" id="tspot"></div><div class="tcard" role="dialog" aria-modal="true" aria-labelledby="tt" aria-describedby="tx"><span class="eyebrow">'+(tourIntro?'New tab'+(TOURL.length>1?' · '+(tourI+1)+' of '+TOURL.length:''):'Tour · '+(tourI+1)+' of '+TOURL.length)+'</span><h3 id="tt">'+st.t+'</h3><div id="tx"><p>'+(typeof st.x==='function'?st.x():st.x)+'</p></div>'+
+  (tourIntro&&TOURL.length<2?'':'<div class="tdots" aria-hidden="true">'+TOURL.map((_,i)=>'<i'+(i<=tourI?' class="on"':'')+'></i>').join('')+'</div>')+
+  '<div class="tnav">'+(last?'':'<button class="btn ghost small" data-a="tourskip">'+(tourIntro?'Skip':'Skip tour')+'</button>')+'<span class="tgap"></span>'+(tourI?'<button class="btn small" data-a="tourback">Back</button>':'')+'<button class="btn primary small" data-a="tournext" id="tnext">'+(last?(tourIntro?'Got it':'Start playing'):tourI||tourIntro?'Next':'Show me around')+'</button></div></div>';
  placeTour();setTimeout(placeTour,260);$('tnext').focus({preventScroll:true});}
-function placeTour(){if(!tourOn)return;const st=TOUR[tourI],el=st.el?st.el():null,sp=$('tspot'),card=document.querySelector('.tcard');if(!sp||!card)return;
+function placeTour(){if(!tourOn)return;const st=TOURL[tourI],el=st.el?st.el():null,sp=$('tspot'),card=document.querySelector('.tcard');if(!sp||!card)return;
  const vw=document.documentElement.clientWidth,vh=innerHeight,cw=Math.min(400,vw-32);card.style.width=cw+'px';const ch=card.offsetHeight;
  if(!el||!el.getClientRects().length){sp.style.cssText='left:50%;top:50%;width:0;height:0';card.style.left=((vw-cw)/2)+'px';card.style.top=Math.max(16,(vh-ch)/2)+'px';return;}
  const r=el.getBoundingClientRect(),pad=6;let top=Math.max(4,r.top-pad),bot=Math.min(vh-4,r.bottom+pad),y;
  if(vh-bot-12>=ch+12)y=bot+12;else if(top-12>=ch+12)y=top-12-ch;else{y=vh-ch-12;bot=Math.max(top+40,Math.min(bot,y-10));}
  sp.style.cssText='left:'+Math.max(4,r.left-pad)+'px;top:'+top+'px;width:'+Math.min(vw-8,r.width+pad*2)+'px;height:'+Math.max(0,bot-top)+'px';
  card.style.left=Math.min(Math.max(16,r.left),vw-cw-16)+'px';card.style.top=Math.max(12,y)+'px';}
-window.addEventListener('resize',()=>{if(tourOn){tourScroll(TOUR[tourI].el&&TOUR[tourI].el());placeTour();}});
+window.addEventListener('resize',()=>{if(tourOn){tourScroll(TOURL[tourI].el&&TOURL[tourI].el());placeTour();}});
 window.addEventListener('scroll',()=>{if(tourOn)placeTour();},{passive:true});
 document.addEventListener('keydown',e=>{if(!tourOn)return;if(e.key==='Escape'){e.preventDefault();endTour();}else if(e.key==='ArrowRight'){e.preventDefault();tourGo(1);}else if(e.key==='ArrowLeft'){e.preventDefault();tourGo(-1);}
  else if(e.key==='Tab'){const f=[...$('tour').querySelectorAll('button')];if(!f.length)return;const i=f.indexOf(document.activeElement);e.preventDefault();f[(i+(e.shiftKey?-1:1)+f.length)%f.length].focus();}});
@@ -2181,7 +2195,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='a7fd6724f7ac';let updShown=false;
+const APP_VER='a517e6ecef9e';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -3418,7 +3432,7 @@ if('IntersectionObserver' in window){const mt=document.querySelector('.note .sta
 window.addEventListener('resize',()=>{const q=$('quick');if(q&&q.classList.contains('on'))document.documentElement.style.setProperty('--qh',q.offsetHeight+'px');});
 function syncBar(){const b=document.querySelector('.bar');if(b)document.documentElement.style.setProperty('--barh',b.offsetHeight+'px');}
 window.addEventListener('resize',syncBar);
-function showTab(t,scroll){if(!TABS.includes(t))return;if(S&&S.unl){if(!S.unl[t]){if(!showTab.boot){S.unl[t]=1;}else t='overview';}if(S.unlNew)delete S.unlNew[t];const tb=$('tab-'+t);if(tb){tb.hidden=false;tb.classList.remove('unew');}}curTab=t;if(t==='reports'&&$('reports'))$('reports').innerHTML=reportsHTML();
+function showTab(t,scroll){if(!TABS.includes(t))return;if(S&&S.unl){if(!S.unl[t]){if(!showTab.boot){S.unl[t]=1;}else t='overview';}if(S.unlNew&&S.unlNew[t]&&!showTab.boot&&!tourOn)setTimeout(()=>tabIntro(t),350);if(S.unlNew)delete S.unlNew[t];const tb=$('tab-'+t);if(tb){tb.hidden=false;tb.classList.remove('unew');}}curTab=t;if(t==='reports'&&$('reports'))$('reports').innerHTML=reportsHTML();
  document.querySelectorAll('.tabpane').forEach(p=>{p.hidden=p.dataset.tab!==t;});
  TABS.forEach(x=>{const b=$('tab-'+x);b.setAttribute('aria-selected',x===t?'true':'false');b.tabIndex=x===t?0:-1;});
  try{localStorage.setItem('hustle-tab',t);}catch(e){}
