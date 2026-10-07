@@ -2076,7 +2076,7 @@ function startGuest(){GUEST=true;ACC=null;BILL=null;SAVEVER=null;const g=guestLo
  useRegion(S.region);migrate();livesCache=[];current=null;closeModal();acctView=null;authMsg='';renderAccts();render();paintChip();
  visitMark(g&&g.month>0?'played':'landed');
  if(guestLocked()){guestAsk('lock');return;}
- if(!g||!S.inds.length)openEvent(guestWelcome());else startEvents();}
+ if(!g||!S.inds.length)openEvent(industryEvent(true));else startEvents();}  /* a new visitor's first screen is the street kiosk card */
 /* the first card a new visitor sees: the hook, and who they are, in one tap */
 function guestWelcome(){
  return{cat:'Welcome',title:'Do you have a <mark class="hook-hl">billionaire mindset</mark>? Time to use it.',noOut:true,
@@ -2181,7 +2181,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='44eb4519df9c';let updShown=false;
+const APP_VER='05c3f7218acd';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;

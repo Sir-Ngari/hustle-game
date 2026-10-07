@@ -377,7 +377,7 @@ function startGuest(){GUEST=true;ACC=null;BILL=null;SAVEVER=null;const g=guestLo
  useRegion(S.region);migrate();livesCache=[];current=null;closeModal();acctView=null;authMsg='';renderAccts();render();paintChip();
  visitMark(g&&g.month>0?'played':'landed');
  if(guestLocked()){guestAsk('lock');return;}
- if(!g||!S.inds.length)openEvent(guestWelcome());else startEvents();}
+ if(!g||!S.inds.length)openEvent(industryEvent(true));else startEvents();}  /* a new visitor's first screen is the street kiosk card */
 /* the first card a new visitor sees: the hook, and who they are, in one tap */
 function guestWelcome(){
  return{cat:'Welcome',title:'Do you have a <mark class="hook-hl">billionaire mindset</mark>? Time to use it.',noOut:true,
