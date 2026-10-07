@@ -1902,7 +1902,8 @@ DEATH_KINDS = [("lungc", ("lung cancer",)), ("pancc", ("pancreatic cancer",)), (
 
 # ---- visitors: people who open the game, whether or not they create an account ----
 VID_RE = re.compile(r"^[A-Za-z0-9]{12,40}$")
-STAGE_RANK = {"landed": 0, "form": 1, "login": 2, "signed": 3}
+STAGE_RANK = {"landed": 0, "played": 1, "asked": 2, "form": 3, "login": 4, "signed": 5}
+LEFT_STAGES = "('landed','played','asked','form')"
 
 
 def visit_mark(vid, stage, src="", device="", user_id=0, camp=""):
@@ -1936,18 +1937,19 @@ def src_of(ref):
 
 def visitors_overview(t, rg=None):
     def span(since, until=None):
-        r = q("SELECT COUNT(*) n, SUM(stage='signed') signed, SUM(stage='login') login, SUM(stage='form') form, SUM(stage='landed') landed "
+        r = q("SELECT COUNT(*) n, SUM(stage='signed') signed, SUM(stage='login') login, SUM(stage='form') form, SUM(stage='landed') landed, "
+              "SUM(stage='played') played, SUM(stage='asked') asked "
               "FROM visitors WHERE first>=? AND first<? AND stage<>'login'", (since, until or t + 1), one=True)
-        return {k: (r[k] or 0) for k in ("n", "signed", "login", "form", "landed")}
+        return {k: (r[k] or 0) for k in ("n", "signed", "login", "form", "landed", "played", "asked")}
     rg = rg or admin_range("/", t, 14)
     days = []
     for day, d0, d1 in range_days(rg):
-        r = q("SELECT COUNT(*) n, SUM(stage='signed') signed, SUM(stage IN ('landed','form')) lft FROM visitors WHERE first>=? AND first<? AND stage<>'login'",
+        r = q("SELECT COUNT(*) n, SUM(stage='signed') signed, SUM(stage IN " + LEFT_STAGES + ") lft FROM visitors WHERE first>=? AND first<? AND stage<>'login'",
               (d0, d1), one=True)
         days.append({"day": day, "n": r["n"] or 0, "signed": r["signed"] or 0, "left": r["lft"] or 0})
     srcs = [dict(r) for r in q("SELECT src, COUNT(*) n, SUM(stage='signed') signed FROM visitors WHERE first>=? AND first<? AND stage<>'login' GROUP BY src ORDER BY n DESC LIMIT 8",
                                (rg["t0"], rg["t1"]))]
-    dev = {r["device"] or "?": r["n"] for r in q("SELECT device, COUNT(*) n FROM visitors WHERE first>=? AND first<? AND stage IN ('landed','form') GROUP BY device",
+    dev = {r["device"] or "?": r["n"] for r in q("SELECT device, COUNT(*) n FROM visitors WHERE first>=? AND first<? AND stage IN " + LEFT_STAGES + " GROUP BY device",
                                                   (rg["t0"], rg["t1"]))}
     since = q("SELECT MIN(first) m FROM visitors", one=True)["m"]
     rs = span(rg["t0"], rg["t1"])
@@ -3442,7 +3444,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         ua = (self.headers.get("User-Agent") or "").lower()
         device = "phone" if any(k in ua for k in ("iphone", "android", "mobile")) else "tablet" if "ipad" in ua else "computer"
-        stage = d.get("stage") if d.get("stage") in ("landed", "form") else "landed"
+        stage = d.get("stage") if d.get("stage") in ("landed", "played", "asked", "form") else "landed"
         visit_mark(d.get("vid"), stage, src_of(d.get("ref")), device, camp=clean_camp(d.get("camp")))
         self.send_json(200, {"ok": True})
 

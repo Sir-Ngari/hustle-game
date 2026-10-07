@@ -728,10 +728,10 @@ function renderKpis(k){const L=rgLabel();const tiles=[['Players',k.players,k.sig
 
 /* ---------- Visitors: opened the game but never created an account ---------- */
 function renderVisitors(v){const pnl=$('visPanel');if(!v){pnl.hidden=true;return;}pnl.hidden=false;
- const left=x=>(x.landed||0)+(x.form||0),rate=x=>x.n?Math.round(100*(x.signed||0)/x.n)+'%':'—';
- $('visSub').textContent='New people who opened the game while logged out. Existing players are not counted, even on a new phone or computer. Each browser counts once, and no personal details are kept.'+(v.since?' Counting since '+new Date(v.since*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'.':' Counting starts with the next visitor.');
+ const left=x=>(x.landed||0)+(x.played||0)+(x.asked||0)+(x.form||0),rate=x=>x.n?Math.round(100*(x.signed||0)/x.n)+'%':'—';
+ $('visSub').textContent='New people who opened the game while logged out. New visitors now play as guests first and are asked to create an account to save their empire. Existing players are not counted, even on a new phone or computer. Each browser counts once, and no personal details are kept.'+(v.since?' Counting since '+new Date(v.since*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'.':' Counting starts with the next visitor.');
  const L=rgLabel(),tiles=[['Left without an account',left(v.d7),L+', of '+v.d7.n+' visitors','lead'],['Left today',left(v.d1),'of '+v.d1.n+' visitors in the last 24 hours'],
-  ['Started the form, then left',v.d7.form,L+': began typing, never finished'],['Sign-up rate',rate(v.d7),v.d7.signed+' new accounts from '+v.d7.n+' visitors, '+L],
+  ['Played, then left',(v.d7.played||0)+(v.d7.asked||0)+(v.d7.form||0),L+': played as a guest, left without saving'],['Saw the save offer, then left',(v.d7.asked||0)+(v.d7.form||0),L+': were asked to save their empire, didn\'t'],['Started the form, then left',v.d7.form,L+': began typing, never finished'],['Sign-up rate',rate(v.d7),v.d7.signed+' new accounts from '+v.d7.n+' visitors, '+L],
   ['New visitors',v.d7.n,L+', not counting existing players']];
  $('visKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num">'+(typeof t[1]==='number'?t[1].toLocaleString('en-US'):t[1])+'</b><small>'+t[2]+'</small></div>').join('');
  const days=v.days||[],box=$('visChart'),W=Math.max(280,box.clientWidth||600),H=200,pl=34,pr=8,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb;
