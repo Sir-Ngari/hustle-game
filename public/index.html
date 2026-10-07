@@ -1608,7 +1608,7 @@ function renderToday(){const el=$('today');if(!el)return;if(!S.inds.length||S.ov
 let tourOn=false,tourI=0;
 const panelOf=id=>{const e=$(id);return e?(e.closest('.panel')||e.parentElement):null;};
 const TOUR=[
- {t:'Welcome to Hustlempires',x:()=>'You are 24, with a small stake and a big idea. Your first goal: <b>'+(curLocal()?fmt(1e6):'$1 million')+'</b>. Then a billion, a trillion and beyond. This short tour shows you where everything is. Use <b>Next</b> or your arrow keys.'},
+ {t:'Welcome to Hustlempires',x:()=>'You are 24, with a small stake and a big idea. Your first goal: <b>'+(curLocal()?fmt(1e6):'$1 million')+'</b>. Then a billion, a trillion and beyond. This short tour shows you where everything is. Tap <b>Next</b> to move on.'},
  {el:()=>document.querySelector('.note .head-l'),t:'Your scoreboard',x:()=>'<b>Net worth</b> is everything you own minus what you owe. Reach '+fmt(1e9)+' to win.<ul><li><b>Cash</b>: money you can spend right now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li><li><b>Debt</b>: interest on it eats your profit.</li></ul>'},
  {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Police</b> attention rises with every Darkworld deal you take. Too much brings audits, raids, then arrest.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:()=>'Your progress to the next milestone, and on to '+fmt(1e9)+'. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
@@ -1624,11 +1624,11 @@ const TOUR=[
  {tab:'life',el:()=>panelOf('life'),t:'Family and balance',x:()=>'Marriage is mandatory by 35, children need schools, and your '+(S.g==='f'?'husband':S.g==='m'?'wife':'spouse')+'\'s happiness matters: an unhappy marriage can end in an expensive divorce. Choose your <b>work-life balance</b> here: Hustle earns more, Family first keeps everyone happy.'},
  {tab:'power',el:()=>panelOf('svcs'),t:'Power: your professional team',x:'As you grow, the law requires a bookkeeper, an auditor, a marketing team and executives. Their fees rise with your size. Hire them when asked or pay penalties. <b>Politics &amp; street</b> is where you fund politicians and deal with the mob.'},
  {t:'Decisions will find you',x:'Life throws events at you: politicians asking for money, family needs, deals and crises. Each choice shows what it costs and what it does. Choices you cannot afford are greyed out.'},
- {el:()=>$('tourbtn'),t:'You\'re ready',x:'Start by clicking <b>PLAY</b> and watch your first profit come in. You can take this tour again any time with the <b>Tour</b> button. Good luck, and build something big.'}
+ {el:()=>$('tourbtn'),t:'You\'re ready',x:'Start by tapping <b>PLAY</b> and watch your first profit come in. You can take this tour again any time with the <b>Tour</b> button. Good luck, and build something big.'}
 ];
 function maybeTour(){paintGuide();}
-function startTour(){if(current)return;stopAuto();tourOn=true;tourI=0;paintTour();}
-function endTour(){if(!tourOn)return;tourOn=false;const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(S.month>0&&bonusDue()&&!current)openEvent(bonusEvent());}
+function startTour(){if(current)return;stopAuto();tourOn=true;tourI=0;paintTour();try{paintGuide();}catch(e){}}
+function endTour(){if(!tourOn)return;tourOn=false;setTimeout(()=>{try{paintGuide();}catch(e){}},0);const o=$('tour');o.hidden=true;o.innerHTML='';S.tourDone=true;save();showTab('overview');window.scrollTo(0,0);$('next').focus();if(S.month>0&&bonusDue()&&!current)openEvent(bonusEvent());}
 function tourGo(d){const n=tourI+d;if(n<0)return;if(n>=TOUR.length){endTour();return;}tourI=n;paintTour();}
 function tourScroll(el){if(!el){return;}if(el.closest('.note')){window.scrollTo(0,0);return;}
  const bar=document.querySelector('.bar'),q=$('quick'),hdr=(bar?bar.offsetHeight:0)+(q?q.offsetHeight:0)+14,r=el.getBoundingClientRect(),vh=innerHeight;
@@ -2181,7 +2181,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='05c3f7218acd';let updShown=false;
+const APP_VER='a7fd6724f7ac';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -5009,7 +5009,7 @@ function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
 function cheapestBuy(){const bs=[...document.querySelectorAll('.tabpane[data-tab="business"] [data-a="buy"]')];return bs.find(b=>!b.disabled)||bs[0]||null;}
 function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.id='guide';g.className='guide';g.setAttribute('role','status');document.body.appendChild(g);}
  document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));
- const mo=$('modal'),st=(current||(mo&&!mo.hidden)||(guideSnooze&&Date.now()-guideSnooze<12000))?null:guideStep();if(!st){g.hidden=true;return;}
+ const mo=$('modal'),st=(tourOn||current||(mo&&!mo.hidden)||(guideSnooze&&Date.now()-guideSnooze<12000))?null:guideStep();if(!st){g.hidden=true;return;}
  const unit=(BIZ.filter(b=>S.inds.includes(b.ind)).sort((a,b)=>unitCost(a,0)-unitCost(b,0))[0]||{name:'business'});
  if(st==='buy'){g.innerHTML=curTab==='business'?'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Press the glowing <b>Open</b> button on the '+esc(unit.name)+'. It earns money for you every month.</p>'
   :'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Your empire starts with one '+esc(unit.name.lc())+'. Go to the <b>Business</b> tab and press <b>Open</b>. It earns money for you every month.</p><div class="chips"><button class="btn primary small" data-a="guidego" data-v="buy">Show me</button></div>';
