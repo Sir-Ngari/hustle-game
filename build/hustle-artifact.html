@@ -83,6 +83,8 @@ canvas#chart{width:100%;height:170px;display:block}
 .q.big b{font-size:17px}
 .qgap{flex:1}
 @media (prefers-reduced-motion:no-preference){.q b.bump{animation:qb .7s ease}@keyframes qb{0%{background:var(--brass-soft)}100%{background:transparent}}}
+/* tablets and folding phones: money on the first row, meters on the second, nothing cut off */
+@media (min-width:641px) and (max-width:1180px){.qin{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px 14px;padding-block:6px}.qgap{display:none}}
 @media (max-width:640px){.qin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));}.qin .q:last-child,.qin .q:nth-last-child(4){display:none}.qin{gap:4px 10px;padding-block:6px}.qgap{display:none}.q b,.q.big b{font-size:13px}.q small{font-size:9.5px;letter-spacing:.08em}}
 .tour{position:fixed;inset:0;z-index:30}
 .tspot{position:fixed;border-radius:6px;box-shadow:0 0 0 9999px rgba(8,14,11,.66);outline:2px solid var(--brass);outline-offset:0;pointer-events:none}
@@ -181,6 +183,15 @@ table.lt.small{min-width:0;font-size:12.5px}
 .gopts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .gopt{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:3px;cursor:pointer;font-weight:600}
 .gopt:has(input:checked){border-color:var(--ink);background:var(--brass-soft)}
+.acctchip.guest{border-color:var(--brass);background:rgba(201,162,39,.14)}.acctchip.guest .av{background:var(--brass)!important;color:#1a1a1a}
+.gsave-hero{margin:4px 0 12px;padding:14px 16px;border-radius:12px;background:rgba(201,162,39,.12);border:1px solid var(--brass)}
+.gsave-hero .gs-kick{margin:0 0 4px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--brass)}
+.gsave-hero h2{margin:0 0 6px}.gsave-hero p{margin:0;font-size:14.5px}
+.gs-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:12px 0 0;padding:0;list-style:none}
+.gs-stats li{padding:8px 10px;border-radius:8px;background:var(--paper);border:1px solid var(--line)}
+.gs-stats li span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.gs-stats li b{font-size:16px}
+.gs-perks{margin:10px 0 4px;padding:0 0 0 18px;font-size:13.5px}.gs-perks li{margin:2px 0}
+.gs-later{display:block;margin:10px auto 0}
 .acctbrand{font-family:var(--display);font-weight:900;font-size:22px;letter-spacing:.06em;text-transform:uppercase;color:var(--brass)}
 .acctbox h2{font-family:var(--display);font-weight:900;font-size:40px;line-height:1;text-transform:uppercase;margin:0;text-wrap:balance}
 .acctbox h3{font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 0}
@@ -241,7 +252,7 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .tabs button.unew{position:relative;color:#ffd75e}.tabs button.unew::after{content:'';position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:#ffc53d;box-shadow:0 0 0 0 rgba(255,197,61,.8);animation:coach 1.3s ease-in-out infinite}
 .unlfx{position:fixed;left:50%;top:14px;z-index:60;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;min-width:240px;max-width:92vw;padding:12px 20px;border:0;border-radius:14px;background:linear-gradient(180deg,#ffd75e,#ffb02e);color:#2a1a00;box-shadow:0 10px 30px rgba(0,0,0,.35);font:inherit;text-align:center;cursor:pointer;animation:unlin .5s cubic-bezier(.2,1.4,.4,1)}
 .unlfx small{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.75}.unlfx b{font-family:Oswald,Impact,sans-serif;font-size:24px;line-height:1.1;text-transform:uppercase}.unlfx span{font-size:13px;font-weight:600}
-.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
+.unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
 @keyframes unlin{from{opacity:0;transform:translate(-50%,-30px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @media (prefers-reduced-motion:reduce){.unlfx{animation:none}.tabs button.unew::after{animation:none}}
 .g10{margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,197,61,.45);background:rgba(255,197,61,.08)}
@@ -503,7 +514,7 @@ html.gm .btn:disabled{opacity:.45;filter:grayscale(.5)}
 html.gm #next{font-size:21px;padding:11px 24px 10px;position:relative;overflow:hidden}
 html.gm #next::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-18deg);animation:shine 3.2s ease-in-out infinite}
 @keyframes shine{0%,62%{left:-60%}100%{left:130%}}
-html.gm .bar{background:linear-gradient(180deg,rgba(9,22,44,.96),rgba(9,22,44,.9));border-bottom:1px solid rgba(190,215,255,.15);margin-inline:-16px;padding-inline:16px;border-radius:0 0 12px 12px}
+html.gm .bar{background:linear-gradient(180deg,#09162c,#0b1a33);border-bottom:1px solid rgba(190,215,255,.15);margin-inline:-16px;padding-inline:16px;border-radius:0 0 12px 12px}
 html.gm .date{font-family:var(--display);font-size:21px;letter-spacing:.04em;text-transform:uppercase}
 html.gm .tabs button{font-size:16px;color:#9fb2d8}
 html.gm .tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--brass)}
@@ -691,8 +702,8 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
   <div class="bar">
     <div class="barrow">
       <div class="date" id="date">Year 1 · January</div>
-      <button class="btn primary" id="next" aria-label="Play the next month">PLAY</button>
-      <button class="btn" id="auto" aria-pressed="false">Auto-play</button>
+      <button class="btn primary" id="next" aria-label="Play until the next event">PLAY</button>
+      <button class="btn" id="auto" aria-pressed="false" hidden>Auto-play</button>
       <button class="btn ghost" id="tourbtn" data-a="tour" aria-label="Take the game tour">Tour</button>
       <button class="btn lbbtn" id="lbbtn" data-a="leaderboard" aria-label="Open the leaderboard" hidden><span class="lbtro">🏆</span> <span class="lbfull">Leaderboard</span><span class="lbrank" id="lbrank" hidden></span></button>
       <button class="btn ghost sndbtn" id="sndbtn" data-a="sndtoggle" aria-label="Mute sounds" aria-pressed="true"></button>
@@ -1444,7 +1455,11 @@ function genderEvent(){const next=()=>!S.inds.length&&!S.over&&!S.won?industryEv
  return{cat:'Your profile',title:'One quick question',text:'So your story gets the details right: are you a man or a woman?'+(S.spouse?' Your marriage records will be updated to match.':' Your future wife or husband will be chosen to match.'),
   choices:[{l:'I\'m a man',d:'You will marry a wife.',f(){setGender('m');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your wife.':'Profile updated.','',next()]}},
    {l:'I\'m a woman',d:'You will marry a husband.',f(){setGender('f');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your husband.':'Profile updated.','',next()]}}]};}
-function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else if(S.tourDone&&S.month>0&&bonusDue())openEvent(bonusEvent());else maybeTour();}
+const genderDue=()=>!!S&&!S.g&&(S.plays||0)>=3;
+function genderPlayEvent(){const pickG=g=>function(){setGender(g);setTimeout(()=>{if(!current&&$('modal').hidden&&!acctView&&!timer)playRun();},500);return['Profile updated: you are a '+(g==='f'?'woman':'man')+'.',''];};
+ return{cat:'Your profile',title:'Quick question before your story goes on',noOut:true,text:'Are you a man or a woman? It decides who you could marry and how your family story is told.',
+  choices:[{l:'I\'m a man',d:'You will marry a wife.',f:pickG('m')},{l:'I\'m a woman',d:'You will marry a husband.',f:pickG('f')}]};}
+function startEvents(){if(S.over||S.won)return;if(genderDue()){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else if(S.tourDone&&S.month>0&&bonusDue())openEvent(bonusEvent());else maybeTour();}
 /* ================= Daily bonus & daily deal (real-world days) ================= */
 const dayKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const yesterdayKey=()=>{const d=new Date();d.setDate(d.getDate()-1);return dayKey(d);};
@@ -1497,7 +1512,7 @@ const TOUR=[
  {el:()=>document.querySelector('.note .head-l'),t:'Your scoreboard',x:()=>'<b>Net worth</b> is everything you own minus what you owe. Reach '+fmt(1e9)+' to win.<ul><li><b>Cash</b>: money you can spend right now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li><li><b>Debt</b>: interest on it eats your profit.</li></ul>'},
  {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Police</b> attention rises with every Darkworld deal you take. Too much brings audits, raids, then arrest.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:()=>'Your progress to the next milestone, and on to '+fmt(1e9)+'. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
- {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Each press of <b>PLAY</b> moves the game one month on. It collects profit, pays your bills, ages you a month and may bring a decision. <b>Auto-play</b> runs the months for you and pauses whenever a decision comes up. You can also press <b>N</b> on a keyboard.'},
+ {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Press <b>PLAY</b> and the months roll on by themselves: profit comes in, bills are paid and you get older, until a decision comes up. Then it waits for you. Press <b>PAUSE</b> to stop the clock. You can also press <b>N</b> on a keyboard.'},
  {el:()=>document.querySelector('.tabs'),t:'Nine sections',x:'The tabs hold everything you can do. Some are quiet at first and come alive as you get richer: sports teams, a foundation and political power. <b>News</b> keeps a record of every move you make.'},
  {tab:'overview',el:()=>panelOf('today'),t:'Come back every day',x:'Every day you play, you collect a <b>daily bonus</b> that grows with your streak. Day 7 pays six times day 1. Miss a day and the streak starts again. There is also <b>one special deal</b> each day, such as a discounted outlet, a hot stock tip or a bargain, and it disappears at midnight.'},
  {tab:'overview',el:()=>panelOf('attention'),t:'Overview: what needs you',x:'<b>Needs attention</b> lists anything you must deal with, like staff the law now requires or a lifestyle you have outgrown. Check it often. Next to it, the <b>monthly statement</b> shows exactly where your money comes from and where it goes.'},
@@ -2720,7 +2735,12 @@ function burnoutEvent(){const c=nwc(.01,300);return{cat:'Life',title:'You are bu
  choices:[{l:'Take a proper vacation',d:'Spend '+fmt(c)+'. Profit ×0.9 this month. +22 happiness.',f(){S.cash-=c;addBuff(.9,1,'Vacation');addHappy(22);addSH(8);return['Two weeks off. You came back a new person.','life']}},
   {l:'Push through',d:'−8 happiness.',f(){addHappy(-8);return['You pushed through. It is taking a toll.','bad']}}]};}
 
-function industryEvent(first){const avail=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id)),fee=first?0:entryFee();
+/* a brand-new player's first industry is picked for them (Retail & Fashion, the street kiosk); they choose the next one themselves */
+function firstIndEvent(){const i=INDS.find(x=>x.id==='retail'&&!x.reg)||INDS.find(x=>!x.reg),u=i.biz[0];
+ return{cat:'Your first business',title:'Your empire starts on the street',noOut:true,
+  text:'Every billionaire started somewhere. You start in <b>'+i.name+'</b> with '+aN(u[1].lc())+'. '+u[4]+'. It costs '+fmt(u[2])+'. Open it, then press PLAY to run your first month. When you reach Business Owner, you choose your next industry yourself.',
+  choices:[{l:'Open my '+u[1].lc(),d:'Costs '+fmt(u[2])+'. You start earning from your first month.',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);return['You started in '+i.name+' and opened your first '+u[1].lc()+'. Press PLAY to run your first month.','gold'];}}]};}
+function industryEvent(first){if(first&&(S.gnum||1)<=1&&!S.inds.length)return firstIndEvent();const avail=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id)),fee=first?0:entryFee();
  return{cat:'Industries',title:first?'Choose your first industry':'Room for a new industry',
   text:first?'Every empire starts somewhere. Pick the industry you want to build in first. You unlock a second industry at Business Owner, a third at Millionaire, and one more at every rank after that.':'Your standing opens new doors. You now have room for '+SLOTS[S.peak]+' industries. Licences and setup cost '+fmt(fee)+'.',
   choices:avail.map(i=>({l:i.name,d:i.blurb+' Starts with '+aN(i.biz[0][1].lc())+' ('+fmt(i.biz[0][2])+').',dis:!first&&S.cash<fee,f(){enterInd(i.id,fee);return[first?'You chose '+i.name+'. Open your first '+i.biz[0][1].lc()+'.':'You entered '+i.name+'.','gold']}}))
@@ -2770,6 +2790,8 @@ function attention(F){const A=[],L=lifestyle();
  if(S.f1Offer&&S.race&&S.race.series==='F2')A.push(['info','Your F2 title earned you 20% off a Formula 1 team.','sports','Move up']);
  if(S.fdn&&(S.fdn.stage[S.fdn.focus]||0)>=3)A.push(['info','Your foundation solved its focus cause. Choose a new one.','giving','Choose']);
  if(S.debt>.5*Math.max(1,assets()))A.push(['warn','Your debt is over half your assets.','money','Bank']);
+ /* things you can now afford go last, after anything urgent */
+ affordAll().forEach(x=>A.push(['info',x.msg,x.tab,'Buy',x.act]));
  return A;}
 const BUYERS=['Savanna Holdings','Pan-Continental Group','a Gulf sovereign wealth fund','a London private equity firm','Tausi Capital','a Chinese state conglomerate','a rival family business'];
 const cap=x=>x.charAt(0).toUpperCase()+x.slice(1);
@@ -3389,7 +3411,8 @@ function closeModal(){$('modal').hidden=true;$('modal').innerHTML='';}
 
 /* ================= Turn ================= */
 function nextMonth(){
- if(!ACC||acctView||S.over||current)return;
+ if(GUEST&&guestLocked()){guestAsk('lock');return;}
+ if((!ACC&&!GUEST)||acctView||S.over||current)return;
  if(S.month>0&&bonusDue()){openEvent(bonusEvent());return;}
  if(S.month>0&&openCal())return;
  const f=flows(true);S.cash+=f.net;pcBurn();loanTick();licTick();S.last=f;plRecord(f);S.month++;
@@ -3495,7 +3518,7 @@ function nextMonth(){
   if(!fw&&fwOk){fw=kidCrisis();id='fw_teen';}
   if(fw){fw._id=id;paceMark(null,'family');S.cool=Math.max(S.cool,1);openEvent(fw);return;}}
  if(moonDue()){openEvent(moonPickEvent());return;}
- if(!S.g){openEvent(genderEvent());return;}
+ if(genderDue()){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
  if(S.indPending&&!S.lifePending){S.indPending=false;if(slotInds().length<SLOTS[S.peak]){openEvent(industryEvent(false));return;}}
  if(S.relPending&&S.relPending.length){const id=S.relPending.shift();if(behind(id)){openEvent(releaseEvent(id));return;}}
@@ -3559,7 +3582,7 @@ hit(c,kind,t,hv){if(kind==='k'){const o=c.createOscillator(),g=c.createGain();o.
   const b=M.bass[st];if(b!=null)this.v(c,M.saw?'sawtooth':'sine',mf(ch[b]-12),t,beat*(M.saw?.9:3),M.saw?.05:.09,M.saw?500:null);
   const a=M.arp[st];if(a!=null)this.v(c,'triangle',mf(ch[a]+M.arpOct+(st>=4&&this.mood!=='tough'?12:0)),t,beat*(this.mood==='sad'||this.mood==='calm'?3:1.2),M.arpVol,3500);
   if(M.drums){['k','s','h'].forEach(k=>{if(M.drums[k][st])this.hit(c,k,t);});}}};
-function moodNow(){if(!S||!ACC||S.over)return'calm';
+function moodNow(){if(!S||(!ACC&&!GUEST)||S.over)return'calm';
  const ev=typeof current!=='undefined'&&current,cat=ev&&String(ev.cat||'');
  if(cat){if(/Law|Darkworld|Street|Industry risk|crisis|Disaster|Your past|Explosion|Fire|accident|collapse|Cyber|Lawsuit|scandal|Security|First contact/i.test(cat))return'tough';
   if(/Billionaire challenge|Daily bonus|Black Friday|Holiday|New year|result/i.test(cat)&&!/failed|lost/i.test(String(ev.title||'')))return'happy';}
@@ -3648,7 +3671,10 @@ function sellSec(id,frac){const x=SECS.find(s=>s.id===id);if(TK_CAP[id]&&S.port[
 function stopPaying(){S.protection=0;addHeat(30);log('You stopped paying the mob.','bad');afterChange();}
 
 let timer=null;
-function stopAuto(){if(timer){clearInterval(timer);timer=null}const a=$('auto');a.classList.remove('on');a.setAttribute('aria-pressed','false');a.textContent='Auto-play';}
+function stopAuto(){if(timer){clearInterval(timer);timer=null}const a=$('auto');a.classList.remove('on');a.setAttribute('aria-pressed','false');a.textContent='Auto-play';paintPlay();}
+/* PLAY runs the months by itself until something needs a decision (every event pauses it); press it again to pause */
+function paintPlay(){const n=$('next');if(!n)return;n.textContent=timer?'PAUSE':'PLAY';n.classList.toggle('on',!!timer);n.setAttribute('aria-label',timer?'Pause':'Play until the next event');}
+function playRun(){if(!S||S.over)return;S.f10auto=1;nextMonth();if(timer||S.over||current||acctView||!$('modal').hidden)return;timer=setInterval(nextMonth,750);paintPlay();}
 function toggleAuto(){if(timer)return stopAuto();if(S.over)return;S.f10auto=1;timer=setInterval(nextMonth,750);const a=$('auto');a.classList.add('on');a.setAttribute('aria-pressed','true');a.textContent='Pause';}
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
@@ -3670,11 +3696,11 @@ document.addEventListener('keydown',e=>{if(e.key==='n'&&!tourOn&&!e.metaKey&&!e.
 
 /* ================= Render ================= */
 function meter(v,col){return'<div class="meter"><i style="width:'+clamp(v,0,100)+'%;background:var('+col+')"></i></div>';}
-function render(){try{unlCheck();g10Check();}catch(e){}try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
+function render(){try{unlCheck();g10Check();affordCheck();}catch(e){}try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
  const nw=netWorth(),F=flows(false);
  $('acctchip').innerHTML=ACC?avatar(ACC)+'<span><b>'+esc(ACC.name)+'</b><small>'+esc(ACC.company)+' · switch</small></span>':'<span><b>No account</b><small>Create one to play</small></span>';
  $('fdn-title').textContent='The '+BR()+' Foundation';
- countUp($('nw'),nw,v=>(curLocal()?v*R.rate<1e7:v<1e6)?fmtFull(v):fmt(v));
+ countUp($('nw'),nw,v=>(curLocal()?Math.abs(v)*R.rate<1e7:Math.abs(v)<1e6)?fmtFull(v):fmt(v));
  {const tk=document.querySelector('.ticks'),mb=mileBar(nw);if(tk)tk.innerHTML='<span>'+fmt(mb.lo)+'</span><span>'+fmt(Math.sqrt(mb.lo*mb.hi))+'</span><span>'+fmt(mb.hi)+' next milestone</span>';}
  $('rank').textContent=TITLES[titleIdx(nw)][1];$('rank').dataset.tier=titleIdx(nw);
  countUp($('cash'),S.cash,fmt);$('cash').className=S.cash<0?'neg':'';
@@ -3704,7 +3730,7 @@ function render(){try{unlCheck();g10Check();}catch(e){}try{moneySound();}catch(e
  S.pending.forEach(p=>chips.push([(p.cash?'Pending '+fmt(p.cash):'Something brewing')+' · '+(p.due-S.month)+'mo','gold']));
  $('buffs').innerHTML=chips.length?chips.map(c=>'<span class="buff '+c[1]+'">'+c[0]+'</span>').join(''):'<p class="seghint" style="margin:0">No special effects right now. Booms, busts, deals and your work–life balance show up here.</p>';
  const A=attention(F),urgent=A.filter(a=>a[0]!=='info').length;
- $('attention').innerHTML=A.length?A.map(a=>'<div class="alert"><span class="sev '+(a[0]==='bad'?'':a[0])+'"></span><p>'+a[1]+'</p>'+(a[2]&&a[3]?'<button class="btn small" data-a="tab" data-v="'+a[2]+'">'+a[3]+'</button>':'<span></span>')+'</div>').join('')
+ $('attention').innerHTML=A.length?A.map(a=>'<div class="alert"><span class="sev '+(a[0]==='bad'?'':a[0])+'"></span><p>'+a[1]+'</p>'+(a[2]&&a[3]?'<button class="btn small" data-a="'+(a[4]?a[4][0]:'tab')+'" data-v="'+(a[4]?a[4][1]:a[2])+'">'+a[3]+'</button>':'<span></span>')+'</div>').join('')
   :'<p class="allclear">All clear. Press PLAY.</p>';
  $('badge').hidden=!urgent;$('badge').textContent=urgent;
  $('ladder').style.width=(mileBar(nw).p*100)+'%';
@@ -4275,7 +4301,7 @@ function newbieOK(e){if(!S||!S.newbie||(S.gnum||1)>1)return true;
 /* first goals: one at a time, each with a small cash reward */
 const G10=[
  {t:'Own 3 businesses',h:'Buy more outlets in the Business tab. Each one adds monthly profit.',p:()=>[Math.min(3,totalUnits()),3],r:150},
- {t:'Try Auto-play',h:'Press Auto-play and let the months roll by. Press it again to pause.',p:()=>[S.f10auto?1:0,1],r:100},
+ {t:'Let the months roll',h:'Press PLAY and let the months roll by. Press PAUSE to stop.',p:()=>[S.f10auto?1:0,1],r:100},
  {t:'Reach a net worth of $5,000',h:'Keep buying outlets and pressing PLAY.',p:()=>[Math.min(5e3,Math.max(0,netWorth())),5e3],r:300,money:1},
  {t:'Open a bigger business',h:'In the Business tab, the next business up the ladder costs more but earns far more.',p:()=>[BIZ.some(b=>b.tier>=2&&owned(b.id)>0)?1:0,1],r:400},
  {t:'Reach a net worth of $25,000',h:'You are building momentum. Keep growing.',p:()=>[Math.min(2.5e4,Math.max(0,netWorth())),2.5e4],r:1000,money:1},
@@ -4286,13 +4312,43 @@ function g10Check(){const el=$('g10');if(!el)return;if(!S||S.over||!S.newbie||!(
   if(S.g10>=G10.length){log('Your starter goals are done. Next stop: your first million.','gold');el.hidden=true;return;}g=G10[S.g10];p=g.p();}
  const pc=Math.round(100*p[0]/p[1]);
  el.innerHTML='<div class="g10-top"><span>Goal '+(S.g10+1)+' of '+G10.length+'</span><em>Reward '+fmt(g.r)+'</em></div><b>'+g.t+'</b><div class="g10-bar"><i style="width:'+pc+'%"></i></div><p>'+(g.money?fmt(p[0])+' of '+fmt(p[1]):p[1]>1?p[0]+' of '+p[1]:'')+(g.money||p[1]>1?' · ':'')+g.h+'</p>';el.hidden=false;}
+/* ---- "you can afford it": when cash first covers the next business up the ladder in one of your industries, a toast (once per business) and a Needs attention row ---- */
+function affordNext(){if(!S||S.over||(typeof jailed==='function'&&jailed()))return null;const tops={};
+ Object.keys(S.owned||{}).forEach(id=>{if(!(S.owned[id]>0))return;const b=BIZ.find(x=>x.id===id);if(b)tops[b.ind]=Math.max(tops[b.ind]||0,b.tier);});
+ let best=null;BIZ.forEach(b=>{if(!S.inds.includes(b.ind)||owned(b.id)>0||b.tier<=(tops[b.ind]||0)||bizLocked(b))return;const c=unitCost(b,0);if(!(c<=S.cash))return;if(!best||c>best.c)best={b,c};});
+ return best;}
+/* everything else worth buying: the next car or home up, the first of each luxury, rental, building type and team, once each */
+function affordAll(){const out=[];if(!S||S.over||(typeof jailed==='function'&&jailed()))return out;const U=unlOf(),cash=S.cash;
+ const af=affordNext();if(af)out.push({cat:'biz',key:af.b.id,name:af.b.name,cost:af.c,tab:'business',act:['buy',af.b.id],msg:'You can afford a '+esc(af.b.name)+' ('+fmt(af.c)+'), the next step up in '+IND[af.b.ind].name.toLowerCase()+'.'});
+ const top=(L,f)=>{let b=null;L.forEach(x=>{const c=f(x);if(c!=null&&c<=cash&&(!b||c>b.c))b={x,c};});return b;};
+ const aCost=a=>a.price*afx(a.id);
+ if(U.life){
+  const hTop=Math.max(-1,...HOMES.filter(h=>has(h.id)).map(h=>h.tier));const h=top(HOMES,x=>x.tier>hTop?aCost(x):null);
+  if(h)out.push({cat:'home',key:h.x.id,name:h.x.name,cost:h.c,tab:'life',act:['abuy',h.x.id],msg:'You can afford a better home: '+esc(h.x.name)+' ('+fmt(h.c)+').'});
+  const cTop=Math.max(0,...CARS.filter(c=>has(c.id)).map(c=>c.tier));const c=top(ASSETS.filter(a=>a.kind==='Cars & aircraft'),x=>x.jet?(has(x.id)?null:aCost(x)):x.tier>cTop?aCost(x):null);
+  if(c)out.push({cat:'car',key:c.x.id,name:c.x.name,cost:c.c,tab:'life',act:['abuy',c.x.id],msg:'You can afford '+(c.x.jet?'a ':'an upgrade: ')+esc(c.x.name)+' ('+fmt(c.c)+').'});
+  const l=top(ASSETS.filter(a=>a.lux&&(!a.g||a.g===S.g)),x=>has(x.id)?null:aCost(x));
+  if(l)out.push({cat:'lux',key:l.x.id,name:l.x.name,cost:l.c,tab:'life',act:['abuy',l.x.id],msg:'A new luxury is within reach: '+esc(l.x.name)+' ('+fmt(l.c)+').'});}
+ if(U.property){
+  const r=top(ASSETS.filter(a=>a.kind==='Rental property'),x=>has(x.id)?null:aCost(x));
+  if(r)out.push({cat:'rental',key:r.x.id,name:r.x.name,cost:r.c,tab:'property',act:['abuy',r.x.id],msg:'You can afford your first '+esc(r.x.name.toLowerCase())+' ('+fmt(r.c)+'). It pays rent every month.'});
+  const pc=pcity(propCity);if(pc&&cityOpen(pc)){const p=top(PTYPES,t=>(S.props||[]).some(q=>q.type===t.id)?null:propPrice(t,pc));
+   if(p)out.push({cat:'prop',key:p.x.id,name:p.x.name,cost:p.c,tab:'property',act:['propbuy',p.x.id],msg:'You can afford a '+esc(p.x.name.toLowerCase())+' in '+esc(pc.name)+' ('+fmt(p.c)+').'});}}
+ if(U.sports){const t=top(TEAMS,T=>S.teams[T.id]?null:T.price);
+  if(t)out.push({cat:'team',key:t.x.id,name:t.x.name,cost:t.c,tab:'sports',act:['buyteam',t.x.id],msg:'You can afford to buy '+esc(t.x.name)+' ('+fmt(t.c)+').'});}
+ return out;}
+const AFF_LBL={biz:'You can afford it',home:'A better home is in reach',car:'A new ride is in reach',lux:'A new luxury is in reach',rental:'Rental income is in reach',prop:'A new building is in reach',team:'A sports club is in reach'};
+function affordCheck(){if(current||!S||S.over)return;S.affSeen=S.affSeen||{};S.affAt=typeof S.affAt==='object'&&S.affAt?S.affAt:{};if(S.affM===S.month)return;
+ const x=affordAll().find(x=>!S.affSeen[x.key]&&S.month-(S.affAt[x.cat]==null?-99:S.affAt[x.cat])>=3);if(!x)return;
+ S.affSeen[x.key]=1;S.affAt[x.cat]=S.month;S.affM=S.month;document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('button');d.className='unlfx afford';d.dataset.a=x.act[0];d.dataset.v=x.act[1];
+ d.addEventListener('click',()=>setTimeout(()=>d.remove(),0));d.innerHTML='<small>'+AFF_LBL[x.cat]+'</small><b>'+esc(x.name)+'</b><span>Costs '+fmt(x.cost)+'. You have '+fmt(S.cash)+'. Tap to take a look.</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),7000);setTimeout(()=>d.remove(),7600);}
 function g10Fx(g){document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('div');d.className='unlfx goal';d.innerHTML='<small>Goal complete</small><b>'+g.t+'</b><span>+'+fmt(g.r)+' reward</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),4200);setTimeout(()=>d.remove(),4800);}
 /* ================= First steps: a coach that shows new players what to press ================= */
 function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
  if(!S.inds.length)return null;
  if(totalUnits()===0)return'buy';
  if(S.month<1)return'play';
- S.guideDone=true;log('You are up and running. Keep pressing PLAY, or use Auto-play, and grow your empire.','gold');return null;}
+ S.guideDone=true;log('You are up and running. Keep pressing PLAY and grow your empire.','gold');return null;}
 function cheapestBuy(){const bs=[...document.querySelectorAll('.tabpane[data-tab="business"] [data-a="buy"]')];return bs.find(b=>!b.disabled)||bs[0]||null;}
 function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.id='guide';g.className='guide';g.setAttribute('role','status');document.body.appendChild(g);}
  document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));
@@ -4301,18 +4357,19 @@ function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.
  if(st==='buy'){g.innerHTML=curTab==='business'?'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Press the glowing <b>Open</b> button on the '+esc(unit.name)+'. It earns money for you every month.</p>'
   :'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Your empire starts with one '+esc(unit.name.lc())+'. Go to the <b>Business</b> tab and press <b>Open</b>. It earns money for you every month.</p><div class="chips"><button class="btn primary small" data-a="guidego" data-v="buy">Show me</button></div>';
   if(curTab==='business'){const b=cheapestBuy();if(b)b.classList.add('coach');}else{const t=$('tab-business');if(t)t.classList.add('coach');}}
- else{g.innerHTML='<span class="gstep">Step 2 of 2</span><b>Start the clock</b><p>Press <b>PLAY</b> to move time forward. Your businesses earn, events happen, and your choices shape the empire. Press <b>Auto-play</b> to let the months roll by themselves.</p><div class="chips"><button class="btn primary small" data-a="guidenext">PLAY</button><button class="btn small" data-a="guideauto">Auto-play</button><button class="btn ghost small" data-a="tour">Full tour</button></div>';
-  $('next').classList.add('coach');$('auto').classList.add('coach');}
+ else{g.innerHTML='<span class="gstep">Step 2 of 2</span><b>Start the clock</b><p>Press <b>PLAY</b> and the months roll on by themselves. Your businesses earn, and the game stops whenever a decision needs you. Press <b>PAUSE</b> to stop the clock.</p><div class="chips"><button class="btn primary small" data-a="guidenext">PLAY</button><button class="btn ghost small" data-a="tour">Full tour</button></div>';
+  $('next').classList.add('coach');}
  g.insertAdjacentHTML('afterbegin','<button class="gclose" data-a="guideclose" aria-label="Close the guide" title="Close">&times;</button>');g.hidden=false;}
 ['openEvent','showCard','closeModal'].forEach(n=>{const f=window[n];if(typeof f==='function')window[n]=function(){const r=f.apply(this,arguments);try{paintGuide();}catch(e){}return r;};});
 let guideSnooze=0;
 function guideClose(){if(S&&S.month<1&&!S.over){guideSnooze=Date.now();paintGuide();clearTimeout(guideClose.t);guideClose.t=setTimeout(()=>{guideSnooze=0;paintGuide();},12000);return;}S.guideDone=true;document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));paintGuide();save();}
 function guideGo(v){if(v==='buy'){showTab('business');setTimeout(()=>{const b=cheapestBuy();if(b){b.scrollIntoView({block:'center',behavior:'smooth'});}paintGuide();},60);}
  else{window.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{const n=$('next');if(n)n.scrollIntoView({block:'center',behavior:'smooth'});},100);}}
-function nextClick(){if(S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){
+function nextClick(){if(timer){stopAuto();return;}if(S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){
   showCard('Buy a business first','The clock is ready, but you have nothing earning money yet. Buy your first business, then press PLAY and watch it earn.',
    '<button class="btn primary" data-a="guidebuy">Show me where</button><button class="btn ghost" data-a="guideskip">Skip a month anyway</button>');return;}
- nextMonth();}
+ if(S&&!S.over&&!acctView&&!current){S.plays=(S.plays||0)+1;if(genderDue()){openEvent(genderPlayEvent());return;}}
+ playRun();}
 function autoClick(){if(!timer&&S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){nextClick();return;}toggleAuto();}
 /* ================= Coming back: seasons, weekly challenges, calendar events ================= */
 const seasonId=()=>dayKey().slice(0,7);
@@ -5235,7 +5292,7 @@ function families(L){const F=[];L.forEach(l=>{if((l.gen||1)<=1||!F.length)F.push
  f.lives.push(l);f.gens=Math.max(f.gens,l.gen||1);if(l.billionAge)f.billionaires++;f.years+=(l.months||0)/12;f.best=Math.max(f.best,l.best||0);});return F;}
 function legacyCtx(withCurrent){const lives=legacyLives(withCurrent);return{lives,fams:families(lives)};}
 function earned(ctx){const e={};ACH.forEach(a=>{try{if(a[3](ctx))e[a[0]]=1;}catch(err){}});return e;}
-function checkAch(){if(!S||!ACC||(typeof pastLives==='function'&&pastLives()===null))return;S.ach=S.ach||[];
+function checkAch(){if(!S||(!ACC&&!GUEST)||(typeof pastLives==='function'&&pastLives()===null))return;S.ach=S.ach||[];
  const before=earned(legacyCtx(false)),now=earned(legacyCtx(true));
  ACH.forEach(a=>{if(now[a[0]]&&!before[a[0]]&&!S.ach.includes(a[0])){S.ach.push(a[0]);addPts(50);log('Achievement unlocked: '+a[1]+'. '+dollars(a[2]),'gold');}});}
 function legacyHTML(){const ctx=legacyCtx(true),e=earned(ctx),got=ACH.filter(a=>e[a[0]]).length,f=ctx.fams[ctx.fams.length-1];let h='';

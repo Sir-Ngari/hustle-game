@@ -1,5 +1,5 @@
 /* ================= Accounts (server) ================= */
-let ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,livesCache=null,seasonCache=null,lbTab='season-country',signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='',BILL=null,billSkew=0,payMsg='',payBusy=false,payRef='',payCancelled=false,payTries=0,payDone=null,refCode='',refInfo=null,inviteData=null,inviteMsg='';
+let GUEST=false,guestWhy='',guestT=null,ACC=null,acctView='loading',authMode='signup',authMsg='',syncTimer=null,syncBusy=false,syncAgain=false,syncState='saved',newGameFlag=false,lbData=null,signupGender='',pendingLife=null,livesData=null,livesCache=null,seasonCache=null,lbTab='season-country',signupRegion='',signupCur='USD',resetToken='',emailSkip=false,forgotDone='',BILL=null,billSkew=0,payMsg='',payBusy=false,payRef='',payCancelled=false,payTries=0,payDone=null,refCode='',refInfo=null,inviteData=null,inviteMsg='';
 const BR=()=>(ACC&&ACC.company)||'Savanna';
 const BGS=[{id:'hustler',name:'Street hustler',desc:'$1,000 and a big idea. The classic start.',cash:1000,debt:0,rep:50,happy:60},
  {id:'grad',name:'University graduate',desc:'$4,000 saved and a good name, but a $2,500 student loan to repay.',cash:4000,debt:2500,rep:58,happy:62},
@@ -13,6 +13,7 @@ function freshFor(a){const b=BGS.find(x=>x.id===a.bg)||BGS[0],s=fresh();s.g=a.ge
 const GENDER_FS='<fieldset><legend>You are</legend><div class="gopts"><label class="gopt"><input type="radio" name="acc-g" id="acc-g-m" value="m"><span>A man</span></label><label class="gopt"><input type="radio" name="acc-g" id="acc-g-f" value="f"><span>A woman</span></label></div><p class="hint">Used for your story, like who you marry.</p></fieldset>';
 function avatar(a,big){return'<span class="av'+(big?' big':'')+'" style="background:'+AVCOL[(a&&a.color)||0]+'">'+esc(initials(a&&a.name))+'</span>';}
 async function api(method,path,body){let r;
+ if(GUEST&&!/^\/api\/(visit|signup|login|tuning|invite\/check|username\/check|company\/check|forgot|reset|me)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
  try{r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
@@ -21,7 +22,7 @@ function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
 async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save,bill,ver){setTimeout(fyFix,1500);{const lb=document.getElementById('lbbtn');if(lb)lb.hidden=false;if(!window.lbPaintT)window.lbPaintT=setInterval(paintLbBtn,4000);}try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);const away0=S.seen||0;migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+function startWith(user,save,bill,ver){if(GUEST){GUEST=false;guestDrop();}setTimeout(fyFix,1500);{const lb=document.getElementById('lbbtn');if(lb)lb.hidden=false;if(!window.lbPaintT)window.lbPaintT=setInterval(paintLbBtn,4000);}try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);const away0=S.seen||0;migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
  signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}bankLots=null;mkData={local:null,world:null,mine:null};mkMsg='';setTimeout(bankFlush,2000);mkSettleTries=0;setTimeout(mkSettle,6000);xcData=null;setTimeout(()=>{xcSettle();xcLoad(true);},7000);if(!awayWelcome(away0))startEvents();giftTries=0;setTimeout(giftCheck,4000);rivalStart();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
@@ -51,26 +52,26 @@ window.addEventListener('focus',()=>syncCheck());window.addEventListener('online
 /* the person being played: the founder, or the heir who took over the family empire */
 function playerName(){return(S&&S.who)||(ACC&&ACC.name)||'';}
 const playerAcc=()=>Object.assign({},ACC,{name:playerName()});
-function paintChip(){const c=$('acctchip');if(!c)return;c.innerHTML=ACC?avatar(playerAcc())+'<span><b>'+esc(playerName())+'</b><small>'+esc(ACC.company)+' · '+({saved:'saved',saving:'saving…',offline:'offline, retrying',locked:'needs the Hustle Pass'})[syncState]+'</small></span>':'<span><b>Not logged in</b><small>Log in to play</small></span>';}
+function paintChip(){const c=$('acctchip');if(!c)return;c.classList.toggle('guest',GUEST);if(GUEST){c.innerHTML=avatar({name:'?',color:1})+'<span><b>Guest</b><small>Not saved · tap to save</small></span>';return;}c.innerHTML=ACC?avatar(playerAcc())+'<span><b>'+esc(playerName())+'</b><small>'+esc(ACC.company)+' · '+({saved:'saved',saving:'saving…',offline:'offline, retrying',locked:'needs the Hustle Pass'})[syncState]+'</small></span>':'<span><b>Not logged in</b><small>Log in to play</small></span>';}
 /* first screen: invited friends go straight to sign-up, people who have played on this device to log in, everyone else to About */
 function firstMode(){if(refCode)return'signup';try{if(localStorage.getItem('hs-player'))return'login';}catch(e){}return'about';}
 function authTabs(){const t=(v,l)=>'<button role="tab" aria-selected="'+(authMode===v)+'" data-a="authmode" data-v="'+v+'">'+l+'</button>';
  return'<div class="authtabs" role="tablist" style="grid-template-columns:1fr 1fr 1fr">'+t('signup','Create account')+t('login','Log in')+t('about','About')+'</div>';}
-function authForm(){const su=authMode==='signup';const inv=su&&refInfo?'<p class="invbanner"><span aria-hidden="true">🎁</span><span><b>'+esc(refInfo.name)+'</b> invited you to Hustlempires'+(refInfo.trialDays?'. You get <b>'+refInfo.trialDays+' days free</b> to build your empire.':'.')+'</span></p>':'';
- let h=inv+authTabs();
+function authForm(gs){const su=authMode==='signup',gu=gs&&GUEST&&su;const inv=su&&refInfo?'<p class="invbanner"><span aria-hidden="true">🎁</span><span><b>'+esc(refInfo.name)+'</b> invited you to Hustlempires'+(refInfo.trialDays?'. You get <b>'+refInfo.trialDays+' days free</b> to build your empire.':'.')+'</span></p>':'';
+ let h=inv+(gs?'':authTabs());
  if(authMsg)h+='<p class="amsg">'+esc(authMsg)+'</p>';
  h+='<form id="acctform" class="aform" novalidate>'+
   '<label for="acc-user">Username</label><input id="acc-user" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="'+(su?'e.g. wanjiku_k':'')+'" required>'+
   (su?'<p class="cotaken" id="acc-user-chk" hidden></p><p class="hint">3 to 20 characters: letters, numbers, dots and underscores. You log in with this. Every username is unique, and if you leave the company name blank, your company is named after it.</p>':'')+
   '<label for="acc-pass">Password</label><input id="acc-pass" type="password" maxlength="128" autocomplete="'+(su?'new-password':'current-password')+'" required>'+(su?'<p class="hint">At least 8 characters.</p>':'')+
   (su?'<label for="acc-email">Email</label><input id="acc-email" type="email" maxlength="120" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required><p class="hint">Only used to reset your password if you forget it.</p>':'');
- if(su)h+='<label for="acc-name">Your name</label><input id="acc-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Wanjiku Kamau" required>'+GENDER_FS+
-  '<details class="moreopts"><summary><b>More options</b><span>Company brand, home town, country, money, starting background and colour. All optional: you can skip this.</span></summary>'+
+ if(su)h+='<label for="acc-name">Your name</label><input id="acc-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Wanjiku Kamau" required>'+(gu&&S.g?'':GENDER_FS)+
+  '<details class="moreopts"><summary><b>More options</b><span>'+(gu?'Company brand, home town and colour. All optional: you can skip this.':'Company brand, home town, country, money, starting background and colour. All optional: you can skip this.')+'</span></summary>'+
   '<label for="acc-company">Your company brand</label><input id="acc-company" maxlength="16" placeholder="Leave blank to use your username"><p class="cotaken" id="acc-company-chk" hidden></p><p class="hint">Every company name is unique. Used across your empire: <i>Brand</i> Racing, <i>Brand</i> Tower Dubai, the <i>Brand</i> Foundation.</p>'+
-  '<label for="acc-town">Home town</label><select id="acc-town">'+(countryRow(detectCountry())||{towns:TOWNS}).towns.map(t=>'<option>'+esc(t)+'</option>').join('')+'</select>'+regionFormHTML(detectCountry(),'USD')+
-  '<fieldset><legend>Starting background</legend>'+BGS.map((b,i)=>'<label class="bgopt"><input type="radio" name="acc-bg" id="acc-bg-'+b.id+'" value="'+b.id+'"'+(i===0?' checked':'')+'><span><b>'+b.name+'</b><span>'+dollars(b.desc)+'</span></span></label>').join('')+'</fieldset>'+
+  '<label for="acc-town">Home town</label><select id="acc-town">'+(countryRow(detectCountry())||{towns:TOWNS}).towns.map(t=>'<option>'+esc(t)+'</option>').join('')+'</select>'+(gu?'':regionFormHTML(detectCountry(),'USD'))+
+  (gu?'':'<fieldset><legend>Starting background</legend>'+BGS.map((b,i)=>'<label class="bgopt"><input type="radio" name="acc-bg" id="acc-bg-'+b.id+'" value="'+b.id+'"'+(i===0?' checked':'')+'><span><b>'+b.name+'</b><span>'+dollars(b.desc)+'</span></span></label>').join('')+'</fieldset>')+
   '<fieldset><legend>Avatar colour</legend><div class="swatches">'+AVCOL.map((c,i)=>'<label class="sw"><input type="radio" name="acc-col" id="acc-col-'+i+'" value="'+i+'"'+(i===0?' checked':'')+' aria-label="Colour '+(i+1)+'"><span style="background:'+c+'"></span></label>').join('')+'</div></fieldset></details>';
- return h+'<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="acc-submit">'+(su?'Create account and start':'Log in')+'</button>'+(su?'':'<button type="button" class="btn ghost" data-a="forgotview">Forgot your password?</button>')+'</div></form>';}
+ return h+'<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="acc-submit">'+(su?(gu?'Save my empire':'Create account and start'):'Log in')+'</button>'+(su?'':'<button type="button" class="btn ghost" data-a="forgotview">Forgot your password?</button>')+'</div></form>';}
 function authHook(){const su=authMode!=='login';
  return'<div class="hook">'+(su?'<p class="hook-mind">Do you have a <mark class="hook-hl">BILLIONAIRE MINDSET</mark>? <b>It\'s time to use it.</b></p>':'')+'<p class="hook-big">'+(su?'Start with <em>'+fmt(1000)+'</em>.<br>Die a <em>legend</em>.':'Your empire <em>missed you</em>.')+'</p><p class="hook-sub">'+(su?'Free to play. No downloads. Your first hustle is one tap away.':'Your businesses kept running. Your rivals kept climbing. Time to take back your throne.')+'</p></div>';}
 const ABOUT=[['🏪','From kiosk to conglomerate','Turn a roadside stall into an empire that spans industries and cities. Every coin, every deal, your call.'],
@@ -296,6 +297,7 @@ async function xcSettle(){if(!ACC||!S||S.over)return;try{const r=await api('POST
 function hideSplash(){const sp=document.getElementById('splash');if(!sp||sp.classList.contains('gone'))return;sp.classList.add('gone');setTimeout(()=>sp.remove(),400);}
 function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');if(!acctView){el.hidden=true;return;}el.hidden=false;let h='<div class="acctbox"><div class="acctbrand">Hustlempires</div>';
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
+ else if(acctView==='guestsave')h+=guestSaveHTML();
  else if(acctView==='down')h+='<h2>Can\'t connect</h2><p class="sub">'+esc(authMsg)+'</p><div class="chips"><button class="btn primary" data-a="retryboot">Try again</button></div>';
  else if(acctView==='auth')h+=authHook()+(authMode==='about'?'<div class="chips hook-cta"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">Log in</button></div>'+authTabs()+aboutGame():'<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm()+'<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="about">New to Hustlempires? Read what the game is about →</button></p>')+(authMode!=='login'?'<p class="hook-end"><span class="hook-kick"><span aria-hidden="true">✨</span> Manifestation starts here!</span></p>':'');
  else if(acctView==='menu')h+='<div class="me">'+avatar(playerAcc(),true)+'<div><h2>'+esc(playerName())+'</h2><p class="sub">'+((S&&S.gnum>1)?'Generation '+S.gnum+' of the '+esc(familyName())+' family · ':'')+'@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
@@ -363,6 +365,49 @@ async function submitReset(){const a=$('rs-pass').value,b=$('rs-pass2').value,bt
  btn.disabled=true;btn.textContent='Saving…';try{const d=await api('POST','/api/reset',{token:resetToken,password:a});resetToken='';startWith(d.user,d.save,d.bill,d.ver);}
  catch(e){btn.disabled=false;btn.textContent='Save new password';showErr(e.message);}}
 function showErr(msg){if(/company name/i.test(msg||'')){const c=$('acc-company');if(c){const d=c.closest('details');if(d)d.open=true;setTimeout(()=>c.focus(),50);}}const e=$('acc-err');if(e){e.textContent=msg;e.hidden=false;try{e.scrollIntoView({block:'center',behavior:'smooth'});}catch(x){}}}
+/* ---------- Guest play: new visitors play first; an account is needed to keep (save) their empire ---------- */
+/* soft offers at milestones, a firm "save to keep playing" after the first two game years */
+const GUEST_RULES={nw:10000,year:12,lock:24,gapMonths:4};
+function guestLoad(){try{const g=JSON.parse(localStorage.getItem('hs-guest')||'null');return g&&g.hist?g:null;}catch(e){return null;}}
+function guestStore(){if(!GUEST||!S)return;clearTimeout(guestT);guestT=setTimeout(()=>{try{localStorage.setItem('hs-guest',JSON.stringify(S));}catch(e){}},300);}
+function guestDrop(){try{localStorage.removeItem('hs-guest');}catch(e){}}
+const guestLocked=()=>GUEST&&S&&!S.over&&(S.month||0)>=GUEST_RULES.lock;
+function startGuest(){GUEST=true;ACC=null;BILL=null;SAVEVER=null;const g=guestLoad();
+ if(g)S=Object.assign(fresh(),g);else{S=fresh();S.region=detectCountry();S.cur='USD';S.gAsk={};}
+ useRegion(S.region);migrate();livesCache=[];current=null;closeModal();acctView=null;authMsg='';renderAccts();render();paintChip();
+ visitMark(g&&g.month>0?'played':'landed');
+ if(guestLocked()){guestAsk('lock');return;}
+ if(!g||!S.inds.length)openEvent(guestWelcome());else startEvents();}
+/* the first card a new visitor sees: the hook, and who they are, in one tap */
+function guestWelcome(){
+ return{cat:'Welcome',title:'Do you have a <mark class="hook-hl">billionaire mindset</mark>? Time to use it.',noOut:true,
+  text:'You start at 24 with '+fmt(S.cash)+' and a street hustle. Build businesses, buy property, own a football club, raise a family and choose who inherits it all. Free to play, no sign-up needed to start.',
+  choices:[{l:'Start my empire',d:'Free. Your first business is waiting.',f(){return['Your story begins. You are 24, with '+fmt(S.cash)+' and a big idea.','good',!S.inds.length?industryEvent(true):null];}},
+   {l:'I already have an account',d:'Log in to carry on your empire.',f(){setTimeout(()=>{stopAuto();authMode='login';guestWhy='login';acctView='guestsave';renderAccts();},0);return['','',null];}}]};}
+/* after each move: is this a good moment to offer saving? */
+function guestCheck(){if(!GUEST||!S||S.over)return;S.gAsk=S.gAsk||{};const A=S.gAsk,m=S.month||0;
+ if(m>=1&&!A.played){A.played=1;visitMark('played');}
+ if(guestLocked()){if(acctView!=='guestsave')setTimeout(()=>guestAsk('lock'),0);return;}
+ if(current||!$('modal').hidden||acctView)return;
+ if(A.last!=null&&m-A.last<GUEST_RULES.gapMonths)return;
+ let why='';if(!A.nw&&netWorth()>=GUEST_RULES.nw){A.nw=1;why='nw';}else if(!A.year&&m>=GUEST_RULES.year){A.year=1;why='year';}else if((S.ach||[]).length>(A.ach||0)){A.ach=(S.ach||[]).length;why='ach';}
+ if(why){A.last=m;setTimeout(()=>{if(!current&&$('modal').hidden&&!acctView)guestAsk(why);},700);}}
+function guestAsk(why){if(!GUEST)return;if(acctView==='guestsave'&&(why==='lock'||guestWhy===why))return;stopAuto();guestWhy=why||'chip';authMode='signup';authMsg='';acctView='guestsave';renderAccts();const A=$('acct');if(A)A.scrollTop=0;visitMark('asked');}
+function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach||[]).length,lastAch=achN?(ACH.find(a=>a[0]===S.ach[achN-1])||[])[1]:'';
+ if(authMode==='login')return'<h2>Log in</h2><p class="sub">Log in to carry on the empire on your account. The guest game on this screen will be replaced by your account\'s empire.</p>'+authForm(true)+'<div class="chips"><button class="btn ghost" data-a="authmode" data-v="signup">'+(S.month>0?'Save this guest game instead':'Back')+'</button></div>';
+ const head={nw:['First milestone','You just passed '+fmt(GUEST_RULES.nw)+'. Don\'t lose it.'],year:['One year in','Your first year in business is done. Keep it safe.'],
+  ach:['Achievement unlocked',(lastAch?lastAch+'. ':'')+'Save your achievements so they count.'],lock:['Your first two years are done','Create your free account to keep playing. Your empire carries straight on from here.'],
+  chip:['Playing as a guest','Your empire is only on this screen. Save it to keep it.'],feature:['Free account needed','That needs a free account, so you can play with real people.'],login:['Playing as a guest','Your empire is only on this screen. Save it to keep it.']}[guestWhy]||['Save your empire','Your empire is only on this screen. Save it to keep it.'];
+ return'<div class="gsave-hero"><p class="gs-kick">'+head[0]+'</p><h2>Save your empire</h2><p>'+head[1]+'</p>'+
+  '<ul class="gs-stats"><li><span>Net worth</span><b>'+fmt(nw)+'</b></li><li><span>Rank</span><b>'+esc(TITLES[titleIdx(nw)][1])+'</b></li><li><span>Businesses</span><b>'+(S.inds||[]).length+'</b></li><li><span>Age</span><b>'+age()+'</b></li>'+(achN?'<li><span>Achievements</span><b>'+achN+'</b></li>':'')+'</ul></div>'+
+  '<ul class="gs-perks"><li><b>Keep everything</b>: your money, businesses and achievements.</li><li><b>Play on any phone or computer</b>, and never start over.</li><li><b>Climb the leaderboard</b> against real players in your country.</li></ul>'+
+  authForm(true)+(lock?'':'<button class="btn ghost gs-later" data-a="guestlater">Not now, keep playing</button>')+
+  '<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="login">Already have an account? Log in</button></p>';}
+/* the guest game becomes the new account's first saved game */
+function guestAdopt(d){const g=S,co=d.user.company||'';GUEST=false;guestDrop();g._uid=d.user.id;if(!g.g&&signupGender)g.g=signupGender;
+ if(co&&co!=='Savanna')(g.props||[]).forEach(p=>{if(p.name)p.name=p.name.split('Savanna').join(co);});
+ delete g.gAsk;S=g;log('You created your account. Your empire is saved, and it now follows you to any device.','gold');
+ startWith(d.user,S,d.bill,d.ver);queueSync(true);if(!current&&$('modal').hidden&&!acctView)showCard('Your empire is saved','Welcome, '+esc(d.user.name)+'. Everything you built is kept, and you can now play on any device and climb the leaderboard.','<button class="btn primary" data-a="close">Keep building</button>');}
 /* anonymous visit counting: a random id per browser, so the admin can see how many people open the game but never sign up */
 function visitorId(){try{let v=localStorage.getItem('hs-vid');if(!v){v=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(36).padStart(2,'0')).join('').replace(/[^a-z0-9]/gi,'').slice(0,20);if(v.length<12)v=(v+Math.random().toString(36).slice(2)).slice(0,20);localStorage.setItem('hs-vid',v);}return v;}catch(e){return'';}}
 let visitFormSent=false,campCode='';
@@ -373,14 +418,15 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
  let body={username,password,vid:visitorId()};
  if(authMode==='signup'){const name=$('acc-name').value.trim();if(!name)return showErr('Enter your name.');if(password.length<8)return showErr('Passwords need at least 8 characters.');
   const email=$('acc-email').value.trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))return showErr('Enter a valid email address. It\'s how you reset your password.');
-  signupGender=(document.querySelector('input[name="acc-g"]:checked')||{}).value||'';if(!signupGender){const g=document.querySelector('.gopts');if(g){g.classList.add('need');g.scrollIntoView({block:'center',behavior:'smooth'});}return showErr('One more thing: choose whether you are a man or a woman (just above).');}
-  signupRegion=($('acc-region')||{}).value||detectCountry();signupCur=(document.querySelector('input[name="acc-cur"]:checked')||{}).value||'USD';
+  signupGender=(document.querySelector('input[name="acc-g"]:checked')||{}).value||(GUEST&&S.g)||'';if(!signupGender){const g=document.querySelector('.gopts');if(g){g.classList.add('need');g.scrollIntoView({block:'center',behavior:'smooth'});}return showErr('One more thing: choose whether you are a man or a woman (just above).');}
+  signupRegion=($('acc-region')||{}).value||(GUEST&&S.region)||detectCountry();signupCur=(document.querySelector('input[name="acc-cur"]:checked')||{}).value||(GUEST&&S.cur)||'USD';
   body=Object.assign(body,{ref:refCode||undefined,camp:campCode||undefined,email,name,company:$('acc-company').value.trim(),town:$('acc-town').value,bg:(document.querySelector('input[name="acc-bg"]:checked')||{}).value||'hustler',color:+((document.querySelector('input[name="acc-col"]:checked')||{}).value||0)});}
  btn.disabled=true;btn.textContent=authMode==='signup'?'Creating your account…':'Logging in…';
  try{const d=await api('POST',authMode==='signup'?'/api/signup':'/api/login',body);
   if(authMode==='signup')try{if(window.fbq)fbq('track','CompleteRegistration',{content_name:'Hustlempires account'});}catch(x){}
+  if(GUEST&&authMode==='signup'){guestAdopt(d);return;}
   if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S,d.bill,d.ver);}else startWith(d.user,d.save,d.bill,d.ver);}
- catch(e){btn.disabled=false;btn.textContent=authMode==='signup'?'Create account and start':'Log in';showErr(e.message);}}
+ catch(e){btn.disabled=false;btn.textContent=authMode==='signup'?(GUEST?'Save my empire':'Create account and start'):'Log in';showErr(e.message);}}
 function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('reset'),pr=u.searchParams.get('paid');if(t){resetToken=t;u.searchParams.delete('reset');}
  if(pr){payRef=pr.slice(0,60);payCancelled=u.searchParams.get('cancelled')==='1';payTries=0;['paid','cancelled','OrderTrackingId','OrderMerchantReference','OrderNotificationType'].forEach(k=>u.searchParams.delete(k));}
  const rf=(u.searchParams.get('ref')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);if(rf){refCode=rf;u.searchParams.delete('ref');try{localStorage.setItem('hs-ref',rf);}catch(e){}}
@@ -391,7 +437,7 @@ function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('res
  if(refCode)api('GET','/api/invite/check?code='+encodeURIComponent(refCode)).then(d=>{refInfo=d&&d.ok?d:null;if(acctView==='auth')renderAccts();}).catch(()=>{});
  api('GET','/api/tuning').then(t=>{if(t&&typeof t==='object')TUNE=Object.assign({freq:1,gap:2,w:{},cat:{}},t);}).catch(()=>{});
  if(resetToken){acctView='reset';authMsg='';renderAccts();return;}
- acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save,d.bill,d.ver)).catch(e=>{if(e.status===401){acctView='auth';authMode=firstMode();visitMark('landed');}else{acctView='down';authMsg=e.message;}renderAccts();});}
+ acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save,d.bill,d.ver)).catch(e=>{if(e.status===401){if(firstMode()==='login'&&!guestLoad()){acctView='auth';authMode='login';}else{startGuest();return;}}else{acctView='down';authMsg=e.message;}renderAccts();});}
 async function logout(){stopAuto();BILL=null;paintPass();if(ACC)try{await doSync();}catch(e){}await pushForget();try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
 /* ---- hall of fame: founder milestones, richest founders, then every heir generation ---- */
 const HOF_MS=[['m','Youngest to $1 million','💵'],['b','Youngest to $1 billion','💰'],['t','Youngest to $1 trillion','🏦'],['q','Youngest to $1 quadrillion','👑']];
