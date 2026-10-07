@@ -2120,7 +2120,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='99ea1e10253b';let updShown=false;
+const APP_VER='1ad79886b5a0';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -5471,9 +5471,10 @@ const FAM1_EVENTS=[
     choices:[{l:'Build them a new house',d:'Costs '+fmt(big)+'. '+MD('Parents',25)+'. Reputation +2 in the village.',dis:!canPay(big),f(){S.cash-=big;parM(25);sibM(5);addRep(2);addHappy(3);return['The new house has a verandah, running water and a room for every grandchild. Mum cried at the opening.','good']}},
      {l:'Renovate the old one',d:'Costs '+fmt(fix)+'. '+MD('Parents',10)+'.',dis:!canPay(fix),f(){S.cash-=fix;parM(10);return['New roof, new paint, a water tank. Dad says the old house is good enough for him.','good']}},
      {l:'Move them in with you',d:'Free. Parents and children love it, your '+spW()+' may not.',f(){parM(14);kidsM(6);if(S.spouse){addSH(-10);inM(-5);}return['Your parents moved into the spare room. The children have never been happier'+(S.spouse?'; your '+spW()+' is counting the days.':'.'),'']}}]};}},
- {id:'f1_parbday',cat:'Family',fam1:1,w:.9,when:()=>f1Ready()&&parAlive()&&S.month>=24&&S.month-(S.f1bday||-99)>=60,
-  build(){const c=nwc(.005,500);S.f1bday=S.month;f1Mark();
-   return{cat:'Family',title:'Your parents\' 40th anniversary',text:'Your parents have been married forty years. '+f1Sib().name+' is organising a celebration and has asked what you will contribute.',
+ /* the parents' 40th, then their golden 50th ten years later: each only once in a life */
+ {id:'f1_parbday',cat:'Family',fam1:1,w:.9,when:()=>f1Ready()&&parAlive()&&S.month>=24&&(S.f1bdayN||(S.f1bday!=null?1:0))<2&&S.month-(S.f1bday==null?-999:S.f1bday)>=120,
+  build(){const c=nwc(.005,500),gold=(S.f1bdayN||(S.f1bday!=null?1:0))>=1;S.f1bdayN=gold?2:1;S.f1bday=S.month;f1Mark();
+   return{cat:'Family',title:'Your parents\' '+(gold?'golden 50th':'40th')+' anniversary',text:'Your parents have been married '+(gold?'fifty':'forty')+' years. '+f1Sib().name+' is organising a celebration and has asked what you will contribute.',
     choices:[{l:'Throw them a big party',d:'Costs '+fmt(c)+'. '+MD('Parents',16)+', siblings happier.',dis:!canPay(c),f(){S.cash-=c;parM(16);sibM(8);addHappy(3);kidsM(4);return['Tents, a choir and a nyama choma feast. Dad gave a speech about how proud he is of you.','good']}},
      {l:'A quiet family dinner',d:'Costs '+fmt(c/5)+'. '+MD('Parents',6)+'.',dis:!canPay(c/5),f(){S.cash-=c/5;parM(6);return['A warm evening at home with the people who matter.','good']}},
      {l:'Send money, skip it for work',d:'Costs '+fmt(c/4)+'. Profit ×1.03 for 3 months.',dis:!canPay(c/4),f(){S.cash-=c/4;parM(-8);sibM(-5);addBuff(1.03,3,'Worked through the anniversary');return['You sent money and a card. Mum kept looking at the gate all evening.','bad']}}]};}},
