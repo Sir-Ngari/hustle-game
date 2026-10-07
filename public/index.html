@@ -800,8 +800,8 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
   <div class="bar">
     <div class="barrow">
       <div class="date" id="date">Year 1 · January</div>
-      <button class="btn primary" id="next" aria-label="Play the next month">PLAY</button>
-      <button class="btn" id="auto" aria-pressed="false">Auto-play</button>
+      <button class="btn primary" id="next" aria-label="Play until the next event">PLAY</button>
+      <button class="btn" id="auto" aria-pressed="false" hidden>Auto-play</button>
       <button class="btn ghost" id="tourbtn" data-a="tour" aria-label="Take the game tour">Tour</button>
       <button class="btn lbbtn" id="lbbtn" data-a="leaderboard" aria-label="Open the leaderboard" hidden><span class="lbtro">🏆</span> <span class="lbfull">Leaderboard</span><span class="lbrank" id="lbrank" hidden></span></button>
       <button class="btn ghost sndbtn" id="sndbtn" data-a="sndtoggle" aria-label="Mute sounds" aria-pressed="true"></button>
@@ -1553,7 +1553,11 @@ function genderEvent(){const next=()=>!S.inds.length&&!S.over&&!S.won?industryEv
  return{cat:'Your profile',title:'One quick question',text:'So your story gets the details right: are you a man or a woman?'+(S.spouse?' Your marriage records will be updated to match.':' Your future wife or husband will be chosen to match.'),
   choices:[{l:'I\'m a man',d:'You will marry a wife.',f(){setGender('m');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your wife.':'Profile updated.','',next()]}},
    {l:'I\'m a woman',d:'You will marry a husband.',f(){setGender('f');return[S.spouse?'Records updated: you are married to '+S.spouse.name+', your husband.':'Profile updated.','',next()]}}]};}
-function startEvents(){if(S.over||S.won)return;if(!S.g){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else if(S.tourDone&&S.month>0&&bonusDue())openEvent(bonusEvent());else maybeTour();}
+const genderDue=()=>!!S&&!S.g&&(S.plays||0)>=3;
+function genderPlayEvent(){const pickG=g=>function(){setGender(g);setTimeout(()=>{if(!current&&$('modal').hidden&&!acctView&&!timer)playRun();},500);return['Profile updated: you are a '+(g==='f'?'woman':'man')+'.',''];};
+ return{cat:'Your profile',title:'Quick question before your story goes on',noOut:true,text:'Are you a man or a woman? It decides who you could marry and how your family story is told.',
+  choices:[{l:'I\'m a man',d:'You will marry a wife.',f:pickG('m')},{l:'I\'m a woman',d:'You will marry a husband.',f:pickG('f')}]};}
+function startEvents(){if(S.over||S.won)return;if(genderDue()){openEvent(genderEvent());return;}if(!S.inds.length)openEvent(industryEvent(true));else if(S.tourDone&&S.month>0&&bonusDue())openEvent(bonusEvent());else maybeTour();}
 /* ================= Daily bonus & daily deal (real-world days) ================= */
 const dayKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const yesterdayKey=()=>{const d=new Date();d.setDate(d.getDate()-1);return dayKey(d);};
@@ -1606,7 +1610,7 @@ const TOUR=[
  {el:()=>document.querySelector('.note .head-l'),t:'Your scoreboard',x:()=>'<b>Net worth</b> is everything you own minus what you owe. Reach '+fmt(1e9)+' to win.<ul><li><b>Cash</b>: money you can spend right now.</li><li><b>Cash flow / mo</b>: what you gain or lose each month.</li><li><b>Debt</b>: interest on it eats your profit.</li></ul>'},
  {el:()=>document.querySelector('.meters'),t:'Your standing',x:'<ul><li><b>Reputation</b> wins customers and deals.</li><li><b>Happiness</b> falls if you overwork. Burn out and profit drops.</li><li><b>Influence</b> opens political doors.</li><li><b>Mob heat</b> rises as you grow. Handle the mob before it handles you.</li><li><b>Police</b> attention rises with every Darkworld deal you take. Too much brings audits, raids, then arrest.</li><li><b>Health</b> falls with age and stress. From 55 it decides how long you live, and nobody lives past 100.</li></ul>'},
  {el:()=>document.querySelector('.chartbox'),t:'Your climb',x:()=>'Your progress to the next milestone, and on to '+fmt(1e9)+'. Every new rank unlocks more industry slots, and also raises what people expect of you:<br><b>Street Hustler → Small Trader → Business Owner → Millionaire → Mogul → Tycoon → Billionaire.</b>'},
- {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Each press of <b>PLAY</b> moves the game one month on. It collects profit, pays your bills, ages you a month and may bring a decision. <b>Auto-play</b> runs the months for you and pauses whenever a decision comes up. You can also press <b>N</b> on a keyboard.'},
+ {el:()=>document.querySelector('.barrow'),t:'Time moves when you say so',x:'Press <b>PLAY</b> and the months roll on by themselves: profit comes in, bills are paid and you get older, until a decision comes up. Then it waits for you. Press <b>PAUSE</b> to stop the clock. You can also press <b>N</b> on a keyboard.'},
  {el:()=>document.querySelector('.tabs'),t:'Nine sections',x:'The tabs hold everything you can do. Some are quiet at first and come alive as you get richer: sports teams, a foundation and political power. <b>News</b> keeps a record of every move you make.'},
  {tab:'overview',el:()=>panelOf('today'),t:'Come back every day',x:'Every day you play, you collect a <b>daily bonus</b> that grows with your streak. Day 7 pays six times day 1. Miss a day and the streak starts again. There is also <b>one special deal</b> each day, such as a discounted outlet, a hot stock tip or a bargain, and it disappears at midnight.'},
  {tab:'overview',el:()=>panelOf('attention'),t:'Overview: what needs you',x:'<b>Needs attention</b> lists anything you must deal with, like staff the law now requires or a lifestyle you have outgrown. Check it often. Next to it, the <b>monthly statement</b> shows exactly where your money comes from and where it goes.'},
@@ -2070,12 +2074,12 @@ function startGuest(){GUEST=true;ACC=null;BILL=null;SAVEVER=null;const g=guestLo
  useRegion(S.region);migrate();livesCache=[];current=null;closeModal();acctView=null;authMsg='';renderAccts();render();paintChip();
  visitMark(g&&g.month>0?'played':'landed');
  if(guestLocked()){guestAsk('lock');return;}
- if(!g||(!S.g&&!S.inds.length))openEvent(guestWelcome());else startEvents();}
+ if(!g||!S.inds.length)openEvent(guestWelcome());else startEvents();}
 /* the first card a new visitor sees: the hook, and who they are, in one tap */
-function guestWelcome(){const go=g=>()=>{setGender(g);return['Your story begins. You are 24, with '+fmt(S.cash)+' and a big idea.','good',!S.inds.length?industryEvent(true):null];};
+function guestWelcome(){
  return{cat:'Welcome',title:'Do you have a <mark class="hook-hl">billionaire mindset</mark>? Time to use it.',noOut:true,
-  text:'You start at 24 with '+fmt(S.cash)+' and a street hustle. Build businesses, buy property, own a football club, raise a family and choose who inherits it all. Free to play, no sign-up needed to start. First, who are you?',
-  choices:[{l:'Start as a man',d:'You will marry a wife.',f:go('m')},{l:'Start as a woman',d:'You will marry a husband.',f:go('f')},
+  text:'You start at 24 with '+fmt(S.cash)+' and a street hustle. Build businesses, buy property, own a football club, raise a family and choose who inherits it all. Free to play, no sign-up needed to start.',
+  choices:[{l:'Start my empire',d:'Free. Your first business is waiting.',f(){return['Your story begins. You are 24, with '+fmt(S.cash)+' and a big idea.','good',!S.inds.length?industryEvent(true):null];}},
    {l:'I already have an account',d:'Log in to carry on your empire.',f(){setTimeout(()=>{stopAuto();authMode='login';guestWhy='login';acctView='guestsave';renderAccts();},0);return['','',null];}}]};}
 /* after each move: is this a good moment to offer saving? */
 function guestCheck(){if(!GUEST||!S||S.over)return;S.gAsk=S.gAsk||{};const A=S.gAsk,m=S.month||0;
@@ -2097,7 +2101,7 @@ function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach|
   authForm(true)+(lock?'':'<button class="btn ghost gs-later" data-a="guestlater">Not now, keep playing</button>')+
   '<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="login">Already have an account? Log in</button></p>';}
 /* the guest game becomes the new account's first saved game */
-function guestAdopt(d){const g=S,co=d.user.company||'';GUEST=false;guestDrop();g._uid=d.user.id;
+function guestAdopt(d){const g=S,co=d.user.company||'';GUEST=false;guestDrop();g._uid=d.user.id;if(!g.g&&signupGender)g.g=signupGender;
  if(co&&co!=='Savanna')(g.props||[]).forEach(p=>{if(p.name)p.name=p.name.split('Savanna').join(co);});
  delete g.gAsk;S=g;log('You created your account. Your empire is saved, and it now follows you to any device.','gold');
  startWith(d.user,S,d.bill,d.ver);queueSync(true);if(!current&&$('modal').hidden&&!acctView)showCard('Your empire is saved','Welcome, '+esc(d.user.name)+'. Everything you built is kept, and you can now play on any device and climb the leaderboard.','<button class="btn primary" data-a="close">Keep building</button>');}
@@ -2175,7 +2179,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='3c8196bff838';let updShown=false;
+const APP_VER='e0139bdbf7df';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -3386,7 +3390,12 @@ function burnoutEvent(){const c=nwc(.01,300);return{cat:'Life',title:'You are bu
  choices:[{l:'Take a proper vacation',d:'Spend '+fmt(c)+'. Profit ×0.9 this month. +22 happiness.',f(){S.cash-=c;addBuff(.9,1,'Vacation');addHappy(22);addSH(8);return['Two weeks off. You came back a new person.','life']}},
   {l:'Push through',d:'−8 happiness.',f(){addHappy(-8);return['You pushed through. It is taking a toll.','bad']}}]};}
 
-function industryEvent(first){const avail=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id)),fee=first?0:entryFee();
+/* a brand-new player's first industry is picked for them (Retail & Fashion, the street kiosk); they choose the next one themselves */
+function firstIndEvent(){const i=INDS.find(x=>x.id==='retail'&&!x.reg)||INDS.find(x=>!x.reg),u=i.biz[0];
+ return{cat:'Your first business',title:'Your empire starts on the street',noOut:true,
+  text:'Every billionaire started somewhere. You start in <b>'+i.name+'</b> with '+aN(u[1].lc())+'. '+u[4]+'. It costs '+fmt(u[2])+'. Open it, then press PLAY to run your first month. When you reach Business Owner, you choose your next industry yourself.',
+  choices:[{l:'Open my '+u[1].lc(),d:'Costs '+fmt(u[2])+'. You start earning from your first month.',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);return['You started in '+i.name+' and opened your first '+u[1].lc()+'. Press PLAY to run your first month.','gold'];}}]};}
+function industryEvent(first){if(first&&(S.gnum||1)<=1&&!S.inds.length)return firstIndEvent();const avail=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id)),fee=first?0:entryFee();
  return{cat:'Industries',title:first?'Choose your first industry':'Room for a new industry',
   text:first?'Every empire starts somewhere. Pick the industry you want to build in first. You unlock a second industry at Business Owner, a third at Millionaire, and one more at every rank after that.':'Your standing opens new doors. You now have room for '+SLOTS[S.peak]+' industries. Licences and setup cost '+fmt(fee)+'.',
   choices:avail.map(i=>({l:i.name,d:i.blurb+' Starts with '+aN(i.biz[0][1].lc())+' ('+fmt(i.biz[0][2])+').',dis:!first&&S.cash<fee,f(){enterInd(i.id,fee);return[first?'You chose '+i.name+'. Open your first '+i.biz[0][1].lc()+'.':'You entered '+i.name+'.','gold']}}))
@@ -4162,7 +4171,7 @@ function nextMonth(){
   if(!fw&&fwOk){fw=kidCrisis();id='fw_teen';}
   if(fw){fw._id=id;paceMark(null,'family');S.cool=Math.max(S.cool,1);openEvent(fw);return;}}
  if(moonDue()){openEvent(moonPickEvent());return;}
- if(!S.g){openEvent(genderEvent());return;}
+ if(genderDue()){openEvent(genderEvent());return;}
  if(!S.spouse&&age()>=35&&S.month-S.divorcedAt>=12){openEvent(marriageEvent());return;}
  if(S.indPending&&!S.lifePending){S.indPending=false;if(slotInds().length<SLOTS[S.peak]){openEvent(industryEvent(false));return;}}
  if(S.relPending&&S.relPending.length){const id=S.relPending.shift();if(behind(id)){openEvent(releaseEvent(id));return;}}
@@ -4315,7 +4324,10 @@ function sellSec(id,frac){const x=SECS.find(s=>s.id===id);if(TK_CAP[id]&&S.port[
 function stopPaying(){S.protection=0;addHeat(30);log('You stopped paying the mob.','bad');afterChange();}
 
 let timer=null;
-function stopAuto(){if(timer){clearInterval(timer);timer=null}const a=$('auto');a.classList.remove('on');a.setAttribute('aria-pressed','false');a.textContent='Auto-play';}
+function stopAuto(){if(timer){clearInterval(timer);timer=null}const a=$('auto');a.classList.remove('on');a.setAttribute('aria-pressed','false');a.textContent='Auto-play';paintPlay();}
+/* PLAY runs the months by itself until something needs a decision (every event pauses it); press it again to pause */
+function paintPlay(){const n=$('next');if(!n)return;n.textContent=timer?'PAUSE':'PLAY';n.classList.toggle('on',!!timer);n.setAttribute('aria-label',timer?'Pause':'Play until the next event');}
+function playRun(){if(!S||S.over)return;S.f10auto=1;nextMonth();if(timer||S.over||current||acctView||!$('modal').hidden)return;timer=setInterval(nextMonth,750);paintPlay();}
 function toggleAuto(){if(timer)return stopAuto();if(S.over)return;S.f10auto=1;timer=setInterval(nextMonth,750);const a=$('auto');a.classList.add('on');a.setAttribute('aria-pressed','true');a.textContent='Pause';}
 
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
@@ -4942,7 +4954,7 @@ function newbieOK(e){if(!S||!S.newbie||(S.gnum||1)>1)return true;
 /* first goals: one at a time, each with a small cash reward */
 const G10=[
  {t:'Own 3 businesses',h:'Buy more outlets in the Business tab. Each one adds monthly profit.',p:()=>[Math.min(3,totalUnits()),3],r:150},
- {t:'Try Auto-play',h:'Press Auto-play and let the months roll by. Press it again to pause.',p:()=>[S.f10auto?1:0,1],r:100},
+ {t:'Let the months roll',h:'Press PLAY and let the months roll by. Press PAUSE to stop.',p:()=>[S.f10auto?1:0,1],r:100},
  {t:'Reach a net worth of $5,000',h:'Keep buying outlets and pressing PLAY.',p:()=>[Math.min(5e3,Math.max(0,netWorth())),5e3],r:300,money:1},
  {t:'Open a bigger business',h:'In the Business tab, the next business up the ladder costs more but earns far more.',p:()=>[BIZ.some(b=>b.tier>=2&&owned(b.id)>0)?1:0,1],r:400},
  {t:'Reach a net worth of $25,000',h:'You are building momentum. Keep growing.',p:()=>[Math.min(2.5e4,Math.max(0,netWorth())),2.5e4],r:1000,money:1},
@@ -4959,7 +4971,7 @@ function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
  if(!S.inds.length)return null;
  if(totalUnits()===0)return'buy';
  if(S.month<1)return'play';
- S.guideDone=true;log('You are up and running. Keep pressing PLAY, or use Auto-play, and grow your empire.','gold');return null;}
+ S.guideDone=true;log('You are up and running. Keep pressing PLAY and grow your empire.','gold');return null;}
 function cheapestBuy(){const bs=[...document.querySelectorAll('.tabpane[data-tab="business"] [data-a="buy"]')];return bs.find(b=>!b.disabled)||bs[0]||null;}
 function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.id='guide';g.className='guide';g.setAttribute('role','status');document.body.appendChild(g);}
  document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));
@@ -4968,18 +4980,19 @@ function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.
  if(st==='buy'){g.innerHTML=curTab==='business'?'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Press the glowing <b>Open</b> button on the '+esc(unit.name)+'. It earns money for you every month.</p>'
   :'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Your empire starts with one '+esc(unit.name.lc())+'. Go to the <b>Business</b> tab and press <b>Open</b>. It earns money for you every month.</p><div class="chips"><button class="btn primary small" data-a="guidego" data-v="buy">Show me</button></div>';
   if(curTab==='business'){const b=cheapestBuy();if(b)b.classList.add('coach');}else{const t=$('tab-business');if(t)t.classList.add('coach');}}
- else{g.innerHTML='<span class="gstep">Step 2 of 2</span><b>Start the clock</b><p>Press <b>PLAY</b> to move time forward. Your businesses earn, events happen, and your choices shape the empire. Press <b>Auto-play</b> to let the months roll by themselves.</p><div class="chips"><button class="btn primary small" data-a="guidenext">PLAY</button><button class="btn small" data-a="guideauto">Auto-play</button><button class="btn ghost small" data-a="tour">Full tour</button></div>';
-  $('next').classList.add('coach');$('auto').classList.add('coach');}
+ else{g.innerHTML='<span class="gstep">Step 2 of 2</span><b>Start the clock</b><p>Press <b>PLAY</b> and the months roll on by themselves. Your businesses earn, and the game stops whenever a decision needs you. Press <b>PAUSE</b> to stop the clock.</p><div class="chips"><button class="btn primary small" data-a="guidenext">PLAY</button><button class="btn ghost small" data-a="tour">Full tour</button></div>';
+  $('next').classList.add('coach');}
  g.insertAdjacentHTML('afterbegin','<button class="gclose" data-a="guideclose" aria-label="Close the guide" title="Close">&times;</button>');g.hidden=false;}
 ['openEvent','showCard','closeModal'].forEach(n=>{const f=window[n];if(typeof f==='function')window[n]=function(){const r=f.apply(this,arguments);try{paintGuide();}catch(e){}return r;};});
 let guideSnooze=0;
 function guideClose(){if(S&&S.month<1&&!S.over){guideSnooze=Date.now();paintGuide();clearTimeout(guideClose.t);guideClose.t=setTimeout(()=>{guideSnooze=0;paintGuide();},12000);return;}S.guideDone=true;document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));paintGuide();save();}
 function guideGo(v){if(v==='buy'){showTab('business');setTimeout(()=>{const b=cheapestBuy();if(b){b.scrollIntoView({block:'center',behavior:'smooth'});}paintGuide();},60);}
  else{window.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{const n=$('next');if(n)n.scrollIntoView({block:'center',behavior:'smooth'});},100);}}
-function nextClick(){if(S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){
+function nextClick(){if(timer){stopAuto();return;}if(S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){
   showCard('Buy a business first','The clock is ready, but you have nothing earning money yet. Buy your first business, then press PLAY and watch it earn.',
    '<button class="btn primary" data-a="guidebuy">Show me where</button><button class="btn ghost" data-a="guideskip">Skip a month anyway</button>');return;}
- nextMonth();}
+ if(S&&!S.over&&!acctView&&!current){S.plays=(S.plays||0)+1;if(genderDue()){openEvent(genderPlayEvent());return;}}
+ playRun();}
 function autoClick(){if(!timer&&S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){nextClick();return;}toggleAuto();}
 /* ================= Coming back: seasons, weekly challenges, calendar events ================= */
 const seasonId=()=>dayKey().slice(0,7);
