@@ -356,6 +356,7 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .loverow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 4px}.loverow .seghint{margin:0;flex:1;min-width:180px}
 .htype{display:flex;gap:14px;align-items:center;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:rgba(255,201,60,.12);border:1px solid rgba(255,201,60,.45)}.htype-ico{font-size:40px;line-height:1}.htype small{display:block;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.8}.htype b{display:block;font-family:Oswald,Impact,sans-serif;font-size:24px;text-transform:uppercase;line-height:1.15}.htype p{margin:2px 0 0;font-size:14px}
 .obit-type{text-align:center;font-weight:600;margin:6px 0}
+.ppplist{display:flex;flex-direction:column;gap:8px}.pppitem{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px}.pppitem.locked{opacity:.7;border-style:dashed}.pppitem.mine{border-color:var(--brass);background:rgba(201,162,39,.08)}.pppico{font-size:28px;line-height:1}.pppitem b{display:block}.pppitem small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
 .unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
 @keyframes unlin{from{opacity:0;transform:translate(-50%,-30px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @media (prefers-reduced-motion:reduce){.unlfx{animation:none}.tabs button.unew::after{animation:none}}
@@ -675,7 +676,7 @@ html.gm .rank[data-tier="2"],.rankup[data-tier="2"] div{background:linear-gradie
 html.gm .rank[data-tier="3"],.rankup[data-tier="3"] div{background:linear-gradient(180deg,#a5d1ff,#2f78e0);color:#06193a;box-shadow:0 3px 0 #1a4790,inset 0 1px 0 rgba(255,255,255,.6)}
 html.gm .rank[data-tier="4"],.rankup[data-tier="4"] div{background:linear-gradient(180deg,#e2c2ff,#8a46e0);color:#22083f;box-shadow:0 3px 0 #55238f,inset 0 1px 0 rgba(255,255,255,.6)}
 html.gm .rank[data-tier="5"],.rankup[data-tier="5"] div{background:linear-gradient(180deg,#ffe170,#f29a12);color:#3a2300;box-shadow:0 3px 0 #b55f00,inset 0 1px 0 rgba(255,255,255,.65)}
-html.gm .rank[data-tier="6"],.rankup[data-tier="6"] div{background:linear-gradient(110deg,#ffd34d 0%,#fff8d6 25%,#ffc93a 50%,#fffbe6 75%,#ffd34d 100%);background-size:220% 100%;color:#3a2a00;box-shadow:0 3px 0 #b58a00,0 0 18px rgba(255,214,90,.55),inset 0 1px 0 #fff;animation:platinum 3.5s linear infinite}
+html.gm .rank[data-tier="6"],.rankup[data-tier="6"] div,html.gm .rank[data-tier="7"],.rankup[data-tier="7"] div,html.gm .rank[data-tier="8"],.rankup[data-tier="8"] div,html.gm .rank[data-tier="9"],.rankup[data-tier="9"] div,html.gm .rank[data-tier="10"],.rankup[data-tier="10"] div{background:linear-gradient(110deg,#ffd34d 0%,#fff8d6 25%,#ffc93a 50%,#fffbe6 75%,#ffd34d 100%);background-size:220% 100%;color:#3a2a00;box-shadow:0 3px 0 #b58a00,0 0 18px rgba(255,214,90,.55),inset 0 1px 0 #fff;animation:platinum 3.5s linear infinite}
 @keyframes platinum{0%{background-position:0 0}100%{background-position:-220% 0}}
 html.gm .rank{position:relative;overflow:hidden}
 /* the brand's own colour: savanna sunset */
@@ -684,7 +685,7 @@ html.gm .stagehead b{position:relative;padding-bottom:6px}
 html.gm .stagehead b::after{content:"";position:absolute;left:0;bottom:0;width:56px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--accent2),var(--accent))}
 html.gm .stagehead small{display:block;margin-top:4px;font-size:13px;letter-spacing:.08em}
 html.gm .stagehead small.boom{color:#ffd36b}html.gm .stagehead small.bust{color:#c9d3e6}
-@media (prefers-reduced-motion:reduce){html.gm .rank[data-tier="6"],.rankup[data-tier="6"] div{animation:none}}
+@media (prefers-reduced-motion:reduce){html.gm .rank[data-tier="6"],.rankup[data-tier="6"] div,html.gm .rank[data-tier="7"],.rankup[data-tier="7"] div,html.gm .rank[data-tier="8"],.rankup[data-tier="8"] div,html.gm .rank[data-tier="9"],.rankup[data-tier="9"] div,html.gm .rank[data-tier="10"],.rankup[data-tier="10"] div{animation:none}}
 
 .guide[hidden],.crisis[hidden],.shade[hidden]{display:none!important}
 .guide{position:fixed;z-index:30;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100vw - 32px));background:var(--panel);border:2px solid var(--brass);border-radius:12px;padding:14px 16px;box-shadow:0 14px 36px rgba(0,0,0,.35);display:grid;gap:4px;animation:guidein .35s ease}
@@ -914,6 +915,11 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
 
     <div class="tabpane" data-tab="property" role="tabpanel" aria-labelledby="tab-property" hidden>
       <div class="col">
+        <section class="panel" id="citypanel">
+          <h2>Build your own city</h2>
+          <p class="sub">A whole new city with your family name on the map. Five stages over about eleven years: land, roads, homes, a business district and the big landmarks.</p>
+          <div id="cityb"></div>
+        </section>
         <section class="panel">
           <h2>Your property empire</h2>
           <p class="sub">Towers, hotels and malls around the world. Values follow each city and the global property cycle; hotels and resorts rise and fall with tourism.</p>
@@ -1001,6 +1007,11 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
 
     <div class="tabpane" data-tab="power" role="tabpanel" aria-labelledby="tab-power" hidden>
       <div class="col">
+        <section class="panel" id="ppppanel">
+          <h2>Government partnerships</h2>
+          <p class="sub">Build roads, bridges, ports, airports and subways with the government. You pay to build it, collect the tolls and fees for decades, then hand it over.</p>
+          <div id="ppp"></div>
+        </section>
         <section class="panel">
           <h2>Professional team</h2>
           <p class="sub">Required by law, your bank and your customers once you reach certain net worths. Each level costs more, and fees rise every January. You get 3 months' grace before penalties.</p>
@@ -1438,7 +1449,7 @@ const INDS=[
 const IND={};INDS.forEach(i=>IND[i.id]=i);
 const TIER_MULT=[1.2,1.5,2,2.6,3.4,4.2];
 const BIZ=[];INDS.forEach(ind=>ind.biz.forEach((x,i)=>BIZ.push({id:x[0],name:x[1],cost:x[2],profit:x[3],tag:x[4],ind:ind.id,tier:i+1,vol:ind.vol,mult:TIER_MULT[i]*ind.vm})));
-const SLOTS=[1,1,2,3,4,5,6];
+const SLOTS=[1,1,2,3,4,5,6,6,7,7,8];
 
 const ASSETS=[
  {id:'car1',kind:'Cars & aircraft',name:'Used Toyota Probox',price:4000,tier:1,upkeep:.012,drift:-.01},
@@ -1547,7 +1558,7 @@ const POLICIES={
 };
 const SCHOOLS=[{name:'Public school',fee:15},{name:'Private academy',fee:450},{name:'International school',fee:2500},{name:'Swiss boarding school',fee:12000}];
 const UNI=[300,1500,4000,15000];
-const TITLES=[[0,'Street Hustler'],[1e4,'Small Trader'],[1e5,'Business Owner'],[1e6,'Millionaire'],[1e7,'Mogul'],[1e8,'Tycoon'],[1e9,'Billionaire']];
+const TITLES=[[0,'Street Hustler'],[1e4,'Small Trader'],[1e5,'Business Owner'],[1e6,'Millionaire'],[1e7,'Mogul'],[1e8,'Tycoon'],[1e9,'Billionaire'],[1e11,'Centibillionaire'],[1e12,'Trillionaire'],[1e13,'Decatrillionaire'],[1e14,'Centitrillionaire']];
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const PARTNERS_F=['Wanjiru','Achieng','Zawadi','Nia','Imani','Leila','Makena','Njeri','Akinyi','Wairimu','Halima','Nekesa'];
 const PARTNERS_M=['Brian','Kamau','Otieno','Baraka','Kiprono','Mwangi','Omondi','Tariq','Mutua','Kevin','Wekesa','Jabali'];
@@ -2199,7 +2210,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='7cd15c9fb823';let updShown=false;
+const APP_VER='5dab709158dd';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2457,7 +2468,7 @@ function bizValue(b){if(!owned(b.id))return 0;return (isReg(b.ind)?1-IND[b.ind].
 function bizAssets(){return BIZ.reduce((a,b)=>a+bizValue(b),0);}
 function assetPrice(a){if(MODELS[a.id]&&!has(a.id))return a.price*genMult(a.id);return a.price*afx(a.id)*(a.stack?Math.pow(1.06,has(a.id)):1);}
 function lifeAssets(){return ASSETS.reduce((t,a)=>t+a.price*afx(a.id)*has(a.id),0);}
-function assets(){return bizAssets()+lifeAssets()+portValue()+sportsValue()+propValue()+(typeof subValue==='function'?subValue():0)+(S.xcv||0);}
+function assets(){return cityValue()+collValue()+pppValue()+bizAssets()+lifeAssets()+portValue()+sportsValue()+propValue()+(typeof subValue==='function'?subValue():0)+(S.xcv||0);}
 /* ================= Takeovers: buy control of listed companies ================= */
 const TK_CAP={SIMU:2e9,TAUSI:1.5e9,MAVUNO:3e8,KILIMA:6e8,NURU:4e8,PESA:8e8};
 const TK_IND={SIMU:'media',TAUSI:'tech',MAVUNO:'food',KILIMA:'realestate',NURU:'energy',PESA:'tech'};
@@ -2588,7 +2599,7 @@ const nwc=(p,min)=>{const nw=Math.max(0,netWorth());return Math.max(nw*p,(min||0
 const pct=p=>Math.max(0,S.cash*p);
 const canPay=c=>S.cash+Math.max(0,creditLimit()-S.debt)>=c;
 function creditLimit(){return Math.max(2000,.4*(Math.max(0,S.cash)+assets())*svcEffects().credit*csBand()[4]);}
-const rank=()=>titleIdx(netWorth());
+const rank=()=>Math.min(6,titleIdx(netWorth()))/* lifestyle, offices and elections stop at Billionaire */;
 function luxEffects(){const C=custEffects();let hap=C.hap,sh=C.sh,inf=C.inf,rep=0,worth=0;ASSETS.forEach(a=>{if(!a.lux||!has(a.id))return;hap+=a.hap||0;sh+=a.sh||0;inf+=a.inf||0;worth+=a.price*afx(a.id);});
  return{hapRaw:hap,hap:Math.min(18,hap),sh:Math.min(1.2,sh),inf:Math.min(3,inf),worth};}
 function carTier(){return CARS.reduce((t,a)=>has(a.id)?Math.max(t,a.tier):t,0);}
@@ -2679,7 +2690,7 @@ function moonHTML(){if(!moonOn())return'<p class="seghint" style="margin:0">Moon
   h+='</div></div>';});
  return h+'<p class="seghint" style="margin:8px 0 0"><b>As a billionaire you must always fund at least one moonshot.</b> More funding means faster tests and slightly better odds. Every failure teaches your team something and raises the next chance.</p>';}
 /* ================= Reports: income statement and balance sheet ================= */
-const PLK=['famSup','excise','bizRev','bizCost','rent','prop','sport','lux','inv','trustInc','moonInc','shady','interest','fees','fines','upkeep','school','homeRent','travel','health','giving','moon','mob','alimony','estatePl','net'];
+const PLK=['city','ppp','famSup','excise','bizRev','bizCost','rent','prop','sport','lux','inv','trustInc','moonInc','shady','interest','fees','fines','upkeep','school','homeRent','travel','health','giving','moon','mob','alimony','estatePl','net'];
 function plYears(){if(!S.ply){S.ply={};(S.plh||[]).forEach(e=>plAddYear(e));}return S.ply;}
 function plAddYear(e){const y=Math.floor(e.m/12),b=S.ply[y]=S.ply[y]||{n:0};b.n++;PLK.forEach(k=>b[k]=(b[k]||0)+(e[k]||0));}
 function plRecord(f){S.plh=S.plh||[];plYears();const e={m:S.month};PLK.forEach(k=>e[k]=Math.round(+f[k]||0));S.plh.push(e);plAddYear(e);if(S.plh.length>36)S.plh.splice(0,S.plh.length-36);}
@@ -2696,13 +2707,13 @@ function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e
  const money=v=>(v<0?'(':'')+fmt(Math.abs(v))+(v<0?')':''),cell=(v,b)=>'<td class="r num'+(v<0?' neg':'')+(b?' b':'')+'">'+(v===null||v===undefined?'—':money(v))+'</td>';
  const row=(name,k,sign,opt)=>{const v=(T[k]||0)*sign,cv=C?(C[k]||0)*sign:null;if(opt&&!v&&!cv)return'';return'<tr><td>'+name+'</td>'+cell(v)+(C?cell(cv):'')+'</tr>';};
  const tot=(name,v,cv,cls)=>'<tr class="'+(cls||'sub')+'"><td>'+name+'</td>'+cell(v,1)+(C?cell(cv,1):'')+'</tr>',head=t=>'<tr class="fsec"><td>'+t+'</td><td></td>'+(C?'<td></td>':'')+'</tr>';
- const gross=x=>(x.bizRev||0)-(x.bizCost||0),oth=x=>['rent','prop','sport','lux','inv','trustInc','moonInc','shady'].reduce((a,k)=>a+(x[k]||0),0),
+ const gross=x=>(x.bizRev||0)-(x.bizCost||0),oth=x=>['rent','prop','sport','lux','inv','trustInc','moonInc','shady','ppp','city'].reduce((a,k)=>a+(x[k]||0),0),
   EXP=[['Family support','famSup'],['Excise & licence taxes','excise'],['Loan interest','interest'],['Professional fees','fees'],['Fines & penalties','fines'],['Asset upkeep','upkeep'],['School & childcare','school'],['Home rent','homeRent'],['Business travel','travel'],['Health care','health'],['Foundation giving','giving'],['Moonshot research','moon'],['Protection money','mob'],['Alimony','alimony'],['Estate planning & insurance','estatePl']],
   exp=x=>EXP.reduce((a,e)=>a+(x[e[1]]||0),0);
  let h='<div class="seg four reptabs" role="group" aria-label="Report period">'+Object.keys(P).map(k=>'<button data-a="repper" data-v="'+k+'" aria-pressed="'+(repPeriod===k)+'"'+(!P[k][1].length?' disabled':'')+'>'+P[k][0]+'</button>').join('')+'</div>';
  h+='<div class="reps"><div class="rep"><h3>Income statement</h3><p class="seghint">'+lbl+((repPeriod==='y10'||repPeriod==='all')&&ys.length?' · '+list.reduce((a,e)=>a+(e.n||0),0)+' months, from Year '+(list.length?Math.floor(list[0].m/12)+1:yr+1)+(ys[0]>0&&(S.month-1)/12>ys[0]?' (records began in Year '+(ys[0]+1)+')':''):'')+(repPeriod==='m12'&&list.length<12?' (only '+list.length+' recorded so far)':'')+'</p><table class="fin"><thead><tr><th></th><th class="r">'+lbl+'</th>'+(C?'<th class="r">Prior month</th>':'')+'</tr></thead><tbody>';
  h+=head('Business')+row('Income from sales','bizRev',1)+row('Running costs','bizCost',-1)+tot('Gross profit',gross(T),C?gross(C):null);
- h+=head('Other income')+row('Rental income','rent',1,1)+row('Property portfolio (net)','prop',1,1)+row('Sports teams (net)','sport',1,1)+row('Luxury income','lux',1,1)+row('Dividends & bond interest','inv',1,1)+row('Family trust income','trustInc',1,1)+row('Moonshot income','moonInc',1,1)+row('Under the table','shady',1,1)+tot('Total other income',oth(T),C?oth(C):null);
+ h+=head('Other income')+row('Rental income','rent',1,1)+row('Property portfolio (net)','prop',1,1)+row('Sports teams (net)','sport',1,1)+row('Luxury income','lux',1,1)+row('Dividends & bond interest','inv',1,1)+row('Family trust income','trustInc',1,1)+row('Moonshot income','moonInc',1,1)+row('Government partnerships','ppp',1,1)+row('Your city','city',1,1)+row('Under the table','shady',1,1)+tot('Total other income',oth(T),C?oth(C):null);
  h+=head('Expenses')+EXP.map(e=>row(e[0],e[1],-1,1)).join('')+tot('Total expenses',-exp(T),C?-exp(C):null);
  h+=tot('Net income',T.net,C?C.net:null,'grand')+'</tbody></table>';
  const marg=T.bizRev?Math.round(gross(T)/T.bizRev*100):0;h+='<p class="seghint">Business margin: <b>'+marg+'%</b> of sales kept as gross profit. Figures in brackets are losses or costs. One-off event costs and purchases are not included.</p></div>';
@@ -2744,8 +2755,8 @@ function flows(noisy){
  const alimony=S.alimony?S.alimony.amt:0,health=careFee()*CPI();
  const giving=S.fdn?Math.max(0,biz)*S.fdn.giving:0,famSup=S.fam&&S.fam.allow?famAllow():0;
  const estatePl=typeof planCost==='function'?planCost():0,trustInc=S.trustPay||0,shady=typeof shadyIncome==='function'?shadyIncome(biz,noisy):0;
- const moon=moonSpend(),moonInc=moonIncome(),subInc=typeof subIncome==='function'?subIncome():0;
- return{famSup,excise,subInc,biz,bizRev,bizCost,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,moon,moonInc,E,net:subInc+biz+rent+lux+inv+sport+prop+trustInc+shady+moonInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl-moon-excise-famSup};
+ const city=cityIncome(noisy),ppp=pppIncome(noisy),moon=moonSpend(),moonInc=moonIncome(),subInc=typeof subIncome==='function'?subIncome():0;
+ return{city,ppp,famSup,excise,subInc,biz,bizRev,bizCost,rent,lux,inv,sport,prop,giving,fees,fines,interest,upkeep,school,mob,alimony,homeRent,travel,health,estatePl,trustInc,shady,moon,moonInc,E,net:city+ppp+subInc+biz+rent+lux+inv+sport+prop+trustInc+shady+moonInc-giving-interest-upkeep-school-mob-alimony-fees-fines-homeRent-travel-health-estatePl-moon-excise-famSup};
 }
 function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});S.log.length=Math.min(S.log.length,80);}
 function soften(f){return sv('exec').lvl>=0&&f<1?1-(1-f)*.6:f;}
@@ -2980,6 +2991,22 @@ const EVENTS=[
     {l:'Say no',d:'−12 influence. They will remember at the next election.',f(){addInf(-12);return['You said no. The calls from the '+(S.elecOffice||'office')+' have stopped.','bad']}}];
    const c=nwc(.01,500);return[{l:'Make peace',d:'Pay '+fmt(c)+' to the winner\'s "development fund". +5 influence.',dis:!canPay(c),f(){S.cash-=c;addInf(5);return['The new '+(S.elecOffice||'office holder')+' accepted your gift. The questions stopped.','']}},
     {l:'Stand your ground',d:'No cost. 50% chance of inspections that cut profit for 4 months.',f(){if(rnd()<.5){addBuff(.88,4,'Inspections');return['Inspectors turned up at your outlets the next week. Profit ×0.88 for 4 months.','bad']}addRep(3);return['They tested you and backed off. Your staff noticed. +3 reputation.','good']}}];}},
+ {id:'ppp_protest',cat:'Politics',w:1,when:()=>!!S.ppp&&PPP.some(P=>S.ppp[P.id]&&S.ppp[P.id].st==='run'&&/Toll|Subway|Water/.test(P.kind))&&!(S.pppCut&&S.pppCut.until>S.month),
+  setup(){this.P=pick(PPP.filter(P=>S.ppp[P.id]&&S.ppp[P.id].st==='run'&&/Toll|Subway|Water/.test(P.kind)));},title(){return'Protests over your '+this.P.kind.toLowerCase()+' prices';},
+  text(){return'Thousands marched on Parliament, saying the charges on the '+this.P.name+' are too high for ordinary families. Matatu owners are threatening a strike.';},
+  choices(){return[{l:'Cut prices by 20% for a year',d:'Partnership income ×0.8 for 12 months. +5 reputation.',f(){S.pppCut={f:.8,until:S.month+12};addRep(5);return['You cut prices. The protests ended within a week.','good']}},
+   {l:'Hold firm: the contract is the contract',d:'−6 reputation, −5 influence.',f(){addRep(-6);addInf(-5);return['You held firm. The protests faded, but people remember.','bad']}}]}},
+ {id:'ppp_reneg',cat:'Politics',w:1.2,when:()=>!!S.ppp&&PPP.some(P=>S.ppp[P.id]&&S.ppp[P.id].st==='run'&&!S.ppp[P.id].reneg)&&S.elecLast!=null&&sinceElec()>=2&&sinceElec()<=14,
+  setup(){this.P=pick(PPP.filter(P=>S.ppp[P.id]&&S.ppp[P.id].st==='run'&&!S.ppp[P.id].reneg));},title:'The new government wants to renegotiate',
+  text(){const x=S.ppp[this.P.id];return'The new administration says your '+this.P.name+' deal was '+(x.dirty?'signed under suspicious circumstances':'too generous')+'. They want a bigger share of the income, or they will take you to court.';},
+  choices(){const P=this.P,x=S.ppp[P.id];return[{l:'Give them a bigger share',d:'Your share of income falls by 10%. +8 influence.',f(){x.share*=.9;x.reneg=1;addInf(8);return['You agreed to share more. The new government calls you a partner.','']}},
+   {l:'Fight it in court',d:(x.dirty?'35%':'65%')+' chance to win. Lose and your share falls by 20%, −5 reputation.',f(){x.reneg=1;if(rnd()<(x.dirty?.35:.65)){addRep(2);return['The court upheld your contract.','good'];}x.share*=.8;addRep(-5);if(x.dirty){const L=lawOf();L.att=Math.min(100,L.att+10);}return['You lost in court. Your share of the income was cut.','bad'];}}]}},
+ {id:'auction',cat:'Lifestyle',w:2,when:()=>typeof pppOn==='function'&&pppOn()&&!lawBlocked()&&S.month-(S.aucAt==null?-99:S.aucAt)>=6&&COLL.some(c=>!collHas(c.id)),
+  setup(){S.aucAt=S.month;this.c=pick(COLL.filter(c=>!collHas(c.id)));this.e=this.c.est*CPI()*(.85+rnd()*.3);this.rival=this.e*Math.exp((rnd()-.35)*1.2);},
+  title(){return'Auction: '+this.c.name;},text(){return this.c.ico+' '+this.c.blurb+' The auction house estimates <b>'+fmt(this.e)+'</b>. Two other billionaires are in the room.';},
+  choices(){const c=this.c,e=this.e,rv=this.rival;const go=mx=>function(){if(mx>=rv){const pay=Math.max(e*.8,Math.min(mx,rv*1.05));S.cash-=pay;S.coll=S.coll||[];S.coll.push({id:c.id,paid:pay,val:pay,since:S.month});addRep(c.rep||3);addHappy(4);if(c.inf)addInf(c.inf);S.pt=S.pt||{};return['The hammer fell at '+fmt(pay)+'. '+c.name+' is now in your collection.','gold'];}
+     return['A rival paid '+fmt(rv*1.02)+'. You were outbid.','bad'];};
+   return[{l:'Bid up to the estimate',d:'Up to '+fmt(e)+'.',dis:!canPay(e),f:go(e)},{l:'Bid up to 1.5× the estimate',d:'Up to '+fmt(e*1.5)+'.',dis:!canPay(e*1.5),f:go(e*1.5)},{l:'Win at any price (up to 3×)',d:'Up to '+fmt(e*3)+'. Everyone will be talking.',dis:!canPay(e*3),f:go(e*3)},{l:'Just watch',d:'Keep your paddle down.',f(){return['You watched someone else win it.','']}}];}},
  {id:'permits',cat:'Politics',w:.9,when:()=>totalUnits()>=2,title:'Your permits are stuck',text:()=>'The '+R.pol.county+' office is sitting on your licence renewals. An aide hints that a "facilitation fee" would speed things up.',
   choices:()=>{const c=nwc(.01,300);return[{l:'Pay the fee',d:'Pay '+fmt(c)+'. Permits cleared. +3 influence.',f(){S.cash-=c;addInf(3);return['Permits cleared overnight.','']}},
    {l:'Wait it out',d:'Profit ×0.85 for 3 months.',f(){addBuff(.85,3,'Permit delays');return['Your permits took months.','bad']}},
@@ -4107,7 +4134,7 @@ function nextMonth(){
  econTick();S.s+=(econTarget()-S.s)*.08+(rnd()-.5)*.04;S.s=clamp(S.s,.6,1.4);
  marketTick(sPrev);
  sportsTick();
- propTick();
+ propTick();try{pppTick();cityTick();collTick();}catch(e){}
  modelTick();
  if(S.fdn&&f.giving>0){fdnFund(f.giving);addRep(S.fdn.giving*4);}
  if(f.biz>0&&S.rep<70)addRep(.15);
@@ -4186,6 +4213,7 @@ function nextMonth(){
  {const ee=econNext();if(ee){openEvent(ee);return;}}
  /* bank loans now come with the purchase card, so the bank no longer pops up on its own */
  if(S.babyDue!=null&&S.month>=S.babyDue){S.babyDue=null;openEvent(birthEvent());return;}
+ {const pq=pppNext()||cityNext();if(pq){openEvent(pq);return;}}
  {const po=payoffOffer();if(po){openEvent(po);return;}}
  {const tw=teamWarn();if(tw){tw._id='sp_lowpos';paceMark(null,'Sports');S.cool=Math.max(S.cool,1);openEvent(tw);return;}}
  {const fwOk=S.month-((S.grpLast||{}).family==null?-99:S.grpLast.family)>=3;let fw=null,id='';
@@ -4357,7 +4385,7 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;S.f10auto=1;ti
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
  ({famhol:()=>famHoliday(),famallow:()=>{famOf().allow=!famOf().allow;log(famOf().allow?'You started sending your relatives '+fmt(famAllow())+' a month.':'You stopped the family allowance. Expect some cold phone calls.',famOf().allow?'good':'');afterChange();},payloan:()=>{const L=S.loans||[];const list=v==='all'?L.slice():[L[+v]].filter(Boolean);const need=list.reduce((t,x)=>t+loanOwed(x),0);if(!list.length||S.cash<need)return;const r=loanPayOff(list);log('You paid off '+(list.length>1?'all your business loans':'the '+list[0].name+' loan')+' early for '+fmt(r.paid)+', saving about '+fmt(r.saved)+' in interest.','good');afterChange();},outok:()=>{closeModal();maybeTour();},guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),tkbid:()=>tkCard(v),tkgo:()=>tkGo(v),tksell:()=>tkSell(v),polrun:()=>pcRunCard(+v),poldonor:()=>pcTakeDonor(v),polskip:()=>pcSkipDonor(),polgo:()=>pcLaunch(),poldraftno:()=>pcDraftNo(),polpower:()=>pcUse(v),poldrop:()=>pcDrop(),closecard:()=>closeModal(),lifeobit:()=>openObit(obitFromLife(LIVES_SHOWN[+v])),lifesave:()=>obitSave(obitFromLife(LIVES_SHOWN[+v])),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),sound:()=>soundSet(v==='on'),sndtoggle:()=>soundSet(!soundOn()),music:()=>musicSet(v==='on'),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},repper:()=>{repPeriod=v;render();},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]&&!S.conds[v].managed){const f=condFix(v);if(!canPay(f))return;S.cash-=f;S.conds[v].managed=true;addHealth(10);log('You finally treated your '+CONDS[v].name.lc()+'. Years of neglect made it a long, expensive fight: '+fmt(f)+', then '+fmt(condFee(v))+' a month.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buyCard(v),bcq:()=>bcQty(v),bcok:()=>bcConfirm(),sell:()=>sell(v),abuy:()=>assetCard(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
-  choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?slotInds().length<SLOTS[S.peak]:othersOpen);render();},regenter:()=>regEnter(v),close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},findlove:()=>{if(!current)openEvent(loveEvent());},trybaby:()=>{if(!current)openEvent(tryBabyEvent());},stoppay:stopPaying,
+  choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?slotInds().length<SLOTS[S.peak]:othersOpen);render();},regenter:()=>regEnter(v),close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},findlove:()=>{if(!current)openEvent(loveEvent());},casino:()=>{if(!current){const e=casinoEvent();if(e)openEvent(e);}},betpct:()=>{S.betPct=+v;render();},citygo:()=>{if(!current){const e=cityStageEvent();if(e)openEvent(e);}},collsell:()=>collSell(v),pppbid:()=>{if(current)return;const e=pppBid(v);if(e)openEvent(e);},trybaby:()=>{if(!current)openEvent(tryBabyEvent());},stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>{if(GUEST){guestAsk('chip');return;}if(!ACC)return;stopAuto();acctView='menu';renderAccts();},guestlater:()=>{acctView=null;authMode='signup';renderAccts();render();if(!current&&(!S.g||!S.inds.length))startEvents();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,awaygo:()=>awayCollect(),bankbuy:()=>bankBuy(+v),xclist:()=>xcList(v),xcbuy:()=>xcBuyCard(+v),xcgo:()=>xcBuy(v),xcsell:()=>xcSell(+v,+t.dataset.f),mktab:()=>{mkTab=v;mkMsg='';bankMsg='';render();},mklist:()=>mkList(v),mkpost:()=>mkPost(v),mkbuy:()=>mkBuy(+v),mkcancel:()=>mkCancel(+v),friends:()=>openFriends(),friendgift:()=>friendAct('gift',+v),friendrm:()=>friendAct('rm',+v),friendaddid:()=>friendAct('add',+v),giftclaim:()=>giftClaim(),pushyes:()=>pushYes(),pushno:()=>closeModal(),closecard:()=>closeModal(),pushon:()=>{pushRegister(true).catch(()=>{}).then(()=>renderAccts());},pushoff:()=>pushOff(),authmode:()=>{authMode=v;authMsg='';renderAccts();const A=$('acct');if(A)A.scrollTop=0;},authjump:()=>{authMode=v;authMsg='';renderAccts();const u=$('acc-user');if(u){u.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>u.focus({preventScroll:true}),400);}},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView=GUEST?'guestsave':'auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),lbsub:()=>lbSubGo(v),retryboot:bootAuth,appupdate:appUpdate,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propctry:()=>{propShut[v]=!propShut[v];render();},propbuy:()=>propCard(v,false),propdev:()=>propCard(v,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>teamCard(v),venuebuild:()=>venueCard(v,false),venuebuy:()=>venueCard(v,true),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>custCard(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
   askreset:()=>{$('reset').innerHTML='<span class="foot">Erase this life? <button class="btn small" data-a="reset">Yes, restart</button><button class="btn ghost small" data-a="noreset">Cancel</button></span>';},
@@ -4373,7 +4401,7 @@ document.addEventListener('keydown',e=>{if(e.key==='n'&&!tourOn&&!e.metaKey&&!e.
 
 /* ================= Render ================= */
 function meter(v,col){return'<div class="meter"><i style="width:'+clamp(v,0,100)+'%;background:var('+col+')"></i></div>';}
-function render(){try{unlCheck();g10Check();affordCheck();}catch(e){}try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
+function render(){try{unlCheck();g10Check();affordCheck();pppUnlockCheck();}catch(e){}try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
  const nw=netWorth(),F=flows(false);
  paintChip();
  $('fdn-title').textContent='The '+BR()+' Foundation';
@@ -4533,6 +4561,7 @@ function render(){try{unlCheck();g10Check();affordCheck();}catch(e){}try{moneySo
     '<button class="btn small '+(S.cash>=p?'primary':'')+'" data-a="abuy" data-v="'+a.id+'" '+(S.cash<p?'disabled':'')+'>Buy · '+fmt(p)+'</button>'+(n?'<button class="btn ghost small" data-a="asell" data-v="'+a.id+'">Sell · '+fmt(val*.9)+'</button>'+mkBtnA(a.id):'')+'</div></div>';});
   if(!any)rh2+='<p class="seghint" style="margin:0">Rental apartments unlock at a net worth of about $47K.</p>';
   $('portfolio').innerHTML=ph+rh2;
+  {const ch=$('cityb');if(ch)ch.innerHTML=cityHTML();}
   const C=pcity(propCity);let bh2='<div class="citychips">'+PCITIES.map(c=>'<button class="citychip'+(c.id===propCity?' on':'')+(!cityOpen(c)?' locked':'')+(!cityOpen(c)&&cityOpen(PCITIES[Math.max(0,PCITIES.indexOf(c)-1)])?' next':'')+'" data-a="propcity" data-v="'+c.id+'">'+c.name+'</button>').join('')+'</div>';
   bh2+='<p class="cityroute">'+S.pcOpen.length+' of '+PCITIES.length+' cities unlocked'+(PCITIES.some(x=>!cityOpen(x))?' · next on the route: '+PCITIES.find(x=>!cityOpen(x)).name:'. The whole world is open to you.')+'</p>';
   bh2+='<div class="cityhead"><b>'+C.name+'</b><span>Prices '+(C.m<.8?'low':C.m<1.5?'mid-range':'premium')+' · yields '+(C.y>=1.2?'high':C.y>=.9?'average':'low')+' · growth '+(C.g>=.0045?'fast':C.g>=.0035?'steady':'slow')+(C.risk?' · volatile':'')+'</span></div>';
@@ -4628,7 +4657,7 @@ function render(){try{unlCheck();g10Check();affordCheck();}catch(e){}try{moneySo
 
  /* statement */
  const line=(l,v,sign)=>'<span>'+l+'</span><span class="'+(Math.abs(v)<.5?'zero':sign<0?'neg':'pos')+'">'+(Math.abs(v)<.5?'—':(sign<0?'−':'+')+fmt(v).replace('−',''))+'</span>';
- $('stmt').innerHTML=line('Business income'+(S.float?' (80% yours)':''),F.bizRev||0,1)+line('Business running costs',F.bizCost||0,-1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Moonshot research',F.moon||0,-1)+line('Moonshot income',F.moonInc||0,1)+line('Dividends & bond interest',F.inv,1)+line('Family trust income',F.trustInc||0,1)+line('Under the table',F.shady||0,1)+line('Loan interest',F.interest,-1)+
+ $('stmt').innerHTML=line('Business income'+(S.float?' (80% yours)':''),F.bizRev||0,1)+line('Business running costs',F.bizCost||0,-1)+line('Rental income',F.rent,1)+line('Property portfolio (net)',Math.abs(F.prop),F.prop<0?-1:1)+line('Luxury income',F.lux,1)+line('Sports teams (net)',Math.abs(F.sport),F.sport<0?-1:1)+line('Foundation giving',F.giving,-1)+line('Moonshot research',F.moon||0,-1)+line('Moonshot income',F.moonInc||0,1)+(F.ppp?line('Government partnerships',F.ppp,1):'')+(F.city?line('Your city',F.city,1):'')+line('Dividends & bond interest',F.inv,1)+line('Family trust income',F.trustInc||0,1)+line('Under the table',F.shady||0,1)+line('Loan interest',F.interest,-1)+
   line('Home rent',F.homeRent,-1)+line('Business travel',F.travel,-1)+line('Professional fees',F.fees,-1)+(F.excise?line('Excise taxes',F.excise,-1):'')+(F.famSup?line('Family support',F.famSup,-1):'')+line('Fines & penalties',F.fines,-1)+line('Asset upkeep',F.upkeep,-1)+
   line('School & childcare',F.school,-1)+line('Protection money',F.mob,-1)+line('Alimony',F.alimony,-1)+line('Health care',F.health,-1)+line('Estate planning & insurance',F.estatePl||0,-1)+
   '<span class="tot">Net cash flow</span><span class="tot '+(F.net<0?'neg':'pos')+'">'+(F.net<0?'−':'+')+fmt(Math.abs(F.net))+'</span>';
@@ -4659,7 +4688,7 @@ function render(){try{unlCheck();g10Check();affordCheck();}catch(e){}try{moneySo
    else if(a<264){sub='Age '+y+' · university · '+fmt(UNI[k.best])+'/mo';right='<span class="pill">University</span>';}
    else{sub='Age '+y;right='<span class="pill good">Grown up</span>';}
    lh+='<div class="person"><div><b>'+k.name+'</b><br><span>'+sub+'</span></div>'+right+'</div>';});}
- lh+=kidsHTML()+planHTML()+sibsHTML();$('life').innerHTML=lh;
+ lh+=kidsHTML()+planHTML()+sibsHTML()+collHTML()+casinoHTML();$('life').innerHTML=lh;
 
  /* politics & street */
  let ph='<div class="kv"><span>Influence</span><span>'+Math.round(S.influence)+' / 100</span><span>Next general election</span><span>'+(S.nextElection-S.month>0?(S.nextElection-S.month)+' months':'This month')+'</span></div>'+meter(S.influence,'--brass');
@@ -4686,6 +4715,7 @@ function render(){try{unlCheck();g10Check();affordCheck();}catch(e){}try{moneySo
   return'<div class="row"><div class="t"><b>'+m.name+'</b><span>'+m.desc+'</span></div>'+right+'</div>';}).join('');
 
  /* professional team */
+ $('ppp').innerHTML=pppHTML();
  $('svcs').innerHTML=SERVICES.map(d=>{const i=svcInfo(d),s=sv(d.id);
   let pill,btn='';
   if(i.req<0&&s.lvl<0)pill='<span class="pill">From '+fmt(d.levels[0][0])+'</span>';
@@ -4964,6 +4994,118 @@ function birthEvent(){const sp=S.spouse,c=nwc(.003,200);
  return{cat:'Family',title:'Your baby is here',text:(sp?'You and '+sp.name+' welcome':'You welcome')+' a healthy baby. The whole family has come to the hospital.',
   choices:[{l:'Throw a big party',d:'Spend '+fmt(c)+'. +10 '+(sp?spW()+' ':'')+'happiness.',f(){S.cash-=c;newKid();if(sp)addSH(10);addHappy(10);return['The welcome party was the talk of the family.','life',nameEvent()]}},
    {l:'Keep it simple',d:'+5 '+(sp?spW()+' ':'')+'happiness.',f(){newKid();if(sp)addSH(5);addHappy(8);return['A quiet, happy family moment.','life',nameEvent()]}}]};}
+/* ================= Government partnerships (from $1 trillion): build public infrastructure, collect tolls and fees for decades, then hand it over ================= */
+const PPP=[
+ {id:'fibre',ico:'📡',name:'National fibre network',kind:'Broadband',cost:300000000000,at:1000000000000,build:24,yrs:20,y:.009,inf:25,blurb:'Fast internet to every county. Paid by monthly line fees.'},
+ {id:'bridge',ico:'🌉',name:'Likoni cable bridge',kind:'Toll bridge',cost:400000000000,at:1500000000000,build:30,yrs:25,y:.008,inf:20,blurb:'Replace the ferry with a bridge. A toll on every car and truck.'},
+ {id:'water',ico:'💧',name:'Mega dam and water works',kind:'Water',cost:600000000000,at:2000000000000,build:36,yrs:30,y:.007,inf:30,rep:5,blurb:'Clean water for five million people, billed by the litre.'},
+ {id:'toll',ico:'🛣️',name:'Nairobi–Mombasa toll expressway',kind:'Toll road',cost:800000000000,at:3000000000000,build:36,yrs:30,y:.0075,inf:20,blurb:'Six lanes, four hours instead of ten. Toll stations every 80 km.'},
+ {id:'power',ico:'⚡',name:'Turkana wind and solar park',kind:'Power plant',cost:1000000000000,at:4000000000000,build:36,yrs:25,y:.008,inf:30,blurb:'Sell power to the national grid on a 25-year contract.'},
+ {id:'port',ico:'⚓',name:'Lamu deep-sea port',kind:'Seaport',cost:1500000000000,at:6000000000000,build:42,yrs:30,y:.0085,inf:40,blurb:'Container berths for the whole region. Paid per container.'},
+ {id:'airport',ico:'✈️',name:'New international airport',kind:'Airport',cost:2000000000000,at:8000000000000,build:48,yrs:30,y:.008,inf:45,rep:5,blurb:'A second hub airport. Landing fees, duty-free and parking.'},
+ {id:'subway',ico:'🚇',name:'Nairobi metro subway',kind:'Subway',cost:3000000000000,at:12000000000000,build:60,yrs:35,y:.0065,inf:50,rep:8,blurb:'Four lines under the city. Paid per ride.'},
+ {id:'housing',ico:'🏘️',name:'Affordable housing city',kind:'Housing',cost:4000000000000,at:16000000000000,build:60,yrs:30,y:.006,inf:40,rep:10,blurb:'200,000 homes with schools and clinics. Rent-to-own payments.'},
+ {id:'rail',ico:'🚄',name:'East African high-speed railway',kind:'Railway',cost:6000000000000,at:25000000000000,build:72,yrs:40,y:.0055,inf:60,rep:10,blurb:'Mombasa to Kampala at 300 km/h. Tickets and freight.'}];
+const PPP_AT=1e12;
+const pppBest=()=>Math.max(netWorth(),...(S.hist||[0]).slice(-600));
+const pppOn=()=>pppBest()>=PPP_AT;
+const pppCost=P=>P.cost*CPI();
+const pppOpen=P=>pppBest()>=P.at||!!(S.ppp&&S.ppp[P.id]);
+/* a toast when the next project opens up */
+function pppUnlockCheck(){if(!S||S.over||!pppOn())return;const n=PPP.filter(pppOpen).length;if(S.pppN==null)S.pppN=0;if(n>S.pppN){const P=PPP.filter(pppOpen)[n-1];S.pppN=n;document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('button');d.className='unlfx afford';d.dataset.a='tab';d.dataset.v='power';d.addEventListener('click',()=>setTimeout(()=>d.remove(),0));d.innerHTML='<small>New government project</small><b>'+esc(P.name)+'</b><span>Open for bids: '+fmt(pppCost(P))+'. See the Power tab.</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),7000);setTimeout(()=>d.remove(),7600);}}
+function pppMine(){return S.ppp=S.ppp||{};}
+function pppIncome(noisy){if(!S||!S.ppp)return 0;const ph=econS().ph,eco=ph==='expansion'?1.06:ph==='slowdown'?.92:1,cut=S.pppCut&&S.pppCut.until>S.month?S.pppCut.f:1;
+ return PPP.reduce((t,P)=>{const x=S.ppp[P.id];if(!x||x.st!=='run')return t;const run=S.month-x.open,grow=1+Math.min(.5,run/240);return t+x.base*P.y*x.share*grow*eco*cut*(noisy?1+(rnd()-.5)*.06:1);},0);}
+function pppValue(){if(!S||!S.ppp)return 0;return PPP.reduce((t,P)=>{const x=S.ppp[P.id];if(!x)return t;if(x.st==='build')return t+x.paid;if(x.st==='run')return t+x.paid*Math.max(0,(x.end-S.month)/(P.yrs*12))*1.25;return t;},0);}
+function pppTick(){if(!S||!S.ppp)return;S.pppQ=S.pppQ||[];PPP.forEach(P=>{const x=S.ppp[P.id];if(!x)return;
+ if(x.st==='build'){x.left--;if(x.left>0&&rnd()<.025){x.left+=3;log('Work on the '+P.name+' slowed: '+pick(['a court case over land','heavy rains','a strike on site','a supplier went bust'])+'. Three months late.','bad');}
+  if(x.left<=0){x.st='run';x.open=S.month;x.end=S.month+P.yrs*12;addRep(P.rep||3);addInf(5);S.pppQ.push({t:'open',id:P.id});log('The '+P.name+' is open. Tolls and fees start this month.','gold');}}
+ else if(x.st==='run'&&S.month>=x.end){x.st='done';addRep(4);S.pppQ.push({t:'done',id:P.id});log('Your concession on the '+P.name+' ended. You handed it over to the government.','gold');}});}
+function pppNext(){const q=S.pppQ;if(!q||!q.length)return null;const o=q.shift(),P=PPP.find(p=>p.id===o.id);if(!P)return null;
+ if(o.t==='open')return{cat:'Government partnership',title:P.ico+' The '+P.name+' is open',text:'The President cut the ribbon, the cameras rolled, and the first '+({Toll:'cars paid the toll',Subway:'passengers rode the trains',Airport:'flights landed'}[P.kind.split(' ')[0]]||'customers paid')+' this morning. You collect the income for the next '+P.yrs+' years.',noOut:true,choices:[{l:'Great',d:'Income about '+fmt(S.ppp[P.id].base*P.y*S.ppp[P.id].share)+' a month to start, growing as use grows.',f(){return['','']}}]};
+ return{cat:'Government partnership',title:'Handover: '+P.name,text:'After '+P.yrs+' years, your concession has ended and the '+P.name+' belongs to the public. The country will remember who built it.',noOut:true,choices:[{l:'Hand it over with a ceremony',d:'+4 reputation.',f(){return['','']}}]};}
+function pppBid(id){const P=PPP.find(p=>p.id===id);if(!P||!pppOn()||!pppOpen(P)||pppMine()[id])return null;const c=pppCost(P),win=Math.min(.95,.45+(S.influence||0)/180),jv=c*.6,sweet=c*1.03;
+ return{cat:'Government partnership',title:P.ico+' '+P.name,text:esc(P.blurb)+' Building takes '+Math.round(P.build/12*10)/10+' years, then you run it for '+P.yrs+' years and hand it over. The open tender has rival bidders; your chance of winning is about '+Math.round(win*100)+'%.',
+  choices:[
+   {l:'Bid in the open tender',d:'Pay '+fmt(c)+' if you win (1% bid cost if you lose). You keep all the income. '+Math.round(win*100)+'% chance.',dis:!canPay(c),f(){if(rnd()<win){S.cash-=c;S.ppp[id]={st:'build',left:P.build,share:1,paid:c,base:c,start:S.month};addInf(3);return['You won the tender for the '+P.name+'. Construction starts now.','gold'];}S.cash-=c*.01;S.pppLost=S.pppLost||{};S.pppLost[id]=S.month;return['A rival consortium won the '+P.name+' tender. You can bid again in a year.','bad'];}},
+   {l:'Joint venture with the government',d:'Pay '+fmt(jv)+' (60%). You keep 55% of the income. Always accepted. +5 reputation.',dis:!canPay(jv),f(){S.cash-=jv;S.ppp[id]={st:'build',left:P.build,share:.55,paid:jv,base:c,start:S.month,jv:1};addRep(5);addInf(3);return['You signed a joint venture for the '+P.name+'.','gold'];}},
+   {l:'Sweeten the deal',d:'Pay '+fmt(sweet)+', including a "facilitation fee". Higher tolls are agreed: you keep 115% of normal income. Police attention rises.',dis:!canPay(sweet),f(){S.cash-=sweet;S.ppp[id]={st:'build',left:P.build,share:1.15,paid:c,base:c,start:S.month,dirty:1};const L=lawOf();L.att=Math.min(100,L.att+15);S.pt=S.pt||{};S.pt.crook=(S.pt.crook||0)+2;return['The '+P.name+' is yours, on very generous terms. Somebody will ask questions one day.','bad'];}},
+   {l:'Not now',d:'Keep the money for now.',f(){return['','']}}]};}
+function pppHTML(){const best=pppBest();
+ if(!pppOn())return'<p class="seghint" style="margin:0">Opens when your net worth reaches <b>'+fmt(PPP_AT)+'</b>. '+(best>=PPP_AT*.1?'You are '+Math.round(best/PPP_AT*100)+'% of the way there.':'Toll roads, bridges, ports, airports, a subway and a high-speed railway, built with the government.')+'</p>';
+ const M=pppMine(),inc=pppIncome(false);let h=inc>0?'<p class="seghint" style="margin:0 0 8px">Income from partnerships: <b class="pos">'+fmt(inc)+'/mo</b></p>':'';
+ const open=PPP.filter(pppOpen),next=PPP.find(P=>!pppOpen(P)),rest=PPP.filter(P=>!pppOpen(P)).length-(next?1:0);
+ h+='<div class="ppplist">'+open.map(P=>{const x=M[P.id],c=pppCost(P);let st,btn='';
+  if(!x){const lost=S.pppLost&&S.pppLost[P.id]!=null&&S.month-S.pppLost[P.id]<12,low=(S.influence||0)<P.inf;
+   st=lost?'Lost the last tender. Bid again in '+(12-(S.month-S.pppLost[P.id]))+' months.':low?'Needs '+P.inf+' influence (you have '+Math.round(S.influence||0)+').':fmt(c)+' · '+Math.round(P.build/12*10)/10+' yrs to build · '+P.yrs+'-yr concession';
+   btn='<button class="btn small" data-a="pppbid" data-v="'+P.id+'"'+(lost||low||!canPay(c*.6)?' disabled':'')+'>Bid</button>';}
+  else if(x.st==='build'){const done=Math.round((1-x.left/P.build)*100);st='Under construction · '+Math.max(0,Math.min(99,done))+'% · opens in '+x.left+' month'+(x.left===1?'':'s')+(x.jv?' · joint venture':'');}
+  else if(x.st==='run'){const yl=Math.ceil((x.end-S.month)/12);st='Open · earning about '+fmt(x.base*P.y*x.share*(1+Math.min(.5,(S.month-x.open)/240)))+'/mo · '+yl+' yr'+(yl===1?'':'s')+' left'+(x.jv?' · joint venture':'');}
+  else st='Handed over to the government. Built by you.';
+  return'<div class="pppitem'+(x?' mine':'')+'"><span class="pppico">'+P.ico+'</span><div><b>'+P.name+'</b><small>'+P.kind+' · '+st+'</small></div>'+btn+'</div>';}).join('')+(next?'<div class="pppitem locked"><span class="pppico">🔒</span><div><b>'+next.name+'</b><small>Unlocks at '+fmt(next.at)+' net worth · '+Math.round(pppBest()/next.at*100)+'% there'+(rest>0?' · '+rest+' more project'+(rest>1?'s':'')+' after this':'')+'</small></div></div>':'')+'</div>';
+ return h;}
+/* ================= Casino nights (from $1 trillion): roulette and blackjack, for fun ================= */
+const CAS_AT=1e12,RED=[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+const casOn=()=>typeof pppBest==='function'&&pppBest()>=CAS_AT;
+const betAmt=()=>Math.max(0,S.cash)*(S.betPct||1)/100;
+function casLeft(){S.cas=S.cas||{m:-1,n:0,won:0,lost:0,y:-1,yl:0};if(S.cas.m!==S.month){S.cas.m=S.month;S.cas.n=0;}const y=Math.floor(S.month/12);if(S.cas.y!==y){S.cas.y=y;S.cas.yl=0;S.cas.warned=false;}return 5-S.cas.n;}
+function casSettle(bet,mult,what){const C=S.cas;C.n++;S.pt=S.pt||{};S.pt.risk=(S.pt.risk||0)+.5;S.pt.stat=(S.pt.stat||0);
+ if(mult>0){const w=bet*mult;S.cash+=w;C.won+=w;addHappy(2);return['🎉 '+what+' You won '+fmt(w)+'.','gold'];}
+ S.cash-=bet;C.lost+=bet;C.yl+=bet;let x='';if(bet>netWorth()*.01)addHappy(-2);
+ if(!C.warned&&C.yl>Math.max(1,netWorth())*.05){C.warned=true;addSH(-8);addHappy(-4);x=' '+(S.spouse?S.spouse.name+' is worried about how much you are losing at the tables.':'Your friends are worried about how much you are losing at the tables.');}
+ return['😬 '+what+' You lost '+fmt(bet)+'.'+x,'bad'];}
+function spin(){const n=Math.floor(rnd()*37);return{n,c:n===0?'green':RED.includes(n)?'red':'black'};}
+function blackjack(){const draw=()=>Math.min(10,1+Math.floor(rnd()*13)),hand=t=>{let v=0,ace=0;for(let i=0;i<2;i++){const c=draw();if(c===1)ace++;v+=c;}while(v<t){const c=draw();if(c===1)ace++;v+=c;}if(ace&&v+10<=21)v+=10;return v;};
+ const me=hand(17),de=hand(17);return{me,de,r:me>21?-1:de>21||me>de?1:me===de?0:-1};}
+function casinoEvent(){if(!casOn())return null;const left=casLeft();if(left<=0)return{cat:'Casino',title:'The casino is closed for you this month',text:'You have played five rounds this month. Come back next month.',noOut:true,choices:[{l:'OK',d:'',f(){return['','']}}]};
+ const b=betAmt(),again=()=>casLeft()>0?casinoEvent():null;
+ const R=(pick)=>function(){const s0=spin(),hit=pick==='red'||pick==='black'?s0.c===pick:s0.n===17;const r=casSettle(b,hit?(pick==='red'||pick==='black'?1:35):0,'The ball landed on '+s0.n+' '+s0.c+'.');return r.concat([again()]);};
+ return{cat:'Casino',title:'🎰 Casino night',text:'The private high-roller room is yours tonight. Each bet is <b>'+fmt(b)+'</b> ('+(S.betPct||1)+'% of your cash; change it in the Life tab). '+left+' round'+(left>1?'s':'')+' left this month.',noOut:true,
+  choices:[{l:'Roulette: red',d:'Doubles your bet. About 49% chance.',dis:!canPay(b),f:R('red')},{l:'Roulette: black',d:'Doubles your bet. About 49% chance.',dis:!canPay(b),f:R('black')},{l:'Roulette: number 17',d:'Pays 35 to 1. About 3% chance.',dis:!canPay(b),f:R('17')},
+   {l:'Blackjack',d:'Beat the dealer without going over 21. Pays 1 to 1.',dis:!canPay(b),f(){const h=blackjack();if(h.r===0){S.cas.n++;return['You had '+h.me+', the dealer had '+h.de+'. A push: you keep your bet.','',again()];}const r=casSettle(b,h.r>0?1:0,'You had '+(h.me>21?h.me+' (bust)':h.me)+', the dealer had '+(h.de>21?h.de+' (bust)':h.de)+'.');return r.concat([again()]);}},
+   {l:'Cash out and go home',d:'',f(){return['You left the casino.','']}}]};}
+function casinoHTML(){if(!casOn())return'';const C=S.cas||{won:0,lost:0},net=(C.won||0)-(C.lost||0);
+ return'<h4>Casino nights</h4><div class="seg" role="group" aria-label="Bet size">'+[[.1,'0.1%'],[1,'1%'],[5,'5%']].map(o=>'<button data-a="betpct" data-v="'+o[0]+'" aria-pressed="'+((S.betPct||1)===o[0])+'">Bet '+o[1]+' of cash</button>').join('')+'</div>'+
+  '<div class="loverow"><button class="btn small" data-a="casino">🎰 Go to the casino</button><span class="seghint">Roulette and blackjack, up to 5 rounds a month. Each bet: '+fmt(betAmt())+'.'+(C.won||C.lost?' Lifetime: '+(net>=0?'up ':'down ')+fmt(Math.abs(net))+'.':'')+'</span></div>';}
+/* ================= Rare collectibles (from $1 trillion): won at auction, they rise in value ================= */
+const COLL=[
+ {id:'trex',ico:'🦖',name:'A complete T. rex skeleton',est:2e10,rep:4,blurb:'The most complete Tyrannosaurus ever dug up, teeth and all.'},
+ {id:'diamond',ico:'💎',name:'The largest rough diamond ever found',est:4e10,rep:4,blurb:'A stone the size of a fist, uncut since the day it left the ground.'},
+ {id:'faberge',ico:'🥚',name:'A Fabergé imperial egg',est:1.5e10,rep:3,blurb:'Made for a Russian empress, lost for a century, now found.'},
+ {id:'strad',ico:'🎻',name:'A Stradivarius violin',est:1e10,rep:3,blurb:'Three hundred years old and still the sweetest sound in the world.'},
+ {id:'leonardo',ico:'📜',name:'A Leonardo da Vinci notebook',est:6e10,rep:6,inf:3,blurb:'Seventy pages of flying machines, anatomy and mirror writing.'},
+ {id:'ming',ico:'🏺',name:'A Ming dynasty vase',est:1.2e10,rep:3,blurb:'Blue and white porcelain from an emperor\'s palace.'},
+ {id:'mars',ico:'☄️',name:'A meteorite from Mars',est:8e9,rep:2,blurb:'A piece of another planet that fell on the Sahara.'},
+ {id:'crown',ico:'👑',name:'A European royal crown',est:5e10,rep:5,inf:2,blurb:'Gold, sapphires and four hundred years of kings.'},
+ {id:'moonrock',ico:'🌕',name:'A moon rock from the Apollo missions',est:2.5e10,rep:4,blurb:'Brought back by astronauts in 1969. Only a few are in private hands.'},
+ {id:'olympic',ico:'🥇',name:'The first Olympic marathon gold medal',est:6e9,rep:2,blurb:'From the 1896 Athens Games, the race that started it all.'}];
+const collHas=id=>(S.coll||[]).some(x=>x.id===id);
+function collValue(){return(S&&S.coll||[]).reduce((t,x)=>t+x.val,0);}
+function collTick(){(S.coll||[]).forEach(x=>{x.val*=1+.004+(rnd()-.5)*.02;});}
+function collSell(id){const i=(S.coll||[]).findIndex(x=>x.id===id);if(i<0)return;const x=S.coll[i],c=COLL.find(c=>c.id===id);S.cash+=x.val*.9;S.coll.splice(i,1);addRep(-1);log('You sold '+c.name.replace(/^A /,'a ')+' for '+fmt(x.val*.9)+' after the auction house fee.','');afterChange();}
+function collHTML(){const L=S.coll||[];if(!L.length)return'';return'<h4>Your collection</h4>'+L.map(x=>{const c=COLL.find(c=>c.id===x.id)||{ico:'🏛️',name:x.id};const g=x.val-x.paid;
+ return'<div class="pppitem mine"><span class="pppico">'+c.ico+'</span><div><b>'+c.name+'</b><small>Worth '+fmt(x.val)+' · paid '+fmt(x.paid)+' · '+(g>=0?'up ':'down ')+fmt(Math.abs(g))+'</small></div><button class="btn small" data-a="collsell" data-v="'+x.id+'">Sell</button></div>';}).join('');}
+/* ================= Your own city (from $5 trillion): five stages, a population, and income from rent and rates ================= */
+const CITY_AT=5e12;
+const CITY_ST=[['Masterplan and land',3e11,12,0,'Buy 50,000 acres and hire the world\'s best city planners.'],['Roads, power and water',1e12,24,5e4,'Lay the roads, the power lines and the water pipes before anyone moves in.'],['The first districts',2e12,36,5e5,'Homes, schools, clinics and markets for half a million people.'],['Business district and towers',3e12,36,1.5e6,'Office towers, a stock exchange and a skyline for the brochures.'],['University, stadium and rail link',2e12,30,3e6,'A university, a 60,000-seat stadium and a fast train to the capital.']];
+const cityOn=()=>typeof pppBest==='function'&&(pppBest()>=CITY_AT||!!S.city);
+const cityName=()=>(S.city&&S.city.name)||familyName()+' City';
+function cityIncome(noisy){const c=S&&S.city;if(!c||!c.done)return 0;let paid=0;for(let i=0;i<c.done;i++)paid+=CITY_ST[i][1];const grow=1+Math.min(.6,(S.month-(c.first||S.month))/300);return paid*.006*grow*(noisy?1+(rnd()-.5)*.05:1);}
+function cityValue(){const c=S&&S.city;return c?(c.paid||0)*1.15:0;}
+function cityTick(){const c=S.city;if(!c||c.left==null)return;c.left--;if(c.left>0&&rnd()<.02){c.left+=4;log(cityName()+': '+pick(['land disputes held up a district','the rains washed away a road','a contractor walked off the site'])+'. Four months late.','bad');}
+ if(c.left<=0){c.left=null;c.done=(c.done||0)+1;if(c.done===1)c.first=S.month;addRep(5);addInf(4);S.cityQ=(S.cityQ||[]).concat([c.done-1]);log(cityName()+': '+CITY_ST[c.done-1][0].toLowerCase()+' is finished.','gold');}}
+function cityNext(){const q=S.cityQ;if(!q||!q.length)return null;const i=q.shift(),st=CITY_ST[i],pop=st[3];
+ return{cat:'Your city',title:'🏙️ '+cityName()+': '+st[0],text:(pop?fmt(pop).replace('$','')+' people now live in '+cityName()+'. ':'The plans are approved and the land is yours. ')+(i<CITY_ST.length-1?'The next stage is '+CITY_ST[i+1][0].toLowerCase()+'.':'Your city is complete. Your family name is on the map for good.'),noOut:true,choices:[{l:'Wonderful',d:'',f(){return['','']}}]};}
+function cityStageEvent(){if(!cityOn())return null;const c=S.city||{done:0,paid:0},i=c.done||0;if(c.left!=null||i>=CITY_ST.length)return null;const st=CITY_ST[i],cost=st[1]*CPI();
+ return{cat:'Your city',title:i===0?'Found '+cityName()+'?':cityName()+': '+st[0],text:st[4]+' It costs <b>'+fmt(cost)+'</b> and takes about '+Math.round(st[2]/12*10)/10+' years.',
+  choices:[{l:i===0?'Found the city':'Start this stage',d:'Pay '+fmt(cost)+'.',dis:!canPay(cost),f(){S.cash-=cost;S.city=S.city||{name:familyName()+' City',done:0,paid:0};S.city.paid+=cost;S.city.left=st[2];addInf(2);return[i===0?'You bought the land for '+cityName()+'. The planners are at work.':'Work has started on '+st[0].toLowerCase()+' in '+cityName()+'.','gold'];}},
+   {l:'Not yet',d:'',f(){return['','']}}]};}
+function cityHTML(){if(!cityOn()){const b=typeof pppBest==='function'?pppBest():netWorth();return'<p class="seghint" style="margin:0">Opens at <b>'+fmt(CITY_AT)+'</b> net worth'+(b>=CITY_AT*.1?': you are '+Math.round(b/CITY_AT*100)+'% of the way there.':'.')+'</p>';}
+ const c=S.city||{done:0},i=c.done||0,pop=i?CITY_ST[i-1][3]:0;
+ let h='<p class="seghint" style="margin:0 0 8px"><b>'+esc(cityName())+'</b>'+(pop?' · '+fmt(pop).replace('$','')+' people':'')+(cityIncome(false)?' · income <b class="pos">'+fmt(cityIncome(false))+'/mo</b>':'')+'</p><div class="ppplist">';
+ h+=CITY_ST.map((st,k)=>{const cost=st[1]*CPI();let tag,btn='';if(k<i)tag='Done';else if(k===i&&c.left!=null)tag='Building · '+c.left+' month'+(c.left===1?'':'s')+' left';else if(k===i){tag=fmt(cost)+' · '+Math.round(st[2]/12*10)/10+' yrs';btn='<button class="btn small" data-a="citygo"'+(canPay(cost)?'':' disabled')+'>'+(k===0?'Found':'Start')+'</button>';}else tag='After stage '+k;
+  return'<div class="pppitem'+(k<i?' mine':k>i?' locked':'')+'"><span class="pppico">'+['🗺️','🛣️','🏘️','🏙️','🏟️'][k]+'</span><div><b>'+st[0]+'</b><small>'+tag+'</small></div>'+btn+'</div>';}).join('');
+ return h+'</div>';}
 function kidsHTML(){const opts=[[null,'Let it happen'],[0,'None'],[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6']],n=S.kids.filter(k=>!k.withEx).length,w=S.kidsWant;
  return'<h4>How many children do you want?</h4><div class="seg kidseg" role="group" aria-label="How many children you want">'+opts.map(o=>'<button data-a="kidswant" data-v="'+(o[0]==null?'any':o[0])+'" aria-pressed="'+(w===o[0]||(w==null&&o[0]==null))+'">'+o[1]+'</button>').join('')+'</div>'+
   '<p class="seghint">'+(w==null?'Babies come when they come, up to 4.':w===0?'No children planned. Without children, your empire cannot pass to an heir.':n>=w?'Your family is complete: '+n+' child'+(n===1?'':'ren')+'.':(S.spouse?'Trying for '+(w-n)+' more. Babies come sooner while you are trying.':'You need to be married first. Then you can start a family.'))+'</p>';}
@@ -5041,8 +5183,10 @@ function affordAll(){const out=[];if(!S||S.over||(typeof jailed==='function'&&ja
    if(p)out.push({cat:'prop',key:p.x.id,name:p.x.name,cost:p.c,tab:'property',act:['propbuy',p.x.id],msg:'You can afford a '+esc(p.x.name.toLowerCase())+' in '+esc(pc.name)+' ('+fmt(p.c)+').'});}}
  if(U.sports){const t=top(TEAMS,T=>S.teams[T.id]?null:T.price);
   if(t)out.push({cat:'team',key:t.x.id,name:t.x.name,cost:t.c,tab:'sports',act:['buyteam',t.x.id],msg:'You can afford to buy '+esc(t.x.name)+' ('+fmt(t.c)+').'});}
+ if(typeof pppOn==='function'&&pppOn()&&U.power){const M=pppMine();const pp=top(PPP,P=>!pppOpen(P)||M[P.id]||(S.influence||0)<P.inf||(S.pppLost&&S.pppLost[P.id]!=null&&S.month-S.pppLost[P.id]<12)?null:pppCost(P));
+  if(pp)out.push({cat:'ppp',key:'ppp_'+pp.x.id,name:pp.x.name,cost:pp.c,tab:'power',act:['pppbid',pp.x.id],msg:'You can bid for the '+esc(pp.x.name)+' ('+fmt(pp.c)+'), a government partnership.'});}
  return out;}
-const AFF_LBL={biz:'You can afford it',home:'A better home is in reach',car:'A new ride is in reach',lux:'A new luxury is in reach',rental:'Rental income is in reach',prop:'A new building is in reach',team:'A sports club is in reach'};
+const AFF_LBL={biz:'You can afford it',home:'A better home is in reach',car:'A new ride is in reach',lux:'A new luxury is in reach',rental:'Rental income is in reach',prop:'A new building is in reach',team:'A sports club is in reach',ppp:'A government project is in reach'};
 function affordCheck(){if(current||!S||S.over)return;S.affSeen=S.affSeen||{};S.affAt=typeof S.affAt==='object'&&S.affAt?S.affAt:{};if(S.affM===S.month)return;
  const x=affordAll().find(x=>!S.affSeen[x.key]&&S.month-(S.affAt[x.cat]==null?-99:S.affAt[x.cat])>=3);if(!x)return;
  S.affSeen[x.key]=1;S.affAt[x.cat]=S.month;S.affM=S.month;document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('button');d.className='unlfx afford';d.dataset.a=x.act[0];d.dataset.v=x.act[1];
@@ -5385,7 +5529,7 @@ function lawHTML(){const L=lawOf(),a=Math.round(L.att),run=SCHEMES.filter(x=>L.o
  if(L.att>=50&&!jailed())h+='<div class="row"><div class="t"><b>Buy a new life</b><span>Vanish with a new name in a new country. You keep '+fmt(vanishKeep())+'; everything and everyone else stays behind.</span></div><button class="btn small" data-a="vanishask">Disappear</button></div>';
  return h;}
 function statusLine(){if(jailed())return'In prison until '+dateStr(S.law.jail.until)+' · '+monthsLeft(S.law.jail.until);if(hiding())return'In hiding abroad';if(inHosp())return'In hospital until '+dateStr(S.hosp.until)+' · '+monthsLeft(S.hosp.until);if(S.law&&S.law.att>=45)return'Police attention '+Math.round(S.law.att)+' · '+attLabel(S.law.att);return'';}
-const LAW_BLOCK=['findlove','trybaby','xcbuy','xcgo','xclist','tkbid','tkgo','polrun','polgo','polpower','deal','buy','abuy','up','borrow','upgradetoy','propbuy','bankbuy','mklist','mkpost','mkbuy','propdev','buyrace','venuebuild','venuebuy','aero','engprog','engrd','buyteam','sign','academy','custbuy','openfdn','fundraise','enterind','rent','travel','sbuy','ord','hire','scheme'];
+const LAW_BLOCK=['casino','citygo','collsell','pppbid','findlove','trybaby','xcbuy','xcgo','xclist','tkbid','tkgo','polrun','polgo','polpower','deal','buy','abuy','up','borrow','upgradetoy','propbuy','bankbuy','mklist','mkpost','mkbuy','propdev','buyrace','venuebuild','venuebuy','aero','engprog','engrd','buyteam','sign','academy','custbuy','openfdn','fundraise','enterind','rent','travel','sbuy','ord','hire','scheme'];
 /* ================= Succession planning ================= */
 const PLANS_EST={
  none:{name:'No will',tax:.35,cap:1e7,win:.5,how:'If you die now, the courts split your estate equally between your children and the eldest takes control. Court costs and duty take 35%.'},
