@@ -629,7 +629,7 @@ def clean_life(d):
     return out
 
 
-OBIT_TEXT = {"name": 60, "dek": 200, "role": 120, "lead": 600, "surv": 300}
+OBIT_TEXT = {"name": 60, "dek": 200, "role": 120, "lead": 600, "surv": 300, "pt": 40, "pd": 200}
 
 
 def clean_obit(o):

@@ -354,6 +354,8 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .unlfx{position:fixed;left:50%;top:14px;z-index:60;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;min-width:240px;max-width:92vw;padding:12px 20px;border:0;border-radius:14px;background:linear-gradient(180deg,#ffd75e,#ffb02e);color:#2a1a00;box-shadow:0 10px 30px rgba(0,0,0,.35);font:inherit;text-align:center;cursor:pointer;animation:unlin .5s cubic-bezier(.2,1.4,.4,1)}
 .unlfx small{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.75}.unlfx b{font-family:Oswald,Impact,sans-serif;font-size:24px;line-height:1.1;text-transform:uppercase}.unlfx span{font-size:13px;font-weight:600}
 .loverow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 4px}.loverow .seghint{margin:0;flex:1;min-width:180px}
+.htype{display:flex;gap:14px;align-items:center;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:rgba(255,201,60,.12);border:1px solid rgba(255,201,60,.45)}.htype-ico{font-size:40px;line-height:1}.htype small{display:block;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.8}.htype b{display:block;font-family:Oswald,Impact,sans-serif;font-size:24px;text-transform:uppercase;line-height:1.15}.htype p{margin:2px 0 0;font-size:14px}
+.obit-type{text-align:center;font-weight:600;margin:6px 0}
 .unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
 @keyframes unlin{from{opacity:0;transform:translate(-50%,-30px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @media (prefers-reduced-motion:reduce){.unlfx{animation:none}.tabs button.unew::after{animation:none}}
@@ -2197,7 +2199,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='549b58756b5c';let updShown=false;
+const APP_VER='7cd15c9fb823';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2873,9 +2875,9 @@ function fatalTick(){S.lowHap=S.happy<12?(S.lowHap||0)+1:0;
 function addHealth(d){S.health=clamp(S.health+d,0,100);}
 function addCond(id,managed){S.conds=S.conds||{};S.conds[id]={managed,since:S.month};}
 function outlook(){const r=deathRisk()*12;return age()<55?(S.health>=60?['Excellent','good']:['Fair','']):r<.01?['Good','good']:r<.03?['Fair','']:r<.08?['Worrying','bad']:['Grave','bad'];}
-function die(cause){S.over=true;S.died=true;S.deathDue=null;S.deathCause=cause;checkAch();const a=age(),nw=netWorth(),kids=S.kids.filter(k=>!k.withEx).map(k=>k.name);
+function die(cause){document.querySelectorAll('.unlfx').forEach(e=>e.remove());S.over=true;S.died=true;S.deathDue=null;S.deathCause=cause;checkAch();const a=age(),nw=netWorth(),kids=S.kids.filter(k=>!k.withEx).map(k=>k.name);
  log('You passed away at '+a+'. '+cause,'bad');save();render();
- showCard('You passed away at '+a,cause+' You leave behind an empire worth <b>'+fmt(nw)+'</b>, built over '+Math.floor(S.month/12)+' years from '+fmt(S.hist[0])+'. '+
+ const pt=ptypeOf();showCard('You passed away at '+a,'<div class="htype"><span class="htype-ico">'+pt.ico+'</span><div><small>Your hustler type</small><b>'+pt.name+'</b><p>'+pt.desc+'</p></div></div>'+cause+' You leave behind an empire worth <b>'+fmt(nw)+'</b>, built over '+Math.floor(S.month/12)+' years from '+fmt(S.hist[0])+'. '+
   (S.won?'You reached a billion. Your name will be remembered. ':'You never reached the billion. ')+(S.spouse?S.spouse.name+' and ':'')+(kids.length?'your children '+kids.join(', ')+' ':S.spouse?'your family ':'')+(S.spouse||kids.length?'mourn you. ':'')+(S.fdn?'The '+BR()+' Foundation carries on your work.':'')+
   (S.noHeir?'<br><br>The creditors took everything. There is nothing left to pass on.':S.kids.length?'<br><br>Your empire can pass to one of your children.':'<br><br>With no children, the '+familyName()+' line ends here. Have children in your next life to pass your empire on.'),
   '<button class="btn primary" data-a="obit">Read your obituary</button>'+(S.kids.length&&!S.noHeir?'<button class="btn primary" data-a="heirpick">Choose your heir</button><button class="btn" data-a="reset">Start a new family</button>':'<button class="btn primary" data-a="reset">Start a new life</button>')+'<button class="btn" data-a="lives">Past lives</button>');obitMust();}
@@ -4062,7 +4064,7 @@ function triggerRandom(){const pool=EVENTS.concat(RISKS).filter(e=>(!e.when||e.w
  if(e.build){const ev=e.build();ev._id=e.id;openEvent(ev);return;}
  if(e.setup)e.setup();
  openEvent({_id:e.id,cat:e.cat,title:typeof e.title==='function'?e.title(S):e.title,text:e.text(),choices:e.choices()});}
-function choose(i){const ev=current;if(ev&&ev._id){S.evq=S.evq||[];S.evq.push([ev._id,i]);if(S.evq.length>200)S.evq.splice(0,S.evq.length-200);}const before=outSnap();const r=ev.choices[i].f();if(!/Daily bonus/.test(ev.cat||''))wkInc('events');log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else if(outWanted(ev,r))outcomeCard(ev,ev.choices[i],r,before);else maybeTour();}
+function choose(i){const ev=current;if(ev&&ev._id){S.evq=S.evq||[];S.evq.push([ev._id,i]);if(S.evq.length>200)S.evq.splice(0,S.evq.length-200);}const before=outSnap(),pend0=(S.pending||[]).length;const r=ev.choices[i].f();try{ptNote(ev,before,pend0);}catch(e){}if(!/Daily bonus/.test(ev.cat||''))wkInc('events');log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else if(outWanted(ev,r))outcomeCard(ev,ev.choices[i],r,before);else maybeTour();}
 /* ---- after a decision, show what happened and what it changed ---- */
 function outSnap(){return{fam:famMembers().map(x=>[x.who,x.mood]),cash:S.cash,debt:S.debt,rep:S.rep,happy:S.happy,inf:S.influence,heat:S.heat,cop:S.law?S.law.att:0,health:S.health};}
 function outWanted(ev,r){return!!(r&&r[0])&&ev.choices.length>1&&!/Daily bonus|Calendar/.test(ev.cat||'')&&!ev.noOut;}
@@ -4086,6 +4088,7 @@ function closeModal(){$('modal').hidden=true;$('modal').innerHTML='';}
 function nextMonth(){
  if(GUEST&&guestLocked()){guestAsk('lock');return;}
  if((!ACC&&!GUEST)||acctView||S.over||current)return;
+ S.modeN=S.modeN||{};S.modeN[S.mode]=(S.modeN[S.mode]||0)+1;
  if(S.month>0&&bonusDue()){openEvent(bonusEvent());return;}
  if(S.month>0&&openCal())return;
  const f=flows(true);S.cash+=f.net;pcBurn();loanTick();licTick();S.last=f;plRecord(f);S.month++;
@@ -6013,8 +6016,41 @@ function lifeSummary(){const nw=netWorth(),H=S.hist||[],bm=H.findIndex(v=>v>=1e9
  return {ts:Date.now(),region:S.region||'KE',months:S.month,age:age(),nw:Math.round(nw),best:Math.round(Math.max(nw,...H)),start:Math.round(H[0]||1000),
   end:S.vanished?'vanished':S.died?'died':S.over?'bankrupt':'restarted',dirty:!!(S.law&&S.law.dirty),bribed:!!(S.law&&S.law.bribed),jailed:!!(S.law&&S.law.convictions),cause:S.died?String(S.deathCause||'').slice(0,160):'',billionAge:bm>=0?(S.age0||24)+Math.floor(bm/12):null,gen:S.gnum||1,who:S.who||(ACC&&ACC.name)||'',
   ms:msAges(),bcw:(S.bc&&S.bc.done||[]).length,rank:(TITLES[S.peak||0]||TITLES[0])[1],spouse:S.spouse?S.spouse.name:'',kids:S.kids.length,inds:S.inds.length,props:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,fdn:!!S.fdn};}
-function lifeRecord(){const l=lifeSummary();try{const d=obitData();l.ob={name:d.name,dek:d.dek,role:d.role,lead:d.lead,surv:d.surv,high:d.high,ach:d.ach,bornY:d.bornY,diedY:d.diedY,years:d.years};}catch(e){}return l;}
+function lifeRecord(){const l=lifeSummary();try{const d=obitData();l.ob={pt:d.pt,pd:d.pd,name:d.name,dek:d.dek,role:d.role,lead:d.lead,surv:d.surv,high:d.high,ach:d.ach,bornY:d.bornY,diedY:d.diedY,years:d.years};}catch(e){}return l;}
 /* ================= Obituary: a shareable front page for a life that ended ================= */
+/* ================= Hustler type: what kind of player you were, from the choices you made and how you lived ================= */
+function ptNote(ev,b,pend0){if(!ev||!ev._id||/Daily bonus/.test(ev.cat||''))return;const P=S.pt=S.pt||{crook:0,clean:0,give:0,keep:0,risk:0,safe:0,pol:0};
+ const e=EVENTS.find(x=>x.id===ev._id)||(typeof RISKS!=='undefined'?RISKS.find(x=>x.id===ev._id):null),g=e?evGroup(e):(ev.cat||''),a=outSnap();
+ const dCash=a.cash-b.cash,dCop=a.cop-b.cop,dHeat=a.heat-b.heat,dInf=a.inf-b.inf,gamble=(S.pending||[]).slice(pend0).some(p=>p.chance!=null&&p.chance<1);
+ if(g==='Darkworld'||g==='Street'||/^(dw|past)_/.test(ev._id)){if(dCop>0||dHeat>0||dCash>0)P.crook++;else P.clean++;}
+ else if(/^(Social|Family|Family life|Family drama|Foundation)$/.test(g)){if(dCash<0)P.give++;else P.keep+=.5;}
+ if(gamble||a.debt>b.debt)P.risk++;else if(/^(Business|Markets|Economy|Industries)$/.test(g))P.safe+=.5;
+ if(dInf>0)P.pol+=Math.min(2,dInf/8);}
+function ptScores(){const P=S.pt||{},nw=Math.max(1,netWorth()),M=S.modeN||{},mt=(M.hustle||0)+(M.balanced||0)+(M.family||0);
+ const val=a=>has(a.id)*a.price*afx(a.id),lux=ASSETS.filter(a=>a.lux).reduce((t,a)=>t+val(a),0),rent=ASSETS.filter(a=>a.kind==='Rental property').reduce((t,a)=>t+val(a),0);
+ const carT=Math.max(0,...CARS.filter(c=>has(c.id)).map(c=>c.tier)),homeT=Math.max(0,...HOMES.filter(h=>has(h.id)).map(h=>h.tier)),kids=(S.kids||[]).filter(k=>!k.withEx).length;
+ const law=S.law||{},jail=law.convictions?2:0,c1=x=>Math.max(0,Math.min(1,x));
+ return{crook:Math.max(jail?.75:0,c1(((P.crook||0)+jail+(law.att||0)/40)/((P.crook||0)+(P.clean||0)+jail+2))),
+  give:c1((P.give||0)/((P.give||0)+(P.keep||0)+2)+(S.fdn?.25:0)),
+  risk:c1((P.risk||0)/((P.risk||0)+(P.safe||0)+3)+(S.strikes?.15:0)),
+  pol:c1((P.pol||0)/10+(S.influence||0)/250+(S.pc&&S.pc.held&&S.pc.held.length?.3:0)),
+  fam:c1((mt?((M.family||0)+.4*(M.balanced||0))/mt*.55:.2)+Math.min(1,kids/4)*.25+(S.spouse&&S.spouse.happy>60?.2:0)),
+  stat:c1(Math.min(1,lux/nw*6)*.6+carT/6*.2+homeT/6*.2),
+  prop:c1((propValue()+rent)/Math.max(1,assets())*1.6),
+  build:c1(bizAssets()/Math.max(1,assets()))};}
+const PTYPES_H=[
+ ['godfather','🕴️','The Godfather','Crooked deals and friends in power. Nobody crossed you twice.',T=>T.crook>.35?(T.crook*.6+T.pol*.5)*(T.crook>.55?1.3:1):0],
+ ['shadow','🦂','The Shadow Tycoon','You made your money in the dark and kept it there.',T=>T.crook>.35?(T.crook*.85+(1-T.give)*.15)*(T.crook>.55?1.3:1):0],
+ ['kingmaker','🏛️','The Kingmaker','Politicians took your calls. Elections went your way.',T=>T.pol*.8+(1-T.crook)*.2],
+ ['hero','🤲','The Village Hero','You shared your wealth. Half the village owes you school fees.',T=>T.give*.7+T.fam*.3],
+ ['family','🏡','FAMILY','Family came first, and the business grew around them.',T=>T.fam*.85+(1-T.risk)*.15],
+ ['roller','🎲','The High Roller','Big bets, big loans, big nights. You lived for the risk.',T=>T.risk*.7+T.stat*.3],
+ ['spender','💎','The Big Spender','Yachts, jets and diamonds. If it shone, you bought it.',T=>T.stat*.9],
+ ['baron','🏙️','The Property Baron','Bricks, towers and rent. You owned the skyline.',T=>T.prop*.85],
+ ['builder','🧱','The Clean Builder','Honest work, one business at a time. You built it the right way.',T=>(1-T.crook)*.45+T.build*.35+(1-T.risk)*.2],
+ ['quiet','🦉','The Quiet Billionaire','Rich, careful and modest. Nobody knew how rich you were.',T=>netWorth()>=1e9?(1-T.stat)*.5+(1-T.risk)*.3+.25:0]];
+function ptypeOf(){const T=ptScores();let best=null;PTYPES_H.forEach(p=>{const v=p[4](T);if(!best||v>best.v)best={p,v};});const p=best.p;
+ const name=p[0]==='family'?(S.g==='f'?'The Matriarch':'The Patriarch'):p[2];return{id:p[0],ico:p[1],name,desc:p[3],T};}
 function obitData(){const L=lifeSummary(),name=(S.who||(ACC&&ACC.name)||'The founder').trim(),first=name.split(/\s+/)[0],brand=BR(),a=L.age,a0=S.age0||24;
  const achNames=(S.ach||[]).map(id=>(ACH.find(x=>x[0]===id)||[])[1]).filter(Boolean);
  const high=[];if(L.billionAge)high.push('Became a billionaire at '+L.billionAge);
@@ -6030,7 +6066,7 @@ function obitData(){const L=lifeSummary(),name=(S.who||(ACC&&ACC.name)||'The fou
  const y0=S.y0||new Date().getFullYear(),bornY=y0-a0,diedY=y0+Math.floor(S.month/12);
  const firstBiz=(BIZ.filter(b=>b.ind===S.inds[0]).sort((p,q)=>unitCost(p,0)-unitCost(q,0))[0]||{name:'small business'}).name.lc();
  const dek=(S.gnum||1)>1?'Took over '+brand+' and grew it into a '+fmt(L.best)+' empire.':L.best<1e5?'Opened a '+firstBiz+(town?' in '+town:'')+' and never stopped hustling.':'Built a '+fmt(L.best)+' empire from a '+firstBiz+(town?' in '+town:'')+'.';
- return{dek,bornY,diedY,name,role,born:a0,age:a,cause:L.cause||'',lead,surv,high:high.slice(0,4),ach:achNames.slice(0,6),nw:L.nw,best:L.best,rank:(TITLES[S.peak||0]||TITLES[0])[1],years:Math.floor(S.month/12),gen:S.gnum||1,mine:true};}
+ const ptp=ptypeOf();return{pt:ptp.name,pd:ptp.desc,dek,bornY,diedY,name,role,born:a0,age:a,cause:L.cause||'',lead,surv,high:high.slice(0,4),ach:achNames.slice(0,6),nw:L.nw,best:L.best,rank:(TITLES[S.peak||0]||TITLES[0])[1],years:Math.floor(S.month/12),gen:S.gnum||1,mine:true};}
 function obitFromLife(l){if(!l)return obitData();if(l.live)return Object.assign(obitData(),{end:l.end});
  const o=l.ob||{},age=l.age||24,yrs=o.years!=null?o.years:Math.floor((l.months||0)/12),endY=o.diedY||(new Date(l.ts||Date.now()).getFullYear()+yrs),name=String(o.name||l.who||(ACC&&ACC.name)||'The founder').trim(),first=name.split(/\s+/)[0];
  const high=o.high||[l.billionAge?'Became a billionaire at '+l.billionAge:'',l.fdn?'Founded a charitable foundation':'',l.teams?'Owned '+l.teams+' sports team'+(l.teams>1?'s':''):'',l.props?'Built a portfolio of '+l.props+' propert'+(l.props>1?'ies':'y'):'',l.inds>1?'Ran businesses in '+l.inds+' industries':'',l.jailed?'Served time in prison':''].filter(Boolean).slice(0,4);
@@ -6042,7 +6078,7 @@ function obitFromLife(l){if(!l)return obitData();if(l.live)return Object.assign(
 function obitKind(d){return!d.end||d.end==='died'||d.end==='vanished'?'Obituary':'Life story';}
 function obitLink(){return(typeof inviteData!=='undefined'&&inviteData&&inviteData.link)?inviteData.link.replace(/^https?:\/\//,''):'hustlempires.com';}
 function obitHTML(d){return'<article class="obit"><div class="obit-mast"><span>The Hustlempires Times</span><span>'+obitKind(d)+'</span></div>'+
- '<h2>'+esc(d.name)+'</h2><p class="obit-years">'+d.bornY+' – '+d.diedY+' · aged '+d.age+'</p><p class="obit-dek">'+esc(d.dek)+'</p><p class="obit-role">'+esc(d.role.charAt(0).toUpperCase()+d.role.slice(1))+'</p>'+(d.cause?'<p class="obit-cause">'+esc(d.cause)+'</p>':'')+
+ '<h2>'+esc(d.name)+'</h2><p class="obit-years">'+d.bornY+' – '+d.diedY+' · aged '+d.age+'</p><p class="obit-dek">'+esc(d.dek)+'</p><p class="obit-role">'+esc(d.role.charAt(0).toUpperCase()+d.role.slice(1))+'</p>'+(d.pt?'<p class="obit-type">Hustler type: <b>'+esc(d.pt)+'</b>'+(d.pd?' · '+esc(d.pd):'')+'</p>':'')+(d.cause?'<p class="obit-cause">'+esc(d.cause)+'</p>':'')+
  '<p class="obit-lead">'+esc(d.lead)+'</p>'+
  '<dl class="obit-nums"><div><dt>Net worth</dt><dd>'+fmt(d.nw)+'</dd></div><div><dt>Peak rank</dt><dd>'+esc(d.rank)+'</dd></div><div><dt>Years</dt><dd>'+d.years+'</dd></div></dl>'+
  (d.high.length?'<h3>Remembered for</h3><ul>'+d.high.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'')+
@@ -6069,7 +6105,7 @@ function obitCanvas(d){d=d||obitData();const W=1080,H=1350,c=document.createElem
  x.font='italic 34px '+serif;x.fillText(d.bornY+' – '+d.diedY+' · aged '+d.age,W/2,y);y+=10;
  const wrap=(t,font,lh,max,align)=>{x.font=font;x.textAlign=align||'left';const words=t.split(' ');let line='';const lines=[];words.forEach(w=>{const tt=line?line+' '+w:w;if(x.measureText(tt).width>max&&line){lines.push(line);line=w;}else line=tt;});if(line)lines.push(line);
   lines.forEach(l=>{y+=lh;x.fillText(l,align==='center'?W/2:90,y);});};
- x.fillStyle='#14110c';wrap(d.dek,'700 40px '+serif,52,W-160,'center');y+=14;x.font='600 24px Oswald, Impact, sans-serif';x.fillStyle='#8a5a12';x.textAlign='center';y+=30;x.fillText(d.role.toUpperCase(),W/2,y);y+=6;x.fillStyle='#14110c';
+ x.fillStyle='#14110c';wrap(d.dek,'700 40px '+serif,52,W-160,'center');y+=14;x.font='600 24px Oswald, Impact, sans-serif';x.fillStyle='#8a5a12';x.textAlign='center';y+=30;x.fillText(d.role.toUpperCase(),W/2,y);y+=6;if(d.pt){y+=40;x.font='700 30px Oswald, Impact, sans-serif';x.fillStyle='#14261f';x.fillText('HUSTLER TYPE: '+d.pt.toUpperCase(),W/2,y);}x.fillStyle='#14110c';
  if(d.cause){x.fillStyle='#5b5146';wrap(d.cause,'italic 28px '+serif,38,W-200,'center');x.fillStyle='#14110c';}
  y+=30;x.fillRect(90,y,W-180,1.5);y+=10;
  y+=24;
