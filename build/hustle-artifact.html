@@ -260,6 +260,8 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .race{margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(120,200,255,.4);background:rgba(120,200,255,.07)}.race-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px}.race-top span{font-weight:800;letter-spacing:.04em}.race-top em{font-style:normal;opacity:.85}.race .g10-bar{margin:8px 0}
 .racegrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0 2px}.rp{display:flex;justify-content:space-between;gap:6px;padding:5px 8px;border-radius:8px;font-size:12.5px;background:rgba(255,255,255,.05);border-left:3px solid #9aa}.rp.good{border-left-color:#3fcf6e}.rp.mid{border-left-color:#f2b53a}.rp.bad{border-left-color:#ef5350}.rp span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}@media (max-width:520px){.racegrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .racefin{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 10px}.racefin div{padding:10px;border-radius:10px;background:rgba(255,255,255,.06);text-align:center}.racefin small{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.8}.racefin b{font-family:Oswald,Impact,sans-serif;font-size:24px}.racefin b.grade{font-size:20px;line-height:1.15}.grade.gA{color:#3fcf6e}.grade.gB{color:#9be36b}.grade.gC{color:#f2b53a}.grade.gD,.grade.gE{color:#ef5350}
+.chap{border-color:rgba(120,200,255,.45);background:rgba(120,200,255,.07)}.chapobj{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}.chapobj li.cobj{text-transform:none;letter-spacing:0;color:inherit;font-weight:400;display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:13.5px;line-height:1.35}.chapobj li>span{font-weight:800;opacity:.7}.chapobj li.cdone{opacity:.6}.chapobj li.cdone>span{color:#3fcf6e;opacity:1}.chapobj small{display:block;font-size:12px;opacity:.8;margin-top:1px}
+.bestmove{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin:0 0 12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,197,61,.5);background:rgba(255,197,61,.09)}.bm-ico{font-size:24px}.bestmove small{display:block;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.8}.bestmove b{display:block}.bestmove span{font-size:12.5px}
 .unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
 @keyframes unlin{from{opacity:0;transform:translate(-50%,-30px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @media (prefers-reduced-motion:reduce){.unlfx{animation:none}.tabs button.unew::after{animation:none}}
@@ -690,6 +692,7 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
         <div class="stat csstat" data-a="tab" data-v="money" title="Credit score: open the Money tab to see how it works"><span class="eyebrow">Credit score</span><b id="cscore">650</b></div>
       </div>
       <div class="g10" id="g10" hidden></div>
+      <div class="g10 chap" id="chap" hidden></div>
       <div class="race" id="race" hidden></div>
     </div>
     <div class="chartbox">
@@ -3749,7 +3752,7 @@ document.addEventListener('keydown',e=>{if(e.key==='n'&&!tourOn&&!e.metaKey&&!e.
 
 /* ================= Render ================= */
 function meter(v,col){return'<div class="meter"><i style="width:'+clamp(v,0,100)+'%;background:var('+col+')"></i></div>';}
-function render(){try{raceRender();}catch(e){}try{unlCheck();g10Check();affordCheck();pppUnlockCheck();}catch(e){}try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
+function render(){try{raceRender();}catch(e){}try{chapCheck();}catch(e){}try{unlCheck();g10Check();affordCheck();pppUnlockCheck();}catch(e){}try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
  const nw=netWorth(),F=flows(false);
  $('acctchip').innerHTML=ACC?avatar(ACC)+'<span><b>'+esc(ACC.name)+'</b><small>'+esc(ACC.company)+' · switch</small></span>':'<span><b>No account</b><small>Create one to play</small></span>';
  $('fdn-title').textContent='The '+BR()+' Foundation';
@@ -3802,7 +3805,7 @@ function render(){try{raceRender();}catch(e){}try{unlCheck();g10Check();affordCh
     '<div class="mbnum"><b class="'+(monthly(b)<0?'neg':'pos')+'">'+(monthly(b)<0?'−':'')+fmt(Math.abs(monthly(b)))+'/mo</b><span>worth '+fmt(bizValue(b))+'</span></div>'+
     '<div class="acts">'+(atCap(b)?'<button class="btn small" disabled title="Your licence allows '+regCap(b)+' of these">Licence limit · '+regCap(b)+'</button>':'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>+1 · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>')+'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1</button></div></div>';});}
  $('mybiz').innerHTML=mh;
- let bh='';
+ let bh='';try{bh+=bestMoveHTML();}catch(e){}
  if(!S.inds.length)bh+='<p class="seghint" style="margin:0">Choose your first industry to get started.</p>';
  S.inds.forEach(iid=>{const ind=IND[iid],bs=BIZ.filter(b=>b.ind===iid),tiers=bs.filter(b=>owned(b.id)).length,units=bs.reduce((t,b)=>t+owned(b.id),0),exitVal=bs.reduce((t,b)=>{let v=0;for(let k=0;k<owned(b.id);k++)v+=unitCost(b,k)*.7;return t+v},0);
   const exitUI=exitAsk===iid?'<span class="foot">Sell all for '+fmt(exitVal)+'? <button class="btn small" data-a="exitind" data-v="'+iid+'">Yes, exit</button><button class="btn ghost small" data-a="noexit">Cancel</button></span>'
@@ -4493,6 +4496,40 @@ function raceRender(){const el=$('race');if(!el)return;if(!S||S.over||!S.inds||!
  if(n>13&&nw>0){const g=Math.pow(H[n-1]/Math.max(1,H[n-13]),1/12);if(g>1.001){const left=Math.log(goal/Math.max(1,nw))/Math.log(g);if(left<1200)pace=' · on pace for about '+raceTime(Math.round(m+left)).replace(/ \d+ months?$/,'');}}
  const pc=Math.max(0,Math.min(100,(Math.log10(Math.max(1,nw))-(leg===1?3:9))/(leg===1?6:3)*100));
  el.hidden=false;el.innerHTML='<div class="race-top"><span>🏁 '+(leg===1?'The billion race':'The trillion race')+'</span><em>'+raceTime(m)+pace+' · on track for '+gIco(gradeOf(avg))+' '+gName(gradeOf(avg))+'</em></div><div class="g10-bar"><i style="width:'+pc+'%"></i></div>'+raceRows(P);}
+/* ================= Chapters: six steps from the street to a billion, each with a money target, a business goal and a life goal ================= */
+const tierOwned=k=>BIZ.some(b=>b.tier>=k&&owned(b.id)>0);
+const CHAPS=[
+ {n:'The street',goal:1e4,o:[['biz','Own 3 outlets',()=>totalUnits()>=3,'Buy more outlets in the Business tab.'],['health','Keep your health at 70 or more',()=>(S.health||0)>=70,'❤️ If it drops, pay for better care in the Life tab.']]},
+ {n:'Small trader',goal:1e5,o:[['biz','Open a level 2 business',()=>tierOwned(2),'The number on each business card is its level. Higher levels earn far more.'],['bank','Get your credit score to 680',()=>{try{return creditScore()>=680;}catch(e){return false;}},'🏦 Pay loans on time and do not borrow more than you own.']]},
+ {n:'Business owner',goal:1e6,o:[['biz','Run businesses in 2 industries',()=>S.inds.length>=2,'Enter a second industry at the bottom of the Business tab.'],['fam','Get married',()=>!!S.spouse,'👪 Use Look for a partner in the Life tab.']]},
+ {n:'Millionaire',goal:1e7,o:[['biz','Own a level 4 business',()=>tierOwned(4),'Climb the ladder in one industry instead of spreading thin.'],['rep','Reach 65 reputation',()=>(S.rep||0)>=65,'⭐ Treat staff and customers well, give to causes, avoid scandals.']]},
+ {n:'Mogul',goal:1e8,o:[['biz','Own a building in the Property tab',()=>(S.props||[]).length>0,'Property earns rent and grows with the city.'],['soc','Reach 40 influence',()=>(S.influence||0)>=40,'🤝 Back politicians, join harambees and fund your community.']]},
+ {n:'Tycoon',goal:1e9,o:[['biz','Run businesses in 3 industries',()=>S.inds.length>=3,'A third industry spreads your risk and your profit.'],['law','Keep police attention under 20',()=>{const L=S.law||{};return(L.att||0)<20&&!(typeof jailed==='function'&&jailed());},'⚖️ Stay out of crooked deals. A tax amnesty can wipe the slate.']]}];
+const chapOn=()=>!!S&&!S.over&&(S.gnum||1)<=1&&!(S.race1&&S.race1.inherited)&&S.inds&&S.inds.length>0&&!(S.newbie&&(S.g10||0)<G10.length);
+function chapObjs(i){const C=CHAPS[i];return[['money','Grow to '+fmt(C.goal),()=>Math.max(netWorth(),...(S.hist||[0]).slice(-1))>=C.goal,'Your net worth counts, not just cash.']].concat(C.o);}
+function chapCheck(){const el=$('chap');if(!el)return;S.chap=S.chap||0;if(!chapOn()||S.chap>=CHAPS.length){el.hidden=true;return;}
+ S.chapDone=S.chapDone||{};const i=S.chap,C=CHAPS[i],O=chapObjs(i);let newly=null;
+ O.forEach((o,k)=>{const key=i+'_'+k;if(!S.chapDone[key]){let ok=false;try{ok=o[2]();}catch(e){}if(ok){S.chapDone[key]=1;newly=o;}}});
+ const all=O.every((o,k)=>S.chapDone[i+'_'+k]);
+ if(all){const cash=C.goal*.05;S.cash+=cash;addRep(3);addHappy(5);if(typeof addPts==='function')addPts(15*(i+1));S.chap++;log('Chapter '+(i+1)+' complete: '+C.n+'. You earned '+fmt(cash)+'.','gold');
+  chapFx('Chapter '+(i+1)+' complete',C.n,'+'+fmt(cash)+' · +3 reputation'+(S.chap<CHAPS.length?' · Next: '+CHAPS[S.chap].n:''));try{coinBurst(14);}catch(e){}return chapCheck();}
+ if(newly&&!current)chapFx('Objective complete',newly[1],'Chapter '+(i+1)+': '+C.n);
+ const prev=i?CHAPS[i-1].goal:1e3,nw=Math.max(1,netWorth()),pc=Math.max(0,Math.min(100,(Math.log10(nw)-Math.log10(prev))/(Math.log10(C.goal)-Math.log10(prev))*100));
+ el.innerHTML='<div class="g10-top"><span>Chapter '+(i+1)+' of '+CHAPS.length+' · '+C.n+'</span><em>Reward '+fmt(C.goal*.05)+'</em></div><b>'+fmt(nw)+' of '+fmt(C.goal)+'</b><div class="g10-bar"><i style="width:'+pc+'%"></i></div>'+
+  '<ul class="chapobj">'+O.map((o,k)=>{const d=S.chapDone[i+'_'+k];return'<li class="cobj'+(d?' cdone':'')+'"><span>'+(d?'✔':'○')+'</span><div>'+o[1]+(d?'':'<small>'+o[3]+'</small>')+'</div></li>';}).join('')+'</ul>';
+ el.hidden=false;}
+function chapFx(small,big,line){document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('div');d.className='unlfx goal';d.innerHTML='<small>'+small+'</small><b>'+esc(big)+'</b><span>'+esc(line)+'</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),5200);setTimeout(()=>d.remove(),5800);}
+/* ================= Best next move: the business you can afford now that pays for itself fastest ================= */
+function bestMove(){if(!S||S.over||!S.inds||!S.inds.length||(typeof jailed==='function'&&jailed()))return null;let best=null;
+ BIZ.forEach(b=>{if(!S.inds.includes(b.ind)||bizLocked(b))return;const n=owned(b.id);if(n>=regCap(b))return;const c=unitCost(b,n);if(!(c<=S.cash))return;
+  let gain=0;try{gain=bizWith(b,1).net-bizWith(b,0).net;}catch(e){}if(!(gain>0))return;const pay=c/gain;if(pay>96)return;if(!best||pay<best.pay)best={b,c,gain,pay};});
+ return best;}
+/* when nothing pays back within 8 years, point at the next business up the ladder instead */
+function nextRung(){let r=null;BIZ.forEach(b=>{if(!S.inds.includes(b.ind)||owned(b.id)>0||!bizLocked(b))return;const at=b.cost*ECONT().unlock;if(!r||at<r.at)r={b,at};});return r;}
+/* the hint only guides the first year; after that the player makes their own calls */
+const BEST_MONTHS=12;
+function bestMoveHTML(){if((S.month||0)>=BEST_MONTHS)return'';const m=bestMove();if(!m){const r=nextRung();if(!r)return'';const nw=Math.max(0,netWorth());return'<div class="bestmove"><span class="bm-ico">🎯</span><div><small>Next step up</small><b>'+esc(r.b.name)+'</b><span>Unlocks when your net worth reaches '+fmt(r.at)+' · you are '+Math.min(99,Math.round(nw/r.at*100))+'% there. Grow profit and save.</span></div></div>';}const y=m.pay/12,t=m.pay<12?Math.max(1,Math.round(m.pay))+' month'+(Math.round(m.pay)>1?'s':''):(Math.round(y*10)/10)+' years';
+ return'<div class="bestmove"><span class="bm-ico">💡</span><div><small>Best next move</small><b>'+esc(m.b.name)+(owned(m.b.id)?' (one more)':'')+'</b><span>'+fmt(m.c)+' · earns about '+fmt(m.gain)+'/mo · pays for itself in '+t+'</span></div><button class="btn small primary" data-a="buy" data-v="'+m.b.id+'">Look</button></div>';}
 function kidsHTML(){const opts=[[null,'Let it happen'],[0,'None'],[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6']],n=S.kids.filter(k=>!k.withEx).length,w=S.kidsWant;
  return'<h4>How many children do you want?</h4><div class="seg kidseg" role="group" aria-label="How many children you want">'+opts.map(o=>'<button data-a="kidswant" data-v="'+(o[0]==null?'any':o[0])+'" aria-pressed="'+(w===o[0]||(w==null&&o[0]==null))+'">'+o[1]+'</button>').join('')+'</div>'+
   '<p class="seghint">'+(w==null?'Babies come when they come, up to 4.':w===0?'No children planned. Without children, your empire cannot pass to an heir.':n>=w?'Your family is complete: '+n+' child'+(n===1?'':'ren')+'.':(S.spouse?'Trying for '+(w-n)+' more. Babies come sooner while you are trying.':'You need to be married first. Then you can start a family.'))+'</p>';}
