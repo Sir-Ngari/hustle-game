@@ -362,6 +362,7 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .racefin{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 10px}.racefin div{padding:10px;border-radius:10px;background:rgba(255,255,255,.06);text-align:center}.racefin small{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.8}.racefin b{font-family:Oswald,Impact,sans-serif;font-size:24px}.racefin b.grade{font-size:20px;line-height:1.15}.grade.gA{color:#3fcf6e}.grade.gB{color:#9be36b}.grade.gC{color:#f2b53a}.grade.gD,.grade.gE{color:#ef5350}
 .chap{border-color:rgba(120,200,255,.45);background:rgba(120,200,255,.07)}.chapobj{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}.chapobj li.cobj{text-transform:none;letter-spacing:0;color:inherit;font-weight:400;display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:13.5px;line-height:1.35}.chapobj li>span{font-weight:800;opacity:.7}.chapobj li.cdone{opacity:.6}.chapobj li.cdone>span{color:#3fcf6e;opacity:1}.chapobj small{display:block;font-size:12px;opacity:.8;margin-top:1px}
 .bestmove{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin:0 0 12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,197,61,.5);background:rgba(255,197,61,.09)}.bm-ico{font-size:24px}.bestmove small{display:block;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.8}.bestmove b{display:block}.bestmove span{font-size:12.5px}
+.mission-lead{font-size:1.05em;margin:0 0 8px}.mission{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}.mission li{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start}.mission li>span{font-size:20px;line-height:1.2}.mission-first{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,197,61,.12);border:1px solid rgba(255,197,61,.4)}
 .unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
 @keyframes unlin{from{opacity:0;transform:translate(-50%,-30px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @media (prefers-reduced-motion:reduce){.unlfx{animation:none}.tabs button.unew::after{animation:none}}
@@ -2217,7 +2218,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='ccd10407bec8';let updShown=false;
+const APP_VER='35ae82b8936f';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -3446,13 +3447,18 @@ function burnoutEvent(){const c=nwc(.01,300);return{cat:'Life',title:'You are bu
 
 /* a brand-new player's first industry is picked for them (Retail & Fashion, the street kiosk); they choose the next one themselves */
 function firstIndEvent(){const i=INDS.find(x=>x.id==='retail'&&!x.reg)||INDS.find(x=>!x.reg),u=i.biz[0];
- return{cat:'Your first business',title:'Your empire starts on the street',noOut:true,
-  text:'Every billionaire started somewhere. You start in <b>'+i.name+'</b> with '+aN(u[1].lc())+'. '+u[4]+'. It costs '+fmt(u[2])+'. Open it, then press PLAY to run your first month. When you reach Business Owner, you choose your next industry yourself.',
-  choices:[{l:'Open my '+u[1].lc(),d:'Costs '+fmt(u[2])+'. You start earning from your first month.',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);return['You started in '+i.name+' and opened your first '+u[1].lc()+'. Press PLAY to run your first month.','gold'];}}]};}
+ return{cat:'Your mission',title:'Turn '+fmt(S.cash||1000)+' into a billion. Fast.',noOut:true,
+  text:'<p class="mission-lead"><b>Your mission:</b> build a billion-dollar empire in the shortest time you can.</p>'+
+   '<ul class="mission"><li><span>💼</span><div><b>Buy the right businesses.</b> Climb from a street kiosk to factories, banks and airlines.</div></li>'+
+   '<li><span>🌍</span><div><b>Grow across industries</b> as your rank rises.</div></li>'+
+   '<li><span>⚖️</span><div><b>Keep your life in balance:</b> family, health, banks, the law, society and your reputation. Neglect them and the empire cracks.</div></li></ul>'+
+   '<p>Cross $1 billion as a 🏆 <b>Legend</b> and the trillion race opens. <b>Your clock starts now.</b></p>'+
+   '<p class="mission-first"><b>First move:</b> buy '+aN(u[1].lc())+' in '+i.name+'. '+u[4]+', for '+fmt(u[2])+'. Then press PLAY.</p>',
+  choices:[{l:'Buy my '+u[1].lc()+' · '+fmt(u[2]),d:'It starts earning from your first month.',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);return['You started in '+i.name+' and bought your first '+u[1].lc()+'. Press PLAY to run your first month.','gold'];}}]};}
 function industryEvent(first){if(first&&(S.gnum||1)<=1&&!S.inds.length)return firstIndEvent();const avail=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id)),fee=first?0:entryFee();
  return{cat:'Industries',title:first?'Choose your first industry':'Room for a new industry',
   text:first?'Every empire starts somewhere. Pick the industry you want to build in first. You unlock a second industry at Business Owner, a third at Millionaire, and one more at every rank after that.':'Your standing opens new doors. You now have room for '+SLOTS[S.peak]+' industries. Licences and setup cost '+fmt(fee)+'.',
-  choices:avail.map(i=>({l:i.name,d:i.blurb+' Starts with '+aN(i.biz[0][1].lc())+' ('+fmt(i.biz[0][2])+').',dis:!first&&S.cash<fee,f(){enterInd(i.id,fee);return[first?'You chose '+i.name+'. Open your first '+i.biz[0][1].lc()+'.':'You entered '+i.name+'.','gold']}}))
+  choices:avail.map(i=>({l:i.name,d:i.blurb+' Starts with '+aN(i.biz[0][1].lc())+' ('+fmt(i.biz[0][2])+').',dis:!first&&S.cash<fee,f(){enterInd(i.id,fee);return[first?'You chose '+i.name+'. Buy your first '+i.biz[0][1].lc()+'.':'You entered '+i.name+'.','gold']}}))
    .concat(first?[]:[{l:'Decide later',d:'You can enter a new industry any time from the Businesses panel.',f(){return['','']}}])};}
 let exitAsk=null,othersOpen=null;
 function exitInd(id){let v=0;BIZ.filter(b=>b.ind===id).forEach(b=>{for(let k=0;k<owned(b.id);k++)v+=unitCost(b,k)*.7;S.owned[b.id]=0;});
@@ -4475,7 +4481,7 @@ function render(){try{raceRender();}catch(e){}try{chapCheck();}catch(e){}try{unl
     bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*ECONT().unlock)+', or sooner if the bank agrees to finance it.</div></div><div class="acts">'+(finOK(b)?'<button class="btn small" data-a="buy" data-v="'+b.id+'">Ask the bank · '+fmt(c)+'</button>':'')+'</div></div>';return;}
    bh+='<div class="biz '+(n?'owned':'')+'"><div class="tier">'+b.tier+'</div><div style="min-width:0"><div class="name">'+b.name+(n?'<span class="count">×'+n+'</span>':'')+(pm!==1?' <span class="pill '+(pm<1?'bad':'good')+'">Policy ×'+pm.toFixed(2)+'</span>':'')+'</div><div class="tag">'+b.tag+'</div>'+
     '<div class="meta">Each earns ~'+fmt(RET()*regF(b)*b.profit*bmBase*pm*im*cyc(b)/S.s)+'/mo'+(isReg(iid)?' before excise':'')+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
-    '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>Open · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>'+
+    '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>Buy · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>'+
     (n?'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1 · '+fmt(unitCost(b,n-1)*.7)+'</button>':'')+'</div></div>';});
   bh+='</div>';});
  const others=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id));
@@ -5284,8 +5290,8 @@ function paintGuide(){let g=$('guide');if(!g){g=document.createElement('div');g.
  document.querySelectorAll('.coach').forEach(e=>e.classList.remove('coach'));
  const mo=$('modal'),st=(tourOn||current||(mo&&!mo.hidden)||(guideSnooze&&Date.now()-guideSnooze<12000))?null:guideStep();if(!st){g.hidden=true;return;}
  const unit=(BIZ.filter(b=>S.inds.includes(b.ind)).sort((a,b)=>unitCost(a,0)-unitCost(b,0))[0]||{name:'business'});
- if(st==='buy'){g.innerHTML=curTab==='business'?'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Press the glowing <b>Open</b> button on the '+esc(unit.name)+'. It earns money for you every month.</p>'
-  :'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Your empire starts with one '+esc(unit.name.lc())+'. Go to the <b>Business</b> tab and press <b>Open</b>. It earns money for you every month.</p><div class="chips"><button class="btn primary small" data-a="guidego" data-v="buy">Show me</button></div>';
+ if(st==='buy'){g.innerHTML=curTab==='business'?'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Press the glowing <b>Buy</b> button on the '+esc(unit.name)+'. It earns money for you every month.</p>'
+  :'<span class="gstep">Step 1 of 2</span><b>Buy your first business</b><p>Your empire starts with one '+esc(unit.name.lc())+'. Go to the <b>Business</b> tab and press <b>Buy</b>. It earns money for you every month.</p><div class="chips"><button class="btn primary small" data-a="guidego" data-v="buy">Show me</button></div>';
   if(curTab==='business'){const b=cheapestBuy();if(b)b.classList.add('coach');}else{const t=$('tab-business');if(t)t.classList.add('coach');}}
  else{g.innerHTML='<span class="gstep">Step 2 of 2</span><b>Start the clock</b><p>Press <b>PLAY</b> and the months roll on by themselves. Your businesses earn, and the game stops whenever a decision needs you. Press <b>PAUSE</b> to stop the clock.</p><div class="chips"><button class="btn primary small" data-a="guidenext">PLAY</button><button class="btn ghost small" data-a="tour">Full tour</button></div>';
   $('next').classList.add('coach');}
@@ -5310,7 +5316,7 @@ function addPts(n){if(n>0)sea().pts+=Math.round(n);}
 function weekId(d=new Date()){const m=new Date(d);m.setHours(0,0,0,0);m.setDate(m.getDate()-((m.getDay()+6)%7));return dayKey(m);}
 function daysLeftInWeek(){const d=new Date();return 7-((d.getDay()+6)%7);}
 const WK_POOL=[
- {id:'units',n:[5,8,12],t:n=>'Open '+n+' new outlets',p:w=>w.c.units||0},
+ {id:'units',n:[5,8,12],t:n=>'Buy '+n+' new outlets',p:w=>w.c.units||0},
  {id:'months',n:[24,36,48],t:n=>'Play '+n+' months',p:w=>w.c.months||0},
  {id:'grow',n:[2,3,5],t:n=>'Grow your net worth ×'+n+' this week',p:w=>Math.floor(Math.max(0,netWorth())/Math.max(1,w.base)*10)/10},
  {id:'ranks',n:[1,2,3],t:n=>'Climb '+n+' rank'+(n>1?'s':''),p:w=>w.c.ranks||0},
