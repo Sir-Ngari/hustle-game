@@ -361,6 +361,7 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .racegrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0 2px}.rp{display:flex;justify-content:space-between;gap:6px;padding:5px 8px;border-radius:8px;font-size:12.5px;background:rgba(255,255,255,.05);border-left:3px solid #9aa}.rp.good{border-left-color:#3fcf6e}.rp.mid{border-left-color:#f2b53a}.rp.bad{border-left-color:#ef5350}.rp span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}@media (max-width:520px){.racegrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .racefin{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 10px}.racefin div{padding:10px;border-radius:10px;background:rgba(255,255,255,.06);text-align:center}.racefin small{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.8}.racefin b{font-family:Oswald,Impact,sans-serif;font-size:24px}.racefin b.grade{font-size:20px;line-height:1.15}.grade.gA{color:#3fcf6e}.grade.gB{color:#9be36b}.grade.gC{color:#f2b53a}.grade.gD,.grade.gE{color:#ef5350}
 .chap{border-color:rgba(120,200,255,.45);background:rgba(120,200,255,.07)}.chapobj{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}.chapobj li.cobj{text-transform:none;letter-spacing:0;color:inherit;font-weight:400;display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:13.5px;line-height:1.35}.chapobj li>span{font-weight:800;opacity:.7}.chapobj li.cdone{opacity:.6}.chapobj li.cdone>span{color:#3fcf6e;opacity:1}.chapobj small{display:block;font-size:12px;opacity:.8;margin-top:1px}
+.boostbar{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin:0 0 10px;padding:8px 12px;border-radius:12px;border:1px solid rgba(63,207,110,.45);background:rgba(63,207,110,.1)}.boostbar>span{font-size:22px}.boostbar b{display:block}.boostbar small{display:block;font-size:12px;opacity:.85}
 .bestmove{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin:0 0 12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,197,61,.5);background:rgba(255,197,61,.09)}.bm-ico{font-size:24px}.bestmove small{display:block;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.8}.bestmove b{display:block}.bestmove span{font-size:12.5px}
 .mission-lead{font-size:1.05em;margin:0 0 8px}.mission{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}.mission li{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start}.mission li>span{font-size:20px;line-height:1.2}.mission-first{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,197,61,.12);border:1px solid rgba(255,197,61,.4)}
 .unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
@@ -1244,7 +1245,8 @@ function bizNet(b){const n=owned(b.id);if(!n)return 0;const p=bizPL(b,false).pro
 /* what the business would earn and be worth with `add` more units, without changing the game */
 function bizWith(b,add){const o=owned(b.id);S.owned[b.id]=o+add;try{return{net:bizNet(b),worth:bizValue(b)};}finally{S.owned[b.id]=o;}}
 /* a size the player has not unlocked yet can only be bought with the bank's help */
-const bizLocked=b=>!(owned(b.id)>0||b.tier===1||netWorth()>=b.cost*ECONT().unlock||(S.bankOK&&S.bankOK[b.id]));
+const unlockX=b=>b.tier<=3?Math.min(1.5,+ECONT().unlock):+ECONT().unlock;
+const bizLocked=b=>!(owned(b.id)>0||b.tier===1||netWorth()>=b.cost*unlockX(b)||(S.bankOK&&S.bankOK[b.id]));
 function bcMax(b){if(bizLocked(b))return 0;let n=0,tot=0;const cap=regCap(b)-owned(b.id);while(n<Math.min(cap,500)){const c=unitCost(b,owned(b.id)+n);if(tot+c>S.cash)break;tot+=c;n++;}return n;}
 function bcCost(b,n){let t=0;for(let i=0;i<n;i++)t+=unitCost(b,owned(b.id)+i);return t;}
 function buyCard(id){const b=BIZ.find(x=>x.id===id);if(!b||S.over||!S.inds.includes(b.ind))return;stopAuto();bcState={id,n:1};paintBuyCard();}
@@ -2218,7 +2220,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='f0abdd5ebf2a';let updShown=false;
+const APP_VER='2bb76d974864';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2563,7 +2565,7 @@ function bankCands(){if(!+ECONT().bank||S.over||!S.inds.length||!loanDep())retur
  S.inds.forEach(iid=>{const bs=BIZ.filter(b=>b.ind===iid).sort((a,c)=>a.tier-c.tier),nb=bs.find(x=>!owned(x.id)),top=bs.filter(x=>owned(x.id)).pop();
   [nb&&nb.tier>1?nb:null,top&&top.tier>1?top:null].forEach(b=>{if(!b||atCap(b))return;
    const price=unitCost(b,owned(b.id)),dep=price*loanDep(),loan=price-dep,pay=loan/LOAN_MONTHS+loan*loanRate();
-   const locked=!owned(b.id)&&!(nw>=b.cost*ECONT().unlock);
+   const locked=!owned(b.id)&&!(nw>=b.cost*unlockX(b));
    if((S.cash<price||locked)&&S.cash>=dep&&nw>=price*.15&&net>=pay*.8)out.push({b,price,dep,loan,pay});});});
  return out;}
 /* pick an offer at random across all your industries, avoiding the industry the bank offered last time when there is another */
@@ -2741,8 +2743,12 @@ function reportsHTML(){const H=(S.plh||[]).slice();if(!H.length&&S.last){const e
    Events, the economy, crises and industry news move demand (D), so a bad month can turn into a loss. */
 const MARGIN={banking:.45,insurance:.3,retail:.25,food:.22,transport:.28,manufacturing:.22,realestate:.35,tech:.4,hospitality:.25,health:.3,energy:.35,media:.3};
 function bizStructMult(E){return baseMult()*modeMult()*moodMult()*E.mult*lifeMult()*ageMult()*(1-S.float)*(S.plan&&S.plan.mentor?.97:1)*(typeof statusMult==='function'?statusMult():1);}
+/* starter boost: business profit ×4 while poor, fading smoothly to ×1 at $10M, so the first years move fast. It uses last month's net worth, and heirs and head starts do not get it */
+const BOOST_TOP=4,BOOST_FULL=1e4,BOOST_END=1e7;
+function boostOf(nw){if(!S||(S.gnum||1)>1||S.headstart)return 1;nw=Math.max(1,nw);if(nw>=BOOST_END)return 1;if(nw<=BOOST_FULL)return BOOST_TOP;const f=(Math.log10(BOOST_END)-Math.log10(nw))/(Math.log10(BOOST_END)-Math.log10(BOOST_FULL));return 1+(BOOST_TOP-1)*f;}
+function boostNow(){const h=S&&S.hist;return boostOf(h&&h.length?h[h.length-1]:(S?S.cash:0));}
 function bizPL(b,noisy,E,sm){const n=owned(b.id);if(!n)return{rev:0,cost:0,profit:0,d:1};E=E||svcEffects();if(sm==null)sm=bizStructMult(E);
- const m=MARGIN[b.ind]||.3,k=.5/m+.5,P=RET()*regF(b)*b.profit*n*policyMult(b)*masteryMult(b.ind)*sm*CPI();
+ const m=MARGIN[b.ind]||.3,k=.5/m+.5,P=RET()*regF(b)*b.profit*n*policyMult(b)*masteryMult(b.ind)*sm*CPI()*boostNow();
  let d=cyc(b)*indBuff(b.ind)*buffMult()*(typeof crisisMult==='function'?crisisMult(b.ind):1);if(noisy)d*=1+(b.vol/k)*(rnd()*2-1);
  const R0=P/m,C0=R0-P,rev=R0*d,cost=C0*.5+C0*.5*d;return{rev,cost,profit:rev-cost,d};}
 function flows(noisy){
@@ -3454,7 +3460,7 @@ function firstIndEvent(){const i=INDS.find(x=>x.id==='retail'&&!x.reg)||INDS.fin
    '<li><span>⚖️</span><div><b>Keep your life in balance:</b> family, health, banks, the law, society and your reputation. Neglect them and the empire cracks.</div></li></ul>'+
    '<p>Cross $1 billion as a 🏆 <b>Legend</b> and the trillion race opens. <b>Your clock starts now.</b></p>'+
    '<p class="mission-first"><b>First move:</b> buy '+aN(u[1].lc())+' in '+i.name+'. '+u[4]+', for '+fmt(u[2])+'. Then press PLAY.</p>',
-  choices:[{l:'Buy my '+u[1].lc()+' · '+fmt(u[2]),d:'It starts earning from your first month.',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);return['You started in '+i.name+' and bought your first '+u[1].lc()+'. Press PLAY to run your first month.','gold'];}}]};}
+  choices:[{l:'Buy my '+u[1].lc()+' · '+fmt(u[2]),d:'It starts earning from your first month.',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);setTimeout(()=>{try{showTab('business');const t=document.querySelector('.boostbar')||document.querySelector('.bestmove')||$('biz');if(t){const bar=document.querySelector('.bar'),y=t.getBoundingClientRect().top+window.scrollY-(bar?bar.offsetHeight:0)-(($('quick')&&$('quick').classList.contains('on'))?$('quick').offsetHeight:90)-12;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});}}catch(e){}},400);return['You started in '+i.name+' and bought your first '+u[1].lc()+'. Press PLAY to run your first month.','gold'];}}]};}
 function industryEvent(first){if(first&&(S.gnum||1)<=1&&!S.inds.length)return firstIndEvent();const avail=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id)),fee=first?0:entryFee();
  return{cat:'Industries',title:first?'Choose your first industry':'Room for a new industry',
   text:first?'Every empire starts somewhere. Pick the industry you want to build in first. You unlock a second industry at Business Owner, a third at Millionaire, and one more at every rank after that.':'Your standing opens new doors. You now have room for '+SLOTS[S.peak]+' industries. Licences and setup cost '+fmt(fee)+'.',
@@ -4468,7 +4474,7 @@ function render(){try{raceRender();}catch(e){}try{chapCheck();}catch(e){}try{unl
     '<div class="mbnum"><b class="'+(monthly(b)<0?'neg':'pos')+'">'+(monthly(b)<0?'−':'')+fmt(Math.abs(monthly(b)))+'/mo</b><span>worth '+fmt(bizValue(b))+'</span></div>'+
     '<div class="acts">'+(atCap(b)?'<button class="btn small" disabled title="Your licence allows '+regCap(b)+' of these">Licence limit · '+regCap(b)+'</button>':'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>+1 · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>')+'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1</button></div></div>';});}
  $('mybiz').innerHTML=mh;
- let bh='';try{bh+=bestMoveHTML();}catch(e){}
+ let bh='';try{bh+=boostHTML()+bestMoveHTML();}catch(e){}
  if(!S.inds.length)bh+='<p class="seghint" style="margin:0">Choose your first industry to get started.</p>';
  S.inds.forEach(iid=>{const ind=IND[iid],bs=BIZ.filter(b=>b.ind===iid),tiers=bs.filter(b=>owned(b.id)).length,units=bs.reduce((t,b)=>t+owned(b.id),0),exitVal=bs.reduce((t,b)=>{let v=0;for(let k=0;k<owned(b.id);k++)v+=unitCost(b,k)*.7;return t+v},0);
   const exitUI=exitAsk===iid?'<span class="foot">Sell all for '+fmt(exitVal)+'? <button class="btn small" data-a="exitind" data-v="'+iid+'">Yes, exit</button><button class="btn ghost small" data-a="noexit">Cancel</button></span>'
@@ -4477,10 +4483,10 @@ function render(){try{raceRender();}catch(e){}try{chapCheck();}catch(e){}try{unl
   bh+='<div class="ind"><div class="indhead"><div style="min-width:0"><h3>'+ind.name+'</h3><div class="ownrow">'+(ownList?'<span class="eyebrow">You own</span>'+ownList:'<span class="eyebrow">You own nothing here yet</span>')+'</div></div><div class="indmeta"><span class="pill '+(tiers===bs.length?'good':'')+'" title="Own every tier for +10% profit in this industry">'+(tiers===bs.length?'Mastered ×1.10':'Mastery '+tiers+'/'+bs.length)+'</span>'+(isReg(iid)?'<span class="pill bad" title="'+IND[iid].reg.why+'">Excise '+Math.round(IND[iid].reg.tax*100)+'%</span>':'')+(units||S.inds.length>1?exitUI:'')+'</div></div><p class="indblurb">'+ind.blurb+'</p>';
   let shownLocked=false;
   bs.forEach(b=>{const n=owned(b.id),c=unitCost(b,n),pm=policyMult(b),im=indBuff(iid)*masteryMult(iid);
-   if(!(n>0||nw>=b.cost*ECONT().unlock||b.tier===1||(S.bankOK&&S.bankOK[b.id]))){if(shownLocked)return;shownLocked=true;
-    bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*ECONT().unlock)+', or sooner if the bank agrees to finance it.</div></div><div class="acts">'+(finOK(b)?'<button class="btn small" data-a="buy" data-v="'+b.id+'">Ask the bank · '+fmt(c)+'</button>':'')+'</div></div>';return;}
+   if(!(n>0||nw>=b.cost*unlockX(b)||b.tier===1||(S.bankOK&&S.bankOK[b.id]))){if(shownLocked)return;shownLocked=true;
+    bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*unlockX(b))+', or sooner if the bank agrees to finance it.</div></div><div class="acts">'+(finOK(b)?'<button class="btn small" data-a="buy" data-v="'+b.id+'">Ask the bank · '+fmt(c)+'</button>':'')+'</div></div>';return;}
    bh+='<div class="biz '+(n?'owned':'')+'"><div class="tier">'+b.tier+'</div><div style="min-width:0"><div class="name">'+b.name+(n?'<span class="count">×'+n+'</span>':'')+(pm!==1?' <span class="pill '+(pm<1?'bad':'good')+'">Policy ×'+pm.toFixed(2)+'</span>':'')+'</div><div class="tag">'+b.tag+'</div>'+
-    '<div class="meta">Each earns ~'+fmt(RET()*regF(b)*b.profit*bmBase*pm*im*cyc(b)/S.s)+'/mo'+(isReg(iid)?' before excise':'')+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
+    '<div class="meta">Each earns ~'+fmt(RET()*regF(b)*b.profit*bmBase*pm*im*cyc(b)/S.s*boostNow())+'/mo'+(isReg(iid)?' before excise':'')+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
     '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>Buy · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>'+
     (n?'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1 · '+fmt(unitCost(b,n-1)*.7)+'</button>':'')+'</div></div>';});
   bh+='</div>';});
@@ -5188,9 +5194,10 @@ function bestMove(){if(!S||S.over||!S.inds||!S.inds.length||(typeof jailed==='fu
   let gain=0;try{gain=bizWith(b,1).net-bizWith(b,0).net;}catch(e){}if(!(gain>0))return;const pay=c/gain;if(pay>96)return;if(!best||pay<best.pay)best={b,c,gain,pay};});
  return best;}
 /* when nothing pays back within 8 years, point at the next business up the ladder instead */
-function nextRung(){let r=null;BIZ.forEach(b=>{if(!S.inds.includes(b.ind)||owned(b.id)>0||!bizLocked(b))return;const at=b.cost*ECONT().unlock;if(!r||at<r.at)r={b,at};});return r;}
+function nextRung(){let r=null;BIZ.forEach(b=>{if(!S.inds.includes(b.ind)||owned(b.id)>0||!bizLocked(b))return;const at=b.cost*unlockX(b);if(!r||at<r.at)r={b,at};});return r;}
 /* the hint only guides the first 12 presses of PLAY; after that the player makes their own calls */
 const BEST_PLAYS=12;
+function boostHTML(){const x=boostNow();if(x<=1.01)return'';return'<div class="boostbar"><span>🚀</span><div><b>Starter boost: profits ×'+(Math.round(x*10)/10)+'</b><small>Extra profit while you build your first $10 million. It fades as you grow.</small></div></div>';}
 function bestMoveHTML(){if((S.plays||0)>=BEST_PLAYS)return'';const m=bestMove();if(!m){const r=nextRung();if(!r)return'';const nw=Math.max(0,netWorth());return'<div class="bestmove"><span class="bm-ico">🎯</span><div><small>Next step up</small><b>'+esc(r.b.name)+'</b><span>Unlocks when your net worth reaches '+fmt(r.at)+' · you are '+Math.min(99,Math.round(nw/r.at*100))+'% there. Grow profit and save.</span></div></div>';}const y=m.pay/12,t=m.pay<12?Math.max(1,Math.round(m.pay))+' month'+(Math.round(m.pay)>1?'s':''):(Math.round(y*10)/10)+' years';
  return'<div class="bestmove"><span class="bm-ico">💡</span><div><small>Best next move</small><b>'+esc(m.b.name)+(owned(m.b.id)?' (one more)':'')+'</b><span>'+fmt(m.c)+' · earns about '+fmt(m.gain)+'/mo · pays for itself in '+t+'</span></div><button class="btn small primary" data-a="buy" data-v="'+m.b.id+'">Look</button></div>';}
 function kidsHTML(){const opts=[[null,'Let it happen'],[0,'None'],[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6']],n=S.kids.filter(k=>!k.withEx).length,w=S.kidsWant;
