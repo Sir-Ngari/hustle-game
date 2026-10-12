@@ -4532,9 +4532,9 @@ function bestMove(){if(!S||S.over||!S.inds||!S.inds.length||(typeof jailed==='fu
  return best;}
 /* when nothing pays back within 8 years, point at the next business up the ladder instead */
 function nextRung(){let r=null;BIZ.forEach(b=>{if(!S.inds.includes(b.ind)||owned(b.id)>0||!bizLocked(b))return;const at=b.cost*ECONT().unlock;if(!r||at<r.at)r={b,at};});return r;}
-/* the hint only guides the first year; after that the player makes their own calls */
-const BEST_MONTHS=12;
-function bestMoveHTML(){if((S.month||0)>=BEST_MONTHS)return'';const m=bestMove();if(!m){const r=nextRung();if(!r)return'';const nw=Math.max(0,netWorth());return'<div class="bestmove"><span class="bm-ico">🎯</span><div><small>Next step up</small><b>'+esc(r.b.name)+'</b><span>Unlocks when your net worth reaches '+fmt(r.at)+' · you are '+Math.min(99,Math.round(nw/r.at*100))+'% there. Grow profit and save.</span></div></div>';}const y=m.pay/12,t=m.pay<12?Math.max(1,Math.round(m.pay))+' month'+(Math.round(m.pay)>1?'s':''):(Math.round(y*10)/10)+' years';
+/* the hint only guides the first 12 presses of PLAY; after that the player makes their own calls */
+const BEST_PLAYS=12;
+function bestMoveHTML(){if((S.plays||0)>=BEST_PLAYS)return'';const m=bestMove();if(!m){const r=nextRung();if(!r)return'';const nw=Math.max(0,netWorth());return'<div class="bestmove"><span class="bm-ico">🎯</span><div><small>Next step up</small><b>'+esc(r.b.name)+'</b><span>Unlocks when your net worth reaches '+fmt(r.at)+' · you are '+Math.min(99,Math.round(nw/r.at*100))+'% there. Grow profit and save.</span></div></div>';}const y=m.pay/12,t=m.pay<12?Math.max(1,Math.round(m.pay))+' month'+(Math.round(m.pay)>1?'s':''):(Math.round(y*10)/10)+' years';
  return'<div class="bestmove"><span class="bm-ico">💡</span><div><small>Best next move</small><b>'+esc(m.b.name)+(owned(m.b.id)?' (one more)':'')+'</b><span>'+fmt(m.c)+' · earns about '+fmt(m.gain)+'/mo · pays for itself in '+t+'</span></div><button class="btn small primary" data-a="buy" data-v="'+m.b.id+'">Look</button></div>';}
 function kidsHTML(){const opts=[[null,'Let it happen'],[0,'None'],[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6']],n=S.kids.filter(k=>!k.withEx).length,w=S.kidsWant;
  return'<h4>How many children do you want?</h4><div class="seg kidseg" role="group" aria-label="How many children you want">'+opts.map(o=>'<button data-a="kidswant" data-v="'+(o[0]==null?'any':o[0])+'" aria-pressed="'+(w===o[0]||(w==null&&o[0]==null))+'">'+o[1]+'</button>').join('')+'</div>'+
