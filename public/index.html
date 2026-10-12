@@ -357,6 +357,9 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .htype{display:flex;gap:14px;align-items:center;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:rgba(255,201,60,.12);border:1px solid rgba(255,201,60,.45)}.htype-ico{font-size:40px;line-height:1}.htype small{display:block;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.8}.htype b{display:block;font-family:Oswald,Impact,sans-serif;font-size:24px;text-transform:uppercase;line-height:1.15}.htype p{margin:2px 0 0;font-size:14px}
 .obit-type{text-align:center;font-weight:600;margin:6px 0}
 .ppplist{display:flex;flex-direction:column;gap:8px}.pppitem{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px}.pppitem.locked{opacity:.7;border-style:dashed}.pppitem.mine{border-color:var(--brass);background:rgba(201,162,39,.08)}.pppico{font-size:28px;line-height:1}.pppitem b{display:block}.pppitem small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.race{margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(120,200,255,.4);background:rgba(120,200,255,.07)}.race-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px}.race-top span{font-weight:800;letter-spacing:.04em}.race-top em{font-style:normal;opacity:.85}.race .g10-bar{margin:8px 0}
+.racegrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0 2px}.rp{display:flex;justify-content:space-between;gap:6px;padding:5px 8px;border-radius:8px;font-size:12.5px;background:rgba(255,255,255,.05);border-left:3px solid #9aa}.rp.good{border-left-color:#3fcf6e}.rp.mid{border-left-color:#f2b53a}.rp.bad{border-left-color:#ef5350}.rp span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}@media (max-width:520px){.racegrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.racefin{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 10px}.racefin div{padding:10px;border-radius:10px;background:rgba(255,255,255,.06);text-align:center}.racefin small{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.8}.racefin b{font-family:Oswald,Impact,sans-serif;font-size:24px}.racefin b.grade{font-size:20px;line-height:1.15}.grade.gA{color:#3fcf6e}.grade.gB{color:#9be36b}.grade.gC{color:#f2b53a}.grade.gD,.grade.gE{color:#ef5350}
 .unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
 @keyframes unlin{from{opacity:0;transform:translate(-50%,-30px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @media (prefers-reduced-motion:reduce){.unlfx{animation:none}.tabs button.unew::after{animation:none}}
@@ -787,6 +790,7 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
         <div class="stat csstat" data-a="tab" data-v="money" title="Credit score: open the Money tab to see how it works"><span class="eyebrow">Credit score</span><b id="cscore">650</b></div>
       </div>
       <div class="g10" id="g10" hidden></div>
+      <div class="race" id="race" hidden></div>
     </div>
     <div class="chartbox">
       <div class="eyebrow">Net worth history (log scale)</div>
@@ -2210,7 +2214,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='5dab709158dd';let updShown=false;
+const APP_VER='9223203d1ea7';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -4190,12 +4194,13 @@ function nextMonth(){
    if(S.strikes>=3){S.over=true;S.bankrupt=true;log('Bankrupt at '+age()+'. Creditors seized the empire.','bad');save();render();
     showCard('Bankrupt','At '+age()+', creditors have seized the empire. Every tycoon has a failure story. This is yours.','<button class="btn primary" data-a="reset">Start a new empire</button><button class="btn" data-a="lives">Past lives</button>');return;}}
  } else S.strikes=0;
- const nw=netWorth();S.hist.push(Math.max(1,nw));bsRecord();
+ const nw=netWorth();S.hist.push(Math.max(1,nw));bsRecord();try{raceSample();}catch(e){}
  const ti=titleIdx(nw);if(ti>S.title){addPts(5*(ti-S.title)*ti);wkInc('ranks',ti-S.title);S.title=ti;rankUpFx(TITLES[ti][1],ti);S.lifeSince=S.month;S.lifePending=true;log('New rank: '+TITLES[ti][1]+'.','gold');flash();}
  if(ti<S.title)S.title=ti;
  if(ti>S.peak){const before=SLOTS[S.peak];S.peak=ti;if(SLOTS[ti]>before)S.indPending=true;}
- if(nw>=1e9&&!S.won){S.won=true;addPts(S.gnum>1||S.headstart?50:100);checkAch();}
- {const mc=mileCheck(nw);if(mc){save();render();setTimeout(confettiFx,200);showCard(mc[0],mc[1],'<button class="btn primary" data-a="close">Keep building</button>');return;}}
+ if(nw>=1e9&&!S.won){S.won=true;addPts(S.gnum>1||S.headstart?50:100);checkAch();try{raceCross(1);}catch(e){}}
+ if(nw>=1e12&&S.won&&!S.race2){try{raceCross(2);}catch(e){}}
+ {const mc=mileCheck(nw);const rf=raceNext();if(rf){save();render();setTimeout(confettiFx,200);openEvent(rf);document.querySelectorAll('.unlfx').forEach(e=>e.remove());return;}if(mc){save();render();setTimeout(confettiFx,200);showCard(mc[0],mc[1],'<button class="btn primary" data-a="close">Keep building</button>');return;}}
  S.cool--;
  {const ce=crisisTick();if(ce&&!current){S.cool=Math.max(S.cool,2);afterChange();openEvent(ce);return;}}
  wkInc('months');if(S.happy>75)wkInc('happy');if(S.month%12===0)addPts(3);
@@ -4401,7 +4406,7 @@ document.addEventListener('keydown',e=>{if(e.key==='n'&&!tourOn&&!e.metaKey&&!e.
 
 /* ================= Render ================= */
 function meter(v,col){return'<div class="meter"><i style="width:'+clamp(v,0,100)+'%;background:var('+col+')"></i></div>';}
-function render(){try{unlCheck();g10Check();affordCheck();pppUnlockCheck();}catch(e){}try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
+function render(){try{raceRender();}catch(e){}try{unlCheck();g10Check();affordCheck();pppUnlockCheck();}catch(e){}try{moneySound();}catch(e){}try{musicTick();}catch(e){}try{paintBC();}catch(e){}
  const nw=netWorth(),F=flows(false);
  paintChip();
  $('fdn-title').textContent='The '+BR()+' Foundation';
@@ -5106,6 +5111,45 @@ function cityHTML(){if(!cityOn()){const b=typeof pppBest==='function'?pppBest():
  h+=CITY_ST.map((st,k)=>{const cost=st[1]*CPI();let tag,btn='';if(k<i)tag='Done';else if(k===i&&c.left!=null)tag='Building · '+c.left+' month'+(c.left===1?'':'s')+' left';else if(k===i){tag=fmt(cost)+' · '+Math.round(st[2]/12*10)/10+' yrs';btn='<button class="btn small" data-a="citygo"'+(canPay(cost)?'':' disabled')+'>'+(k===0?'Found':'Start')+'</button>';}else tag='After stage '+k;
   return'<div class="pppitem'+(k<i?' mine':k>i?' locked':'')+'"><span class="pppico">'+['🗺️','🛣️','🏘️','🏙️','🏟️'][k]+'</span><div><b>'+st[0]+'</b><small>'+tag+'</small></div>'+btn+'</div>';}).join('');
  return h+'</div>';}
+/* ================= The race: build a billion as fast as you can while keeping your life in balance, then race on to a trillion ================= */
+const PILLARS=[['fam','Family','👪'],['law','Authorities','⚖️'],['bank','Banks','🏦'],['health','Health','❤️'],['soc','Society','🤝'],['rep','Reputation','⭐']];
+function pillarNow(){const law=S.law||{},F=typeof famMembers==='function'?famMembers():[],moods=F.map(x=>x.mood).filter(x=>x!=null);
+ const fam=moods.length?moods.reduce((a,b)=>a+b,0)/moods.length:(S.spouse?S.spouse.happy:55);
+ const lawS=100-(law.att||0)-(law.convictions?35:0)-((typeof jailed==='function'&&jailed())||(typeof hiding==='function'&&hiding())?25:0);
+ let cs=650;try{cs=creditScore();}catch(e){}const bank=(cs-300)/5.5-(S.strikes||0)*20;
+ const health=(S.health||0)-Object.keys(S.conds||{}).filter(k=>S.conds[k]&&!S.conds[k].managed).length*15;
+ const soc=Math.min(100,30+(S.influence||0)*.6+(S.fdn?20:0)+Math.min(15,((S.pt||{}).give||0)*1.5));
+ const c=x=>Math.max(0,Math.min(100,Math.round(x)));
+ return{fam:c(fam),law:c(lawS),bank:c(bank),health:c(health),soc:c(soc),rep:c(S.rep||0)};}
+const pillarAvg=P=>Math.round(PILLARS.reduce((t,p)=>t+P[p[0]],0)/PILLARS.length);
+const gradeOf=a=>a>=75?'A':a>=62?'B':a>=50?'C':a>=38?'D':'E';
+/* the grade is shown as a name, not a letter */
+const GRADE_NAME={A:['🏆','Legend','Rich, respected and at peace. Everyone wanted to be you.'],B:['🦸','Hero','You got there without losing yourself.'],C:['💼','Achiever','You made it, though a few things slipped along the way.'],D:['🩹','Survivor','You made it, but it cost you.'],E:['🐺','Lone Wolf','The money came at a price: family, health or the law.']};
+const gName=g=>(GRADE_NAME[g]||['',''])[1],gIco=g=>(GRADE_NAME[g]||['',''])[0],gA=g=>(/^[AEIOU]/.test(gName(g))?'an ':'a ')+gName(g);
+const raceLeg=()=>!S.won?1:!S.race2?2:0;
+function raceSample(){if(S.over)return;const leg=raceLeg();if(!leg)return;const P=pillarNow();S.bal=S.bal||{};const B=S.bal[leg]=S.bal[leg]||{n:0};B.n++;PILLARS.forEach(p=>{B[p[0]]=(B[p[0]]||0)+P[p[0]];});}
+function balAvg(leg){const B=(S.bal||{})[leg];if(!B||!B.n)return pillarNow();const o={};PILLARS.forEach(p=>{o[p[0]]=Math.round(B[p[0]]/B.n);});return o;}
+function raceTime(m){const y=Math.floor(m/12),mo=m%12;return(y?y+' year'+(y>1?'s':''):'')+(y&&mo?' ':'')+(mo||!y?mo+' month'+(mo===1?'':'s'):'');}
+function raceStart(leg){return leg===1?0:(S.race1&&S.race1.at!=null?S.race1.at:S.month);}
+function raceCross(leg){const P=balAvg(leg),avg=pillarAvg(P),g=gradeOf(avg);
+ if(leg===1){if(S.month<=1&&(S.gnum>1||S.headstart)){S.race1={inherited:1,at:S.month,m:0,grade:'-',avg};return;}
+  const m=S.month,score=Math.round(1e5/(m+12)*avg/100);S.race1={at:S.month,m,grade:g,avg,score,P};S.raceQ=1;}
+ else{const m=S.month-raceStart(2),score=Math.round(1e5/(m+12)*avg/100);S.race2={at:S.month,m,grade:g,avg,score,P};S.raceQ=2;}}
+function raceRows(P){return'<div class="racegrid">'+PILLARS.map(p=>{const v=P[p[0]];return'<div class="rp '+(v>=62?'good':v>=40?'mid':'bad')+'"><span>'+p[2]+' '+p[1]+'</span><b>'+v+'</b></div>';}).join('')+'</div>';}
+function raceNext(){const q=S.raceQ;if(!q)return null;S.raceQ=null;const R=q===1?S.race1:S.race2;if(!R)return null;
+ const head=q===1?'🏁 You built a billion-dollar empire':'🏁 You are a trillionaire';
+ const tm=raceTime(R.m),ag=age();
+ const intro=q===1?'From '+fmt(S.hist[0]||1000)+' to a billion in <b>'+tm+'</b>, at age '+ag+'.':'From your first billion to a trillion in <b>'+tm+'</b>, at age '+ag+'.';
+ const next=q===1?'<p><b>The trillion race starts now.</b> A new clock is running from today. On the way you unlock the trillionaire side of the game: at $1T, casino nights, rare-collectible auctions and government partnerships; at $5T, a city of your own. Keep your life in balance: your title is earned again.</p>':'<p>The race is won. From here the game is yours: build partnerships, your own city and a legacy for your heirs.</p>';
+ return{cat:'Finish line',title:head,noOut:true,text:'<div class="racefin"><div><small>Your time</small><b>'+Math.floor(R.m/12)+'y '+(R.m%12)+'m</b></div><div><small>Your balance</small><b class="grade g'+R.grade+'">'+gIco(R.grade)+' '+gName(R.grade)+'</b></div><div><small>Race score</small><b>'+R.score+'</b></div></div><p>'+intro+' You finish as <b>'+gA(R.grade)+'</b>. '+GRADE_NAME[R.grade][2]+' Your title comes from how you kept your family, the authorities, your banks, your health, society and your reputation during the race:</p>'+raceRows(R.P)+next,
+  choices:[{l:q===1?'Start the trillion race':'Keep building',d:'',f(){return['','']}}]};}
+function raceRender(){const el=$('race');if(!el)return;if(!S||S.over||!S.inds||!S.inds.length||S.month<1){el.hidden=true;return;}
+ const leg=raceLeg(),nw=netWorth(),P=pillarNow(),avg=pillarAvg(P);
+ if(!leg){el.hidden=false;el.innerHTML='<div class="race-top"><span>🏁 Races finished</span><em>Billion: '+(S.race1&&!S.race1.inherited?raceTime(S.race1.m)+' · '+gName(S.race1.grade):'inherited')+' · Trillion: '+raceTime(S.race2.m)+' · '+gName(S.race2.grade)+'</em></div>'+raceRows(P);return;}
+ const goal=leg===1?1e9:1e12,start=raceStart(leg),m=S.month-start,H=S.hist||[],n=H.length;let pace='';
+ if(n>13&&nw>0){const g=Math.pow(H[n-1]/Math.max(1,H[n-13]),1/12);if(g>1.001){const left=Math.log(goal/Math.max(1,nw))/Math.log(g);if(left<1200)pace=' · on pace for about '+raceTime(Math.round(m+left)).replace(/ \d+ months?$/,'');}}
+ const pc=Math.max(0,Math.min(100,(Math.log10(Math.max(1,nw))-(leg===1?3:9))/(leg===1?6:3)*100));
+ el.hidden=false;el.innerHTML='<div class="race-top"><span>🏁 '+(leg===1?'The billion race':'The trillion race')+'</span><em>'+raceTime(m)+pace+' · on track for '+gIco(gradeOf(avg))+' '+gName(gradeOf(avg))+'</em></div><div class="g10-bar"><i style="width:'+pc+'%"></i></div>'+raceRows(P);}
 function kidsHTML(){const opts=[[null,'Let it happen'],[0,'None'],[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6']],n=S.kids.filter(k=>!k.withEx).length,w=S.kidsWant;
  return'<h4>How many children do you want?</h4><div class="seg kidseg" role="group" aria-label="How many children you want">'+opts.map(o=>'<button data-a="kidswant" data-v="'+(o[0]==null?'any':o[0])+'" aria-pressed="'+(w===o[0]||(w==null&&o[0]==null))+'">'+o[1]+'</button>').join('')+'</div>'+
   '<p class="seghint">'+(w==null?'Babies come when they come, up to 4.':w===0?'No children planned. Without children, your empire cannot pass to an heir.':n>=w?'Your family is complete: '+n+' child'+(n===1?'':'ren')+'.':(S.spouse?'Trying for '+(w-n)+' more. Babies come sooner while you are trying.':'You need to be married first. Then you can start a family.'))+'</p>';}
@@ -6197,7 +6241,7 @@ function ptypeOf(){const T=ptScores();let best=null;PTYPES_H.forEach(p=>{const v
  const name=p[0]==='family'?(S.g==='f'?'The Matriarch':'The Patriarch'):p[2];return{id:p[0],ico:p[1],name,desc:p[3],T};}
 function obitData(){const L=lifeSummary(),name=(S.who||(ACC&&ACC.name)||'The founder').trim(),first=name.split(/\s+/)[0],brand=BR(),a=L.age,a0=S.age0||24;
  const achNames=(S.ach||[]).map(id=>(ACH.find(x=>x[0]===id)||[])[1]).filter(Boolean);
- const high=[];if(L.billionAge)high.push('Became a billionaire at '+L.billionAge);
+ const high=[];if(S.race1&&S.race1.m!=null&&!S.race1.inherited)high.push('Built a billion in '+raceTime(S.race1.m)+' as '+gA(S.race1.grade));else if(L.billionAge)high.push('Became a billionaire at '+L.billionAge);if(S.race2)high.push('Billion to trillion in '+raceTime(S.race2.m)+' as '+gA(S.race2.grade));
  if(S.fdn)high.push('Founded the '+brand+' Foundation');if(S.race)high.push('Owned '+brand+' Racing');
  if(L.teams)high.push('Owned '+L.teams+' sports team'+(L.teams>1?'s':''));if(L.props)high.push('Built a portfolio of '+L.props+' propert'+(L.props>1?'ies':'y'));
  if(L.inds>1)high.push('Ran businesses in '+L.inds+' industries');if(S.pc&&S.pc.held&&S.pc.held.length)high.unshift('Served as '+pcName(Math.max(...S.pc.held)));if(S.law&&S.law.convictions)high.push('Served time in prison');
