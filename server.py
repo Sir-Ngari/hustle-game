@@ -518,6 +518,9 @@ if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall
     _db.execute("ALTER TABLE users ADD COLUMN camp TEXT NOT NULL DEFAULT ''")
 if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(visitors)").fetchall()]:
     _db.execute("ALTER TABLE visitors ADD COLUMN camp TEXT NOT NULL DEFAULT ''")
+# first-session steps: which steps a new visitor reached, and how many seconds after opening the game
+if "steps" not in [r[1] for r in _db.execute("PRAGMA table_info(visitors)").fetchall()]:
+    _db.execute("ALTER TABLE visitors ADD COLUMN steps TEXT NOT NULL DEFAULT ''")
 _db.execute("CREATE INDEX IF NOT EXISTS users_camp ON users(camp)")
 # Ad builder: objective, budget level, gender, interests and what this run created
 _old_runs = False
@@ -1924,6 +1927,65 @@ def visit_mark(vid, stage, src="", device="", user_id=0, camp=""):
       (t, 1 if t - r["last"] > 1800 else 0, st, user_id, user_id, vid))
 
 
+# the first-session steps, in the order a new player meets them
+STEP_LOCK = threading.Lock()
+VISIT_STEPS = ("open", "card", "buy", "month1", "play1", "event1", "play5", "m12", "buy2", "ask", "form", "signed", "day2")
+STEP_NAMES = {"open": "Opened the game", "card": "Saw the mission card", "buy": "Bought the first business", "month1": "Saw the first month's profit",
+              "play1": "Pressed PLAY", "buy2": "Bought a second outlet", "event1": "Answered a first story card", "play5": "Pressed PLAY 5 times",
+              "m12": "Reached game month 12", "ask": "Was offered to save", "form": "Started the sign-up form", "signed": "Created an account",
+              "day2": "Came back on another day"}
+
+
+def visit_step(vid, step, src="", device="", camp=""):
+    """Record that a new visitor reached a first-session step, once, with the seconds since they first opened the game."""
+    if not isinstance(vid, str) or not VID_RE.match(vid) or step not in VISIT_STEPS:
+        return
+    with STEP_LOCK:
+        _visit_step(vid, step, src, device, camp)
+
+
+def _visit_step(vid, step, src, device, camp):
+    t = now()
+    q("INSERT OR IGNORE INTO visitors(vid,first,last,visits,stage,src,device,camp) VALUES(?,?,?,1,'landed',?,?,?)",
+      (vid, t, t, src[:40], device[:10], camp))
+    r = q("SELECT first, steps, stage FROM visitors WHERE vid=?", (vid,), one=True)
+    if not r or r["stage"] == "login":
+        return
+    try:
+        st = json.loads(r["steps"] or "{}")
+        if not isinstance(st, dict):
+            st = {}
+    except ValueError:
+        st = {}
+    if step in st:
+        return
+    st[step] = max(0, t - r["first"])
+    q("UPDATE visitors SET steps=?, last=? WHERE vid=?", (json.dumps(st), t, vid))
+
+
+def steps_overview(t0, t1):
+    """For new visitors first seen in the range (and tracked by step): how many reached each step, and the typical time it took."""
+    rows = q("SELECT steps FROM visitors WHERE first>=? AND first<? AND stage<>'login' AND steps<>''", (t0, t1))
+    got = {k: [] for k in VISIT_STEPS}
+    base = 0
+    for r in rows:
+        try:
+            st = json.loads(r["steps"] or "{}")
+        except ValueError:
+            continue
+        if not isinstance(st, dict) or "open" not in st:
+            continue
+        base += 1
+        for k in VISIT_STEPS:
+            if k in st:
+                got[k].append(st[k])
+    out = []
+    for k in VISIT_STEPS:
+        v = sorted(got[k])
+        out.append({"k": k, "name": STEP_NAMES[k], "n": len(v), "med": v[len(v) // 2] if v else None})
+    return {"base": base, "steps": out}
+
+
 def src_of(ref):
     """Where a visitor came from, as a short name: whatsapp, facebook, google... or direct."""
     h = (urlparse(ref).hostname or "").lower() if isinstance(ref, str) and ref else ""
@@ -1953,7 +2015,8 @@ def visitors_overview(t, rg=None):
                                                   (rg["t0"], rg["t1"]))}
     since = q("SELECT MIN(first) m FROM visitors", one=True)["m"]
     rs = span(rg["t0"], rg["t1"])
-    return {"d1": span(t - 86400), "d7": rs, "d30": rs, "range": rs, "all": span(0), "days": days, "srcs": srcs, "leftDevice": dev, "since": since}
+    return {"d1": span(t - 86400), "d7": rs, "d30": rs, "range": rs, "all": span(0), "days": days, "srcs": srcs, "leftDevice": dev, "since": since,
+            "steps": steps_overview(rg["t0"], rg["t1"])}
 
 
 # ---- marketing: campaign links and where players come from ----
@@ -3437,13 +3500,17 @@ class Handler(BaseHTTPRequestHandler):
     # ---------- player API ----------
     def api_visit(self):
         """Someone opened the game without being logged in (or started filling in the form). No personal data is kept."""
-        if rate_limited("visit:" + self.client_ip(), limit=60, window=3600):
-            return self.send_json(200, {"ok": True})
         d = self.read_json()
         if d is None:
             return
         ua = (self.headers.get("User-Agent") or "").lower()
         device = "phone" if any(k in ua for k in ("iphone", "android", "mobile")) else "tablet" if "ipad" in ua else "computer"
+        if d.get("step") in VISIT_STEPS:
+            if not rate_limited("vstep:" + self.client_ip(), limit=900, window=3600):
+                visit_step(d.get("vid"), d.get("step"), src_of(d.get("ref")), device, camp=clean_camp(d.get("camp")))
+            return self.send_json(200, {"ok": True})
+        if rate_limited("visit:" + self.client_ip(), limit=60, window=3600):
+            return self.send_json(200, {"ok": True})
         stage = d.get("stage") if d.get("stage") in ("landed", "played", "asked", "form") else "landed"
         visit_mark(d.get("vid"), stage, src_of(d.get("ref")), device, camp=clean_camp(d.get("camp")))
         self.send_json(200, {"ok": True})
@@ -3518,6 +3585,7 @@ class Handler(BaseHTTPRequestHandler):
         user = q("SELECT * FROM users WHERE id=?", (uid,), one=True)
         try:
             visit_mark(d.get("vid"), "signed", user_id=uid)
+            visit_step(d.get("vid"), "signed")
         except Exception as e:
             print("Visit record failed: %s" % e, flush=True)
         self.send_json(201, {"user": user_public(user), "save": None, "ver": 0, "bill": bill_status(user)},

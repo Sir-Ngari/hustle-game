@@ -284,6 +284,9 @@ body.navhide .main{margin-left:0}
         <div class="kpis" id="visKpis"></div>
         <div class="chart" id="visChart"></div>
         <div class="legend" style="display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-top:6px"><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:6px"></i>Created an account</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--red);opacity:.75;margin-right:6px"></i>Left without an account</span></div>
+        <h3 class="eyebrow" style="margin:16px 0 6px">First session, step by step</h3>
+        <p class="sub" id="visStepsSub" style="margin:0 0 6px">How far new visitors get after opening the game, and the typical time it took them. Counting starts with update 173.</p>
+        <div class="tablewrap"><table><thead><tr><th>Step</th><th class="r">Visitors</th><th class="r">Of all who opened</th><th class="r">Kept from the step before</th><th class="r">Typical time</th></tr></thead><tbody id="visSteps"></tbody></table></div>
         <h3 class="eyebrow" style="margin:16px 0 6px">Where visitors came from, last 30 days</h3>
         <div class="tablewrap"><table><thead><tr><th>Source</th><th class="r">Visitors</th><th class="r">Created an account</th><th class="r">Sign-up rate</th></tr></thead><tbody id="visSrc"></tbody></table></div>
       </section>
@@ -745,6 +748,8 @@ function renderVisitors(v){const pnl=$('visPanel');if(!v){pnl.hidden=true;return
   s+='<rect class="hit" data-i="'+i+'" x="'+(pl+band*i)+'" y="'+pt+'" width="'+band+'" height="'+ih+'" fill="transparent"><title>'+d.day+': '+d.n+' visitors, '+d.signed+' created an account, '+d.left+' left</title></rect>';});
  s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+(pt+ih)+'" y2="'+(pt+ih)+'" stroke="var(--line)" stroke-width="1"/></svg>';box.innerHTML=s;
  const SRC={direct:'Typed the address or a saved link',whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',tiktok:'TikTok',x:'X (Twitter)',google:'Google',linkedin:'LinkedIn',youtube:'YouTube',telegram:'Telegram',bing:'Bing'};
+ {const st=v.steps||{base:0,steps:[]},b=st.base||0,dur=x=>x==null?'—':x<60?x+' s':x<3600?Math.round(x/60)+' min':x<86400?Math.round(x/3600)+' h':Math.round(x/86400)+' days';let prev=null;
+  $('visSteps').innerHTML=b?st.steps.map(r=>{const keep=prev===null?'—':prev?Math.round(100*r.n/prev)+'%':'—';const row='<tr><td>'+esc(r.name)+'</td><td class="r num">'+r.n+'</td><td class="r num">'+(b?Math.round(100*r.n/b)+'%':'—')+'</td><td class="r num">'+(['buy2','ask','form','signed','day2'].includes(r.k)?'—':keep)+'</td><td class="r num">'+(r.k==='open'?'—':dur(r.med))+'</td></tr>';if(!['buy2','ask','form','signed','day2'].includes(r.k))prev=r.n;return row;}).join(''):'<tr><td colspan="5" class="empty">No new visitors tracked step by step yet. They appear here after the next visitor opens the game.</td></tr>';}
  const rows=v.srcs||[];$('visSrc').innerHTML=rows.length?rows.map(r=>'<tr><td>'+esc(SRC[r.src]||r.src||'Unknown')+'</td><td class="r num">'+r.n+'</td><td class="r num">'+(r.signed||0)+'</td><td class="r num">'+(r.n?Math.round(100*(r.signed||0)/r.n)+'%':'—')+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">No visitors yet.</td></tr>';}
 
 /* ---------- Marketing: campaign links, sources, challenge ---------- */

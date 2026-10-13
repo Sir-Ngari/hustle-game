@@ -375,7 +375,7 @@ const guestLocked=()=>!!GUEST_RULES.lock&&GUEST&&S&&!S.over&&(S.month||0)>=GUEST
 function startGuest(){GUEST=true;ACC=null;BILL=null;SAVEVER=null;const g=guestLoad();
  if(g)S=Object.assign(fresh(),g);else{S=fresh();S.region=detectCountry();S.cur='USD';S.gAsk={};}
  useRegion(S.region);migrate();livesCache=[];current=null;closeModal();acctView=null;authMsg='';renderAccts();render();paintChip();
- visitMark(g&&g.month>0?'played':'landed');
+ visitMark(g&&((g.plays||0)>0||g.month>1)?'played':'landed');stepMark('open');stepDay2();
  if(guestLocked()){guestAsk('lock');return;}
  if(!g||!S.inds.length)openEvent(industryEvent(true));else startEvents();}  /* a new visitor's first screen is the street kiosk card */
 /* the first card a new visitor sees: the hook, and who they are, in one tap */
@@ -386,13 +386,14 @@ function guestWelcome(){
    {l:'I already have an account',d:'Log in to carry on your empire.',f(){setTimeout(()=>{stopAuto();authMode='login';guestWhy='login';acctView='guestsave';renderAccts();},0);return['','',null];}}]};}
 /* after each move: is this a good moment to offer saving? */
 function guestCheck(){if(!GUEST||!S||S.over)return;S.gAsk=S.gAsk||{};const A=S.gAsk,m=S.month||0;
- if(m>=1&&!A.played){A.played=1;visitMark('played');}
+ if((S.plays||0)>=1&&!A.played){A.played=1;visitMark('played');}
+ if(totalUnits()>=2)stepMark('buy2');if(m>=12)stepMark('m12');
  if(guestLocked()){if(acctView!=='guestsave')setTimeout(()=>guestAsk('lock'),0);return;}
  if(current||!$('modal').hidden||acctView)return;
  if(A.last!=null&&m-A.last<GUEST_RULES.gapMonths)return;
  let why='';if(!A.nw&&netWorth()>=GUEST_RULES.nw){A.nw=1;why='nw';}else if(!A.year&&m>=GUEST_RULES.year){A.year=1;why='year';}else if(!A.two&&m>=GUEST_RULES.two){A.two=1;why='two';}else if((S.ach||[]).length>(A.ach||0)){A.ach=(S.ach||[]).length;why='ach';}
  if(why){A.last=m;setTimeout(()=>{if(!current&&$('modal').hidden&&!acctView)guestAsk(why);},700);}}
-function guestAsk(why){if(!GUEST)return;if(acctView==='guestsave'&&(why==='lock'||guestWhy===why))return;stopAuto();guestWhy=why||'chip';authMode='signup';authMsg='';acctView='guestsave';renderAccts();const A=$('acct');if(A)A.scrollTop=0;visitMark('asked');}
+function guestAsk(why){if(!GUEST)return;if(acctView==='guestsave'&&(why==='lock'||guestWhy===why))return;stopAuto();guestWhy=why||'chip';authMode='signup';authMsg='';acctView='guestsave';renderAccts();const A=$('acct');if(A)A.scrollTop=0;visitMark('asked');stepMark('ask');}
 function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach||[]).length,lastAch=achN?(ACH.find(a=>a[0]===S.ach[achN-1])||[])[1]:'';
  if(authMode==='login')return'<h2>Log in</h2><p class="sub">Log in to carry on the empire on your account. The guest game on this screen will be replaced by your account\'s empire.</p>'+authForm(true)+'<div class="chips"><button class="btn ghost" data-a="authmode" data-v="signup">'+(S.month>0?'Save this guest game instead':'Back')+'</button></div>';
  const head={nw:['First milestone','You just passed '+fmt(GUEST_RULES.nw)+'. Don\'t lose it.'],year:['One year in','Your first year in business is done. Keep it safe.'],
@@ -412,7 +413,12 @@ function guestAdopt(d){const g=S,co=d.user.company||'';GUEST=false;guestDrop();g
 function visitorId(){try{let v=localStorage.getItem('hs-vid');if(!v){v=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(36).padStart(2,'0')).join('').replace(/[^a-z0-9]/gi,'').slice(0,20);if(v.length<12)v=(v+Math.random().toString(36).slice(2)).slice(0,20);localStorage.setItem('hs-vid',v);}return v;}catch(e){return'';}}
 let visitFormSent=false,campCode='';
 function visitMark(stage){try{if(localStorage.getItem('hs-player'))return;}catch(e){}const vid=visitorId();if(!vid)return;api('POST','/api/visit',{vid,stage,camp:campCode||undefined,ref:stage==='landed'?document.referrer||'':''}).catch(()=>{});}
-document.addEventListener('input',e=>{if(!visitFormSent&&!ACC&&e.target&&e.target.closest&&e.target.closest('#acctform')){visitFormSent=true;visitMark('form');}});
+/* first-session steps: each step is sent once per browser, so the admin can see exactly where new players stop */
+function stepsDone(){try{return JSON.parse(localStorage.getItem('hs-steps')||'{}')||{};}catch(e){return{};}}
+function stepMark(k){try{if(localStorage.getItem('hs-player'))return;const d=stepsDone();if(d[k])return;d[k]=1;if(!d._day)d._day=new Date().toDateString();localStorage.setItem('hs-steps',JSON.stringify(d));}catch(e){return;}
+ const vid=visitorId();if(!vid)return;api('POST','/api/visit',{vid,step:k,camp:campCode||undefined,ref:k==='open'?document.referrer||'':''}).catch(()=>{});}
+function stepDay2(){const d=stepsDone();if(d._day&&d._day!==new Date().toDateString())stepMark('day2');}
+document.addEventListener('input',e=>{if(!visitFormSent&&!ACC&&e.target&&e.target.closest&&e.target.closest('#acctform')){visitFormSent=true;visitMark('form');stepMark('form');}});
 async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').value.trim().toLowerCase(),password=$('acc-pass').value;
  if(!username||!password)return showErr('Enter your username and password.');
  let body={username,password,vid:visitorId()};

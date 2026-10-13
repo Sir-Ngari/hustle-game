@@ -358,6 +358,7 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .obit-type{text-align:center;font-weight:600;margin:6px 0}
 .ppplist{display:flex;flex-direction:column;gap:8px}.pppitem{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px}.pppitem.locked{opacity:.7;border-style:dashed}.pppitem.mine{border-color:var(--brass);background:rgba(201,162,39,.08)}.pppico{font-size:28px;line-height:1}.pppitem b{display:block}.pppitem small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
 .note.has-race .chartbox{display:none!important}
+.fmcard h3 .fm-amt{color:var(--green,#3ddc84);white-space:nowrap}.fmcard .fm-rows{margin:10px 0 12px}.fmcard .choices .choice small{display:block;font-weight:500;opacity:.8;margin-top:2px}
 .racet{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit;border-radius:999px;padding:2px 10px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}.racet i{font-style:normal;opacity:.7;margin-left:2px}.race-top{align-items:center}.race-sub{font-size:12px;opacity:.8;margin-top:2px}
 .race{margin-top:10px;padding:8px 12px;border-radius:12px;border:1px solid rgba(120,200,255,.4);background:rgba(120,200,255,.07)}.race-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px}.race-top span{font-weight:800;letter-spacing:.04em}.race-top em{font-style:normal;opacity:.85}.race .g10-bar{margin:6px 0 2px}
 .racegrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0 2px}.rp{display:flex;justify-content:space-between;gap:6px;padding:5px 8px;border-radius:8px;font-size:12.5px;background:rgba(255,255,255,.05);border-left:3px solid #9aa}.rp.good{border-left-color:#3fcf6e}.rp.mid{border-left-color:#f2b53a}.rp.bad{border-left-color:#ef5350}.rp span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}@media (max-width:520px){.racegrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -634,6 +635,7 @@ html.gm .tabs button{font-size:16px;color:#9fb2d8}
 html.gm .tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--brass)}
 html.gm .tabs svg{width:18px;height:18px;flex:0 0 auto}
 html.gm .quick{background:linear-gradient(180deg,#0c1e3c,#0e2244);border-bottom:1px solid rgba(190,215,255,.18)}
+@media (max-width:420px){.qin .q{min-width:0}.qin .q small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em!important}html.gm .date{font-size:17px;letter-spacing:.02em}html.gm .barrow{gap:6px}.qin .qmo{display:none}}
 html.gm .q b{font-family:var(--display);font-size:18px;line-height:1.1}
 html.gm #q-cash::before,html.gm #cash::before{content:"";display:inline-block;width:.8em;height:.8em;margin-right:.25em;vertical-align:-.05em;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c4,#ffcf3a 40%,#c98400);box-shadow:0 1px 0 #8a5a00}
 html.gm .stat b{font-family:var(--display);font-size:21px;line-height:1.1}
@@ -775,7 +777,7 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
 </style>
 
 <div class="quick" id="quick" aria-hidden="true"><div class="qin">
-  <span class="q big"><small>Net worth</small><b id="q-nw"></b></span><span class="q"><small>Cash</small><b id="q-cash"></b></span><span class="q"><small>Cash flow / mo</small><b id="q-flow"></b></span><span class="q"><small>Debt</small><b id="q-debt"></b></span>
+  <span class="q big"><small>Net worth</small><b id="q-nw"></b></span><span class="q"><small>Cash</small><b id="q-cash"></b></span><span class="q"><small>Cash flow<span class="qmo"> / mo</span></small><b id="q-flow"></b></span><span class="q"><small>Debt</small><b id="q-debt"></b></span>
   <span class="qgap"></span>
   <span class="q"><small>Reputation</small><b id="q-rep"></b></span><span class="q"><small>Happiness</small><b id="q-hap"></b></span><span class="q"><small>Influence</small><b id="q-inf"></b></span><span class="q"><small>Mob heat</small><b id="q-heat"></b></span><span class="q"><small>Police</small><b id="q-cop"></b></span><span class="q"><small>Health</small><b id="q-hlth"></b></span>
 </div></div>
@@ -2115,7 +2117,7 @@ const guestLocked=()=>!!GUEST_RULES.lock&&GUEST&&S&&!S.over&&(S.month||0)>=GUEST
 function startGuest(){GUEST=true;ACC=null;BILL=null;SAVEVER=null;const g=guestLoad();
  if(g)S=Object.assign(fresh(),g);else{S=fresh();S.region=detectCountry();S.cur='USD';S.gAsk={};}
  useRegion(S.region);migrate();livesCache=[];current=null;closeModal();acctView=null;authMsg='';renderAccts();render();paintChip();
- visitMark(g&&g.month>0?'played':'landed');
+ visitMark(g&&((g.plays||0)>0||g.month>1)?'played':'landed');stepMark('open');stepDay2();
  if(guestLocked()){guestAsk('lock');return;}
  if(!g||!S.inds.length)openEvent(industryEvent(true));else startEvents();}  /* a new visitor's first screen is the street kiosk card */
 /* the first card a new visitor sees: the hook, and who they are, in one tap */
@@ -2126,13 +2128,14 @@ function guestWelcome(){
    {l:'I already have an account',d:'Log in to carry on your empire.',f(){setTimeout(()=>{stopAuto();authMode='login';guestWhy='login';acctView='guestsave';renderAccts();},0);return['','',null];}}]};}
 /* after each move: is this a good moment to offer saving? */
 function guestCheck(){if(!GUEST||!S||S.over)return;S.gAsk=S.gAsk||{};const A=S.gAsk,m=S.month||0;
- if(m>=1&&!A.played){A.played=1;visitMark('played');}
+ if((S.plays||0)>=1&&!A.played){A.played=1;visitMark('played');}
+ if(totalUnits()>=2)stepMark('buy2');if(m>=12)stepMark('m12');
  if(guestLocked()){if(acctView!=='guestsave')setTimeout(()=>guestAsk('lock'),0);return;}
  if(current||!$('modal').hidden||acctView)return;
  if(A.last!=null&&m-A.last<GUEST_RULES.gapMonths)return;
  let why='';if(!A.nw&&netWorth()>=GUEST_RULES.nw){A.nw=1;why='nw';}else if(!A.year&&m>=GUEST_RULES.year){A.year=1;why='year';}else if(!A.two&&m>=GUEST_RULES.two){A.two=1;why='two';}else if((S.ach||[]).length>(A.ach||0)){A.ach=(S.ach||[]).length;why='ach';}
  if(why){A.last=m;setTimeout(()=>{if(!current&&$('modal').hidden&&!acctView)guestAsk(why);},700);}}
-function guestAsk(why){if(!GUEST)return;if(acctView==='guestsave'&&(why==='lock'||guestWhy===why))return;stopAuto();guestWhy=why||'chip';authMode='signup';authMsg='';acctView='guestsave';renderAccts();const A=$('acct');if(A)A.scrollTop=0;visitMark('asked');}
+function guestAsk(why){if(!GUEST)return;if(acctView==='guestsave'&&(why==='lock'||guestWhy===why))return;stopAuto();guestWhy=why||'chip';authMode='signup';authMsg='';acctView='guestsave';renderAccts();const A=$('acct');if(A)A.scrollTop=0;visitMark('asked');stepMark('ask');}
 function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach||[]).length,lastAch=achN?(ACH.find(a=>a[0]===S.ach[achN-1])||[])[1]:'';
  if(authMode==='login')return'<h2>Log in</h2><p class="sub">Log in to carry on the empire on your account. The guest game on this screen will be replaced by your account\'s empire.</p>'+authForm(true)+'<div class="chips"><button class="btn ghost" data-a="authmode" data-v="signup">'+(S.month>0?'Save this guest game instead':'Back')+'</button></div>';
  const head={nw:['First milestone','You just passed '+fmt(GUEST_RULES.nw)+'. Don\'t lose it.'],year:['One year in','Your first year in business is done. Keep it safe.'],
@@ -2152,7 +2155,12 @@ function guestAdopt(d){const g=S,co=d.user.company||'';GUEST=false;guestDrop();g
 function visitorId(){try{let v=localStorage.getItem('hs-vid');if(!v){v=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(36).padStart(2,'0')).join('').replace(/[^a-z0-9]/gi,'').slice(0,20);if(v.length<12)v=(v+Math.random().toString(36).slice(2)).slice(0,20);localStorage.setItem('hs-vid',v);}return v;}catch(e){return'';}}
 let visitFormSent=false,campCode='';
 function visitMark(stage){try{if(localStorage.getItem('hs-player'))return;}catch(e){}const vid=visitorId();if(!vid)return;api('POST','/api/visit',{vid,stage,camp:campCode||undefined,ref:stage==='landed'?document.referrer||'':''}).catch(()=>{});}
-document.addEventListener('input',e=>{if(!visitFormSent&&!ACC&&e.target&&e.target.closest&&e.target.closest('#acctform')){visitFormSent=true;visitMark('form');}});
+/* first-session steps: each step is sent once per browser, so the admin can see exactly where new players stop */
+function stepsDone(){try{return JSON.parse(localStorage.getItem('hs-steps')||'{}')||{};}catch(e){return{};}}
+function stepMark(k){try{if(localStorage.getItem('hs-player'))return;const d=stepsDone();if(d[k])return;d[k]=1;if(!d._day)d._day=new Date().toDateString();localStorage.setItem('hs-steps',JSON.stringify(d));}catch(e){return;}
+ const vid=visitorId();if(!vid)return;api('POST','/api/visit',{vid,step:k,camp:campCode||undefined,ref:k==='open'?document.referrer||'':''}).catch(()=>{});}
+function stepDay2(){const d=stepsDone();if(d._day&&d._day!==new Date().toDateString())stepMark('day2');}
+document.addEventListener('input',e=>{if(!visitFormSent&&!ACC&&e.target&&e.target.closest&&e.target.closest('#acctform')){visitFormSent=true;visitMark('form');stepMark('form');}});
 async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').value.trim().toLowerCase(),password=$('acc-pass').value;
  if(!username||!password)return showErr('Enter your username and password.');
  let body={username,password,vid:visitorId()};
@@ -2222,7 +2230,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='59043c003d4f';let updShown=false;
+const APP_VER='f74650625330';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -3454,7 +3462,9 @@ function burnoutEvent(){const c=nwc(.01,300);return{cat:'Life',title:'You are bu
   {l:'Push through',d:'−8 happiness.',f(){addHappy(-8);return['You pushed through. It is taking a toll.','bad']}}]};}
 
 /* a brand-new player's first industry is picked for them (Retail & Fashion, the street kiosk); they choose the next one themselves */
-function firstIndEvent(){const i=INDS.find(x=>x.id==='retail'&&!x.reg)||INDS.find(x=>!x.reg),u=i.biz[0];
+/* first-session steps: recorded by the hosted game only (stepMark lives in the account code) */
+function trk(k){try{if(typeof stepMark==='function')stepMark(k);}catch(e){}}
+function firstIndEvent(){const i=INDS.find(x=>x.id==='retail'&&!x.reg)||INDS.find(x=>!x.reg),u=i.biz[0];trk('card');
  return{cat:'Your mission',title:'Turn '+fmt(S.cash||1000)+' into a billion. Fast.',noOut:true,
   text:'<p class="mission-lead"><b>Your mission:</b> build a billion-dollar empire in the shortest time you can.</p>'+
    '<ul class="mission"><li><span>💼</span><div><b>Buy the right businesses.</b> Climb from a street kiosk to factories, banks and airlines.</div></li>'+
@@ -3462,7 +3472,24 @@ function firstIndEvent(){const i=INDS.find(x=>x.id==='retail'&&!x.reg)||INDS.fin
    '<li><span>⚖️</span><div><b>Keep your life in balance:</b> family, health, banks, the law, society and your reputation. Neglect them and the empire cracks.</div></li></ul>'+
    '<p>Cross $1 billion as a 🏆 <b>Legend</b> and the trillion race opens. <b>Your clock starts now.</b></p>'+
    '<p class="mission-first"><b>First move:</b> buy '+aN(u[1].lc())+' in '+i.name+'. '+u[4]+', for '+fmt(u[2])+'. Then press PLAY.</p>',
-  choices:[{l:'Buy my '+u[1].lc()+' · '+fmt(u[2]),d:'It starts earning from your first month.',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);setTimeout(()=>{try{showTab('business');const t=document.querySelector('.boostbar')||document.querySelector('.bestmove')||$('biz');if(t){const bar=document.querySelector('.bar'),y=t.getBoundingClientRect().top+window.scrollY-(bar?bar.offsetHeight:0)-(($('quick')&&$('quick').classList.contains('on'))?$('quick').offsetHeight:90)-12;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});}}catch(e){}},400);return['You started in '+i.name+' and bought your first '+u[1].lc()+'. Press PLAY to run your first month.','gold'];}}]};}
+  choices:[{l:'Buy my '+u[1].lc()+' · '+fmt(u[2]),d:'It starts earning from your first month.',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);trk('buy');setTimeout(()=>firstMonthGo(u[0]),450);return['You started in '+i.name+' and bought your first '+u[1].lc()+'.','gold'];}}]};}
+/* the first month runs by itself, so a new player sees money come in before anything else */
+function firstMonthGo(id){if(!S||S.over||S.month!==0||current||acctView||!$('modal').hidden||!owned(id))return;
+ const c0=S.cash;nextMonth();if(S.month!==1)return;S.fmDone=1;const f=S.last||{},b=BIZ.find(x=>x.id===id);
+ try{showTab('overview');window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
+ setTimeout(()=>{try{coinBurst(16);}catch(e){}},300);
+ setTimeout(()=>{if(current||acctView||!$('modal').hidden)return;firstMonthCard(b,f,S.cash-c0);},1300);}
+function firstMonthCard(b,f,got){trk('month1');const prof=Math.round(f.biz||0),n=owned(b.id),c=unitCost(b,n),can=S.cash>=c&&!atCap(b);
+ const m=$('modal');m.hidden=false;
+ m.innerHTML='<div class="shade"><div class="card fmcard" role="dialog" aria-modal="true" aria-labelledby="fmt"><span class="pill cat good">Your first month</span><span class="eyebrow cat">'+dateStr(S.month)+'</span>'+
+  '<h3 id="fmt">Your '+esc(b.name.lc())+' made <span class="fm-amt">+'+fmt(prof)+'</span></h3>'+
+  '<ul class="outdelta fm-rows"><li class="up"><span>Sales</span><b>'+fmt(f.bizRev||0)+'</b></li><li class="down"><span>Costs</span><b>−'+fmt(f.bizCost||0)+'</b></li><li class="up"><span>Your cash now</span><b>'+fmt(S.cash)+'</b></li></ul>'+
+  '<p>It earns that every month, by itself. '+(boostNow()>1.01?'Your <b>starter boost ×'+(Math.round(boostNow()*10)/10)+'</b> is already in that number. ':'')+'The fastest way to grow: <b>buy more, then press PLAY.</b></p>'+
+  '<div class="choices">'+(can?'<button class="btn primary choice" data-a="fmbuy" data-v="'+b.id+'"><b>Buy a second '+esc(b.name.lc())+' · '+fmt(c)+'</b><small>Doubles what you earn each month.</small></button>':'')+
+  '<button class="btn '+(can?'ghost':'primary')+' choice" data-a="fmplay"><b>Press PLAY</b><small>Let the months roll. The game stops when a decision needs you.</small></button></div></div></div>';
+ const btn=m.querySelector('button');if(btn)btn.focus();}
+function fmBuy(id){closeModal();buy(id);if(owned(id)>=2){try{coinBurst(8);}catch(e){}log('You opened a second '+BIZ.find(x=>x.id===id).name.lc()+'. Twice the profit, every month.','good');}
+ render();setTimeout(()=>{const n=$('next');if(n){n.classList.add('coach');n.scrollIntoView({block:'center',behavior:'smooth'});}},150);}
 function industryEvent(first){if(first&&(S.gnum||1)<=1&&!S.inds.length)return firstIndEvent();const avail=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id)),fee=first?0:entryFee();
  return{cat:'Industries',title:first?'Choose your first industry':'Room for a new industry',
   text:first?'Every empire starts somewhere. Pick the industry you want to build in first. You unlock a second industry at Business Owner, a third at Millionaire, and one more at every rank after that.':'Your standing opens new doors. You now have room for '+SLOTS[S.peak]+' industries. Licences and setup cost '+fmt(fee)+'.',
@@ -4112,7 +4139,7 @@ function triggerRandom(){const pool=EVENTS.concat(RISKS).filter(e=>(!e.when||e.w
  if(e.build){const ev=e.build();ev._id=e.id;openEvent(ev);return;}
  if(e.setup)e.setup();
  openEvent({_id:e.id,cat:e.cat,title:typeof e.title==='function'?e.title(S):e.title,text:e.text(),choices:e.choices()});}
-function choose(i){const ev=current;if(ev&&ev._id){S.evq=S.evq||[];S.evq.push([ev._id,i]);if(S.evq.length>200)S.evq.splice(0,S.evq.length-200);}const before=outSnap(),pend0=(S.pending||[]).length;const r=ev.choices[i].f();try{ptNote(ev,before,pend0);}catch(e){}if(!/Daily bonus/.test(ev.cat||''))wkInc('events');log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else if(outWanted(ev,r))outcomeCard(ev,ev.choices[i],r,before);else maybeTour();}
+function choose(i){const ev=current;if(ev&&ev._id&&S.month>0)trk('event1');if(ev&&ev._id){S.evq=S.evq||[];S.evq.push([ev._id,i]);if(S.evq.length>200)S.evq.splice(0,S.evq.length-200);}const before=outSnap(),pend0=(S.pending||[]).length;const r=ev.choices[i].f();try{ptNote(ev,before,pend0);}catch(e){}if(!/Daily bonus/.test(ev.cat||''))wkInc('events');log(r[0],r[1]);current=null;closeModal();afterChange();if(S.deathDue){die(S.deathDue);return;}if(r[2])openEvent(r[2]);else if(outWanted(ev,r))outcomeCard(ev,ev.choices[i],r,before);else maybeTour();}
 /* ---- after a decision, show what happened and what it changed ---- */
 function outSnap(){return{fam:famMembers().map(x=>[x.who,x.mood]),cash:S.cash,debt:S.debt,rep:S.rep,happy:S.happy,inf:S.influence,heat:S.heat,cop:S.law?S.law.att:0,health:S.health};}
 function outWanted(ev,r){return!!(r&&r[0])&&ev.choices.length>1&&!/Daily bonus|Calendar/.test(ev.cat||'')&&!ev.noOut;}
@@ -4407,7 +4434,7 @@ function toggleAuto(){if(timer)return stopAuto();if(S.over)return;S.f10auto=1;ti
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v;
  if(S&&typeof lawBlocked==='function'&&lawBlocked()&&LAW_BLOCK.includes(a)){showCard(jailed()?'Not from a prison cell':'Not while you are in hiding',(jailed()?'You are in prison until '+dateStr(S.law.jail.until)+'. Your deputy keeps things running':'You are hiding abroad. Your managers keep things running')+', but nothing new can start until you are back. You can still sell.','<button class="btn primary" data-a="close">OK</button>');return;}
  ({famhol:()=>famHoliday(),famallow:()=>{famOf().allow=!famOf().allow;log(famOf().allow?'You started sending your relatives '+fmt(famAllow())+' a month.':'You stopped the family allowance. Expect some cold phone calls.',famOf().allow?'good':'');afterChange();},payloan:()=>{const L=S.loans||[];const list=v==='all'?L.slice():[L[+v]].filter(Boolean);const need=list.reduce((t,x)=>t+loanOwed(x),0);if(!list.length||S.cash<need)return;const r=loanPayOff(list);log('You paid off '+(list.length>1?'all your business loans':'the '+list[0].name+' loan')+' early for '+fmt(r.paid)+', saving about '+fmt(r.saved)+' in interest.','good');afterChange();},outok:()=>{closeModal();maybeTour();},guidenext:()=>nextClick(),guideauto:()=>autoClick(),guidego:()=>guideGo(v),obit:()=>openObit(),tkbid:()=>tkCard(v),tkgo:()=>tkGo(v),tksell:()=>tkSell(v),polrun:()=>pcRunCard(+v),poldonor:()=>pcTakeDonor(v),polskip:()=>pcSkipDonor(),polgo:()=>pcLaunch(),poldraftno:()=>pcDraftNo(),polpower:()=>pcUse(v),poldrop:()=>pcDrop(),closecard:()=>closeModal(),lifeobit:()=>openObit(obitFromLife(LIVES_SHOWN[+v])),lifesave:()=>obitSave(obitFromLife(LIVES_SHOWN[+v])),obitclose:()=>closeObit(),obitshare:()=>obitShare(),obitsave:()=>obitSave(),guideclose:()=>guideClose(),guidebuy:()=>{closeModal();guideGo('buy');},guideskip:()=>{closeModal();nextMonth();},skin:()=>setSkin(v),sound:()=>soundSet(v==='on'),sndtoggle:()=>soundSet(!soundOn()),music:()=>musicSet(v==='on'),calopen:()=>{if(!current)openCal();},scheme:()=>toggleScheme(v),hideback:()=>hideBack(v),moonset:()=>{const q=String(v).split(':');moonSet(q[0],q[1]);},repper:()=>{repPeriod=v;render();},vanishask:()=>showCard('Buy a new life?','Fixers will give you a new name, a new passport and a new country. You keep '+fmt(vanishKeep())+'. Your businesses, homes, family and friends stay behind, and you can never contact them again. This life ends here.','<button class="btn primary" data-a="vanish">Disappear</button><button class="btn ghost" data-a="close">Stay</button>'),vanish:()=>{closeModal();vanish();},plan:()=>setPlan(v),ins:()=>setIns(v),sha:()=>setSha(),mentor:()=>setMentor(v),lives:()=>showLives(),curset:()=>{S.cur=v;save();render();if(acctView)renderAccts();},bonus:()=>{if(bonusDue()&&!current)openEvent(bonusEvent());},deal:takeDeal,care:()=>{S.care=+v;afterChange();},treat:()=>{if(S.conds&&S.conds[v]&&!S.conds[v].managed){const f=condFix(v);if(!canPay(f))return;S.cash-=f;S.conds[v].managed=true;addHealth(10);log('You finally treated your '+CONDS[v].name.lc()+'. Years of neglect made it a long, expensive fight: '+fmt(f)+', then '+fmt(condFee(v))+' a month.','life');afterChange();}},tour:startTour,tournext:()=>tourGo(1),tourback:()=>tourGo(-1),tourskip:endTour,buy:()=>buyCard(v),bcq:()=>bcQty(v),bcok:()=>bcConfirm(),sell:()=>sell(v),abuy:()=>assetCard(v),asell:()=>sellAsset(v),up:()=>buyUp(v),expand,borrow:()=>borrow(+v),repay:()=>repay(+v),
-  choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?slotInds().length<SLOTS[S.peak]:othersOpen);render();},regenter:()=>regEnter(v),close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},findlove:()=>{if(!current)openEvent(loveEvent());},racex:()=>{S.raceOpen=!S.raceOpen;render();},casino:()=>{if(!current){const e=casinoEvent();if(e)openEvent(e);}},betpct:()=>{S.betPct=+v;render();},citygo:()=>{if(!current){const e=cityStageEvent();if(e)openEvent(e);}},collsell:()=>collSell(v),pppbid:()=>{if(current)return;const e=pppBid(v);if(e)openEvent(e);},trybaby:()=>{if(!current)openEvent(tryBabyEvent());},stoppay:stopPaying,
+  choose:()=>choose(+t.dataset.i),tab:()=>showTab(v,true),others:()=>{othersOpen=!(othersOpen===null?slotInds().length<SLOTS[S.peak]:othersOpen);render();},regenter:()=>regEnter(v),close:closeModal,mode:()=>setMode(v),gift:()=>giveGift(v),kidswant:()=>{S.kidsWant=v==='any'?null:+v;afterChange();},findlove:()=>{if(!current)openEvent(loveEvent());},racex:()=>{S.raceOpen=!S.raceOpen;render();},fmbuy:()=>fmBuy(v),fmplay:()=>{closeModal();nextClick();},casino:()=>{if(!current){const e=casinoEvent();if(e)openEvent(e);}},betpct:()=>{S.betPct=+v;render();},citygo:()=>{if(!current){const e=cityStageEvent();if(e)openEvent(e);}},collsell:()=>collSell(v),pppbid:()=>{if(current)return;const e=pppBid(v);if(e)openEvent(e);},trybaby:()=>{if(!current)openEvent(tryBabyEvent());},stoppay:stopPaying,
   hire:()=>hireSvc(v),accts:()=>{if(GUEST){guestAsk('chip');return;}if(!ACC)return;stopAuto();acctView='menu';renderAccts();},guestlater:()=>{acctView=null;authMode='signup';renderAccts();render();if(!current&&(!S.g||!S.inds.length))startEvents();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,awaygo:()=>awayCollect(),bankbuy:()=>bankBuy(+v),xclist:()=>xcList(v),xcbuy:()=>xcBuyCard(+v),xcgo:()=>xcBuy(v),xcsell:()=>xcSell(+v,+t.dataset.f),mktab:()=>{mkTab=v;mkMsg='';bankMsg='';render();},mklist:()=>mkList(v),mkpost:()=>mkPost(v),mkbuy:()=>mkBuy(+v),mkcancel:()=>mkCancel(+v),friends:()=>openFriends(),friendgift:()=>friendAct('gift',+v),friendrm:()=>friendAct('rm',+v),friendaddid:()=>friendAct('add',+v),giftclaim:()=>giftClaim(),pushyes:()=>pushYes(),pushno:()=>closeModal(),closecard:()=>closeModal(),pushon:()=>{pushRegister(true).catch(()=>{}).then(()=>renderAccts());},pushoff:()=>pushOff(),authmode:()=>{authMode=v;authMsg='';renderAccts();const A=$('acct');if(A)A.scrollTop=0;},authjump:()=>{authMode=v;authMsg='';renderAccts();const u=$('acc-user');if(u){u.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>u.focus({preventScroll:true}),400);}},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView=GUEST?'guestsave':'auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),lbsub:()=>lbSubGo(v),retryboot:bootAuth,appupdate:appUpdate,lgtoggle:()=>{lgOpen[v]=!lgOpen[v];render();},upgradetoy:()=>{upgradeToy(v);afterChange();},propcity:()=>{propCity=v;render();},propctry:()=>{propShut[v]=!propShut[v];render();},propbuy:()=>propCard(v,false),propdev:()=>propCard(v,true),propask:()=>{propSellAsk=+v;render();},propnosell:()=>{propSellAsk=null;render();},propsell:()=>sellProp(+v),buyrace:()=>buyRace(v),sellrace:sellRace,aero:raceAero,engprog:startEngineProg,engrd:engineRD,buyteam:()=>teamCard(v),venuebuild:()=>venueCard(v,false),venuebuy:()=>venueCard(v,true),sellteam:()=>sellTeam(v),sign:()=>signPlayers(v),academy:()=>buildAcademy(v),
   custtoggle:()=>{custOpen[v]=!custOpen[v];render();},custbuy:()=>custCard(v,t.dataset.o),openfdn:openFdn,giving:()=>{S.fdn.giving=+v;afterChange();},donate:()=>donate(+v),focus:()=>{S.fdn.focus=v;afterChange();},fundraise:()=>runFundraiser(v),enterind:()=>{if(enterInd(v,entryFee()))log('You entered '+IND[v].name+'.','gold');afterChange();},askexit:()=>{exitAsk=v;render();},noexit:()=>{exitAsk=null;render();},exitind:()=>exitInd(v),rent:()=>{rentHome(+v);afterChange();},endlease:endLease,travel:()=>setTravel(+v),svcdown:()=>downSvc(v),sbuy:()=>buySec(v),ssell:()=>sellSec(v,+t.dataset.f),ord:()=>{S.ord=+v;afterChange();},
   askreset:()=>{$('reset').innerHTML='<span class="foot">Erase this life? <button class="btn small" data-a="reset">Yes, restart</button><button class="btn ghost small" data-a="noreset">Cancel</button></span>';},
@@ -5315,7 +5342,7 @@ function guideGo(v){if(v==='buy'){showTab('business');setTimeout(()=>{const b=ch
 function nextClick(){if(timer){stopAuto();return;}if(S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){
   showCard('Buy a business first','The clock is ready, but you have nothing earning money yet. Buy your first business, then press PLAY and watch it earn.',
    '<button class="btn primary" data-a="guidebuy">Show me where</button><button class="btn ghost" data-a="guideskip">Skip a month anyway</button>');return;}
- if(S&&!S.over&&!acctView&&!current){S.plays=(S.plays||0)+1;if(genderDue()){openEvent(genderPlayEvent());return;}}
+ if(S&&!S.over&&!acctView&&!current){S.plays=(S.plays||0)+1;if(S.plays===1)trk('play1');if(S.plays===5)trk('play5');if(genderDue()){openEvent(genderPlayEvent());return;}}
  playRun();}
 function autoClick(){if(!timer&&S&&!S.over&&S.inds.length&&totalUnits()===0&&!S.guideDone){nextClick();return;}toggleAuto();}
 /* ================= Coming back: seasons, weekly challenges, calendar events ================= */
