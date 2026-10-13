@@ -149,6 +149,12 @@ tbody tr:hover td{background:var(--brass-soft)}
 .mform label{display:flex;flex-direction:column;gap:4px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .mform input,.mform select,.mtools select{padding:8px 10px;border:1px solid var(--line);background:var(--paper);border-radius:3px;font-size:14px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;width:100%}
 .mform .wide{grid-column:1/-1}.mform .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;grid-column:1/-1}
+.mcres{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mcres li{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:4px;font-size:13.5px}
+.mcres li .ic{flex:none;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:13px}
+.mcres li.ok .ic{background:var(--green)}.mcres li.bad .ic{background:var(--red)}.mcres li b{display:block}.mcres li small{display:block;color:var(--muted);margin-top:2px}
+.mcres li .fix{color:var(--ink);margin-top:4px;display:block}
+.mcguide{margin-top:14px;font-size:13.5px}.mcguide summary{cursor:pointer}.mcguide ol{margin:8px 0;padding-left:20px}.mcguide li{margin:6px 0}
 .mtools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.mtools select{width:auto}
 .linkcell{display:flex;align-items:center;gap:6px;margin-top:3px}.linkcell code{font-family:var(--mono);font-size:12px;color:var(--brass);word-break:break-all}
 .btn.xs{padding:2px 8px;font-size:12px}
@@ -416,6 +422,26 @@ body.navhide .main{margin-left:0}
       <p class="sub">What the server is connected to on Facebook and Instagram, and when the access runs out.</p>
       <div class="kpis" id="connKpis"></div>
       <p class="mmsg" id="connNote" style="margin-top:10px"></p>
+      <h3 class="eyebrow" style="margin:18px 0 6px">Connect or change the Meta app</h3>
+      <p class="sub" id="mcSub" style="margin:0 0 10px">Paste the details from your Meta app here. They are saved on the server; the token is never shown again, only its last 4 characters.</p>
+      <form id="mcForm" class="pform" novalidate autocomplete="off">
+        <fieldset class="full"><label class="plbl" for="mcTok">Access token (System User token)</label><input id="mcTok" type="password" maxlength="700" autocomplete="off" spellcheck="false" placeholder="Paste the token. Leave empty to keep the saved one." style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px;width:100%"><p class="pnote" id="mcTokNote"></p></fieldset>
+        <fieldset><label class="plbl" for="mcAcct">Ad account ID</label><input id="mcAcct" maxlength="30" placeholder="e.g. 1055789217482496 or act_1055789217482496" style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px;width:100%"></fieldset>
+        <fieldset><label class="plbl" for="mcPage">Facebook Page ID <span class="pnote">(optional)</span></label><input id="mcPage" maxlength="30" placeholder="Leave empty to use the first Page the token can see" style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px;width:100%"></fieldset>
+        <fieldset class="full"><label class="plbl" for="mcSec">App secret <span class="pnote">(optional, makes calls safer)</span></label><input id="mcSec" type="password" maxlength="64" autocomplete="off" spellcheck="false" placeholder="From App settings › Basic. Leave empty to keep it as it is." style="padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px;width:100%"><p class="pnote" id="mcSecNote"></p></fieldset>
+        <div class="acts full" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="submit" id="mcSave">Save and test</button><button class="btn ghost" type="button" id="mcTest">Test again</button><button class="btn ghost" type="button" id="mcOff" hidden>Disconnect</button><p class="mmsg" id="mcMsg" role="status"></p></div>
+      </form>
+      <ul class="mcres" id="mcRes"></ul>
+      <details class="mcguide"><summary><b>How to make a new Meta app and token</b> (about 10 minutes)</summary>
+        <ol>
+          <li>Go to <b>developers.facebook.com</b> › My Apps › <b>Create app</b>. Choose the <b>Business</b> type and pick your Business portfolio.</li>
+          <li>In the new app, open <b>App settings › Basic</b>: add the privacy policy URL <b>https://hustlempires.com/privacy</b>, the data deletion URL <b>https://hustlempires.com/data-deletion</b>, the app icon and a category. Add the <b>Marketing API</b> product. Then switch the app from Development to <b>Live</b>. (Ads made by an app still in Development mode get rejected.)</li>
+          <li>Go to <b>business.facebook.com › Settings › Users › System users</b> and add one with the <b>Admin</b> role. Use <b>Assign assets</b> to give it the ad account (Manage campaigns), the Facebook Page (full control), the Instagram account and the Pixel.</li>
+          <li>On that system user, click <b>Generate new token</b>, choose the <b>new app</b>, set expiry to <b>Never</b>, and tick: ads_read, ads_management, business_management, pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish, read_insights, instagram_manage_insights. Copy the token.</li>
+          <li>Paste it above with your ad account ID (in Ads Manager, the number after <b>act=</b> in the address bar), then press <b>Save and test</b>. Each line below turns green when that part works.</li>
+        </ol>
+        <p class="pnote">Why a System User token: it belongs to the business, not to a person, it can be set to never expire, and it only has the permissions you tick. That is the safest way to keep the connection from being cut off again.</p>
+      </details>
     </section>
     <section class="panel" id="postPanel">
       <h2>Scheduled posts</h2>
@@ -816,10 +842,10 @@ $('mCamps').addEventListener('click',async e=>{const b=e.target.closest('button'
 /* ---------- Meta page: connection, scheduled posts, ads ---------- */
 let metaLoading=false;
 async function loadMeta(quiet){if(metaLoading)return;metaLoading=true;if(!quiet)$('aLoad').textContent='Loading…';
- await Promise.all([loadAds(),loadPosts(),loadRuns(),loadMg(),loadPixel()]);if(runs)renderRuns();renderConn();$('aLoad').textContent='';metaLoading=false;}
+ await Promise.all([loadAds(),loadPosts(),loadRuns(),loadMg(),loadPixel(),loadMconn()]);if(runs)renderRuns();renderConn();$('aLoad').textContent='';metaLoading=false;}
 $('aDays').addEventListener('change',()=>loadAds());
 function renderConn(){const A=ads||{},P=posts||{},sy=A.sync||{},tk=A.token||{},pg=(P.pages||{});
- if(!A.ready){$('connKpis').innerHTML='';$('connNote').innerHTML='<b style="color:var(--red)">Not connected.</b> Add a Meta token with the console token step.';navMeta(0);return;}
+ if(!A.ready){$('connKpis').innerHTML='';$('connNote').innerHTML='<b style="color:var(--red)">Not connected.</b> Use the form below to connect your Meta app.';navMeta(0);return;}
  const exp=tk.expires?Math.ceil((tk.expires-serverNow)/86400):null,missing=P.missing||[],failed=sy.error&&(!sy.at||sy.errorAt>sy.at);
  const tiles=[['Ad account',esc(sy.name||'—'),(sy.currency?esc(sy.currency)+' · ':'')+'ID '+esc(A.account||''),'lead'],
   ['Facebook Page',pg.page?esc(pg.page.name):'—',pg.page?'posts go here':esc(pg.error||'not found yet')],
@@ -827,9 +853,10 @@ function renderConn(){const A=ads||{},P=posts||{},sy=A.sync||{},tk=A.token||{},p
   ['Token expires',exp==null?'—':exp<=0?'Expired':exp+' day'+(exp===1?'':'s'),exp==null?'expiry not known yet':new Date(tk.expires*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})],
   ['Ad results',sy.at?ago(sy.at):'—',failed?'last refresh failed':'refreshed every hour']];
  $('connKpis').innerHTML=tiles.map(t=>'<div class="kpi '+(t[3]||'')+'"><span class="eyebrow">'+t[0]+'</span><b class="num" style="font-size:20px;overflow-wrap:anywhere">'+t[1]+'</b><small>'+t[2]+'</small></div>').join('');
- const notes=[];if(exp!=null&&exp<=7)notes.push('<b style="color:var(--red)">The token '+(exp<=0?'has expired':'expires in '+exp+' day'+(exp===1?'':'s'))+'.</b> Make a new one in Business Settings (same six permissions) and run the console token step.');
+ const notes=[];if(exp!=null&&exp<=7)notes.push('<b style="color:var(--red)">The token '+(exp<=0?'has expired':'expires in '+exp+' day'+(exp===1?'':'s'))+'.</b> Make a new System User token and paste it in the form below.');
  if(missing.length)notes.push('<b style="color:var(--red)">Missing permissions:</b> '+missing.map(esc).join(', ')+'.');
  if(failed)notes.push('<b style="color:var(--red)">Last ad refresh failed:</b> '+esc(sy.error));
+ {const k=(mconn||{}).check||{};if(k.at&&!k.ok){const bad=(k.items||[]).filter(x=>!x.ok).map(x=>x.label);notes.push('<b style="color:var(--red)">Not working yet:</b> '+bad.map(esc).join(', ')+'. See the checks below.');}}
  $('connNote').innerHTML=notes.length?notes.join(' '):'All good: ads are read and posts can be published.';
  navMeta(notes.length?'!':0);}
 function navMeta(v){const e=$('cntMeta');e.hidden=!v;e.textContent=v||'';}
@@ -1091,6 +1118,23 @@ function bStartFrom(campId,setId){bDraft=[];bCur=null;renderDraft();document.que
 
 /* ---------- Meta Pixel ---------- */
 function pixShow(id){$('pixId').value=id||'';$('pixOff').hidden=!id;$('pixMsg').innerHTML=id?'<b style="color:var(--green)">On.</b> Pixel '+esc(id)+' is on hustlempires.com, counting visits (PageView) and new accounts (CompleteRegistration).':'Off. Paste your Pixel ID from Meta Events Manager and press Save.';}
+/* ---------- Meta connection: save from here, and a plain-words health check ---------- */
+let mconn=null;
+async function loadMconn(){try{mconn=await api('GET','/api/admin/meta/conn');mcShow();}catch(e){}}
+function mcShow(chk){const c=mconn||{};const src={admin:'saved here',"server file":'from the server settings file'}[c.source];
+ $('mcTokNote').textContent=c.token?'Saved token ends in '+c.token+' ('+src+')'+(c.setAt?', saved '+ago(c.setAt):'')+'. Paste a new one only to replace it.':'No token saved yet.';
+ $('mcSecNote').textContent=c.secret?'An app secret is saved.':'No app secret saved (optional).';
+ if(document.activeElement!==$('mcAcct'))$('mcAcct').value=c.account||'';if(document.activeElement!==$('mcPage'))$('mcPage').value=c.page||'';
+ $('mcOff').hidden=c.source!=='admin';const k=chk||c.check||{};
+ $('mcRes').innerHTML=(k.items||[]).map(x=>'<li class="'+(x.ok?'ok':'bad')+'"><span class="ic">'+(x.ok?'✓':'!')+'</span><span><b>'+esc(x.label)+'</b><small>'+esc(x.detail)+'</small>'+(x.fix&&!x.ok?'<span class="fix">'+esc(x.fix)+'</span>':'')+'</span></li>').join('')+(k.at?'<li style="border:0;padding:2px 0"><small>'+(k.ok?'Everything works. ':'')+'Tested '+ago(k.at)+'.</small></li>':'');}
+async function mcSend(path,body,btn){const m=$('mcMsg');btn.disabled=true;m.textContent=path.endsWith('test')?'Testing…':'Saving and testing…';
+ try{const d=await api('POST',path,body);mconn=d.conn;mcShow(d.check);$('mcTok').value='';$('mcSec').value='';m.textContent=d.check&&d.check.ok?'Connected. Ad results refresh in a minute.':'Saved. See what still needs fixing below.';
+  setTimeout(()=>loadMeta(true),1500);}
+ catch(e){m.textContent=e.message;}btn.disabled=false;}
+$('mcForm').addEventListener('submit',e=>{e.preventDefault();const b={token:$('mcTok').value.trim(),account:$('mcAcct').value.trim(),page:$('mcPage').value.trim(),secret:$('mcSec').value.trim()};
+ if(!b.token&&!(mconn&&mconn.token)){$('mcMsg').textContent='Paste the access token first.';return;}mcSend('/api/admin/meta/conn',b,$('mcSave'));});
+$('mcTest').addEventListener('click',()=>mcSend('/api/admin/meta/test',{},$('mcTest')));
+$('mcOff').addEventListener('click',()=>{if(confirm('Disconnect the Meta app? Ad results, posting and ad creation stop until you connect again.'))mcSend('/api/admin/meta/conn',{clear:true},$('mcOff'));});
 async function loadPixel(){try{const d=await api('GET','/api/admin/pixel');pixShow(d.id);}catch(e){}}
 $('pixSave').addEventListener('click',async()=>{try{const d=await api('POST','/api/admin/pixel',{id:$('pixId').value});pixShow(d.id);if(d.id)$('pixMsg').innerHTML+=' Open the game once and check Events Manager to see it arrive.';}catch(e){$('pixMsg').textContent=e.message;}});
 $('pixOff').addEventListener('click',async()=>{try{const d=await api('POST','/api/admin/pixel',{id:''});pixShow(d.id);}catch(e){$('pixMsg').textContent=e.message;}});
@@ -1101,7 +1145,7 @@ function pTimeDefault(){const d=new Date(Date.now()+86400000);d.setHours(18,0,0,
 async function loadPosts(){try{posts=await api('GET','/api/admin/posts');renderPosts();}catch(e){if(e.status!==401)$('postSub').textContent='Could not load posts: '+e.message;}}
 function renderPostsThenConn(){renderPosts();renderConn();}
 function renderPosts(){const P=posts,pg=(P.pages||{}),page=pg.page,ig=pg.ig;
- let sub;if(!P.ready)sub='Not connected yet. Connect Meta first (the "Connect Meta ads" console steps).';
+ let sub;if(!P.ready)sub='Not connected yet. Connect your Meta app in the Meta connection box at the top of this page.';
  else if(P.missing&&P.missing.length)sub='<b style="color:var(--red)">The Meta token can read ads but not post yet.</b> It needs these permissions: '+P.missing.map(esc).join(', ')+'. Make a new token with them ticked, then run the token step again.';
  else if(!page)sub=pg.error?'<b style="color:var(--red)">'+esc(pg.error)+'</b> Give hustle-server access to the Facebook Page in Business Settings, then press Check again.':'Looking for your Facebook Page…';
  else sub='Posting to the Facebook Page <b>'+esc(page.name)+'</b>'+(ig?' and Instagram <b>@'+esc(ig.username)+'</b>':' (no Instagram business account is linked to this Page)')+'. Posts go out within a minute of their time.';
@@ -1208,10 +1252,10 @@ const ST={ACTIVE:['Running','good'],PAUSED:['Paused','idle'],CAMPAIGN_PAUSED:['P
 async function loadAds(){try{ads=await api('GET','/api/admin/ads?'+rgQS());renderAds();}catch(e){if(e.status!==401)$('adsSub').textContent='Could not load ad results: '+e.message;}}
 function renderAds(){const a=ads,sy=a.sync||{},tk=a.token||{},cur=sy.currency||'',M=n=>(cur==='KES'?'KSh ':cur?cur+' ':'')+(+n||0).toLocaleString('en-US',{maximumFractionDigits:cur==='KES'?0:2});
  $('adsSync').hidden=!a.ready;$('adsBody').hidden=!a.ready||!sy.at;
- if(!a.ready){$('adsSub').innerHTML='Not connected yet. The server needs the Meta token and ad account, added with the "Connect Meta ads" console step.';return;}
+ if(!a.ready){$('adsSub').innerHTML='Not connected yet. Connect your Meta app in the Meta connection box at the top of this page.';return;}
  const exp=tk.expires?Math.ceil((tk.expires-serverNow)/86400):null;
  let sub=sy.at?'Connected to <b>'+esc(sy.name||'ad account '+a.account)+'</b>'+(cur?' ('+esc(cur)+')':'')+'. Refreshed '+ago(sy.at)+'; it refreshes every hour.':'Connected to ad account '+esc(a.account)+'. The first refresh runs a minute after the server starts.';
- if(exp!=null)sub+=exp<=7?' <b style="color:var(--red)">The Meta token expires in '+Math.max(0,exp)+' day'+(exp===1?'':'s')+': make a new one in Business Settings and run the "Connect Meta ads" step again.</b>':' The token expires in '+exp+' days.';
+ if(exp!=null)sub+=exp<=7?' <b style="color:var(--red)">The Meta token expires in '+Math.max(0,exp)+' day'+(exp===1?'':'s')+': make a new one in Business Settings and paste it in the Meta connection box.</b>':' The token expires in '+exp+' days.';
  if(sy.error&&(!sy.at||sy.errorAt>sy.at))sub+=' <b style="color:var(--red)">Last refresh failed: '+esc(sy.error)+'</b>';
  $('adsSub').innerHTML=sub;if(!sy.at)return;
  const T=a.totals||{},C=a.campaigns||[],per=rgLabel();

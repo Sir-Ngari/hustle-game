@@ -77,12 +77,53 @@ def env_int(name, default):
 # The Hustle Pass was retired: the game is free for everyone, and players can tip the developers instead.
 BILLING_ON = False
 # Meta (Facebook and Instagram) ads: read-only ad results, pulled every hour into the admin Marketing tab
-META_TOKEN = os.environ.get("HUSTLE_META_TOKEN", "").strip()
-META_ACCOUNT = re.sub(r"[^0-9]", "", os.environ.get("HUSTLE_META_ACCOUNT", ""))
-META_APP_SECRET = os.environ.get("HUSTLE_META_APP_SECRET", "").strip()
-META_API = os.environ.get("HUSTLE_META_API", "v25.0").strip() or "v25.0"
+# Meta settings: saved from the admin page (Meta connection), or, as before, from /etc/hustle.env. The admin page wins.
+ENV_META = {"token": os.environ.get("HUSTLE_META_TOKEN", "").strip(),
+            "account": re.sub(r"[^0-9]", "", os.environ.get("HUSTLE_META_ACCOUNT", "")),
+            "secret": os.environ.get("HUSTLE_META_APP_SECRET", "").strip(),
+            "api": os.environ.get("HUSTLE_META_API", "v25.0").strip() or "v25.0",
+            "page": re.sub(r"[^0-9]", "", os.environ.get("HUSTLE_META_PAGE", ""))}   # page is optional: which Facebook Page to post to
 META_URL = os.environ.get("HUSTLE_META_URL", "https://graph.facebook.com").strip().rstrip("/")
-META_PAGE = re.sub(r"[^0-9]", "", os.environ.get("HUSTLE_META_PAGE", ""))   # optional: which Facebook Page to post to
+_MCONN = {"v": None}
+
+
+def meta_conn():
+    """The Meta connection saved in the admin page (cached; reloaded after every save)."""
+    if _MCONN["v"] is None:
+        try:
+            d = json.loads(meta_get("meta_conn") or "{}")
+        except Exception:
+            d = {}
+        _MCONN["v"] = d if isinstance(d, dict) else {}
+    return _MCONN["v"]
+
+
+def mc(k):
+    try:
+        v = meta_conn().get(k)
+    except Exception:
+        v = None
+    return v or ENV_META[k]
+
+
+def mtoken():
+    return mc("token")
+
+
+def macct():
+    return mc("account")
+
+
+def msecret():
+    return mc("secret")
+
+
+def mapi():
+    return mc("api") or "v25.0"
+
+
+def mpage():
+    return mc("page")
 MEDIA_DIR = os.path.join(os.path.dirname(os.path.abspath(os.environ.get("HUSTLE_DB", "") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "hustle.db"))), "media")
 PESAPAL_KEY = os.environ.get("HUSTLE_PESAPAL_KEY", "").strip()
 PESAPAL_SECRET = os.environ.get("HUSTLE_PESAPAL_SECRET", "").strip()
@@ -2154,17 +2195,17 @@ LINK_CODE_RES = [re.compile(r"/go/([A-Za-z0-9-]{1,30})"), re.compile(r"[?&]c=([A
 
 
 def meta_ready():
-    return bool(META_TOKEN and META_ACCOUNT)
+    return bool(mtoken() and macct())
 
 
 def graph_get(path, params=None, url=None):
     """One read-only Graph API call. The token never appears in errors or logs."""
     if url is None:
         params = dict(params or {})
-        params.setdefault("access_token", META_TOKEN)
-        if META_APP_SECRET:
-            params["appsecret_proof"] = hmac.new(META_APP_SECRET.encode(), params["access_token"].encode(), hashlib.sha256).hexdigest()
-        url = "%s/%s/%s?%s" % (META_URL, META_API, path.lstrip("/"), urllib.parse.urlencode(params))
+        params.setdefault("access_token", mtoken())
+        if msecret():
+            params["appsecret_proof"] = hmac.new(msecret().encode(), params["access_token"].encode(), hashlib.sha256).hexdigest()
+        url = "%s/%s/%s?%s" % (META_URL, mapi(), path.lstrip("/"), urllib.parse.urlencode(params))
     req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Hustlempires/1"})
     try:
         with urllib.request.urlopen(req, timeout=40) as r:
@@ -2184,10 +2225,10 @@ def graph_get(path, params=None, url=None):
 def graph_post(path, data):
     """One Graph API write (used only for publishing posts to the Page and Instagram)."""
     data = dict(data)
-    data.setdefault("access_token", META_TOKEN)
-    if META_APP_SECRET:
-        data["appsecret_proof"] = hmac.new(META_APP_SECRET.encode(), data["access_token"].encode(), hashlib.sha256).hexdigest()
-    url = "%s/%s/%s" % (META_URL, META_API, path.lstrip("/"))
+    data.setdefault("access_token", mtoken())
+    if msecret():
+        data["appsecret_proof"] = hmac.new(msecret().encode(), data["access_token"].encode(), hashlib.sha256).hexdigest()
+    url = "%s/%s/%s" % (META_URL, mapi(), path.lstrip("/"))
     req = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode(), method="POST",
                                  headers={"Accept": "application/json", "User-Agent": "Hustlempires/1",
                                           "Content-Type": "application/x-www-form-urlencoded"})
@@ -2242,7 +2283,7 @@ def meta_sync(full=False):
         return False
     t = now()
     try:
-        acct = "act_" + META_ACCOUNT
+        acct = "act_" + macct()
         info = graph_get(acct, {"fields": "name,currency,timezone_name,account_status"})
         last = q("SELECT MAX(day) d FROM meta_daily", one=True)["d"]
         back = 90 if full or not last else 4
@@ -2293,7 +2334,7 @@ def meta_sync(full=False):
         meta_set("meta_sync", json.dumps({"at": t, "ok": True, "rows": len(rows), "name": info.get("name") or "", "currency": info.get("currency") or "",
                                            "tz": info.get("timezone_name") or "", "status": info.get("account_status")}))
         try:
-            dbg = graph_get("debug_token", {"input_token": META_TOKEN}).get("data") or {}
+            dbg = graph_get("debug_token", {"input_token": mtoken()}).get("data") or {}
             meta_set("meta_token", json.dumps({"expires": dbg.get("expires_at") or 0, "valid": dbg.get("is_valid"), "scopes": dbg.get("scopes") or []}))
         except Exception:
             pass
@@ -2327,6 +2368,128 @@ def meta_sweeper():
         time.sleep(3600)
 
 
+# ---- Meta connection: save from the admin page, and a health check ----
+NEED_SCOPES = [("Ad results", ["ads_read"]), ("Creating ads, switches and budgets", ["ads_management"]),
+               ("Posting to the Page and Instagram", ["pages_show_list", "pages_read_engagement", "pages_manage_posts", "instagram_basic", "instagram_content_publish"]),
+               ("Post results", ["read_insights", "instagram_manage_insights"])]
+ACCT_STATUS = {1: "active", 2: "disabled", 3: "unpaid bills", 7: "under review", 8: "pending settlement", 9: "in grace period",
+               100: "pending closure", 101: "closed", 201: "any active", 202: "any closed"}
+BLOCKED_FIX = ("Meta has blocked the app this token belongs to, so no call works. Create a new app (type Business) in your Business portfolio, "
+               "then make a new System User token from that app and paste it here.")
+
+
+def meta_conn_public():
+    """What the admin page may see: never the token or secret themselves."""
+    c, tok = meta_conn(), mtoken()
+    src = "admin" if c.get("token") else ("server file" if ENV_META["token"] else "")
+    try:
+        chk = json.loads(meta_get("meta_check") or "{}")
+    except (TypeError, ValueError):
+        chk = {}
+    return {"source": src, "token": ("…" + tok[-4:]) if tok else "", "account": macct(), "page": mpage(), "secret": bool(msecret()),
+            "api": mapi(), "setAt": c.get("at") or 0, "check": chk}
+
+
+def meta_check():
+    """Try each part of the Meta connection and say in plain words what works and what to fix."""
+    t, out = now(), []
+    def add(k, label, ok, detail, fix=""):
+        out.append({"k": k, "label": label, "ok": ok, "detail": detail, "fix": fix})
+    def blocked(e):
+        m = str(e)
+        return "code 200" in m and "block" in m.lower()
+    tok, acct = mtoken(), macct()
+    if not tok:
+        add("token", "Access token", False, "No token saved yet.", "Paste a System User token from your new Meta app below.")
+    else:
+        try:
+            dbg = graph_get("debug_token", {"input_token": tok}).get("data") or {}
+            scopes = dbg.get("scopes") or []
+            meta_set("meta_token", json.dumps({"expires": dbg.get("expires_at") or 0, "valid": dbg.get("is_valid"), "scopes": scopes}))
+            if not dbg.get("is_valid"):
+                add("token", "Access token", False, "Meta says this token is not valid (expired or revoked).", "Make a new System User token and paste it below.")
+            else:
+                exp = dbg.get("expires_at") or 0
+                life = "never expires" if not exp else "expires on " + time.strftime("%d %b %Y", time.gmtime(exp))
+                app = dbg.get("application") or dbg.get("app_id") or ""
+                add("token", "Access token", True, "Valid%s; %s." % ((", from the app %s" % app) if app else "", life),
+                    "" if not exp else "A System User token that never expires saves you renewing it.")
+                for label, need in NEED_SCOPES:
+                    miss = [x for x in need if x not in scopes]
+                    add("perm:" + label, label, not miss, "All permissions granted." if not miss else "Missing: " + ", ".join(miss) + ".",
+                        "" if not miss else "Make the token again with these ticked: " + ", ".join(miss) + ".")
+        except Exception as e:
+            add("token", "Access token", False, str(e)[:300], BLOCKED_FIX if blocked(e) else "Check the token was copied in full, then save again.")
+    if not acct:
+        add("account", "Ad account", False, "No ad account ID saved yet.", "Paste the ad account ID (the number after act_ in Ads Manager).")
+    elif tok:
+        try:
+            a = graph_get("act_%s" % acct, {"fields": "name,account_status,currency,timezone_name"})
+            stc = a.get("account_status")
+            add("account", "Ad account", stc == 1, "%s (%s), %s." % (a.get("name") or acct, a.get("currency") or "?", ACCT_STATUS.get(stc, "status %s" % stc)),
+                "" if stc == 1 else "Sort the ad account out in Ads Manager first (billing, review or closure).")
+        except Exception as e:
+            add("account", "Ad account", False, str(e)[:300], BLOCKED_FIX if blocked(e) else
+                "In Business Settings, give the System User access to this ad account (Manage campaigns), and check the ID.")
+    if tok:
+        info = page_discover() or pages_info()
+        if info and info.get("page"):
+            add("page", "Facebook Page", True, "Posts go to %s." % info["page"].get("name"))
+            ig = info.get("ig")
+            add("ig", "Instagram", bool(ig), ("@%s, linked to the Page." % ig.get("username")) if ig else "No Instagram business account is linked to this Page.",
+                "" if ig else "In the Page settings, link the Instagram account (it must be a business or creator account).")
+        else:
+            err = (info or {}).get("error") or "No Facebook Page is shared with this token."
+            add("page", "Facebook Page", False, err[:300], BLOCKED_FIX if "block" in err.lower() else
+                "In Business Settings, give the System User access to the Page (full control), then test again.")
+    px = pixel_id()
+    if px and tok:
+        try:
+            p = graph_get(px, {"fields": "name"})
+            add("pixel", "Meta Pixel", True, "Pixel %s is reachable." % (p.get("name") or px))
+        except Exception as e:
+            add("pixel", "Meta Pixel", False, str(e)[:300], "In Business Settings, give the System User access to the Pixel (it still works on the game without this).")
+    res = {"at": t, "ok": all(x["ok"] for x in out), "items": out}
+    meta_set("meta_check", json.dumps(res))
+    return res
+
+
+def meta_conn_save(d):
+    """Save what the admin typed. Blank fields keep what is saved; clear=true disconnects."""
+    if d.get("clear"):
+        meta_set("meta_conn", "{}")
+        _MCONN["v"] = None
+        meta_set("meta_check", "{}")
+        return None
+    c = dict(meta_conn())
+    tok = re.sub(r"\s", "", str(d.get("token") or ""))
+    if tok:
+        if not re.match(r"^[A-Za-z0-9_\-|.]{40,600}$", tok):
+            return "That doesn't look like a Meta access token. It is a long code that usually starts with EAA."
+        c["token"] = tok
+    acct = str(d.get("account") or "").strip()
+    if acct:
+        acct = re.sub(r"^act_", "", acct)
+        if not re.match(r"^\d{5,20}$", acct):
+            return "The ad account ID is a number, like 1055789217482496 (you can paste it with or without act_)."
+        c["account"] = acct
+    if "page" in d:
+        pg = re.sub(r"[^0-9]", "", str(d.get("page") or ""))
+        c["page"] = pg
+    sec = str(d.get("secret") or "").strip()
+    if sec:
+        if not re.match(r"^[0-9a-f]{32}$", sec):
+            return "The app secret is 32 letters and numbers (0-9, a-f), from App settings › Basic in the Meta app."
+        c["secret"] = sec
+    if d.get("noSecret"):
+        c.pop("secret", None)
+    c["at"] = now()
+    meta_set("meta_conn", json.dumps(c))
+    _MCONN["v"] = None
+    meta_set("meta_pages", "{}")
+    return None
+
+
 # ---- scheduled posts: Facebook Page and Instagram ----
 POST_SCOPES = ["pages_show_list", "pages_read_engagement", "pages_manage_posts", "instagram_basic", "instagram_content_publish"]
 STATS_SCOPES = ["read_insights", "instagram_manage_insights"]
@@ -2340,7 +2503,7 @@ def page_discover():
     """Find the Facebook Page (and the Instagram account linked to it) this token can post to. No tokens are stored."""
     try:
         pages = graph_all("me/accounts", {"fields": "id,name,instagram_business_account{id,username}", "limit": 50})
-        pick = next((p for p in pages if META_PAGE and p.get("id") == META_PAGE), pages[0] if pages else None)
+        pick = next((p for p in pages if mpage() and p.get("id") == mpage()), pages[0] if pages else None)
         if not pick:
             meta_set("meta_pages", json.dumps({"at": now(), "error": "No Facebook Page is shared with this token yet."}))
             return None
@@ -2690,7 +2853,7 @@ def ad_build(r):
     """Create whatever this run needs on Meta (a new campaign and/or ad set, then the creative and ad), paused, then switch
     on only what it made. If a step fails, remove only what this run made; existing campaigns and ad sets are never touched."""
     r = dict(r)
-    acct = "act_" + META_ACCOUNT
+    acct = "act_" + macct()
     info = pages_info()
     page = (info.get("page") or {}).get("id")
     ig = (info.get("ig") or {}).get("id")
@@ -2870,7 +3033,7 @@ def audience_estimate(r):
     if bad:
         return {"error": "Meta no longer accepts %s. Remove %s and try again." % (", ".join(b["name"] for b in bad), "it" if len(bad) == 1 else "them"), "invalid": bad}
     try:
-        d = graph_get("act_%s/delivery_estimate" % META_ACCOUNT, {"optimization_goal": "REACH" if r.get("objective") == "OUTCOME_AWARENESS" else "LINK_CLICKS",
+        d = graph_get("act_%s/delivery_estimate" % macct(), {"optimization_goal": "REACH" if r.get("objective") == "OUTCOME_AWARENESS" else "LINK_CLICKS",
                                                                  "targeting_spec": json.dumps(targeting_spec(r))})
         e = (d.get("data") or [{}])[0]
         return {"lo": e.get("estimate_mau_lower_bound") or 0, "hi": e.get("estimate_mau_upper_bound") or 0, "ready": e.get("estimate_ready", True)}
@@ -3025,7 +3188,7 @@ def ads_report(t, days, rg=None):
         tok = json.loads(meta_get("meta_token") or "{}")
     except (TypeError, ValueError):
         tok = {}
-    out = {"ready": meta_ready(), "account": META_ACCOUNT, "sync": st, "token": tok, "days": days, "from": rg["d0"], "to": rg["d1"], "now": t,
+    out = {"ready": meta_ready(), "account": macct(), "sync": st, "token": tok, "days": days, "from": rg["d0"], "to": rg["d1"], "now": t,
            "links": [dict(r) for r in q("SELECT code, name FROM campaigns WHERE archived=0 ORDER BY name")]}
     if not meta_ready():
         return out
@@ -3461,6 +3624,22 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_admin_adruns(path)
         if path.startswith("/api/admin/audiences/"):
             return self.api_admin_audiences(path)
+        if path in ("/api/admin/meta/conn", "/api/admin/meta/test"):
+            if not self.is_admin():
+                return self.error(401, "Log in as admin.")
+            if rate_limited("metaconn", limit=20, window=600):
+                return self.error(429, "Too many tries. Wait ten minutes, then test again.")
+            if path == "/api/admin/meta/conn":
+                d = self.read_json()
+                if d is None:
+                    return
+                err = meta_conn_save(d)
+                if err:
+                    return self.error(400, err)
+            res = meta_check() if mtoken() else {"at": now(), "ok": False, "items": []}
+            if res.get("ok"):
+                threading.Thread(target=meta_sync, kwargs={"full": True}, daemon=True).start()
+            return self.send_json(200, {"ok": True, "conn": meta_conn_public(), "check": res})
         if path == "/api/admin/pixel":
             if not self.is_admin():
                 return self.error(401, "Log in as admin.")
@@ -4818,7 +4997,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/posts/check":
             page_discover()
             try:
-                dbg = graph_get("debug_token", {"input_token": META_TOKEN}).get("data") or {}
+                dbg = graph_get("debug_token", {"input_token": mtoken()}).get("data") or {}
                 meta_set("meta_token", json.dumps({"expires": dbg.get("expires_at") or 0, "valid": dbg.get("is_valid"), "scopes": dbg.get("scopes") or []}))
             except Exception:
                 pass
@@ -5217,6 +5396,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, ads_runs_report(now()))
         if path == "/api/admin/pixel":
             return self.send_json(200, {"id": pixel_id()})
+        if path == "/api/admin/meta/conn":
+            return self.send_json(200, meta_conn_public())
         if path == "/api/admin/interests":
             qt = clean_text((parse_qs(urlparse(self.path).query).get("q") or [""])[0], 60)
             if len(qt) < 2:
@@ -5451,7 +5632,7 @@ def main():
     threading.Thread(target=post_sweeper, daemon=True).start()
     threading.Thread(target=stats_sweeper, daemon=True).start()
     threading.Thread(target=ad_sweeper, daemon=True).start()
-    print("Meta ads: %s" % ("connected to ad account %s, refreshed every hour" % META_ACCOUNT if meta_ready() else "not connected"), flush=True)
+    print("Meta ads: %s" % ("connected to ad account %s, refreshed every hour" % macct() if meta_ready() else "not connected"), flush=True)
     try:
         backfill_friends()
     except Exception as e:
