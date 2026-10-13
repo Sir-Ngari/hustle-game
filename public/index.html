@@ -1256,7 +1256,7 @@ function bcMax(b){if(bizLocked(b))return 0;let n=0,tot=0;const cap=regCap(b)-own
 function bcCost(b,n){let t=0;for(let i=0;i<n;i++)t+=unitCost(b,owned(b.id)+i);return t;}
 function buyCard(id){const b=BIZ.find(x=>x.id===id);if(!b||S.over||!S.inds.includes(b.ind))return;stopAuto();bcState={id,n:1};paintBuyCard();}
 /* the bank finances a purchase when the player cannot pay it all in cash: a deposit now, the rest over 5 years */
-function finQuote(b,n){const total=bcCost(b,n),need=total>S.cash+1e-6;if(!+ECONT().bank||!loanDep()||S.over)return{ok:false,need,total,why:!loanDep()?'Your credit score is too low for a business loan.':''};
+function finQuote(b,n){const total=bcCost(b,n),need=total>S.cash+1e-6;if(owned(b.id)+n>regCap(b))return{ok:false,need,total,why:'Your licence does not allow any more of these.'};if(bizLocked(b))return{ok:false,need,total,why:'This business is still locked.'};if(!+ECONT().bank||!loanDep()||S.over)return{ok:false,need,total,why:!loanDep()?'Your credit score is too low for a business loan.':''};
  const minDep=total*loanDep(),loan0=total-minDep,pay0=loan0/LOAN_MONTHS+loan0*loanRate(),nw=netWorth(),net=S.last?S.last.net:0;
  if(S.cash<minDep)return{ok:false,need,total,minDep,why:'The bank wants a deposit of at least '+fmt(minDep)+' ('+Math.round(loanDep()*100)+'%).'};
  if(nw<total*.15)return{ok:false,need,total,minDep,why:'The bank will not lend this much against a net worth of '+fmt(nw)+'.'};
@@ -1293,7 +1293,7 @@ function paintBuyCard(){const st=bcState;if(!st)return;const b=BIZ.find(x=>x.id=
 function bcQty(v){const st=bcState;if(!st)return;if(st.gen){const mx=st.gen.max();st.n=v==='max'?mx:Math.max(1,Math.min(mx,st.n+(+v||0)));paintPCard();return;}const b=BIZ.find(x=>x.id===st.id),top=Math.max(bcMax(b),finMax(b));
  st.n=v==='max'?top:(v==='-1'||v==='1')?Math.max(1,Math.min(top,st.n+(+v))):Math.max(1,Math.min(top,+v||1));paintBuyCard();}
 /* buy n units with a deposit and a bank loan for the rest */
-function bankFinance(b,n,dep){const total=bcCost(b,n),fq=finQuote(b,n);if(!fq.ok)return false;dep=Math.max(fq.minDep,Math.min(fq.maxDep,dep||fq.minDep));const loan=total-dep;
+function bankFinance(b,n,dep){if(!S.inds.includes(b.ind)||owned(b.id)+n>regCap(b)||bizLocked(b))return false;const total=bcCost(b,n),fq=finQuote(b,n);if(!fq.ok)return false;dep=Math.max(fq.minDep,Math.min(fq.maxDep,dep||fq.minDep));const loan=total-dep;
  S.cash-=dep;const first=!owned(b.id);S.owned[b.id]=owned(b.id)+n;S.bankOK=S.bankOK||{};S.bankOK[b.id]=1;for(let i=0;i<n;i++)wkInc('units');
  if(loan>0){csOf().used=true;S.debt+=loan;S.loans=(S.loans||[]).concat([{id:b.id,name:b.name,prin:loan/LOAN_MONTHS,left:LOAN_MONTHS}]);}
  log((first?'Opened your first '+b.name:'Bought '+n+' × '+b.name)+' with a '+fmt(dep)+' deposit and a '+fmt(loan)+' bank loan. Repayments of about '+fmt(loan/LOAN_MONTHS+loan*loanRate())+' a month start next month.','good');return true;}
@@ -2231,7 +2231,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='8fbc486085ad';let updShown=false;
+const APP_VER='2d29d84278a9';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
