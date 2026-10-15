@@ -413,7 +413,9 @@ function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach|
 function guestAdopt(d){const g=S,co=d.user.company||'';GUEST=false;guestDrop();g._uid=d.user.id;if(!g.g&&signupGender)g.g=signupGender;
  if(co&&co!=='Savanna')(g.props||[]).forEach(p=>{if(p.name)p.name=p.name.split('Savanna').join(co);});
  delete g.gAsk;S=g;log('You created your account. Your empire is saved, and it now follows you to any device.','gold');
- startWith(d.user,S,d.bill,d.ver);queueSync(true);if(!current&&$('modal').hidden&&!acctView)showCard('Your empire is saved','Welcome, '+esc(d.user.name)+'. Everything you built is kept, and you can now play on any device and climb the leaderboard.','<button class="btn primary" data-a="close">Keep building</button>');}
+ startWith(d.user,S,d.bill,d.ver);queueSync(true);if(!current&&$('modal').hidden&&!acctView){const m=typeof bestMove==='function'?bestMove():null;   /* saving is not the end: point straight at the next move */
+  showCard('Your empire is saved','Welcome, '+esc(d.user.name)+'. Everything you built is kept on any device, and you are on the leaderboard now.<br><br><b>Next move:</b> '+(m?'open another '+esc(m.b.name.lc())+'. It adds about '+fmt(m.gain)+' a month.':'press PLAY. Your businesses keep earning every month.'),
+   (m?'<button class="btn primary" data-a="savedbuy" data-v="'+m.b.id+'">Open it · '+fmtFull(m.c)+' game cash</button>':'<button class="btn primary" data-a="fmplay">Press PLAY</button>')+'<button class="btn ghost" data-a="close">Look around first</button>');}}
 /* anonymous visit counting: a random id per browser, so the admin can see how many people open the game but never sign up */
 function visitorId(){try{let v=localStorage.getItem('hs-vid');if(!v){v=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(36).padStart(2,'0')).join('').replace(/[^a-z0-9]/gi,'').slice(0,20);if(v.length<12)v=(v+Math.random().toString(36).slice(2)).slice(0,20);localStorage.setItem('hs-vid',v);}return v;}catch(e){return'';}}
 let visitFormSent=false,campCode='';
