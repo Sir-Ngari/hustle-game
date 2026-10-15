@@ -26,6 +26,7 @@ Settings come from environment variables (see deploy/hustle.env.example):
 import base64
 import calendar
 import datetime
+import gzip
 import hashlib
 import hmac
 import json
@@ -124,6 +125,7 @@ def mapi():
 
 def mpage():
     return mc("page")
+GZ_CACHE = {}   # compressed copies of the static pages, by fingerprint
 MEDIA_DIR = os.path.join(os.path.dirname(os.path.abspath(os.environ.get("HUSTLE_DB", "") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "hustle.db"))), "media")
 PESAPAL_KEY = os.environ.get("HUSTLE_PESAPAL_KEY", "").strip()
 PESAPAL_SECRET = os.environ.get("HUSTLE_PESAPAL_SECRET", "").strip()
@@ -3440,15 +3442,39 @@ class Handler(BaseHTTPRequestHandler):
             if pid:   # Meta Pixel on the game page: visits and new accounts, no personal details
                 data = data.replace(b"</head>", (PIXEL_CODE % pid).encode() + b"</head>", 1)
         ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
+        text = ctype.startswith("text/") or ctype in ("application/javascript", "application/json", "application/manifest+json", "image/svg+xml")
         if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
             ctype += "; charset=utf-8"
+        # a fingerprint of exactly what is sent, so a returning phone can skip the download when nothing changed
+        etag = '"%s"' % hashlib.sha256(data).hexdigest()[:20]
+        if etag in [t.strip() for t in (self.headers.get("If-None-Match") or "").split(",")]:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            return
+        body, gz = data, False
+        # compress text pages (the game page shrinks about 3 times), once per version
+        if text and len(data) > 1024 and "gzip" in (self.headers.get("Accept-Encoding") or "").lower():
+            body = GZ_CACHE.get(etag)
+            if body is None:
+                body = gzip.compress(data, 6)
+                if len(GZ_CACHE) > 40:
+                    GZ_CACHE.clear()
+                GZ_CACHE[etag] = body
+            gz = True
         self.send_response(200)
         self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-cache")
+        self.send_header("ETag", etag)
+        if text:
+            self.send_header("Vary", "Accept-Encoding")
+        if gz:
+            self.send_header("Content-Encoding", "gzip")
         self.security_headers()
         self.end_headers()
-        self.wfile.write(data)
+        self.wfile.write(body)
 
     def serve_media(self, name):
         """Images and videos uploaded for scheduled posts. Meta downloads them from here when it publishes."""

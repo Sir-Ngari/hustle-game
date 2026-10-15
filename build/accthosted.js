@@ -73,21 +73,24 @@ function authForm(gs){const su=authMode==='signup',gu=gs&&GUEST&&su;const inv=su
   '<fieldset><legend>Avatar colour</legend><div class="swatches">'+AVCOL.map((c,i)=>'<label class="sw"><input type="radio" name="acc-col" id="acc-col-'+i+'" value="'+i+'"'+(i===0?' checked':'')+' aria-label="Colour '+(i+1)+'"><span style="background:'+c+'"></span></label>').join('')+'</div></fieldset></details>';
  return h+'<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="acc-submit">'+(su?(gu?'Save my empire':'Create account and start'):'Log in')+'</button>'+(su?'':'<button type="button" class="btn ghost" data-a="forgotview">Forgot your password?</button>')+'</div></form>';}
 function authHook(){const su=authMode!=='login';
- return'<div class="hook">'+(su?'<p class="hook-mind">Do you have a <mark class="hook-hl">BILLIONAIRE MINDSET</mark>? <b>It\'s time to use it.</b></p>':'')+'<p class="hook-big">'+(su?'Start with <em>'+fmt(1000)+'</em>.<br>Die a <em>legend</em>.':'Your empire <em>missed you</em>.')+'</p><p class="hook-sub">'+(su?'Free to play. No downloads. Your first hustle is one tap away.':'Your businesses kept running. Your rivals kept climbing. Time to take back your throne.')+'</p></div>';}
-const ABOUT=[['🏪','From kiosk to conglomerate','Turn a roadside stall into an empire that spans industries and cities. Every coin, every deal, your call.'],
- ['⚽','Own the team you cheer for','Hit a billion and buy a football club, a Formula 1 team and a stadium with your name in lights.'],
+ return'<div class="hook">'+(su?'<p class="hook-mind"><span aria-hidden="true">🎮</span> <b>A free business life game.</b> Build an empire with game cash, just for fun.</p>':'')+'<p class="hook-big">'+(su?'Start with <em>'+fmt(1000)+'</em>.<br>Die a <em>legend</em>.':'Your empire <em>missed you</em>.')+'</p><p class="hook-sub">'+(su?'Free to play. No downloads. Your first hustle is one tap away.':'Your businesses kept running. Your rivals kept climbing. Time to take back your throne.')+'</p></div>';}
+const ABOUT=[['🏪','From kiosk to conglomerate','Open shops, farms, factories and more across industries and cities. Every deal is your call.'],
+ ['📈','Real business choices','Bank loans, hot tips, rival bids, hostile takeovers and taking your company public. Grow fast or grow safe.'],
  ['⚖️','Every shortcut has a price','Bribe the inspector or play it straight? Blame the contractor or own it? What you hide comes back for you.'],
- ['👨‍👩‍👧','Your name lives on','Marry, raise your children, name them, then decide which one inherits everything you built.'],
- ['📰','Read your own obituary','When your story ends, the papers print it. Legend or cautionary tale? You write it, one decision at a time.'],
- ['🏆','Prove you are the best','Climb the leaderboard against real players in your country and the world. Everyone sees who is on top.']];
-function aboutGame(){
- return'<section class="about" aria-labelledby="about-h"><h3 id="about-h">You have watched others get rich. Your turn.</h3>'+
-  '<p class="about-lead">Hustlempires is a free business life game. You start with '+fmt(1000)+' and a street hustle, then live a whole life making the calls that make or break fortunes. <b>One life. One empire.</b> Your name on a stadium, or in the bankruptcy papers.</p>'+
+ ['🚀','Life at the top','The rich list, a space programme aiming for Mars, your own football club and F1 team, even a city with your family name on it.'],
+ ['🏛️','Power and giving','Run for office, start a foundation and take on a world problem. Or watch one scandal undo it all.'],
+ ['👨‍👩‍👧','Your name lives on','Marry, raise your children, then decide which one inherits everything you built. Read your own obituary when your story ends.'],
+ ['🏆','Prove you are the best','A new leaderboard season every month, in your country and the world, plus records that never reset: youngest to $1 million, $1 billion and $1 trillion. Nobody has reached $1 quadrillion yet.']];
+function aboutGame(gs){
+ return'<section class="about" aria-labelledby="about-h"><h3 id="about-h">Build an empire. Live a whole life.</h3>'+
+  '<p class="about-lead">Hustlempires is a free business life game for your phone or computer. You start young with '+fmt(1000)+' of game cash and a street kiosk. Every month brings a decision: grow, borrow, take a risk or play it safe. Climb from Street Hustler to Billionaire, and beyond. <b>One life. One empire.</b> Your name on a stadium, or in the bankruptcy papers.</p>'+
+  '<p class="about-lead"><b>How to play:</b> tap <b>PLAY</b> and the months run until something happens, then you choose. Your first hustle takes one minute.</p>'+
   '<ul class="about-list">'+ABOUT.map(x=>'<li><span class="about-ic" aria-hidden="true">'+x[0]+'</span><span><b>'+x[1]+'</b>'+x[2]+'</span></li>').join('')+'</ul>'+
-  '<div class="about-cta"><p class="hook-big">Every empire here started with <em>nothing but a hustle</em>.<br>Yours starts in <em>one minute</em>.</p>'+
-  '<p class="about-fine">Free to play. No card. No download. Your empire saves to every device you own.</p>'+
-  '<div class="chips"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button>'+
-  '<button class="btn ghost" data-a="authjump" data-v="login">I already have an empire</button></div></div></section>';}
+  '<p class="hook-mind"><span aria-hidden="true">🎮</span> <b>It is a game.</b> All the money in Hustlempires is game money, just for fun. You cannot win, earn or withdraw real money.</p>'+
+  '<div class="about-cta"><p class="hook-big">Every empire here started with <em>one kiosk</em>.<br>Yours starts in <em>one minute</em>.</p>'+
+  '<p class="about-fine">Free to play. No download. Play as a guest first, then create a free account when you want to save your empire and play on any device.</p>'+
+  (gs?'<div class="chips"><button class="btn primary" data-a="guestlater">Keep playing</button><button class="btn ghost" data-a="authmode" data-v="signup">Save my empire</button></div>'
+   :'<div class="chips"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">I already have an empire</button></div>')+'</div></section>';}
 /* ---------- Notifications: a friendly nudge when the player has been away ---------- */
 let pushKey=null,pushAskT=null;
 function pushSupported(){return'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
@@ -299,7 +302,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
  else if(acctView==='guestsave')h+=guestSaveHTML();
  else if(acctView==='down')h+='<h2>Can\'t connect</h2><p class="sub">'+esc(authMsg)+'</p><div class="chips"><button class="btn primary" data-a="retryboot">Try again</button></div>';
- else if(acctView==='auth')h+=authHook()+(authMode==='about'?'<div class="chips hook-cta"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">Log in</button></div>'+authTabs()+aboutGame():'<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm()+'<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="about">New to Hustlempires? Read what the game is about →</button></p>')+(authMode!=='login'?'<p class="hook-end"><span class="hook-kick"><span aria-hidden="true">✨</span> Manifestation starts here!</span></p>':'');
+ else if(acctView==='auth')h+=authHook()+(authMode==='about'?'<div class="chips hook-cta"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">Log in</button></div>'+authTabs()+aboutGame():'<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm()+'<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="about">New to Hustlempires? Read what the game is about →</button></p>')+(authMode!=='login'?'<p class="hook-end"><span class="hook-kick"><span aria-hidden="true">🏪</span> Your empire starts here!</span></p>':'');
  else if(acctView==='menu')h+='<div class="me">'+avatar(playerAcc(),true)+'<div><h2>'+esc(playerName())+'</h2><p class="sub">'+((S&&S.gnum>1)?'Generation '+S.gnum+' of the '+esc(familyName())+' family · ':'')+'@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
   '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button><button class="btn" data-a="friends">Friends</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
   passMenuHTML()+pushMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div><h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
@@ -373,7 +376,7 @@ function guestStore(){if(!GUEST||!S)return;clearTimeout(guestT);guestT=setTimeou
 function guestDrop(){try{localStorage.removeItem('hs-guest');}catch(e){}}
 const guestLocked=()=>!!GUEST_RULES.lock&&GUEST&&S&&!S.over&&(S.month||0)>=GUEST_RULES.lock;
 function startGuest(){GUEST=true;ACC=null;BILL=null;SAVEVER=null;const g=guestLoad();
- if(g)S=Object.assign(fresh(),g);else{S=fresh();S.region=detectCountry();S.cur='USD';S.gAsk={};}
+ if(g)S=Object.assign(fresh(),g);else{S=fresh();S.m0=new Date().getMonth();S.region=detectCountry();S.cur=S.region==='KE'?'LOCAL':'USD';S.gAsk={};}   /* Kenyan visitors start in KSh, like the Kenya ads */
  useRegion(S.region);migrate();livesCache=[];current=null;closeModal();acctView=null;authMsg='';renderAccts();render();paintChip();
  visitMark(g&&((g.plays||0)>0||g.month>1)?'played':'landed');stepMark('open');stepDay2();
  if(guestLocked()){guestAsk('lock');return;}
@@ -395,6 +398,7 @@ function guestCheck(){if(!GUEST||!S||S.over)return;S.gAsk=S.gAsk||{};const A=S.g
  if(why){A.last=m;setTimeout(()=>{if(!current&&$('modal').hidden&&!acctView)guestAsk(why);},700);}}
 function guestAsk(why){if(!GUEST)return;if(acctView==='guestsave'&&(why==='lock'||guestWhy===why))return;stopAuto();guestWhy=why||'chip';authMode='signup';authMsg='';acctView='guestsave';renderAccts();const A=$('acct');if(A)A.scrollTop=0;visitMark('asked');stepMark('ask');}
 function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach||[]).length,lastAch=achN?(ACH.find(a=>a[0]===S.ach[achN-1])||[])[1]:'';
+ if(authMode==='about')return aboutGame(true);
  if(authMode==='login')return'<h2>Log in</h2><p class="sub">Log in to carry on the empire on your account. The guest game on this screen will be replaced by your account\'s empire.</p>'+authForm(true)+'<div class="chips"><button class="btn ghost" data-a="authmode" data-v="signup">'+(S.month>0?'Save this guest game instead':'Back')+'</button></div>';
  const head={nw:['First milestone','You just passed '+fmt(GUEST_RULES.nw)+'. Don\'t lose it.'],year:['One year in','Your first year in business is done. Keep it safe.'],
   ach:['Achievement unlocked',(lastAch?lastAch+'. ':'')+'Save your achievements so they count.'],two:['Two years in','Look how far you have come. Save it whenever you are ready.'],lock:['Your first two years are done','Create your free account to keep playing. Your empire carries straight on from here.'],
@@ -402,6 +406,7 @@ function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach|
  return'<div class="gsave-hero"><p class="gs-kick">'+head[0]+'</p><h2>Save your empire</h2><p>'+head[1]+'</p>'+
   '<ul class="gs-stats"><li><span>Net worth</span><b>'+fmt(nw)+'</b></li><li><span>Rank</span><b>'+esc(TITLES[titleIdx(nw)][1])+'</b></li><li><span>Businesses</span><b>'+(S.inds||[]).length+'</b></li><li><span>Age</span><b>'+age()+'</b></li>'+(achN?'<li><span>Achievements</span><b>'+achN+'</b></li>':'')+'</ul></div>'+
   (lock?'':'<div class="chips gs-top"><button class="btn primary" data-a="guestlater">Keep playing</button><span class="gs-note">Save any time from the <b>Guest</b> badge at the top.</span></div>')+'<ul class="gs-perks"><li><b>Keep everything</b>: your money, businesses and achievements.</li><li><b>Play on any phone or computer</b>, and never start over.</li><li><b>Climb the leaderboard</b> against real players in your country.</li></ul>'+
+  '<p class="about-link" style="margin:4px 0 12px"><button class="linkbtn" data-a="authmode" data-v="about">What is Hustlempires? Read about the game →</button></p>'+
   authForm(true)+(lock?'':'<button class="btn ghost gs-later" data-a="guestlater">Not now, keep playing</button>')+
   '<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="login">Already have an account? Log in</button></p>';}
 /* the guest game becomes the new account's first saved game */

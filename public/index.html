@@ -370,6 +370,7 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .chap{border-color:rgba(120,200,255,.45);background:rgba(120,200,255,.07)}.chapobj{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}.chapobj li.cobj{text-transform:none;letter-spacing:0;color:inherit;font-weight:400;display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:13.5px;line-height:1.35}.chapobj li>span{font-weight:800;opacity:.7}.chapobj li.cdone{opacity:.6}.chapobj li.cdone>span{color:#3fcf6e;opacity:1}.chapobj small{display:block;font-size:12px;opacity:.8;margin-top:1px}
 .boostbar{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin:0 0 10px;padding:8px 12px;border-radius:12px;border:1px solid rgba(63,207,110,.45);background:rgba(63,207,110,.1)}.boostbar>span{font-size:22px}.boostbar b{display:block}.boostbar small{display:block;font-size:12px;opacity:.85}
 .bestmove{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin:0 0 12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,197,61,.5);background:rgba(255,197,61,.09)}.bm-ico{font-size:24px}.bestmove small{display:block;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.8}.bestmove b{display:block}.bestmove span{font-size:12.5px}
+.mission-free{margin:10px 0 0;font-size:.88em;color:var(--muted);text-align:center}
 .mission-lead{font-size:1.05em;margin:0 0 8px}.mission{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}.mission li{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start}.mission li>span{font-size:20px;line-height:1.2}.mission-first{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,197,61,.12);border:1px solid rgba(255,197,61,.4)}
 .unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
 @keyframes unlin{from{opacity:0;transform:translate(-50%,-30px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
@@ -641,6 +642,7 @@ html.gm .tabs svg{width:18px;height:18px;flex:0 0 auto}
 html.gm .quick{background:linear-gradient(180deg,#0c1e3c,#0e2244);border-bottom:1px solid rgba(190,215,255,.18)}
 @media (max-width:420px){.qin .q{min-width:0}.qin .q small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em!important}html.gm .date{font-size:17px;letter-spacing:.02em}html.gm .barrow{gap:6px}.qin .qmo{display:none}}
 html.gm .q b{font-family:var(--display);font-size:18px;line-height:1.1}
+@media (max-width:400px){html.gm .q b,html.gm .q.big b{font-size:clamp(13px,3.9vw,18px)}}
 html.gm #q-cash::before,html.gm #cash::before{content:"";display:inline-block;width:.8em;height:.8em;margin-right:.25em;vertical-align:-.05em;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c4,#ffcf3a 40%,#c98400);box-shadow:0 1px 0 #8a5a00}
 html.gm .stat b{font-family:var(--display);font-size:21px;line-height:1.1}
 html.gm .meter{background:rgba(255,255,255,.12);border-radius:6px;height:9px}
@@ -1826,21 +1828,24 @@ function authForm(gs){const su=authMode==='signup',gu=gs&&GUEST&&su;const inv=su
   '<fieldset><legend>Avatar colour</legend><div class="swatches">'+AVCOL.map((c,i)=>'<label class="sw"><input type="radio" name="acc-col" id="acc-col-'+i+'" value="'+i+'"'+(i===0?' checked':'')+' aria-label="Colour '+(i+1)+'"><span style="background:'+c+'"></span></label>').join('')+'</div></fieldset></details>';
  return h+'<p class="aerr" id="acc-err" hidden></p><div class="chips"><button type="submit" class="btn primary" id="acc-submit">'+(su?(gu?'Save my empire':'Create account and start'):'Log in')+'</button>'+(su?'':'<button type="button" class="btn ghost" data-a="forgotview">Forgot your password?</button>')+'</div></form>';}
 function authHook(){const su=authMode!=='login';
- return'<div class="hook">'+(su?'<p class="hook-mind">Do you have a <mark class="hook-hl">BILLIONAIRE MINDSET</mark>? <b>It\'s time to use it.</b></p>':'')+'<p class="hook-big">'+(su?'Start with <em>'+fmt(1000)+'</em>.<br>Die a <em>legend</em>.':'Your empire <em>missed you</em>.')+'</p><p class="hook-sub">'+(su?'Free to play. No downloads. Your first hustle is one tap away.':'Your businesses kept running. Your rivals kept climbing. Time to take back your throne.')+'</p></div>';}
-const ABOUT=[['🏪','From kiosk to conglomerate','Turn a roadside stall into an empire that spans industries and cities. Every coin, every deal, your call.'],
- ['⚽','Own the team you cheer for','Hit a billion and buy a football club, a Formula 1 team and a stadium with your name in lights.'],
+ return'<div class="hook">'+(su?'<p class="hook-mind"><span aria-hidden="true">🎮</span> <b>A free business life game.</b> Build an empire with game cash, just for fun.</p>':'')+'<p class="hook-big">'+(su?'Start with <em>'+fmt(1000)+'</em>.<br>Die a <em>legend</em>.':'Your empire <em>missed you</em>.')+'</p><p class="hook-sub">'+(su?'Free to play. No downloads. Your first hustle is one tap away.':'Your businesses kept running. Your rivals kept climbing. Time to take back your throne.')+'</p></div>';}
+const ABOUT=[['🏪','From kiosk to conglomerate','Open shops, farms, factories and more across industries and cities. Every deal is your call.'],
+ ['📈','Real business choices','Bank loans, hot tips, rival bids, hostile takeovers and taking your company public. Grow fast or grow safe.'],
  ['⚖️','Every shortcut has a price','Bribe the inspector or play it straight? Blame the contractor or own it? What you hide comes back for you.'],
- ['👨‍👩‍👧','Your name lives on','Marry, raise your children, name them, then decide which one inherits everything you built.'],
- ['📰','Read your own obituary','When your story ends, the papers print it. Legend or cautionary tale? You write it, one decision at a time.'],
- ['🏆','Prove you are the best','Climb the leaderboard against real players in your country and the world. Everyone sees who is on top.']];
-function aboutGame(){
- return'<section class="about" aria-labelledby="about-h"><h3 id="about-h">You have watched others get rich. Your turn.</h3>'+
-  '<p class="about-lead">Hustlempires is a free business life game. You start with '+fmt(1000)+' and a street hustle, then live a whole life making the calls that make or break fortunes. <b>One life. One empire.</b> Your name on a stadium, or in the bankruptcy papers.</p>'+
+ ['🚀','Life at the top','The rich list, a space programme aiming for Mars, your own football club and F1 team, even a city with your family name on it.'],
+ ['🏛️','Power and giving','Run for office, start a foundation and take on a world problem. Or watch one scandal undo it all.'],
+ ['👨‍👩‍👧','Your name lives on','Marry, raise your children, then decide which one inherits everything you built. Read your own obituary when your story ends.'],
+ ['🏆','Prove you are the best','A new leaderboard season every month, in your country and the world, plus records that never reset: youngest to $1 million, $1 billion and $1 trillion. Nobody has reached $1 quadrillion yet.']];
+function aboutGame(gs){
+ return'<section class="about" aria-labelledby="about-h"><h3 id="about-h">Build an empire. Live a whole life.</h3>'+
+  '<p class="about-lead">Hustlempires is a free business life game for your phone or computer. You start young with '+fmt(1000)+' of game cash and a street kiosk. Every month brings a decision: grow, borrow, take a risk or play it safe. Climb from Street Hustler to Billionaire, and beyond. <b>One life. One empire.</b> Your name on a stadium, or in the bankruptcy papers.</p>'+
+  '<p class="about-lead"><b>How to play:</b> tap <b>PLAY</b> and the months run until something happens, then you choose. Your first hustle takes one minute.</p>'+
   '<ul class="about-list">'+ABOUT.map(x=>'<li><span class="about-ic" aria-hidden="true">'+x[0]+'</span><span><b>'+x[1]+'</b>'+x[2]+'</span></li>').join('')+'</ul>'+
-  '<div class="about-cta"><p class="hook-big">Every empire here started with <em>nothing but a hustle</em>.<br>Yours starts in <em>one minute</em>.</p>'+
-  '<p class="about-fine">Free to play. No card. No download. Your empire saves to every device you own.</p>'+
-  '<div class="chips"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button>'+
-  '<button class="btn ghost" data-a="authjump" data-v="login">I already have an empire</button></div></div></section>';}
+  '<p class="hook-mind"><span aria-hidden="true">🎮</span> <b>It is a game.</b> All the money in Hustlempires is game money, just for fun. You cannot win, earn or withdraw real money.</p>'+
+  '<div class="about-cta"><p class="hook-big">Every empire here started with <em>one kiosk</em>.<br>Yours starts in <em>one minute</em>.</p>'+
+  '<p class="about-fine">Free to play. No download. Play as a guest first, then create a free account when you want to save your empire and play on any device.</p>'+
+  (gs?'<div class="chips"><button class="btn primary" data-a="guestlater">Keep playing</button><button class="btn ghost" data-a="authmode" data-v="signup">Save my empire</button></div>'
+   :'<div class="chips"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">I already have an empire</button></div>')+'</div></section>';}
 /* ---------- Notifications: a friendly nudge when the player has been away ---------- */
 let pushKey=null,pushAskT=null;
 function pushSupported(){return'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
@@ -2052,7 +2057,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  if(acctView==='loading')h+='<h2>Loading…</h2><p class="sub">Connecting to the game server.</p>';
  else if(acctView==='guestsave')h+=guestSaveHTML();
  else if(acctView==='down')h+='<h2>Can\'t connect</h2><p class="sub">'+esc(authMsg)+'</p><div class="chips"><button class="btn primary" data-a="retryboot">Try again</button></div>';
- else if(acctView==='auth')h+=authHook()+(authMode==='about'?'<div class="chips hook-cta"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">Log in</button></div>'+authTabs()+aboutGame():'<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm()+'<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="about">New to Hustlempires? Read what the game is about →</button></p>')+(authMode!=='login'?'<p class="hook-end"><span class="hook-kick"><span aria-hidden="true">✨</span> Manifestation starts here!</span></p>':'');
+ else if(acctView==='auth')h+=authHook()+(authMode==='about'?'<div class="chips hook-cta"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">Log in</button></div>'+authTabs()+aboutGame():'<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm()+'<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="about">New to Hustlempires? Read what the game is about →</button></p>')+(authMode!=='login'?'<p class="hook-end"><span class="hook-kick"><span aria-hidden="true">🏪</span> Your empire starts here!</span></p>':'');
  else if(acctView==='menu')h+='<div class="me">'+avatar(playerAcc(),true)+'<div><h2>'+esc(playerName())+'</h2><p class="sub">'+((S&&S.gnum>1)?'Generation '+S.gnum+' of the '+esc(familyName())+' family · ':'')+'@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
   '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button><button class="btn" data-a="friends">Friends</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
   passMenuHTML()+pushMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div><h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
@@ -2126,7 +2131,7 @@ function guestStore(){if(!GUEST||!S)return;clearTimeout(guestT);guestT=setTimeou
 function guestDrop(){try{localStorage.removeItem('hs-guest');}catch(e){}}
 const guestLocked=()=>!!GUEST_RULES.lock&&GUEST&&S&&!S.over&&(S.month||0)>=GUEST_RULES.lock;
 function startGuest(){GUEST=true;ACC=null;BILL=null;SAVEVER=null;const g=guestLoad();
- if(g)S=Object.assign(fresh(),g);else{S=fresh();S.region=detectCountry();S.cur='USD';S.gAsk={};}
+ if(g)S=Object.assign(fresh(),g);else{S=fresh();S.m0=new Date().getMonth();S.region=detectCountry();S.cur=S.region==='KE'?'LOCAL':'USD';S.gAsk={};}   /* Kenyan visitors start in KSh, like the Kenya ads */
  useRegion(S.region);migrate();livesCache=[];current=null;closeModal();acctView=null;authMsg='';renderAccts();render();paintChip();
  visitMark(g&&((g.plays||0)>0||g.month>1)?'played':'landed');stepMark('open');stepDay2();
  if(guestLocked()){guestAsk('lock');return;}
@@ -2148,6 +2153,7 @@ function guestCheck(){if(!GUEST||!S||S.over)return;S.gAsk=S.gAsk||{};const A=S.g
  if(why){A.last=m;setTimeout(()=>{if(!current&&$('modal').hidden&&!acctView)guestAsk(why);},700);}}
 function guestAsk(why){if(!GUEST)return;if(acctView==='guestsave'&&(why==='lock'||guestWhy===why))return;stopAuto();guestWhy=why||'chip';authMode='signup';authMsg='';acctView='guestsave';renderAccts();const A=$('acct');if(A)A.scrollTop=0;visitMark('asked');stepMark('ask');}
 function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach||[]).length,lastAch=achN?(ACH.find(a=>a[0]===S.ach[achN-1])||[])[1]:'';
+ if(authMode==='about')return aboutGame(true);
  if(authMode==='login')return'<h2>Log in</h2><p class="sub">Log in to carry on the empire on your account. The guest game on this screen will be replaced by your account\'s empire.</p>'+authForm(true)+'<div class="chips"><button class="btn ghost" data-a="authmode" data-v="signup">'+(S.month>0?'Save this guest game instead':'Back')+'</button></div>';
  const head={nw:['First milestone','You just passed '+fmt(GUEST_RULES.nw)+'. Don\'t lose it.'],year:['One year in','Your first year in business is done. Keep it safe.'],
   ach:['Achievement unlocked',(lastAch?lastAch+'. ':'')+'Save your achievements so they count.'],two:['Two years in','Look how far you have come. Save it whenever you are ready.'],lock:['Your first two years are done','Create your free account to keep playing. Your empire carries straight on from here.'],
@@ -2155,6 +2161,7 @@ function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach|
  return'<div class="gsave-hero"><p class="gs-kick">'+head[0]+'</p><h2>Save your empire</h2><p>'+head[1]+'</p>'+
   '<ul class="gs-stats"><li><span>Net worth</span><b>'+fmt(nw)+'</b></li><li><span>Rank</span><b>'+esc(TITLES[titleIdx(nw)][1])+'</b></li><li><span>Businesses</span><b>'+(S.inds||[]).length+'</b></li><li><span>Age</span><b>'+age()+'</b></li>'+(achN?'<li><span>Achievements</span><b>'+achN+'</b></li>':'')+'</ul></div>'+
   (lock?'':'<div class="chips gs-top"><button class="btn primary" data-a="guestlater">Keep playing</button><span class="gs-note">Save any time from the <b>Guest</b> badge at the top.</span></div>')+'<ul class="gs-perks"><li><b>Keep everything</b>: your money, businesses and achievements.</li><li><b>Play on any phone or computer</b>, and never start over.</li><li><b>Climb the leaderboard</b> against real players in your country.</li></ul>'+
+  '<p class="about-link" style="margin:4px 0 12px"><button class="linkbtn" data-a="authmode" data-v="about">What is Hustlempires? Read about the game →</button></p>'+
   authForm(true)+(lock?'':'<button class="btn ghost gs-later" data-a="guestlater">Not now, keep playing</button>')+
   '<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="login">Already have an account? Log in</button></p>';}
 /* the guest game becomes the new account's first saved game */
@@ -2241,7 +2248,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='d530a46fe370';let updShown=false;
+const APP_VER='b33cab13dcab';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2929,8 +2936,10 @@ function die(cause){document.querySelectorAll('.unlfx').forEach(e=>e.remove());S
   '<button class="btn primary" data-a="obit">Read your obituary</button>'+(S.kids.length&&!S.noHeir?'<button class="btn primary" data-a="heirpick">Choose your heir</button><button class="btn" data-a="reset">Start a new family</button>':'<button class="btn primary" data-a="reset">Start a new life</button>')+'<button class="btn" data-a="lives">Past lives</button>');obitMust();}
 
 /* dates are real calendar years that carry on from one generation to the next */
-const calYear=m=>(S.y0||new Date().getFullYear())+Math.floor((m||0)/12);
-const dateStr=m=>MONTHS[m%12]+' '+calYear(m);
+const calYear=m=>(S.y0||new Date().getFullYear())+Math.floor(((m||0)+(S.m0||0))/12);
+/* calendar month (0 = January) of game month m; new games start in the real current month (S.m0), older saves in January */
+const calMo=m=>((m||0)+(S.m0||0))%12;
+const dateStr=m=>MONTHS[calMo(m)]+' '+calYear(m);
 function famStartYear(){if(S.fy0)return S.fy0;let y=S.y0||new Date().getFullYear();
  if((S.gnum||1)<=1){S.fy0=y;return y;}
  if(typeof ACC!=='undefined'&&ACC&&ACC.lives&&ACC.lives.length){let g=S.gnum-1;for(const l of ACC.lives){if((l.gen||1)!==g)break;y-=Math.floor((l.months||0)/12);g--;if(g<1)break;}S.fy0=y;}
@@ -3227,7 +3236,7 @@ const EVENTS=[
   title:'A giant club wants your star player',text(){return'A rich foreign club has bid '+fmt(teamValue(this.T)*.06)+' for the best player at your '+this.T.ref+'. He wants to go.';},
   choices(){const T=this.T,t=S.teams[T.id],v=teamValue(T)*.06;return[{l:'Sell him',d:'Get '+fmt(v)+'. Squad strength −8.',f(){S.cash+=v;t.strength=Math.max(20,t.strength-8);return['You sold your star player for '+fmt(v)+'.','']}},
    {l:'Refuse the bid',d:'50% chance he sulks (strength −3). Fans love you (+2 reputation).',f(){addRep(2);if(rnd()<.5){t.strength-=3;return['Your star stayed, but he is sulking.','']}return['Your star stayed and scored the winner on Sunday.','good']}}]}},
- {id:'budgetcap',cat:'Sports',w:.6,when:()=>S.race&&S.race.series==='F1'&&S.month%12>=3,title:'Accused of breaking the budget cap',text:()=>'The FIA says '+BR()+' Racing overspent last season. Rivals want your points taken away.',
+ {id:'budgetcap',cat:'Sports',w:.6,when:()=>S.race&&S.race.series==='F1'&&calMo(S.month)>=3,title:'Accused of breaking the budget cap',text:()=>'The FIA says '+BR()+' Racing overspent last season. Rivals want your points taken away.',
   choices:()=>{const c=Math.max(5e6,Math.max(0,netWorth())*.003);return[{l:'Accept a fine',d:'Pay '+fmt(c)+'. −3 reputation.',f(){S.cash-=c;addRep(-3);return['You paid the budget cap fine.','bad']}},
    {l:'Fight it',d:(S.ups.legal?'75%':'50%')+' chance you are cleared. Otherwise you lose 40 championship points.',f(){if(rnd()<(S.ups.legal?.75:.5))return['The stewards cleared '+BR()+' Racing.','good'];S.race.pts[0]=Math.max(0,S.race.pts[0]-40);return[''+BR()+' Racing lost 40 championship points.','bad']}}]}},
  {id:'kenyagp',cat:'Sports',w:1,when:()=>S.race&&S.race.series==='F1'&&S.influence>=40&&!S.kenyaGP,title:()=>'Bring Formula 1 to '+R.theCountry,text:()=>'The government will back a'+(/^[AEIOU]/.test(R.adj)?'n ':' ')+R.adj+' Grand Prix if you fund the circuit '+R.gpVenue+'.',
@@ -3476,14 +3485,11 @@ function burnoutEvent(){const c=nwc(.01,300);return{cat:'Life',title:'You are bu
 /* first-session steps: recorded by the hosted game only (stepMark lives in the account code) */
 function trk(k){try{if(typeof stepMark==='function')stepMark(k);}catch(e){}}
 function firstIndEvent(){const i=INDS.find(x=>x.id==='retail'&&!x.reg)||INDS.find(x=>!x.reg),u=i.biz[0];trk('card');
- return{cat:'Your mission',title:'Turn '+fmt(S.cash||1000)+' into a billion. Fast.',noOut:true,
-  text:'<p class="mission-lead"><b>Your mission:</b> build a billion-dollar empire in the shortest time you can.</p>'+
-   '<ul class="mission"><li><span>💼</span><div><b>Buy the right businesses.</b> Climb from a street kiosk to factories, banks and airlines.</div></li>'+
-   '<li><span>🌍</span><div><b>Grow across industries</b> as your rank rises.</div></li>'+
-   '<li><span>⚖️</span><div><b>Keep your life in balance:</b> family, health, banks, the law, society and your reputation. Neglect them and the empire cracks.</div></li></ul>'+
-   '<p>Cross $1 billion as a 🏆 <b>Legend</b> and the trillion race opens. <b>Your clock starts now.</b></p>'+
-   '<p class="mission-first"><b>First move:</b> buy '+aN(u[1].lc())+' in '+i.name+'. '+u[4]+', for '+fmt(u[2])+'. Then press PLAY.</p>',
-  choices:[{l:'Buy my '+u[1].lc()+' · '+fmt(u[2]),d:'It starts earning from your first month.',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);trk('buy');setTimeout(()=>firstMonthGo(u[0]),450);return['You started in '+i.name+' and bought your first '+u[1].lc()+'.','gold'];}}]};}
+ return{cat:'Your mission',title:'From one '+u[1].lc()+' to a billion dollars',noOut:true,noIcon:true,
+  text:'<p class="mission-lead">You start with '+fmtFull(S.cash||1000)+' of game cash. <b>See how far you can go.</b></p>'+
+   '<p class="mission-first"><b>First move:</b> your own '+u[1].lc()+'. '+u[4]+'. It earns from the first month.</p>'+
+   '<p class="mission-free">🎮 A game. Nothing is charged. No sign-up needed.</p>',
+  choices:[{l:'Open my '+u[1].lc()+' · '+fmtFull(u[2])+' game cash',d:'',f(){if(!S.inds.includes(i.id))enterInd(i.id,0);buy(u[0]);trk('buy');setTimeout(()=>firstMonthGo(u[0]),450);return['You started in '+i.name+' and bought your first '+u[1].lc()+'.','gold'];}}]};}
 /* the first month runs by itself, so a new player sees money come in before anything else */
 function firstMonthGo(id){if(!S||S.over||S.month!==0||current||acctView||!$('modal').hidden||!owned(id))return;
  const c0=S.cash;nextMonth();if(S.month!==1)return;S.fmDone=1;const f=S.last||{},b=BIZ.find(x=>x.id===id);
@@ -3514,7 +3520,7 @@ let curTab='overview';
 try{const h=(location.hash||'').slice(1);const t=TABS.includes(h)?h:localStorage.getItem('hustle-tab');if(TABS.includes(t))curTab=t;}catch(e){}
 function qset(id,txt,cls){const e=$(id);if(!e)return;if(e.textContent!==txt){if(e.textContent&&$('quick').classList.contains('on')){e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump');}e.textContent=txt;}e.classList.toggle('pos',cls==='pos');e.classList.toggle('neg',cls==='neg');}
 function paintQuick(){const nw=netWorth(),F=flows(false);
- qset('q-nw',$('nw').textContent);qset('q-cash',fmt(S.cash),S.cash<0?'neg':'');qset('q-flow',(F.net>=0?'+':'')+fmt(F.net),F.net>=0?'pos':'neg');qset('q-debt',fmt(S.debt),S.debt>0?'neg':'');
+ qset('q-nw',fmt(netWorth()));qset('q-cash',fmt(S.cash),S.cash<0?'neg':'');qset('q-flow',(F.net>=0?'+':'')+fmt(F.net),F.net>=0?'pos':'neg');qset('q-debt',fmt(S.debt),S.debt>0?'neg':'');
  qset('q-rep',String(Math.round(S.rep)));qset('q-hap',String(Math.round(S.happy)),S.happy<30?'neg':S.happy>70?'pos':'');qset('q-inf',String(Math.round(S.influence)));qset('q-heat',$('heat').textContent,S.heat>=50?'neg':'');qset('q-cop',$('cop').textContent,S.law&&S.law.att>=45?'neg':'');qset('q-hlth',String(Math.round(S.health)),S.health<40?'neg':'');}
 function setQuick(on){const q=$('quick');if(!q||q.classList.contains('on')===on)return;q.classList.toggle('on',on);document.documentElement.style.setProperty('--qh',on?q.offsetHeight+'px':'0px');}
 /* the money strip pins to the top as soon as the cash row scrolls away, not only after the whole meters panel has gone */
@@ -3697,13 +3703,13 @@ function lgRound(T,t){const c=lgCfg(T,t),R=t.lg.rows;if(t.wins==null)t.wins=R[0]
   const res=x<pd?'D':x<pd+(1-pd)*pa?'A':'B';a.p++;b.p++;
   const put=(r,o)=>{if(o==='W'){r.w++;r.pts+=3;if(r.me)t.wins++;}else if(o==='D'){r.d++;r.pts+=1;}else r.l++;r.form.push(o);if(r.form.length>5)r.form.shift();};
   if(res==='D'){put(a,'D');put(b,'D');}else if(res==='A'){put(a,'W');put(b,'L');}else{put(a,'L');put(b,'W');}}}
-function lgTick(T,t){const cm=S.month%12,st=seasonStart(T),idx=(cm-st+12)%12;if(!t.lg||t.lg.tier!==(t.tier||0))newLeague(T,t);
+function lgTick(T,t){const cm=calMo(S.month),st=seasonStart(T),idx=(cm-st+12)%12;if(!t.lg||t.lg.tier!==(t.tier||0))newLeague(T,t);
  if(idx>8)return;
  if(idx===0){t.lg.rows.forEach(r=>{r.p=r.w=r.d=r.l=r.pts=0;r.form=[];if(!r.me)r.s=clamp(r.s+(rnd()-.5)*8,30,95);});}
  const c=lgCfg(T,t);for(let i=0;i<c.per;i++)lgRound(T,t);
  if(cm===T.seasonMonth)teamSeason(T,t,lgPos(t),t.lg.rows.length);}
 
-function sportsTick(){const cm=S.month%12;venueTick();
+function sportsTick(){const cm=calMo(S.month);venueTick();
  TEAMS.forEach(T=>{const t=S.teams[T.id];if(!t)return;t.strength=Math.max(20,t.strength-(t.academy?.2:.5));lgTick(T,t);});
  const R=S.race;if(!R)return;
  if(cm===2){R.pts=Array(10).fill(0);R.round=0;R.rivals.forEach(r=>r.perf=clamp(r.perf+(rnd()-.5)*3,74,94));const was=R.aero;R.aero=Math.max(1,R.aero-2);
@@ -4009,7 +4015,7 @@ function evIconKey(ev){const cat=String(ev.cat||''),t=String(ev.title||'').repla
  for(const [re,k] of EVWORD)if(re.test(t))return k;
  if(EVCAT[cat])return EVCAT[cat];if(typeof IND_CATS!=='undefined'&&IND_CATS.includes(cat))return'factory';
  for(const [re,k] of EVWORD)if(re.test(cat))return k;return'spark';}
-function evIconHTML(ev){const k=evIconKey(ev),x=EVI[k]||EVI.spark;return'<span class="evic" style="--ec:'+x[0]+'" aria-hidden="true"><svg viewBox="0 0 24 24">'+x[1]+'</svg></span>';}
+function evIconHTML(ev){if(ev.noIcon)return'';const k=evIconKey(ev),x=EVI[k]||EVI.spark;return'<span class="evic" style="--ec:'+x[0]+'" aria-hidden="true"><svg viewBox="0 0 24 24">'+x[1]+'</svg></span>';}
 function openEvent(ev){current=ev;stopAuto();const m=$('modal');m.hidden=false;
  m.innerHTML='<div class="shade"><div class="card" role="dialog" aria-modal="true" aria-labelledby="et">'+evIconHTML(ev)+'<span class="pill cat gold">'+ev.cat+'</span><span class="eyebrow cat">'+dateStr(S.month)+'</span><h3 id="et">'+ev.title+'</h3><p>'+ev.text+'</p><div class="choices">'+
  ev.choices.map((c,i)=>c.hide?'':'<button class="choice" data-a="choose" data-i="'+i+'"'+(c.dis?' disabled':'')+'><b>'+c.l+'</b><span>'+c.d+(c.dis?' Not enough cash.':'')+'</span></button>').join('')+'</div></div></div>';
@@ -5800,7 +5806,7 @@ const FAM_EVENTS=[
     choices:[{l:'Let it go',d:'The business absorbs '+fmt(c)+'.',f(){S.cash-=c;sibRel(x,8);return['You let it slide. '+x.name+' is already planning the next one.','']}},
      {l:'Make them pay it back',d:x.name+' will repay you, angrily.',f(){sibRel(x,-12);return[x.name+' paid it back and told everyone you are stingy.','']}},
      {l:'Take the card away',d:'No more company spending for '+x.name+'.',f(){sibRel(x,-20);addRep(1);x.t='loyal';x.rel=Math.max(20,x.rel);return['You cancelled '+x.name+'\'s card. After a month of sulking, they started pulling their weight.','good']}}]};}},
- {id:'fam_xmas',cat:'Family',drama:1,w:5,when:()=>famReady()&&(S.sibs||[]).filter(x=>!x.out).length>=2&&S.month%12>=10,
+ {id:'fam_xmas',cat:'Family',drama:1,w:5,when:()=>famReady()&&(S.sibs||[]).filter(x=>!x.out).length>=2&&calMo(S.month)>=10,
   build(){const xs=S.sibs.filter(x=>!x.out),a=xs[0],b=xs[1],c=nwc(.002,300);famMark();
    return{cat:'Family',title:'A family holiday lunch',text:'Everyone is at your house for the holidays. Before dessert, '+a.name+' and '+b.name+' are shouting about money and who '+esc(S.parent||'your parent')+' loved more.',
     choices:[{l:'Step in and make peace',d:'Spend '+fmt(c)+' on a family weekend away to clear the air.',f(){S.cash-=c;xs.forEach(x=>sibRel(x,8));addHappy(3);return['The weekend away helped. For now.','good']}},
@@ -6282,7 +6288,7 @@ function applyHeir(h){S.gnum=h.gen;S.who=/\s/.test(h.name.trim())?h.name.trim():
  if(h.ind&&IND[h.ind]){S.inds=[h.ind];const b=BIZ.filter(x=>x.ind===h.ind).sort((a,c)=>a.tier-c.tier)[0];if(b)S.owned[b.id]=1;}
  S.health=clamp(95-Math.max(0,h.age-30)*.7,40,95);S.parent=h.parent;S.sibs=makeSibs(h.sibs||[]);
  S.log=[{m:0,t:'You are '+S.who+', '+h.age+'. '+h.parent+' passed away at '+h.parentAge+' and left you '+fmt(h.cash)+(h.ind?' and the family business':'')+'. Generation '+h.gen+' of the '+familyName()+' family begins.',k:'gold'}];applyPlan(h);}
-function newLife(hi){if(obitBlock())return;stopAuto();closeModal();current=null;const yEnd=(S.y0||new Date().getFullYear())+Math.floor((S.month||0)/12);if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,fyPrev=famStartYear(),seenFam=Object.assign({},S.seenFam||{},S.seen||{}),g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur,keep={daily:S.daily,sea:S.sea,wk:S.wk,calSeen:S.calSeen};if(S.month>0)recordLife(lifeRecord());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();newGameFlag=true;if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;Object.assign(S,JSON.parse(JSON.stringify(keep)));if(S.wk)S.wk.base=Math.max(1000,S.cash);useRegion(S.region);S.pcOpen=[PCITIES[0].id];S.y0=new Date().getFullYear();if(heir){applyHeir(heir);S.y0=yEnd;S.seenFam=seenFam;S.fy0=fyPrev;}else{S.fy0=S.y0;}if(pendingVanish){applyVanish(pendingVanish);pendingVanish=null;S.y0=yEnd;S.fy0=yEnd;}$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
+function newLife(hi){if(obitBlock())return;stopAuto();closeModal();current=null;const yEnd=calYear(S.month||0),mEnd=calMo(S.month||0);if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,fyPrev=famStartYear(),seenFam=Object.assign({},S.seenFam||{},S.seen||{}),g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur,keep={daily:S.daily,sea:S.sea,wk:S.wk,calSeen:S.calSeen};if(S.month>0)recordLife(lifeRecord());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();newGameFlag=true;if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;Object.assign(S,JSON.parse(JSON.stringify(keep)));if(S.wk)S.wk.base=Math.max(1000,S.cash);useRegion(S.region);S.pcOpen=[PCITIES[0].id];S.y0=new Date().getFullYear();S.m0=new Date().getMonth();if(heir){applyHeir(heir);S.y0=yEnd;S.m0=mEnd;S.seenFam=seenFam;S.fy0=fyPrev;}else{S.fy0=S.y0;}if(pendingVanish){applyVanish(pendingVanish);pendingVanish=null;S.y0=yEnd;S.m0=mEnd;S.fy0=yEnd;}$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
 
 /* ================= Legacy: families and achievements ================= */
 const ACH=[
@@ -6382,7 +6388,7 @@ function obitData(){const L=lifeSummary(),name=(S.who||(ACC&&ACC.name)||'The fou
  const town=(ACC&&ACC.town)||(typeof R!=='undefined'&&R&&R.city)||'';
  const lead=first+' started out with '+fmtFull(L.start)+(town?' in '+town:'')+' and built '+brand+' into an empire worth '+fmt(L.nw)+(L.billionAge?'':', peaking at '+fmt(L.best))+'. '+(TITLES[S.peak||0]||TITLES[0])[1]+' by the end, after '+Math.floor(S.month/12)+' years in business.';
  const surv=(sp||kids.length)?'Survived by '+[sp?sp:'',kids.length?(sp?'and ':'')+(kids.length===1?'their child '+kids[0]:'their children '+kids.slice(0,-1).join(', ')+' and '+kids[kids.length-1]):''].filter(Boolean).join(' ')+'.':'Leaves no children; the '+familyName()+' line ends here.';
- const y0=S.y0||new Date().getFullYear(),bornY=y0-a0,diedY=y0+Math.floor(S.month/12);
+ const y0=S.y0||new Date().getFullYear(),bornY=y0-a0,diedY=calYear(S.month);
  const firstBiz=(BIZ.filter(b=>b.ind===S.inds[0]).sort((p,q)=>unitCost(p,0)-unitCost(q,0))[0]||{name:'small business'}).name.lc();
  const dek=(S.gnum||1)>1?'Took over '+brand+' and grew it into a '+fmt(L.best)+' empire.':L.best<1e5?'Opened a '+firstBiz+(town?' in '+town:'')+' and never stopped hustling.':'Built a '+fmt(L.best)+' empire from a '+firstBiz+(town?' in '+town:'')+'.';
  const ptp=ptypeOf();return{pt:ptp.name,pd:ptp.desc,dek,bornY,diedY,name,role,born:a0,age:a,cause:L.cause||'',lead,surv,high:high.slice(0,4),ach:achNames.slice(0,6),nw:L.nw,best:L.best,rank:(TITLES[S.peak||0]||TITLES[0])[1],years:Math.floor(S.month/12),gen:S.gnum||1,mine:true};}
