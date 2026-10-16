@@ -2095,9 +2095,9 @@ def _visit_step(vid, step, src, device, camp):
     q("UPDATE visitors SET steps=?, last=? WHERE vid=?", (json.dumps(st), t, vid))
 
 
-def steps_overview(t0, t1):
+def steps_overview(t0, t1, where="", args=()):
     """For new visitors first seen in the range (and tracked by step): how many reached each step, and the typical time it took."""
-    rows = q("SELECT steps FROM visitors WHERE first>=? AND first<? AND stage<>'login' AND steps<>''", (t0, t1))
+    rows = q("SELECT steps FROM visitors WHERE first>=? AND first<? AND stage<>'login' AND steps<>''" + where, (t0, t1) + tuple(args))
     got = {k: [] for k in VISIT_STEPS}
     base = 0
     for r in rows:
@@ -3098,6 +3098,36 @@ def interest_search(qtext):
 PIXEL_CODE = "<!-- Meta Pixel --><script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','%s');fbq('track','PageView');</script><!-- End Meta Pixel -->"
 
 
+TT_PIXEL_CODE = ("<!-- TikTok Pixel --><script>!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=[\"page\",\"track\",\"identify\",\"instances\",\"debug\",\"on\",\"off\",\"once\",\"ready\",\"alias\",\"group\",\"enableCookie\",\"disableCookie\",\"holdConsent\",\"revokeConsent\",\"grantConsent\"],"
+                 "ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);"
+                 "ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},"
+                 "ttq.load=function(e,n){var r=\"https://analytics.tiktok.com/i18n/pixel/events.js\",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};"
+                 "n=document.createElement(\"script\");n.type=\"text/javascript\",n.async=!0,n.src=r+\"?sdkid=\"+e+\"&lib=\"+t;e=document.getElementsByTagName(\"script\")[0];e.parentNode.insertBefore(n,e)};"
+                 "ttq.load('%s');ttq.page();}(window,document,'ttq');</script>")
+
+
+TT_VIS = " AND (src='tiktok' OR camp IN (SELECT code FROM campaigns WHERE channel='tiktok'))"
+
+
+def tiktok_report(t, rg):
+    """Visitors who came from TikTok (TikTok as the source, or a campaign link marked TikTok): how many, how far they got, and per link."""
+    t0, t1 = rg["t0"], rg["t1"]
+    r = q("SELECT COUNT(*) n, SUM(stage='signed') signed, SUM(stage IN ('played','asked','form','signed')) played FROM visitors WHERE first>=? AND first<? AND stage<>'login'" + TT_VIS,
+          (t0, t1), one=True)
+    links = [dict(x) for x in q("SELECT c.code, c.name, c.cost, COUNT(v.vid) n, SUM(v.stage='signed') signed FROM campaigns c LEFT JOIN visitors v ON v.camp=c.code AND v.first>=? AND v.first<? AND v.stage<>'login' "
+                                 "WHERE c.channel='tiktok' AND c.archived=0 GROUP BY c.code ORDER BY n DESC", (t0, t1))]
+    untracked = q("SELECT COUNT(*) n, SUM(stage='signed') signed FROM visitors WHERE first>=? AND first<? AND stage<>'login' AND src='tiktok' AND (camp='' OR camp NOT IN (SELECT code FROM campaigns WHERE channel='tiktok'))",
+                  (t0, t1), one=True)
+    accounts = q("SELECT COUNT(*) n FROM users WHERE created>=? AND created<? AND camp IN (SELECT code FROM campaigns WHERE channel='tiktok')", (t0, t1), one=True)["n"]
+    return {"n": r["n"] or 0, "signed": r["signed"] or 0, "played": r["played"] or 0, "accounts": accounts or 0, "links": links,
+            "untracked": {"n": untracked["n"] or 0, "signed": untracked["signed"] or 0}, "steps": steps_overview(t0, t1, TT_VIS), "pixel": tt_pixel_id()}
+
+
+def tt_pixel_id():
+    v = meta_get("tt_pixel_id") or ""
+    return v if re.match(r"^[A-Z0-9]{12,30}$", v) else ""
+
+
 def pixel_id():
     v = meta_get("pixel_id") or ""
     return v if re.match(r"^\d{8,20}$", v) else ""
@@ -3530,6 +3560,9 @@ class Handler(BaseHTTPRequestHandler):
             pid = pixel_id()
             if pid:   # Meta Pixel on the game page: visits and new accounts, no personal details
                 data = data.replace(b"</head>", (PIXEL_CODE % pid).encode() + b"</head>", 1)
+            tid = tt_pixel_id()
+            if tid:   # TikTok Pixel on the game page: visits, first PLAY and new accounts, no personal details
+                data = data.replace(b"</head>", (TT_PIXEL_CODE % tid).encode() + b"</head>", 1)
         ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
         text = ctype.startswith("text/") or ctype in ("application/javascript", "application/json", "application/manifest+json", "image/svg+xml")
         if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
@@ -3770,6 +3803,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self.error(400, "That doesn't look like a Pixel ID. It is a long number, like 1234567890123456.")
             meta_set("pixel_id", v)
             return self.send_json(200, {"ok": True, "id": pixel_id()})
+        if path == "/api/admin/ttpixel":
+            if not self.is_admin():
+                return self.error(401, "Log in as admin.")
+            d = self.read_json()
+            if d is None:
+                return
+            v = re.sub(r"\s", "", str(d.get("id") or ""))
+            m = re.search(r"ttq\.load\(['\"]([A-Za-z0-9]{12,30})['\"]", v)   # the whole pixel code pasted
+            v = (m.group(1) if m else v).upper()
+            if v and not re.match(r"^[A-Z0-9]{12,30}$", v):
+                return self.error(400, "That doesn't look like a TikTok Pixel ID. It is a code of letters and numbers, like DB91SPRC77UDN3PL0NPG.")
+            meta_set("tt_pixel_id", v)
+            return self.send_json(200, {"ok": True, "id": tt_pixel_id()})
         if path in ("/api/admin/manager/toggle", "/api/admin/manager/budget"):
             return self.api_admin_manager(path)
         if path in ("/api/admin/ads/sync", "/api/admin/ads/link"):
@@ -5616,6 +5662,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, ads_runs_report(now()))
         if path == "/api/admin/pixel":
             return self.send_json(200, {"id": pixel_id()})
+        if path == "/api/admin/ttpixel":
+            return self.send_json(200, {"id": tt_pixel_id()})
+        if path == "/api/admin/tiktok":
+            t = now()
+            rg = admin_range(self.path, t, 30)
+            d = tiktok_report(t, rg)
+            d["range"] = {"from": rg.get("from"), "to": rg.get("to")}
+            return self.send_json(200, d)
         if path == "/api/admin/meta/conn":
             return self.send_json(200, meta_conn_public())
         if path == "/api/admin/interests":

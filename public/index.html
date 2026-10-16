@@ -2237,7 +2237,7 @@ let visitFormSent=false,campCode='';
 function visitMark(stage){try{if(localStorage.getItem('hs-player'))return;}catch(e){}const vid=visitorId();if(!vid)return;api('POST','/api/visit',{vid,stage,camp:campCode||undefined,ref:stage==='landed'?document.referrer||'':''}).catch(()=>{});}
 /* first-session steps: each step is sent once per browser, so the admin can see exactly where new players stop */
 function stepsDone(){try{return JSON.parse(localStorage.getItem('hs-steps')||'{}')||{};}catch(e){return{};}}
-function stepMark(k){try{if(localStorage.getItem('hs-player'))return;const d=stepsDone();if(d[k])return;d[k]=1;if(!d._day)d._day=new Date().toDateString();localStorage.setItem('hs-steps',JSON.stringify(d));}catch(e){return;}
+function stepMark(k){try{if(localStorage.getItem('hs-player'))return;const d=stepsDone();if(d[k])return;d[k]=1;if(k==='play1'&&window.ttq)try{ttq.track('ViewContent',{content_name:'First PLAY'});}catch(x){}if(!d._day)d._day=new Date().toDateString();localStorage.setItem('hs-steps',JSON.stringify(d));}catch(e){return;}
  const vid=visitorId();if(!vid)return;api('POST','/api/visit',{vid,step:k,camp:campCode||undefined,ref:k==='open'?document.referrer||'':''}).catch(()=>{});}
 function stepDay2(){const d=stepsDone();if(d._day&&d._day!==new Date().toDateString())stepMark('day2');}
 document.addEventListener('input',e=>{if(!visitFormSent&&!ACC&&e.target&&e.target.closest&&e.target.closest('#acctform')){visitFormSent=true;visitMark('form');stepMark('form');}});
@@ -2252,6 +2252,7 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
  btn.disabled=true;btn.textContent=authMode==='signup'?'Creating your account…':'Logging in…';
  try{const d=await api('POST',authMode==='signup'?'/api/signup':'/api/login',body);
   if(authMode==='signup')try{if(window.fbq)fbq('track','CompleteRegistration',{content_name:'Hustlempires account'});}catch(x){}
+  if(authMode==='signup')try{if(window.ttq)ttq.track('CompleteRegistration',{content_name:'Hustlempires account'});}catch(x){}
   if(GUEST&&authMode==='signup'){guestAdopt(d);return;}
   if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S,d.bill,d.ver);}else startWith(d.user,d.save,d.bill,d.ver);}
  catch(e){btn.disabled=false;btn.textContent=authMode==='signup'?(GUEST?'Save my empire':'Create account and start'):'Log in';showErr(e.message);}}
@@ -2310,7 +2311,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='5c8bda606a12';let updShown=false;
+const APP_VER='263eeeb985f1';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
