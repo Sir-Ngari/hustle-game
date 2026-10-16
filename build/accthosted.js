@@ -22,7 +22,7 @@ function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
 async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
-function startWith(user,save,bill,ver){if(GUEST){GUEST=false;guestDrop();}setTimeout(fyFix,1500);{const lb=document.getElementById('lbbtn');if(lb)lb.hidden=false;if(!window.lbPaintT)window.lbPaintT=setInterval(paintLbBtn,4000);}try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);const away0=S.seen||0;migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
+function startWith(user,save,bill,ver){ttIdentify(user);if(GUEST){GUEST=false;guestDrop();}setTimeout(fyFix,1500);{const lb=document.getElementById('lbbtn');if(lb)lb.hidden=false;if(!window.lbPaintT)window.lbPaintT=setInterval(paintLbBtn,4000);}try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);const away0=S.seen||0;migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
  signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}bankLots=null;mkData={local:null,world:null,mine:null};mkMsg='';setTimeout(bankFlush,2000);mkSettleTries=0;setTimeout(mkSettle,6000);xcData=null;setTimeout(()=>{xcSettle();xcLoad(true);},7000);if(!awayWelcome(away0))startEvents();giftTries=0;setTimeout(giftCheck,4000);rivalStart();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
@@ -447,7 +447,12 @@ let visitFormSent=false,campCode='';
 function visitMark(stage){try{if(localStorage.getItem('hs-player'))return;}catch(e){}const vid=visitorId();if(!vid)return;api('POST','/api/visit',{vid,stage,camp:campCode||undefined,ref:stage==='landed'?document.referrer||'':''}).catch(()=>{});}
 /* first-session steps: each step is sent once per browser, so the admin can see exactly where new players stop */
 function stepsDone(){try{return JSON.parse(localStorage.getItem('hs-steps')||'{}')||{};}catch(e){return{};}}
-function stepMark(k){try{if(localStorage.getItem('hs-player'))return;const d=stepsDone();if(d[k])return;d[k]=1;if(k==='play1'&&window.ttq)try{ttq.track('ViewContent',{content_name:'First PLAY'});}catch(x){}if(!d._day)d._day=new Date().toDateString();localStorage.setItem('hs-steps',JSON.stringify(d));}catch(e){return;}
+/* TikTok Pixel: events named after game moments; a player's email and number are hashed (SHA-256) in the browser before they are sent */
+async function ttSha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(s)));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');}
+async function ttIdentify(u){try{if(!window.ttq||!u||!window.crypto||!crypto.subtle)return;const o={external_id:await ttSha('hustlempires-'+u.id)};const e=String(u.email||'').trim().toLowerCase();if(e)o.email=await ttSha(e);ttq.identify(o);}catch(e){}}
+function ttTrack(ev,name,extra){try{if(window.ttq)ttq.track(ev,Object.assign({contents:[{content_id:'hustlempires',content_type:'product',content_name:name}]},extra||{}));}catch(e){}}
+const TT_STEP={buy:['ClickButton','Buy my first business'],play1:['ViewContent','First PLAY'],form:['Lead','Sign-up form']};
+function stepMark(k){try{if(localStorage.getItem('hs-player'))return;const d=stepsDone();if(d[k])return;d[k]=1;if(TT_STEP[k])ttTrack(TT_STEP[k][0],TT_STEP[k][1]);if(!d._day)d._day=new Date().toDateString();localStorage.setItem('hs-steps',JSON.stringify(d));}catch(e){return;}
  const vid=visitorId();if(!vid)return;api('POST','/api/visit',{vid,step:k,camp:campCode||undefined,ref:k==='open'?document.referrer||'':''}).catch(()=>{});}
 function stepDay2(){const d=stepsDone();if(d._day&&d._day!==new Date().toDateString())stepMark('day2');}
 document.addEventListener('input',e=>{if(!visitFormSent&&!ACC&&e.target&&e.target.closest&&e.target.closest('#acctform')){visitFormSent=true;visitMark('form');stepMark('form');}});
@@ -462,7 +467,7 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
  btn.disabled=true;btn.textContent=authMode==='signup'?'Creating your account…':'Logging in…';
  try{const d=await api('POST',authMode==='signup'?'/api/signup':'/api/login',body);
   if(authMode==='signup')try{if(window.fbq)fbq('track','CompleteRegistration',{content_name:'Hustlempires account'});}catch(x){}
-  if(authMode==='signup')try{if(window.ttq)ttq.track('CompleteRegistration',{content_name:'Hustlempires account'});}catch(x){}
+  if(authMode==='signup'){const u=d.user;(async()=>{await ttIdentify(u);ttTrack('CompleteRegistration','Hustlempires account');})();}
   if(GUEST&&authMode==='signup'){guestAdopt(d);return;}
   if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S,d.bill,d.ver);}else startWith(d.user,d.save,d.bill,d.ver);}
  catch(e){btn.disabled=false;btn.textContent=authMode==='signup'?(GUEST?'Save my empire':'Create account and start'):'Log in';showErr(e.message);}}
@@ -602,7 +607,7 @@ async function payGift(){try{setBill((await api('POST','/api/billing/gift',{})).
 async function confirmPay(){if(!payRef)return;stopAuto();closeModal();acctView=TIPS?'tip':'pay';payBusy=true;payMsg=payCancelled?'You left the payment page. Checking…':'Checking your payment…';renderAccts();
  let d=null;try{d=await api('POST','/api/billing/confirm',{ref:payRef});}catch(e){}
  if(d){setBill(d.bill);const ps=d.payment&&d.payment.status;
-  if(ps==='paid'){payDone=d.payment;payRef='';payMsg='';payBusy=false;acctView='paid';renderAccts();if(syncState==='locked'||syncState==='offline'){syncState='saving';}queueSync(true);if(typeof confettiFx==='function')try{confettiFx();}catch(e){}return;}
+  if(ps==='paid'){payDone=d.payment;{const p=d.payment||{};ttTrack('CompletePayment',p.plan==='tip'?'Tip':'Hustle Pass',{value:+p.amount||0,currency:p.currency||'KES'});}payRef='';payMsg='';payBusy=false;acctView='paid';renderAccts();if(syncState==='locked'||syncState==='offline'){syncState='saving';}queueSync(true);if(typeof confettiFx==='function')try{confettiFx();}catch(e){}return;}
   if(ps==='pending'&&!payCancelled&&++payTries<13){payMsg='Waiting for the payment to come through. If you paid by M-Pesa, approve the prompt on your phone.';renderAccts();setTimeout(confirmPay,5000);return;}
   payMsg=ps==='pending'&&!payCancelled?(TIPS?'We haven\'t had confirmation yet. If you paid, it will come through within a few minutes. Thank you!':'We haven\'t had confirmation yet. If you paid, your pass switches on within a few minutes; we keep checking. You can also pick a pass again below.'):'The payment didn\'t go through, so you weren\'t charged. You can try again below.';}
  else payMsg='We couldn\'t check your payment just now. If you paid, your pass switches on within a few minutes.';

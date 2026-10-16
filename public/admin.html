@@ -566,7 +566,7 @@ body.navhide .main{margin-left:0}
     </section>
     <section class="panel" id="ttPanel">
       <h2>TikTok Pixel</h2>
-      <p class="sub">The TikTok Pixel tells TikTok when someone opens the game, presses PLAY for the first time and creates an account, so TikTok ads can be measured and optimised on real players. It never sends names, emails or usernames.</p>
+      <p class="sub">The TikTok Pixel tells TikTok when someone opens the game, buys their first kiosk, presses PLAY, starts the sign-up form, creates an account and buys a pass, so TikTok ads can be measured and optimised on real players. Emails and player numbers are sent only as SHA-256 hashes made in the player's browser; names, usernames and game data are never sent.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="ttId" maxlength="4000" placeholder="Pixel ID, or paste the whole TikTok Pixel code" style="flex:1;min-width:240px;padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:3px"><button class="btn primary" type="button" id="ttSave">Save</button><button class="btn ghost" type="button" id="ttOff" hidden>Turn off</button></div>
       <p class="mmsg" id="ttMsg" role="status" style="margin-top:8px"></p>
     </section>
@@ -1167,7 +1167,7 @@ function renderTikTok(d){const rate=(a,b)=>b?Math.round(100*a/b)+'%':'—';const
  if(d.untracked&&d.untracked.n)rows.push('<tr><td>TikTok app, no campaign link</td><td class="r num">'+d.untracked.n+'</td><td class="r num">'+(d.untracked.signed||0)+'</td><td class="r num">'+rate(d.untracked.signed||0,d.untracked.n)+'</td><td class="r num">—</td></tr>');
  $('ttLinks').innerHTML=rows.length?rows.join(''):'<tr><td colspan="5" class="empty">No TikTok links yet. Create one in Marketing with the channel set to TikTok.</td></tr>';}
 /* ---------- TikTok Pixel ---------- */
-function ttShow(id){$('ttId').value=id||'';$('ttOff').hidden=!id;$('ttMsg').innerHTML=id?'<b style="color:var(--green)">On.</b> TikTok Pixel '+esc(id)+' is on hustlempires.com, counting visits (PageView), first PLAY (ViewContent) and new accounts (CompleteRegistration). Open the game once and check TikTok Events Manager to see it arrive.':'Off. Paste your TikTok Pixel ID (or the whole Pixel code) from TikTok Events Manager and press Save.';}
+function ttShow(id){$('ttId').value=id||'';$('ttOff').hidden=!id;$('ttMsg').innerHTML=id?'<b style="color:var(--green)">On.</b> TikTok Pixel '+esc(id)+' is on hustlempires.com, counting visits (PageView), the first kiosk bought (ClickButton), first PLAY (ViewContent), sign-up form started (Lead), new accounts (CompleteRegistration, with a hashed email) and passes bought (CompletePayment, with the amount). Open the game once and check TikTok Events Manager to see it arrive.':'Off. Paste your TikTok Pixel ID (or the whole Pixel code) from TikTok Events Manager and press Save.';}
 $('ttSave').addEventListener('click',async()=>{try{const d=await api('POST','/api/admin/ttpixel',{id:$('ttId').value});ttShow(d.id);}catch(e){$('ttMsg').textContent=e.message;}});
 $('ttOff').addEventListener('click',async()=>{try{const d=await api('POST','/api/admin/ttpixel',{id:''});ttShow(d.id);}catch(e){$('ttMsg').textContent=e.message;}});
 $('pixSave').addEventListener('click',async()=>{try{const d=await api('POST','/api/admin/pixel',{id:$('pixId').value});pixShow(d.id);if(d.id)$('pixMsg').innerHTML+=' Open the game once and check Events Manager to see it arrive.';}catch(e){$('pixMsg').textContent=e.message;}});
