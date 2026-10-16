@@ -515,6 +515,33 @@ CREATE TABLE IF NOT EXISTS gifts(
 );
 CREATE INDEX IF NOT EXISTS gifts_to ON gifts(to_id, claimed);
 CREATE INDEX IF NOT EXISTS gifts_from ON gifts(from_id, ts);
+CREATE TABLE IF NOT EXISTS feed(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  region TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL,
+  data TEXT NOT NULL DEFAULT '{}',
+  ts INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS feed_region ON feed(region, id);
+CREATE INDEX IF NOT EXISTS feed_user ON feed(user_id, id);
+CREATE TABLE IF NOT EXISTS feed_react(
+  feed_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  emo TEXT NOT NULL,
+  ts INTEGER NOT NULL,
+  PRIMARY KEY(feed_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS msgs(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_id INTEGER NOT NULL,
+  to_id INTEGER NOT NULL,
+  code TEXT NOT NULL,
+  ts INTEGER NOT NULL,
+  seen INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS msgs_to ON msgs(to_id, id);
+CREATE INDEX IF NOT EXISTS msgs_from ON msgs(from_id, ts);
 CREATE TABLE IF NOT EXISTS push_subs(
   endpoint TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL,
@@ -1684,6 +1711,68 @@ def xc_companies(t):
 
 FRIEND_MAX = 100
 GIFTS_PER_DAY = 5
+# ---- Social: the country business feed and ready-made messages (no free text, so nothing to moderate) ----
+RANKS = ["Street Hustler", "Small Trader", "Business Owner", "Millionaire", "Mogul", "Tycoon", "Billionaire",
+         "Centibillionaire", "Trillionaire", "Decatrillionaire", "Centitrillionaire"]
+REACTS = ["\U0001F44F", "\U0001F525", "\U0001F4B0", "\U0001F62E"]
+MSG_CODES = {"hi": "Hello, tycoon!", "nice": "Nice move!", "congrats": "Congrats on the new rank!", "race": "Race you to a billion.",
+             "watch": "Watch your back. I'm coming for your spot.", "thanks": "Thanks for the gift!", "gg": "Good game.",
+             "fast": "Your empire is growing fast!", "miss": "Where are you? Come back and play.", "help": "Need a tip? Buy property early."}
+MSGS_PER_DAY = 20
+FEED_DAYS = 14
+
+
+def feed_add(db, uid, region, kind, data, t):
+    db.execute("INSERT INTO feed(user_id,region,kind,data,ts) VALUES(?,?,?,?,?)",
+               (uid, (region or "")[:3], kind, json.dumps(data, separators=(",", ":"), sort_keys=True), t))
+
+
+def feed_from_save(db, uid, st, summary, game, new_game, t):
+    """Write a feed line when a saved game shows a real step up: a new rank, or an heir taking over."""
+    region = re.sub(r"[^A-Z]", "", str(summary.get("region") or "").upper())[:3]
+    if new_game:
+        gen = int(num(summary.get("gen"), 1))
+        if gen > 1:
+            feed_add(db, uid, region, "heir", {"gen": min(gen, 99), "g": game}, t)
+        return
+    new_rank = clean_text(summary.get("rank"), 30)
+    old_rank = st["rank"] if st is not None else ""
+    if new_rank not in RANKS or RANKS.index(new_rank) < 1:
+        return
+    if old_rank in RANKS and RANKS.index(new_rank) <= RANKS.index(old_rank):
+        return
+    data = {"r": new_rank, "g": game}
+    key = json.dumps(data, separators=(",", ":"), sort_keys=True)
+    if db.execute("SELECT 1 FROM feed WHERE user_id=? AND kind='rank' AND data=?", (uid, key)).fetchone():
+        return
+    feed_add(db, uid, region, "rank", data, t)
+
+
+def ago(ts, t):
+    d = max(0, t - (ts or 0))
+    if d < 120:
+        return "just now"
+    if d < 3600:
+        return "%d min ago" % (d // 60)
+    if d < 86400:
+        return "%d h ago" % (d // 3600)
+    return "%d d ago" % (d // 86400)
+
+
+def push_later(uid, kind, title, body, t, gap=0):
+    """Send a phone nudge in the background, only in waking hours, and at most once per gap seconds for this kind."""
+    if not push_on():
+        return
+    def run():
+        try:
+            if gap and q("SELECT 1 FROM push_log WHERE user_id=? AND kind=? AND ts>?", (uid, kind, t - gap), one=True):
+                return
+            tz = (q("SELECT tz FROM push_subs WHERE user_id=? LIMIT 1", (uid,), one=True) or {"tz": ""})["tz"]
+            if PUSH_HOURS[0] <= local_hour(tz, t) < PUSH_HOURS[1]:
+                push_to_user(uid, kind, title, body)
+        except Exception as e:
+            print("Notification failed: %s" % e, flush=True)
+    threading.Thread(target=run, daemon=True).start()
 
 
 def befriend(a, b, t=None):
@@ -3599,6 +3688,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_pesapal_ipn()
         if path == "/api/friends":
             return self.api_friends()
+        if path == "/api/feed":
+            return self.api_feed()
         if path == "/api/bank/lots":
             return self.api_bank_lots()
         if path == "/api/market":
@@ -3633,7 +3724,7 @@ class Handler(BaseHTTPRequestHandler):
                   "/api/push/subscribe": self.api_push_sub, "/api/push/unsubscribe": self.api_push_unsub, "/api/push/open": self.api_push_open,
                   "/api/admin/push": self.api_admin_push, "/api/friends/add": self.api_friend_add,
                   "/api/friends/remove": self.api_friend_remove, "/api/friends/gift": self.api_friend_gift,
-                  "/api/friends/claim": self.api_gift_claim, "/api/bank/list": self.api_bank_list, "/api/bank/buy": self.api_bank_buy,
+                  "/api/friends/claim": self.api_gift_claim, "/api/friends/msg": self.api_friend_msg, "/api/feed/react": self.api_feed_react, "/api/bank/list": self.api_bank_list, "/api/bank/buy": self.api_bank_buy,
                   "/api/market/list": self.api_market_list, "/api/market/buy": self.api_market_buy,
                   "/api/market/cancel": self.api_market_cancel, "/api/market/settle": self.api_market_settle,
                   "/api/xchg/list": self.api_xchg_list, "/api/xchg/buy": self.api_xchg_buy, "/api/xchg/sell": self.api_xchg_sell,
@@ -4225,8 +4316,107 @@ class Handler(BaseHTTPRequestHandler):
                                     "ORDER BY f.created DESC LIMIT 20", (uid, uid))]
         gifts = [dict(r) for r in q("SELECT g.id, u.name, u.color, u.company, g.ts FROM gifts g JOIN users u ON u.id=g.from_id "
                                     "WHERE g.to_id=? AND g.claimed=0 ORDER BY g.id LIMIT 20", (uid,))]
+        msgs = [{"id": r["id"], "from": r["from_id"], "name": r["name"], "color": r["color"], "text": MSG_CODES.get(r["code"], ""), "ago": ago(r["ts"], t),
+                 "seen": bool(r["seen"])} for r in q("SELECT m.id, m.from_id, m.code, m.ts, m.seen, u.name, u.color FROM msgs m JOIN users u ON u.id=m.from_id "
+                                                     "WHERE m.to_id=? AND u.disabled=0 ORDER BY m.id DESC LIMIT 20", (uid,))]
+        unseen = sum(1 for m in msgs if not m["seen"])
+        if (parse_qs(urlparse(self.path).query).get("open") or [""])[0] == "1" and unseen:
+            q("UPDATE msgs SET seen=1 WHERE to_id=? AND seen=0", (uid,))
+        sent_msgs = q("SELECT COUNT(*) c FROM msgs WHERE from_id=? AND ts>?", (uid, day0), one=True)["c"]
         self.send_json(200, {"friends": friends, "added": added, "gifts": gifts, "me": {"nw": mine["nw"] if mine else 0, "pts": mine["pts"] if mine else 0},
-                             "giftsLeft": max(0, GIFTS_PER_DAY - sent_today)})
+                             "giftsLeft": max(0, GIFTS_PER_DAY - sent_today), "msgs": msgs, "unseen": unseen,
+                             "codes": [[k, v] for k, v in MSG_CODES.items()], "msgsLeft": max(0, MSGS_PER_DAY - sent_msgs)})
+
+    def api_friend_msg(self):
+        """Send a friend one of the ready-made messages. Their phone gets a nudge."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        fid, code, t = int(num(d.get("id"))), str(d.get("code") or ""), now()
+        if code not in MSG_CODES:
+            return self.error(400, "Pick one of the messages.")
+        if not q("SELECT 1 FROM friends WHERE user_id=? AND friend_id=?", (user["id"], fid), one=True):
+            return self.error(404, "You can only message your friends.")
+        day0 = t - 20 * 3600
+        if q("SELECT COUNT(*) c FROM msgs WHERE from_id=? AND ts>?", (user["id"], day0), one=True)["c"] >= MSGS_PER_DAY:
+            return self.error(409, "That is all your messages for today. More tomorrow.")
+        if q("SELECT COUNT(*) c FROM msgs WHERE from_id=? AND to_id=? AND ts>?", (user["id"], fid, day0), one=True)["c"] >= 3:
+            return self.error(409, "You have sent them 3 messages today. Give them time to reply.")
+        q("INSERT INTO msgs(from_id,to_id,code,ts) VALUES(?,?,?,?)", (user["id"], fid, code, t))
+        first = (user["name"] or "A friend").split(" ")[0]
+        push_later(fid, "msg", first + " sent you a message", MSG_CODES[code], t, gap=1800)
+        self.send_json(200, {"ok": True})
+
+    def api_feed(self):
+        """The business feed: real players' big moments in your country, or among your friends, with reactions."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        uid, t = user["id"], now()
+        qs = parse_qs(urlparse(self.path).query)
+        scope = (qs.get("scope") or ["country"])[0]
+        region = re.sub(r"[^A-Z]", "", ((qs.get("region") or [""])[0]).upper())[:3]
+        fr = {r["friend_id"] for r in q("SELECT friend_id FROM friends WHERE user_id=?", (uid,))}
+        since = t - FEED_DAYS * 86400
+        base = ("SELECT f.id, f.user_id, f.kind, f.data, f.ts, u.name, u.company, u.color, u.username FROM feed f JOIN users u ON u.id=f.user_id "
+                "WHERE u.disabled=0 AND f.ts>? AND ")
+        if scope == "friends":
+            ids = list(fr | {uid})
+            rows = q(base + "f.user_id IN (%s) ORDER BY f.id DESC LIMIT 40" % ",".join("?" * len(ids)), [since] + ids)
+        else:
+            rows = q(base + "f.region=? ORDER BY f.id DESC LIMIT 40", (since, region))
+        ids = [r["id"] for r in rows]
+        counts, mine = {}, {}
+        if ids:
+            marks = ",".join("?" * len(ids))
+            for r in q("SELECT feed_id, emo, COUNT(*) n FROM feed_react WHERE feed_id IN (%s) GROUP BY feed_id, emo" % marks, ids):
+                counts.setdefault(r["feed_id"], {})[r["emo"]] = r["n"]
+            for r in q("SELECT feed_id, emo FROM feed_react WHERE user_id=? AND feed_id IN (%s)" % marks, [uid] + ids):
+                mine[r["feed_id"]] = r["emo"]
+        items = []
+        for r in rows:
+            try:
+                data = json.loads(r["data"] or "{}")
+            except ValueError:
+                data = {}
+            items.append({"id": r["id"], "uid": r["user_id"], "name": r["name"], "company": r["company"], "color": r["color"], "username": r["username"],
+                          "kind": r["kind"], "rank": data.get("r", ""), "gen": data.get("gen", 0), "ago": ago(r["ts"], t),
+                          "reacts": counts.get(r["id"], {}), "mine": mine.get(r["id"], ""), "me": r["user_id"] == uid, "friend": r["user_id"] in fr})
+        self.send_json(200, {"items": items, "reacts": REACTS, "scope": "friends" if scope == "friends" else "country"})
+
+    def api_feed_react(self):
+        """React to a feed line. One reaction per player per line; tapping the same one again takes it back."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        if rate_limited("react:%d" % user["id"], limit=120, window=3600):
+            return self.error(429, "Slow down a little.")
+        d = self.read_json()
+        if d is None:
+            return
+        fid, emo, t = int(num(d.get("id"))), str(d.get("e") or ""), now()
+        if emo not in REACTS:
+            return self.error(400, "Pick one of the reactions.")
+        item = q("SELECT user_id, kind, data FROM feed WHERE id=?", (fid,), one=True)
+        if not item:
+            return self.error(404, "That post is gone.")
+        if item["user_id"] == user["id"]:
+            return self.error(409, "You cannot react to your own news.")
+        cur = q("SELECT emo FROM feed_react WHERE feed_id=? AND user_id=?", (fid, user["id"]), one=True)
+        if cur and cur["emo"] == emo:
+            q("DELETE FROM feed_react WHERE feed_id=? AND user_id=?", (fid, user["id"]))
+        else:
+            q("INSERT INTO feed_react(feed_id,user_id,emo,ts) VALUES(?,?,?,?) ON CONFLICT(feed_id,user_id) DO UPDATE SET emo=excluded.emo, ts=excluded.ts",
+              (fid, user["id"], emo, t))
+            if not cur:
+                first = (user["name"] or "A player").split(" ")[0]
+                push_later(item["user_id"], "react", first + " reacted " + emo + " to your news", "See who is cheering you on in the business feed.", t, gap=6 * 3600)
+        n = {r["emo"]: r["n"] for r in q("SELECT emo, COUNT(*) n FROM feed_react WHERE feed_id=? GROUP BY emo", (fid,))}
+        mine = q("SELECT emo FROM feed_react WHERE feed_id=? AND user_id=?", (fid, user["id"]), one=True)
+        self.send_json(200, {"reacts": n, "mine": mine["emo"] if mine else ""})
 
     def api_friend_add(self):
         user = self.session_user()
@@ -4538,6 +4728,10 @@ class Handler(BaseHTTPRequestHandler):
             st = db.execute("SELECT * FROM stats WHERE user_id=?", (uid,)).fetchone()
             game = st["games"] if st else 1
             prev_month = st["month"] if st else 0
+            try:
+                feed_from_save(db, uid, st, summary, (game + 1) if new_game else game, new_game, t)
+            except Exception as e:
+                print("Feed line failed: %s" % e, flush=True)
             if new_game:
                 if st is not None and st["month"] > 0 or isinstance(summary.get("prev"), dict):
                     life = clean_life(summary.get("prev")) or life_from_records(db, uid, game, st)

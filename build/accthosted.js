@@ -142,19 +142,44 @@ function awayWelcome(seen){if(!S||S.over||!S.inds.length||S.month<1||!seen)retur
  return true;}
 function awayCollect(){closeModal();if(awayAmt>0){S.cash+=awayAmt;log('While you were away, your businesses earned '+fmt(awayAmt)+'.','good');try{coinBurst(14);}catch(e){}awayAmt=0;render();save();}startEvents();}
 /* ---------- Friends: see how they are doing, send a daily gift ---------- */
-let friendsData=null,friendMsg='';
-async function openFriends(){stopAuto();closeModal();acctView='friends';friendMsg='';renderAccts();
- try{friendsData=await api('GET','/api/friends');}catch(e){friendMsg=esc(e.message);}if(acctView==='friends')renderAccts();}
-function friendsHTML(){const d=friendsData;let h='<h2>Friends</h2><p class="sub">See how your friends are doing and send each one a gift every day. A gift is worth a month of their profit, and their phone gets a nudge.</p>';
+let friendsData=null,friendMsg='',frTab='feed',feedScope='country',feedData=null;
+async function openFriends(tab){stopAuto();closeModal();{const t=$('hstoast');if(t)t.hidden=true;}acctView='friends';friendMsg='';if(tab)frTab=tab;renderAccts();
+ try{friendsData=await api('GET','/api/friends?open=1');}catch(e){friendMsg=esc(e.message);}if(frTab==='feed')await feedLoad();if(acctView==='friends')renderAccts();}
+async function feedLoad(){try{feedData=await api('GET','/api/feed?scope='+feedScope+'&region='+encodeURIComponent(S.region||''));}catch(e){feedData={items:[],reacts:[],err:e.message};}}
+async function frTabGo(t){frTab=t;friendMsg='';if(t==='feed'&&!feedData)await feedLoad();renderAccts();if(t==='feed'){await feedLoad();if(acctView==='friends'&&frTab==='feed')renderAccts();}}
+async function feedScopeGo(v){feedScope=v;feedData=null;renderAccts();await feedLoad();renderAccts();}
+async function feedReact(id,e){const it=feedData&&feedData.items.find(x=>x.id===id);if(!it)return;try{const r=await api('POST','/api/feed/react',{id,e});it.reacts=r.reacts||{};it.mine=r.mine||'';}catch(er){friendMsg=esc(er.message);}renderAccts();}
+async function feedAddFriend(id){try{const r=await api('POST','/api/friends/add',{id});friendMsg=esc(r.name)+' is now your friend.';const it=feedData&&feedData.items.filter(x=>x.uid===id);(it||[]).forEach(x=>x.friend=true);friendsData=await api('GET','/api/friends');}catch(e){friendMsg=esc(e.message);}renderAccts();}
+function feedLine(it){const nm='<b>'+esc((it.name||'A player').split(' ')[0])+'</b>';
+ if(it.kind==='heir')return nm+' took over the family empire as generation '+it.gen+'.';
+ const r=it.rank||'',an=/^[AEIOU]/.test(r)?'an ':'a ';return nm+' became '+an+'<b>'+esc(r)+'</b>.';}
+function feedHTML(){const d=feedData,cn=(countryRow(S.region)||{}).name||'your country';
+ let h='<div class="chips mktabs"><button class="btn small'+(feedScope==='country'?' primary':'')+'" data-a="feedscope" data-v="country">'+esc(cn)+'</button><button class="btn small'+(feedScope==='friends'?' primary':'')+'" data-a="feedscope" data-v="friends">Friends</button></div>';
+ if(!d)return h+'<p class="sub">Loading…</p>';
+ if(d.err)return h+'<p class="amsg">'+esc(d.err)+'</p>';
+ if(!d.items.length)return h+'<p class="sub">'+(feedScope==='friends'?'No news from your friends in the last two weeks. Add friends from the '+esc(cn)+' feed, or invite them.':'Nothing yet. When players in '+esc(cn)+' reach a new rank, it shows up here.')+'</p>';
+ return h+'<ul class="invlist feedlist">'+d.items.map(it=>'<li>'+avatar(it)+'<span class="ameta"><span class="feedtxt">'+feedLine(it)+'</span><span>'+esc(it.company||'')+' · '+esc(it.ago||'')+'</span>'+
+  '<span class="reacts">'+(d.reacts||[]).map(e=>{const n=(it.reacts||{})[e]||0;return it.me?(n?'<span class="react on">'+e+' '+n+'</span>':''):'<button class="react'+(it.mine===e?' on':'')+'" data-a="feedreact" data-v="'+it.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join('')+
+  (!it.me&&!it.friend?'<button class="btn ghost small feedadd" data-a="feedadd" data-v="'+it.uid+'">+ Friend</button>':'')+'</span></span></li>').join('')+'</ul>';}
+let frPick=0;
+function msgPick(id){frPick=id;frTab='friends';friendMsg='';renderAccts();try{window.scrollTo(0,0);const el=$('acct');if(el)el.scrollTop=0;}catch(e){}}
+function msgPickHTML(){const d=friendsData,f=d&&d.friends.find(x=>x.id===frPick);if(!f||!d.codes)return'';
+ return'<div class="msgpick"><h3>Message '+esc((f.name||'').split(' ')[0])+'</h3><p class="sub">Pick one. It lands on their phone.'+(d.msgsLeft<5?' '+d.msgsLeft+' left today.':'')+'</p><div class="choices">'+d.codes.map(([k,t])=>'<button class="choice" data-a="msgsend" data-v="'+f.id+'" data-c="'+k+'"><b>'+esc(t)+'</b></button>').join('')+'</div><button class="btn ghost" data-a="msgcancel">Cancel</button></div>';}
+async function msgSend(id,code){frPick=0;try{await api('POST','/api/friends/msg',{id,code});friendMsg='Message sent.';friendsData=await api('GET','/api/friends?open=1');if(friendsData)friendsData.msgsLeft=friendsData.msgsLeft;}catch(e){friendMsg=esc(e.message);}acctView='friends';frTab='friends';renderAccts();}
+function friendsHTML(){const d=friendsData,un=d&&d.msgs?d.msgs.filter(m=>!m.seen).length:0;let h='<h2>Friends</h2><div class="authtabs frtabs" role="tablist"><button role="tab" aria-selected="'+(frTab==='feed')+'" data-a="frtab" data-v="feed">Business feed</button><button role="tab" aria-selected="'+(frTab!=='feed')+'" data-a="frtab" data-v="friends">Friends'+(un&&frTab==='feed'?' <i class="frbadge">'+un+'</i>':'')+'</button></div>';
+ if(frTab==='feed'){if(friendMsg)h+='<p class="amsg">'+friendMsg+'</p>';return h+'<p class="sub">Big moments from real players. Cheer them on, or add them as friends.</p>'+feedHTML()+'<div class="chips"><button class="btn" data-a="acctclose">Back to my game</button><button class="btn ghost" data-a="leaderboard">Leaderboard</button></div>';}
+ if(frPick&&d){const pk=msgPickHTML();if(pk)return h+pk;}
+ h+='<p class="sub">See how your friends are doing, send each one a gift every day and send quick messages. A gift is worth a month of their profit, and their phone gets a nudge.</p>';
  h+='<form id="friendform" class="aform frform" novalidate><label for="fr-user">Add a friend by username</label><div class="frrow"><input id="fr-user" maxlength="21" autocapitalize="none" spellcheck="false" placeholder="e.g. wanjiku_k"><button type="submit" class="btn primary">Add</button></div></form>';
  if(friendMsg)h+='<p class="amsg">'+friendMsg+'</p>';
  if(!d)return h+'<p class="sub">Loading…</p><div class="chips"><button class="btn" data-a="acctclose">Back to my game</button></div>';
+ if(d.msgs&&d.msgs.length)h+='<h3>Messages</h3><ul class="invlist msglist">'+d.msgs.slice(0,8).map(m=>'<li class="'+(m.seen?'':'unseen')+'">'+avatar(m)+'<span class="ameta"><b>'+esc((m.name||'').split(' ')[0])+'</b><span class="msgtxt">'+esc(m.text)+'</span><span>'+esc(m.ago)+'</span></span>'+(d.friends.some(f=>f.id===m.from)?'<button class="btn small" data-a="msgpick" data-v="'+m.from+'">Reply</button>':'')+'</li>').join('')+'</ul>';
  if(d.added&&d.added.length)h+='<h3>Added you</h3><ul class="invlist">'+d.added.map(f=>'<li>'+avatar(f)+'<span class="ameta"><b>'+esc(f.name)+'</b><span>@'+esc(f.username)+' · '+esc(f.company)+'</span></span><button class="btn small" data-a="friendaddid" data-v="'+f.id+'">Add back</button></li>').join('')+'</ul>';
  h+='<h3>Your friends'+(d.friends.length?' ('+d.friends.length+')':'')+'</h3>';
  if(!d.friends.length)h+='<p class="sub">No friends yet. Add someone by their username above, or invite friends: anyone who joins with your link becomes your friend.</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div>';
  else{h+='<p class="sub">'+(d.giftsLeft?d.giftsLeft+' gift'+(d.giftsLeft>1?'s':'')+' left to send today.':'All gifts sent for today. More tomorrow.')+'</p><ul class="invlist frlist">'+d.friends.map(f=>{const diff=f.nw-(d.me.nw||0);
   return'<li>'+avatar(f)+'<span class="ameta"><b>'+esc(f.name)+(f.online?' <i class="frdot" title="Playing now"></i>':'')+'</b><span>'+esc(f.company)+' · '+esc(f.seen)+'</span><span>'+fmt(f.nw)+' · '+esc(f.rank||'')+(f.nw>0?' · <em class="'+(diff>0?'frup':'frdn')+'">'+(diff>0?fmt(diff)+' ahead of you':fmt(-diff)+' behind you')+'</em>':'')+'</span></span>'+
-   '<span class="frbtns"><button class="btn small'+(f.canGift?' primary':'')+'" data-a="friendgift" data-v="'+f.id+'"'+(f.canGift?'':' disabled')+'>'+(f.canGift?'🎁 Gift':'Sent')+'</button><button class="btn ghost small" data-a="friendrm" data-v="'+f.id+'" aria-label="Remove '+esc(f.name)+'">✕</button></span></li>';}).join('')+'</ul>';}
+   '<span class="frbtns"><button class="btn small" data-a="msgpick" data-v="'+f.id+'" aria-label="Message '+esc(f.name)+'">💬</button><button class="btn small'+(f.canGift?' primary':'')+'" data-a="friendgift" data-v="'+f.id+'"'+(f.canGift?'':' disabled')+'>'+(f.canGift?'🎁 Gift':'Sent')+'</button><button class="btn ghost small" data-a="friendrm" data-v="'+f.id+'" aria-label="Remove '+esc(f.name)+'">✕</button></span></li>';}).join('')+'</ul>';}
  return h+'<div class="chips"><button class="btn" data-a="acctclose">Back to my game</button><button class="btn ghost" data-a="leaderboard">Leaderboard</button></div>';}
 async function friendAct(kind,v){try{if(kind==='add'){const u=v||($('fr-user')||{}).value||'';if(!u.trim()){friendMsg='Type their username first.';renderAccts();return;}const r=await api('POST','/api/friends/add',typeof v==='number'?{id:v}:{username:u});friendMsg=esc(r.name)+' is now your friend.';}
  else if(kind==='gift'){await api('POST','/api/friends/gift',{id:v});friendMsg='Gift sent. They will get a nudge on their phone.';try{coinBurst(10);}catch(e){}}
@@ -163,7 +188,7 @@ async function friendAct(kind,v){try{if(kind==='add'){const u=v||($('fr-user')||
 document.addEventListener('submit',e=>{if(e.target&&e.target.id==='friendform'){e.preventDefault();friendAct('add');}});
 let giftTries=0,giftPending=null;
 async function giftCheck(){if(!ACC||!S||S.over)return;if(current||!$('modal').hidden||acctView){if(++giftTries<20)setTimeout(giftCheck,3000);return;}
- let d;try{d=await api('GET','/api/friends');}catch(e){return;}friendsData=d;if(!d.gifts||!d.gifts.length)return;
+ let d;try{d=await api('GET','/api/friends');}catch(e){return;}friendsData=d;if(!d.gifts||!d.gifts.length){const m=(d.msgs||[]).find(x=>!x.seen);if(m&&!current&&!acctView)toast('<b>💬 '+esc((m.name||'A friend').split(' ')[0])+'</b><span>'+esc(m.text)+(d.unseen>1?' (+'+(d.unseen-1)+' more)':'')+'</span>','friendsmsg');return;}
  if(current||!$('modal').hidden||acctView){if(++giftTries<20)setTimeout(giftCheck,3000);return;}
  const g=d.gifts.slice(0,5),names=[...new Set(g.map(x=>(x.name||'A friend').split(' ')[0]))],each=Math.max(100,Math.round(flows(false).net)),amt=each*g.length;giftPending=amt;
  showCard('🎁 '+(g.length>1?g.length+' gifts':'A gift')+' from your friends',esc(names.length>1?names.slice(0,-1).join(', ')+' and '+names[names.length-1]:names[0])+' sent you '+(g.length>1?'gifts':'a gift')+'. Each one is worth a month of your profit.',
