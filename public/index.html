@@ -372,6 +372,7 @@ html.gm .card:has(.bkx) .choices .choice:only-child{background:rgba(255,255,255,
 .bestmove{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin:0 0 12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,197,61,.5);background:rgba(255,197,61,.09)}.bm-ico{font-size:24px}.bestmove small{display:block;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.8}.bestmove b{display:block}.bestmove span{font-size:12.5px}
 .mission-free{margin:10px 0 0;font-size:.88em;color:var(--muted);text-align:center}
 .mission-lead{font-size:1.05em;margin:0 0 8px}.mission{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}.mission li{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start}.mission li>span{font-size:20px;line-height:1.2}.mission-first{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,197,61,.12);border:1px solid rgba(255,197,61,.4)}
+@media (max-width:600px){html.gm .btn.small,html.gm .btn{min-height:40px}html.gm .btn.small{padding:10px 14px 9px}html.gm .citychip{min-height:40px;padding-top:9px;padding-bottom:9px}html.gm .seg button{min-height:40px}}
 .affbar{display:flex;align-items:center;gap:10px;width:100%;margin:4px 0 8px;padding:9px 12px;border-radius:12px;border:2px solid #ffc53d;background:linear-gradient(180deg,rgba(255,197,61,.20),rgba(255,197,61,.07));color:var(--ink);text-align:left;cursor:pointer;font:inherit}
 .affbar .ab-ico{font-size:22px;line-height:1}.affbar .ab-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.affbar small{font-size:12px;color:var(--muted);font-weight:700}
 .affbar b{font-family:var(--display);font-size:16px;color:#ffc53d;letter-spacing:.02em}.affbar .ab-g{display:flex;flex-direction:column;align-items:flex-end;font-weight:800;color:var(--green);font-size:15px;white-space:nowrap}
@@ -2254,7 +2255,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='985fc61dfcf9';let updShown=false;
+const APP_VER='96d197842471';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -2393,6 +2394,9 @@ function fmt(n){const neg=n<0;n=Math.abs(n);let s;if(curLocal())n*=R.rate;const 
  if(n<1e4)s=sym+Math.round(n).toLocaleString('en-US');
  else{const u=[[1e15,'Q'],[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']].find(x=>n>=x[0]);const v=n/u[0];s=sym+(v>=100?v.toFixed(0):v>=10?v.toFixed(1):v.toFixed(2))+u[1];}
  return (neg?'−':'')+s;}
+/* big amounts in words, for unlock targets: "KSh 645 trillion (about $5.00T)" reads better than "KSh 645T" */
+function fmtW(n){const s=fmt(n),m=s.match(/^(.*?)([\d.]+)([MBTQ])$/);if(!m)return s;const W={M:'million',B:'billion',T:'trillion',Q:'quadrillion'};
+ let out=m[1]+String(+m[2])+' '+W[m[3]];if(curLocal()&&n>=1e9){const u=[[1e15,'Q'],[1e12,'T'],[1e9,'B']].find(x=>n>=x[0]),v=n/u[0];out+=' (about $'+(v>=100?v.toFixed(0):v>=10?v.toFixed(1):v.toFixed(2))+u[1]+')';}return out;}
 function fmtFull(n){const v=curLocal()?n*R.rate:n;return v<1e7?curSym()+Math.round(v).toLocaleString('en-US'):fmt(n);}
 const dollars=t=>String(t).replace(/\$(\d[\d,]*(?:\.\d+)?)([KMBT]?)/g,(m,x,u)=>fmt(+x.replace(/,/g,'')*({'':1,K:1e3,M:1e6,B:1e9,T:1e12}[u])));
 const owned=id=>S.owned[id]||0, has=id=>S.assets[id]||0, af=id=>S.af[id]||1;
@@ -3800,7 +3804,7 @@ const FUNDRAISERS=[
  {id:'golfday',name:'Celebrity golf day',desc:'Ministers, musicians and footballers on your course.',need:()=>has('golfmember')||has('golfclub'),req:'Needs a golf membership or your own course',cost:()=>nwc(.002,5000),raise:()=>nwc(.015,40000)*(1+S.influence/100)*(has('golfclub')?1.4:1)},
  {id:'auction',name:'Art auction',desc:'Artists donate work; collectors compete to be generous.',need:()=>has('art')||has('masterpiece'),req:'Needs an art collection',cost:()=>nwc(.001,5000),raise:()=>nwc(.012,40000)*(S.rep/50)},
  {id:'telethon',name:'TV telethon',desc:'Six hours of live TV and a mobile money paybill.',need:()=>indOwned('media'),req:'Needs a business in Media & Entertainment',cost:()=>nwc(.003,5000),raise:()=>nwc(.02,50000)*(S.rep/60)},
- {id:'concert',name:'Benefit concert',desc:'Africa\'s biggest stars in one stadium for one cause.',need:()=>netWorth()>=1e7,get req(){return'Unlocks at a net worth of '+fmt(1e7)},cost:()=>nwc(.004,4e4),raise:()=>nwc(.025,1e5)*(S.rep/60)*(1+S.influence/200)}
+ {id:'concert',name:'Benefit concert',desc:'Africa\'s biggest stars in one stadium for one cause.',need:()=>netWorth()>=1e7,get req(){return'Unlocks at a net worth of '+fmtW(1e7)},cost:()=>nwc(.004,4e4),raise:()=>nwc(.025,1e5)*(S.rep/60)*(1+S.influence/200)}
 ];
 const cause=id=>CAUSES.find(c=>c.id===id);
 function fdnFund(amt){const F=S.fdn;if(!F||amt<=0)return;F.total+=amt;let id=F.focus;
@@ -4536,7 +4540,7 @@ function render(){try{raceRender();}catch(e){}try{paintAffBar();}catch(e){}try{c
   let shownLocked=false;
   bs.forEach(b=>{const n=owned(b.id),c=unitCost(b,n),pm=policyMult(b),im=indBuff(iid)*masteryMult(iid);
    if(!(n>0||nw>=b.cost*unlockX(b)||b.tier===1||(S.bankOK&&S.bankOK[b.id]))){if(shownLocked)return;shownLocked=true;
-    bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmt(b.cost*unlockX(b))+', or sooner if the bank agrees to finance it.</div></div><div class="acts">'+(finOK(b)?'<button class="btn small" data-a="buy" data-v="'+b.id+'">Ask the bank · '+fmt(c)+'</button>':'')+'</div></div>';return;}
+    bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmtW(b.cost*unlockX(b))+', or sooner if the bank agrees to finance it.</div></div><div class="acts">'+(finOK(b)?'<button class="btn small" data-a="buy" data-v="'+b.id+'">Ask the bank · '+fmt(c)+'</button>':'')+'</div></div>';return;}
    bh+='<div class="biz '+(n?'owned':'')+'"><div class="tier">'+b.tier+'</div><div style="min-width:0"><div class="name">'+b.name+(n?'<span class="count">×'+n+'</span>':'')+(pm!==1?' <span class="pill '+(pm<1?'bad':'good')+'">Policy ×'+pm.toFixed(2)+'</span>':'')+'</div><div class="tag">'+b.tag+'</div>'+
     '<div class="meta">Each earns ~'+fmt(RET()*regF(b)*b.profit*bmBase*pm*im*cyc(b)/S.s*boostNow())+'/mo'+(isReg(iid)?' before excise':'')+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
     '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>Buy · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>'+
@@ -5104,7 +5108,7 @@ function pppBid(id){const P=PPP.find(p=>p.id===id);if(!P||!pppOn()||!pppOpen(P)|
    {l:'Sweeten the deal',d:'Pay '+fmt(sweet)+', including a "facilitation fee". Higher tolls are agreed: you keep 115% of normal income. Police attention rises.',dis:!canPay(sweet),f(){S.cash-=sweet;S.ppp[id]={st:'build',left:P.build,share:1.15,paid:c,base:c,start:S.month,dirty:1};const L=lawOf();L.att=Math.min(100,L.att+15);S.pt=S.pt||{};S.pt.crook=(S.pt.crook||0)+2;return['The '+P.name+' is yours, on very generous terms. Somebody will ask questions one day.','bad'];}},
    {l:'Not now',d:'Keep the money for now.',f(){return['','']}}]};}
 function pppHTML(){const best=pppBest();
- if(!pppOn())return'<p class="seghint" style="margin:0">Opens when your net worth reaches <b>'+fmt(PPP_AT)+'</b>. '+(best>=PPP_AT*.1?'You are '+Math.round(best/PPP_AT*100)+'% of the way there.':'Toll roads, bridges, ports, airports, a subway and a high-speed railway, built with the government.')+'</p>';
+ if(!pppOn())return'<p class="seghint" style="margin:0">Opens when your net worth reaches <b>'+fmtW(PPP_AT)+'</b>. '+(best>=PPP_AT*.1?'You are '+Math.round(best/PPP_AT*100)+'% of the way there.':'Toll roads, bridges, ports, airports, a subway and a high-speed railway, built with the government.')+'</p>';
  const M=pppMine(),inc=pppIncome(false);let h=inc>0?'<p class="seghint" style="margin:0 0 8px">Income from partnerships: <b class="pos">'+fmt(inc)+'/mo</b></p>':'';
  const open=PPP.filter(pppOpen),next=PPP.find(P=>!pppOpen(P)),rest=PPP.filter(P=>!pppOpen(P)).length-(next?1:0);
  h+='<div class="ppplist">'+open.map(P=>{const x=M[P.id],c=pppCost(P);let st,btn='';
@@ -5114,7 +5118,7 @@ function pppHTML(){const best=pppBest();
   else if(x.st==='build'){const done=Math.round((1-x.left/P.build)*100);st='Under construction · '+Math.max(0,Math.min(99,done))+'% · opens in '+x.left+' month'+(x.left===1?'':'s')+(x.jv?' · joint venture':'');}
   else if(x.st==='run'){const yl=Math.ceil((x.end-S.month)/12);st='Open · earning about '+fmt(x.base*P.y*x.share*(1+Math.min(.5,(S.month-x.open)/240)))+'/mo · '+yl+' yr'+(yl===1?'':'s')+' left'+(x.jv?' · joint venture':'');}
   else st='Handed over to the government. Built by you.';
-  return'<div class="pppitem'+(x?' mine':'')+'"><span class="pppico">'+P.ico+'</span><div><b>'+P.name+'</b><small>'+P.kind+' · '+st+'</small></div>'+btn+'</div>';}).join('')+(next?'<div class="pppitem locked"><span class="pppico">🔒</span><div><b>'+next.name+'</b><small>Unlocks at '+fmt(next.at)+' net worth · '+Math.round(pppBest()/next.at*100)+'% there'+(rest>0?' · '+rest+' more project'+(rest>1?'s':'')+' after this':'')+'</small></div></div>':'')+'</div>';
+  return'<div class="pppitem'+(x?' mine':'')+'"><span class="pppico">'+P.ico+'</span><div><b>'+P.name+'</b><small>'+P.kind+' · '+st+'</small></div>'+btn+'</div>';}).join('')+(next?'<div class="pppitem locked"><span class="pppico">🔒</span><div><b>'+next.name+'</b><small>Unlocks at '+fmtW(next.at)+' net worth · '+Math.round(pppBest()/next.at*100)+'% there'+(rest>0?' · '+rest+' more project'+(rest>1?'s':'')+' after this':'')+'</small></div></div>':'')+'</div>';
  return h;}
 /* ================= Casino nights (from $1 trillion): roulette and blackjack, for fun ================= */
 const CAS_AT=1e12,RED=[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
@@ -5172,7 +5176,7 @@ function cityStageEvent(){if(!cityOn())return null;const c=S.city||{done:0,paid:
  return{cat:'Your city',title:i===0?'Found '+cityName()+'?':cityName()+': '+st[0],text:st[4]+' It costs <b>'+fmt(cost)+'</b> and takes about '+Math.round(st[2]/12*10)/10+' years.',
   choices:[{l:i===0?'Found the city':'Start this stage',d:'Pay '+fmt(cost)+'.',dis:!canPay(cost),f(){S.cash-=cost;S.city=S.city||{name:familyName()+' City',done:0,paid:0};S.city.paid+=cost;S.city.left=st[2];addInf(2);return[i===0?'You bought the land for '+cityName()+'. The planners are at work.':'Work has started on '+st[0].toLowerCase()+' in '+cityName()+'.','gold'];}},
    {l:'Not yet',d:'',f(){return['','']}}]};}
-function cityHTML(){if(!cityOn()){const b=typeof pppBest==='function'?pppBest():netWorth();return'<p class="seghint" style="margin:0">Opens at <b>'+fmt(CITY_AT)+'</b> net worth'+(b>=CITY_AT*.1?': you are '+Math.round(b/CITY_AT*100)+'% of the way there.':'.')+'</p>';}
+function cityHTML(){if(!cityOn()){const b=typeof pppBest==='function'?pppBest():netWorth();return'<p class="seghint" style="margin:0">Opens at <b>'+fmtW(CITY_AT)+'</b> net worth'+(b>=CITY_AT*.1?': you are '+Math.round(b/CITY_AT*100)+'% of the way there.':'.')+'</p>';}
  const c=S.city||{done:0},i=c.done||0,pop=i?CITY_ST[i-1][3]:0;
  let h='<p class="seghint" style="margin:0 0 8px"><b>'+esc(cityName())+'</b>'+(pop?' · '+fmt(pop).replace('$','')+' people':'')+(cityIncome(false)?' · income <b class="pos">'+fmt(cityIncome(false))+'/mo</b>':'')+'</p><div class="ppplist">';
  h+=CITY_ST.map((st,k)=>{const cost=st[1]*CPI();let tag,btn='';if(k<i)tag='Done';else if(k===i&&c.left!=null)tag='Building · '+c.left+' month'+(c.left===1?'':'s')+' left';else if(k===i){tag=fmt(cost)+' · '+Math.round(st[2]/12*10)/10+' yrs';btn='<button class="btn small" data-a="citygo"'+(canPay(cost)?'':' disabled')+'>'+(k===0?'Found':'Start')+'</button>';}else tag='After stage '+k;
@@ -5280,7 +5284,9 @@ function chapCheck(){const el=$('chap');if(!el)return;S.chap=S.chap||0;if(!chapO
  el.innerHTML='<div class="g10-top"><span>Chapter '+(i+1)+' of '+CHAPS.length+' · '+C.n+'</span><em>Reward '+fmt(C.goal*.05)+'</em></div><b>'+fmt(nw)+' of '+fmt(C.goal)+'</b><div class="g10-bar"><i style="width:'+pc+'%"></i></div>'+
   '<ul class="chapobj">'+O.map((o,k)=>{const d=S.chapDone[i+'_'+k];return'<li class="cobj'+(d?' cdone':'')+'"><span>'+(d?'✔':'○')+'</span><div>'+o[1]+(d?'':'<small>'+o[3]+'</small>')+'</div></li>';}).join('')+'</ul>';
  el.hidden=false;}
-function chapFx(small,big,line){document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('div');d.className='unlfx goal';d.innerHTML='<small>'+small+'</small><b>'+esc(big)+'</b><span>'+esc(line)+'</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),5200);setTimeout(()=>d.remove(),5800);}
+/* one pop-up at a time: a toast waits until the new-rank banner has gone */
+function fxWait(fn){if(document.querySelector('.rankup')){setTimeout(fn,900);return true;}return false;}
+function chapFx(small,big,line){if(fxWait(()=>chapFx(small,big,line)))return;document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('div');d.className='unlfx goal';d.innerHTML='<small>'+small+'</small><b>'+esc(big)+'</b><span>'+esc(line)+'</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),5200);setTimeout(()=>d.remove(),5800);}
 /* ================= Best next move: the business you can afford now that pays for itself fastest ================= */
 function bestMove(){if(!S||S.over||!S.inds||!S.inds.length||(typeof jailed==='function'&&jailed()))return null;let best=null;
  BIZ.forEach(b=>{if(!S.inds.includes(b.ind)||bizLocked(b))return;const n=owned(b.id);if(n>=regCap(b))return;const c=unitCost(b,n);if(!(c<=S.cash))return;
@@ -5290,7 +5296,7 @@ function bestMove(){if(!S||S.over||!S.inds||!S.inds.length||(typeof jailed==='fu
 function nextRung(){let r=null;BIZ.forEach(b=>{if(!S.inds.includes(b.ind)||owned(b.id)>0||!bizLocked(b))return;const at=b.cost*unlockX(b);if(!r||at<r.at)r={b,at};});return r;}
 /* always-on bar under PLAY: when cash covers the best next outlet, one tap opens it, so cash never sits idle (until the first million) */
 function affordBarHTML(){if(!S||S.over||S.month<1||netWorth()>=1e6)return'';const m=bestMove();if(!m)return'';const one=owned(m.b.id)>0;
- return'<button class="affbar" data-a="affbuy" data-v="'+m.b.id+'"><span class="ab-ico" aria-hidden="true">💰</span><span class="ab-t"><small>You can afford '+(one?'another':'a')+' '+esc(m.b.name.lc())+'</small><b>Open it · '+fmtFull(m.c)+' game cash</b></span><span class="ab-g">+'+fmt(m.gain)+'<small>a month</small></span></button>';}
+ return'<button class="affbar" data-a="affbuy" data-v="'+m.b.id+'"><span class="ab-ico" aria-hidden="true">💰</span><span class="ab-t"><small>You can afford '+(one?'another':'a')+' '+esc(m.b.name.lc())+'</small><b>Open it · '+fmt(m.c)+' game cash</b></span><span class="ab-g">+'+fmt(m.gain)+'<small>a month</small></span></button>';}
 function paintAffBar(){const el=$('affbar');if(!el)return;const h=affordBarHTML();if(el._h!==h){el.innerHTML=h;el._h=h;}el.hidden=!h;}
 function affBuy(id){const b=BIZ.find(x=>x.id===id);if(!b)return;const n0=owned(id);buy(id);if(owned(id)>n0){try{coinBurst(8);}catch(e){}if(n0>0)log('You opened another '+b.name.lc()+'. More profit every month.','good');trk('buy2');}}
 /* after a card that feels like an ending (daily bonus, saving the game), point at the next move: the afford bar if there is one, otherwise PLAY */
@@ -5298,7 +5304,7 @@ function nudgeNext(){if(current||acctView||tourOn||!S||S.over||!$('modal').hidde
 /* the hint only guides the first 12 presses of PLAY; after that the player makes their own calls */
 const BEST_PLAYS=12;
 function boostHTML(){const x=boostNow();if(x<=1.01)return'';return'<div class="boostbar"><span>🚀</span><div><b>Starter boost: profits ×'+(Math.round(x*10)/10)+'</b><small>Extra profit while you build your first $10 million. It fades as you grow.</small></div></div>';}
-function bestMoveHTML(){if((S.plays||0)>=BEST_PLAYS)return'';const m=bestMove();if(!m){const r=nextRung();if(!r)return'';const nw=Math.max(0,netWorth());return'<div class="bestmove"><span class="bm-ico">🎯</span><div><small>Next step up</small><b>'+esc(r.b.name)+'</b><span>Unlocks when your net worth reaches '+fmt(r.at)+' · you are '+Math.min(99,Math.round(nw/r.at*100))+'% there. Grow profit and save.</span></div></div>';}const y=m.pay/12,t=m.pay<12?Math.max(1,Math.round(m.pay))+' month'+(Math.round(m.pay)>1?'s':''):(Math.round(y*10)/10)+' years';
+function bestMoveHTML(){if((S.plays||0)>=BEST_PLAYS)return'';const m=bestMove();if(!m){const r=nextRung();if(!r)return'';const nw=Math.max(0,netWorth());return'<div class="bestmove"><span class="bm-ico">🎯</span><div><small>Next step up</small><b>'+esc(r.b.name)+'</b><span>Unlocks when your net worth reaches '+fmtW(r.at)+' · you are '+Math.min(99,Math.round(nw/r.at*100))+'% there. Grow profit and save.</span></div></div>';}const y=m.pay/12,t=m.pay<12?Math.max(1,Math.round(m.pay))+' month'+(Math.round(m.pay)>1?'s':''):(Math.round(y*10)/10)+' years';
  return'<div class="bestmove"><span class="bm-ico">💡</span><div><small>Best next move</small><b>'+esc(m.b.name)+(owned(m.b.id)?' (one more)':'')+'</b><span>'+fmt(m.c)+' · earns about '+fmt(m.gain)+'/mo · pays for itself in '+t+'</span></div><button class="btn small primary" data-a="buy" data-v="'+m.b.id+'">Look</button></div>';}
 function kidsHTML(){const opts=[[null,'Let it happen'],[0,'None'],[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6']],n=S.kids.filter(k=>!k.withEx).length,w=S.kidsWant;
  return'<h4>How many children do you want?</h4><div class="seg kidseg" role="group" aria-label="How many children you want">'+opts.map(o=>'<button data-a="kidswant" data-v="'+(o[0]==null?'any':o[0])+'" aria-pressed="'+(w===o[0]||(w==null&&o[0]==null))+'">'+o[1]+'</button>').join('')+'</div>'+
@@ -5333,7 +5339,7 @@ function unlCheck(){if(!S||S.over)return;const U=unlOf(),nw=netWorth(),got=[];
  {const c=document.querySelector('.csstat');if(c)c.hidden=!U.money;}
  if(!U[curTab]){showTab.boot=1;showTab('overview');showTab.boot=0;}
  if(got.length)unlFx(got[got.length-1]);}
-function unlFx(r){document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('button');d.className='unlfx';d.dataset.a='tab';d.dataset.v=r[0];
+function unlFx(r){if(fxWait(()=>unlFx(r)))return;document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('button');d.className='unlfx';d.dataset.a='tab';d.dataset.v=r[0];
  d.innerHTML='<small>New tab unlocked</small><b>'+TABNAME[r[0]]+'</b><span>'+r[3]+'</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),5200);setTimeout(()=>d.remove(),5800);}
 /* gentle first year: no crooked deals for the first 12 months, no politicians or police for the first 6 */
 function newbieOK(e){if(!S||!S.newbie||(S.gnum||1)>1)return true;
@@ -5381,11 +5387,11 @@ function affordAll(){const out=[];if(!S||S.over||(typeof jailed==='function'&&ja
   if(pp)out.push({cat:'ppp',key:'ppp_'+pp.x.id,name:pp.x.name,cost:pp.c,tab:'power',act:['pppbid',pp.x.id],msg:'You can bid for the '+esc(pp.x.name)+' ('+fmt(pp.c)+'), a government partnership.'});}
  return out;}
 const AFF_LBL={biz:'You can afford it',home:'A better home is in reach',car:'A new ride is in reach',lux:'A new luxury is in reach',rental:'Rental income is in reach',prop:'A new building is in reach',team:'A sports club is in reach',ppp:'A government project is in reach'};
-function affordCheck(){if(current||!S||S.over)return;S.affSeen=S.affSeen||{};S.affAt=typeof S.affAt==='object'&&S.affAt?S.affAt:{};if(S.affM===S.month)return;
+function affordCheck(){if(current||!S||S.over||document.querySelector('.rankup'))return;S.affSeen=S.affSeen||{};S.affAt=typeof S.affAt==='object'&&S.affAt?S.affAt:{};if(S.affM===S.month)return;
  const x=affordAll().find(x=>!S.affSeen[x.key]&&S.month-(S.affAt[x.cat]==null?-99:S.affAt[x.cat])>=3);if(!x)return;
  S.affSeen[x.key]=1;S.affAt[x.cat]=S.month;S.affM=S.month;document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('button');d.className='unlfx afford';d.dataset.a=x.act[0];d.dataset.v=x.act[1];
  d.addEventListener('click',()=>setTimeout(()=>d.remove(),0));d.innerHTML='<small>'+AFF_LBL[x.cat]+'</small><b>'+esc(x.name)+'</b><span>Costs '+fmt(x.cost)+'. You have '+fmt(S.cash)+'. Tap to take a look.</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),7000);setTimeout(()=>d.remove(),7600);}
-function g10Fx(g){document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('div');d.className='unlfx goal';d.innerHTML='<small>Goal complete</small><b>'+g.t+'</b><span>+'+fmt(g.r)+' reward</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),4200);setTimeout(()=>d.remove(),4800);}
+function g10Fx(g){if(fxWait(()=>g10Fx(g)))return;document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('div');d.className='unlfx goal';d.innerHTML='<small>Goal complete</small><b>'+g.t+'</b><span>+'+fmt(g.r)+' reward</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),4200);setTimeout(()=>d.remove(),4800);}
 /* ================= First steps: a coach that shows new players what to press ================= */
 function guideStep(){if(!S||S.over||S.guideDone||acctView||tourOn)return null;
  if(!S.inds.length)return null;
