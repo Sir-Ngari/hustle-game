@@ -284,7 +284,11 @@ html.gm .moresheet .mnew{position:static;width:auto;height:auto;border-radius:6p
 .moresheet button svg{width:22px;height:22px;flex:0 0 auto}.moresheet button[aria-current]{border-color:#ffc53d;color:#ffc53d}.moresheet button .badge{margin-left:auto}
 .indtog{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin:8px 0 2px;min-height:42px;padding:8px 12px;border-radius:10px;border:1px solid rgba(190,215,255,.2);background:rgba(255,255,255,.04);color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
 @media (max-width:760px){html.gm .indhead{position:static;flex-wrap:wrap;gap:8px}html.gm .indhead>div:first-child{flex:1 1 100%}html.gm .ownrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center}}
-@media (max-width:760px){html.gm .mb{grid-template-columns:30px minmax(0,1fr) auto;gap:4px 10px;padding:8px 0}html.gm .mb .mbname>span:not(.plrow){display:none}html.gm .mb .plrow{font-size:0;line-height:1}html.gm .mb .plrow i{font-size:12px;font-style:normal}html.gm .mb .mbnum span{display:none}html.gm .mb .acts{grid-column:2/-1;display:flex;gap:8px;margin-top:2px}html.gm .mb .acts .btn{flex:1 1 0}html.gm .row .fixit{margin-left:8px;flex:0 0 auto}}
+@media (max-width:760px){html.gm .mb{grid-template-columns:30px minmax(0,1fr) auto;gap:4px 10px;padding:8px 0}html.gm .mb .mbname>span:not(.plrow){display:none}html.gm .mb .plrow{font-size:0;line-height:1}html.gm .mb .plrow i{font-size:12px;font-style:normal}html.gm .mb .mbnum span{display:none}html.gm .mb .acts{grid-column:2/-1;display:flex;gap:8px;margin-top:2px}html.gm .mb .acts .btn{flex:1 1 0}html.gm .row .fixit{margin-left:8px;flex:0 0 auto}
+@media (max-width:760px){html.gm .biz{grid-template-columns:28px minmax(0,1fr) auto;gap:4px 10px;padding:9px 0}html.gm .biz .tier{width:28px;height:28px;font-size:13px}html.gm .biz .name{font-size:15px;gap:6px;line-height:1.2}html.gm .biz .meta{font-size:12px;font-family:inherit;margin-top:2px}html.gm .biz .mw{display:none}html.gm .biz .acts{grid-column:3;grid-row:1;flex-direction:row;flex-wrap:nowrap;min-width:0;margin:0;justify-content:flex-end}html.gm .biz .acts .btn{min-height:38px;padding:0 12px;white-space:nowrap}html.gm .biz .acts [data-a=sell]{display:none}html.gm .biz.locked .acts{grid-column:2/-1;grid-row:auto}}
+.biz .me,.biz .ph{display:none}@media (max-width:760px){html.gm .biz .me,html.gm .biz .ph{display:inline}html.gm .biz .dk{display:none}}
+.homepick{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 0 12px}.homepick .btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;height:auto;min-height:52px;padding:8px 12px;text-align:left;white-space:normal;text-transform:none;letter-spacing:0}.homepick .btn b{font-size:14px;text-transform:uppercase;letter-spacing:.04em}.homepick .btn span{text-transform:none!important;letter-spacing:0!important;font-family:var(--body,inherit);font-size:12px;font-weight:600;opacity:.85;line-height:1.25}.homepick p{grid-column:1/-1;margin:0;color:var(--muted);font-size:12.5px;line-height:1.4}
+}
 .regsec.fold>:not(.regh):not(.indtog),.regsec.fold .regh span{display:none}
 @media (max-width:760px){html.gm .biz .tag{display:none}}
 .autosvc{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;margin:0 0 10px;border:1px solid rgba(190,215,255,.2);border-radius:10px;font-size:14px}.autosvc .btn{flex:0 0 auto}
@@ -293,7 +297,8 @@ html.gm .moresheet .mnew{position:static;width:auto;height:auto;border-radius:6p
 .affbar{display:flex;align-items:center;gap:10px;width:100%;margin:4px 0 8px;padding:9px 12px;border-radius:12px;border:2px solid #ffc53d;background:linear-gradient(180deg,rgba(255,197,61,.20),rgba(255,197,61,.07));color:var(--ink);text-align:left;cursor:pointer;font:inherit}
 .affbar .ab-ico{font-size:22px;line-height:1}.affbar .ab-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.affbar small{font-size:12px;color:var(--muted);font-weight:700}
 .affbar b{font-family:var(--display);font-size:16px;color:#ffc53d;letter-spacing:.02em}.affbar .ab-g{display:flex;flex-direction:column;align-items:flex-end;font-weight:800;color:var(--green);font-size:15px;white-space:nowrap}
-.unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
+.unlfx.afford{background:linear-gradient(180deg,#7fd3ff,#3f9bea);color:#04213d}.unlfx.nudge{background:linear-gradient(180deg,#ffe08a,#ffc24a);color:#2a1a00}
+.unlfx.goal{background:linear-gradient(180deg,#5be38a,#2fbf5a);color:#062a12;cursor:default;pointer-events:none}.unlfx.out{transition:opacity .5s,transform .5s;opacity:0;transform:translate(-50%,-20px)}
 @keyframes unlin{from{opacity:0;transform:translate(-50%,-30px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @media (prefers-reduced-motion:reduce){.unlfx{animation:none}.tabs button.unew::after{animation:none}}
 .g10{margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,197,61,.45);background:rgba(255,197,61,.08)}
@@ -3627,6 +3632,7 @@ function nextMonth(){
  const ti=titleIdx(nw);if(ti>S.title){addPts(5*(ti-S.title)*ti);wkInc('ranks',ti-S.title);S.title=ti;rankUpFx(TITLES[ti][1],ti);S.lifeSince=S.month;S.lifePending=true;log('New rank: '+TITLES[ti][1]+'.','gold');flash();}
  if(ti<S.title)S.title=ti;
  try{dblCheck(nw);}catch(e){}
+ try{graceNudge();}catch(e){}
  if(ti>S.peak){const before=SLOTS[S.peak];S.peak=ti;if(SLOTS[ti]>before)S.indPending=true;}
  if(nw>=1e9&&!S.won){S.won=true;addPts(S.gnum>1||S.headstart?50:100);checkAch();try{raceCross(1);}catch(e){}}
  if(nw>=1e12&&S.won&&!S.race2){try{raceCross(2);}catch(e){}}
@@ -3755,6 +3761,16 @@ function mkBtnP(i){return typeof mkList==='function'?'<button class="btn ghost s
 function sellAsset(id){const a=ASSETS.find(x=>x.id===id);if(!has(id))return;S.cust[id]=[];const v=a.price*afx(id)*.9;S.cash+=v;S.assets[id]--;log('Sold: '+a.name+' for '+fmt(v)+'.','');
  if(a.kind==='Homes'&&homeTier()<0){S.rent=a.tier;log('You now rent a '+a.name.lc()+' instead.','');}
  if(a.jet&&S.travel===4)S.travel=3;afterChange();}
+function graceNudge(){const L=lifestyle();if(!L.steps||L.late||L.grace>2||S.lifePending)return;const k=S.lifeSince+':'+L.grace;if(S.graceN===k)return;S.graceN=k;
+ const what=[L.short.car?'car':'',L.short.home?'home':'',L.short.travel?'travel class':''].filter(Boolean),last=L.grace===1,cut=Math.round(3*Math.min(L.steps,5));
+ log((last?'Last month to upgrade your ':L.grace+' months left to upgrade your ')+what.join(' and ')+'. After that, profit falls '+cut+'% until you do. Life tab has the buttons.',last?'bad':'');
+ if(last||L.grace===2)nudgeFx(last?'Last month of grace':'2 months of grace left','Upgrade your '+what.join(' + '),'Profit falls '+cut+'% after that. Tap to fix it.');}
+function nudgeFx(a,b,c,n){n=n||0;setTimeout(()=>{if(n<8&&(current||document.querySelector('.unlfx,.rankup')))return nudgeFx(a,b,c,n+1);if(!S||S.over)return;const d=document.createElement('button');d.className='unlfx nudge';d.dataset.a='tab';d.dataset.v='life';d.addEventListener('click',()=>setTimeout(()=>d.remove(),0));d.innerHTML='<small>'+a+'</small><b>'+esc(b)+'</b><span>'+esc(c)+'</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),6500);setTimeout(()=>d.remove(),7100);},n?3000:200);}
+function homePick(h){const p=assetPrice(h),dep=h.rentFee*2,up=h.price*afx(h.id)*h.upkeep,save=h.rentFee-up,pb=save>0?Math.ceil(p/save):0;
+ const tip=S.cash>=p?(pb&&pb<=60?'Buying pays for itself in about '+(pb>=24?Math.round(pb/12)+' years':pb+' months')+' of rent saved, and the home counts in your net worth.':'You can afford to buy, but renting keeps more cash in your businesses.'):S.cash>=dep?'Renting fixes it today. Buy later, when you have '+fmt(p)+'.':'You need '+fmt(dep)+' for the rent deposit. Keep playing to save it.';
+ const buyBest=S.cash>=p&&pb&&pb<=60;
+ return '<div class="homepick"><button class="btn small '+(S.cash>=dep&&!buyBest?'primary':'')+'" data-a="rent" data-v="'+h.tier+'" '+(S.cash<dep?'disabled':'')+'><b>Rent</b><span>'+fmt(h.rentFee)+'/mo · '+fmt(dep)+' deposit today</span></button>'+
+  '<button class="btn small '+(buyBest?'primary':'')+'" data-a="abuy" data-v="'+h.id+'" '+(S.cash<p?'disabled':'')+'><b>Buy</b><span>'+fmt(p)+' once · no rent</span></button><p>'+tip+'</p></div>';}
 function rentHome(t){const h=HOMES[t],dep=h.rentFee*2;if(S.cash<dep)return false;S.cash-=dep;S.rent=t;log('You moved into a rented '+h.name.lc()+' ('+fmt(h.rentFee)+'/mo, '+fmt(dep)+' deposit).','life');return true;}
 function endLease(){if(ownedHomeTier()<0)return;S.rent=-1;log('You ended your lease and moved into your own home.','');afterChange();}
 function setTravel(t){if(t===4&&!hasJet())return;S.travel=t;afterChange();}
@@ -3929,8 +3945,8 @@ function render(){try{raceRender();}catch(e){}try{paintMore();}catch(e){}setTime
    if(!(n>0||nw>=b.cost*unlockX(b)||b.tier===1||(S.bankOK&&S.bankOK[b.id]))){if(shownLocked)return;shownLocked=true;
     bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmtW(b.cost*unlockX(b))+', or sooner if the bank agrees to finance it.</div></div><div class="acts">'+(finOK(b)?'<button class="btn small" data-a="buy" data-v="'+b.id+'">Ask the bank · '+fmt(c)+'</button>':'')+'</div></div>';return;}
    bh+='<div class="biz '+(n?'owned':'')+'"><div class="tier">'+b.tier+'</div><div style="min-width:0"><div class="name">'+b.name+(n?'<span class="count">×'+n+'</span>':'')+(pm!==1?' <span class="pill '+(pm<1?'bad':'good')+'">Policy ×'+pm.toFixed(2)+'</span>':'')+'</div><div class="tag">'+b.tag+'</div>'+
-    '<div class="meta">Each earns ~'+fmt(RET()*regF(b)*b.profit*bmBase*pm*im*cyc(b)/S.s*boostNow())+'/mo'+(isReg(iid)?' before excise':'')+(n?' · worth '+fmt(bizValue(b)):'')+'</div></div>'+
-    '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>Buy · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>'+
+    '<div class="meta"><span class="mw">Each earns </span>~'+fmt(RET()*regF(b)*b.profit*bmBase*pm*im*cyc(b)/S.s*boostNow())+'/mo<span class="mw">'+(isReg(iid)?' before excise':'')+'</span><span class="me"> each</span>'+(n?'<span class="mw"> · worth '+fmt(bizValue(b))+'</span>':'')+'</div></div>'+
+    '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>'+(S.cash<c&&finOK(b)?'<span class="dk">Buy · '+fmt(c)+' · loan</span><span class="ph">Loan · '+fmt(c)+'</span>':'Buy · '+fmt(c))+'</button>'+
     (n?'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1 · '+fmt(unitCost(b,n-1)*.7)+'</button>':'')+'</div></div>';});
   bh+='</div>';});
  const others=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id));
@@ -3959,7 +3975,7 @@ function render(){try{raceRender();}catch(e){}try{paintMore();}catch(e){}setTime
  const carObj=L.req.car?CARS.find(c=>c.tier===L.req.car):null,homeObj=HOMES[L.req.home];
  const fixBtn=(a,v,lab)=>'<button class="btn small primary fixit" data-a="'+a+'" data-v="'+v+'">'+lab+'</button>';
  ah+='<div class="row first"><div class="t"><b>Car · '+carReq+'</b><span>You have: '+curCar+'</span></div>'+reqPill(L.short.car)+(L.short.car&&carObj?fixBtn('abuy',carObj.id,'Get it · '+fmt(assetPrice(carObj))):'')+'</div>';
- ah+='<div class="row"><div class="t"><b>Home · '+HOMES[L.req.home].name+'</b><span>You live in: '+curHome+'</span></div>'+reqPill(L.short.home)+(L.short.home&&homeObj?fixBtn('abuy',homeObj.id,'Move in'):'')+'</div>';
+ ah+='<div class="row"><div class="t"><b>Home · '+HOMES[L.req.home].name+'</b><span>You live in: '+curHome+'</span></div>'+reqPill(L.short.home)+'</div>'+(L.short.home&&homeObj?homePick(homeObj):'');
  ah+='<div class="row"><div class="t"><b>Travel · '+(L.req.travel<0?'No flights yet':TRAVEL[L.req.travel])+'</b><span>'+(flightsNeeded()?'You fly: '+(S.travel<0?'nobody, your managers go instead':TRAVEL[S.travel]):'Flights start once you expand into '+R.region)+'</span></div>'+(L.absent?'<span class="pill bad">Absent ×0.92</span>':flightsNeeded()?reqPill(L.short.travel):'<span class="pill">Not yet</span>')+((L.short.travel||L.absent)&&flightsNeeded()&&L.req.travel>=0?fixBtn('travel',L.req.travel,'Fly '+TRAVEL[L.req.travel].toLowerCase()):'')+'</div>';
  if(L.late)ah+='<div class="warn" style="margin-top:8px">Living below your station: profit ×'+(1-.03*Math.min(L.steps,5)).toFixed(2)+', and your reputation and family happiness are falling. Use the gold buttons above to fix it.</div>';
  ah+='<h4>Cars &amp; aircraft</h4>';
@@ -4675,6 +4691,9 @@ function chapCheck(){const el=$('chap');if(!el)return;S.chap=S.chap||0;if(!chapO
  el.hidden=false;}
 /* one pop-up at a time: a toast waits until the new-rank banner has gone */
 function fxWait(fn){if(document.querySelector('.rankup')){setTimeout(fn,900);return true;}return false;}
+/* toasts never sit on top of PLAY: if PLAY is near the top of the screen, the toast drops just below it */
+function fxPlace(d){try{const n=document.getElementById('next');if(!n||!n.offsetParent)return;const r=n.getBoundingClientRect(),h=d.offsetHeight||100;if(r.bottom>0&&r.top<14+h+6)d.style.top=Math.round(r.bottom+8)+'px';}catch(e){}}
+try{new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(x=>{if(x.classList&&x.classList.contains('unlfx'))fxPlace(x);}))).observe(document.body,{childList:true});}catch(e){}
 function chapFx(small,big,line){if(fxWait(()=>chapFx(small,big,line)))return;document.querySelectorAll('.unlfx').forEach(e=>e.remove());const d=document.createElement('div');d.className='unlfx goal';d.innerHTML='<small>'+small+'</small><b>'+esc(big)+'</b><span>'+esc(line)+'</span>';document.body.appendChild(d);setTimeout(()=>d.classList.add('out'),5200);setTimeout(()=>d.remove(),5800);}
 /* ================= Best next move: the business you can afford now that pays for itself fastest ================= */
 function bestMove(){if(!S||S.over||!S.inds||!S.inds.length||(typeof jailed==='function'&&jailed()))return null;let best=null;
