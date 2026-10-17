@@ -299,6 +299,13 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .paidbox{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:10px 0}
 .paidicon{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-size:30px;font-weight:700}
 @media (max-width:420px){.plans:not(.tips){grid-template-columns:1fr}.plan{flex-direction:row;flex-wrap:wrap;justify-content:space-between;text-align:left;padding:14px}.plan small{width:100%}.plan em{left:auto;right:10px;transform:none}.plans.tips .plan{flex-direction:column;justify-content:center;text-align:center;padding:12px 4px}.plans.tips .plan small{width:auto}}
+.gsi{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:2px 0 4px}
+.gsi-btn{min-height:44px;display:flex;justify-content:center;color-scheme:normal}
+.gsi-st{margin:0;text-align:center;font-size:13.5px;font-weight:700;color:var(--brass)}
+.gsi-hint{margin:-2px 0 0;text-align:center}
+.gsi-or{display:flex;align-items:center;gap:10px;margin:6px 0 0;color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
+.gsi-or::before,.gsi-or::after{content:'';flex:1;height:1px;background:var(--line)}
+.gsi-g{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#fff;color:#4285f4;font:800 12px/1 system-ui,sans-serif;margin-right:4px;vertical-align:-3px;border:1px solid var(--line)}
 .acctbrand{font-family:var(--display);font-weight:900;font-size:22px;letter-spacing:.06em;text-transform:uppercase;color:var(--brass)}
 .acctbox h2{font-family:var(--display);font-weight:900;font-size:40px;line-height:1;text-transform:uppercase;margin:0;text-wrap:balance}
 .acctbox h3{font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 0}
@@ -1803,7 +1810,7 @@ function freshFor(a){const b=BGS.find(x=>x.id===a.bg)||BGS[0],s=fresh();s.g=a.ge
 const GENDER_FS='<fieldset><legend>You are</legend><div class="gopts"><label class="gopt"><input type="radio" name="acc-g" id="acc-g-m" value="m"><span>A man</span></label><label class="gopt"><input type="radio" name="acc-g" id="acc-g-f" value="f"><span>A woman</span></label></div><p class="hint">Used for your story, like who you marry.</p></fieldset>';
 function avatar(a,big){return'<span class="av'+(big?' big':'')+'" style="background:'+AVCOL[(a&&a.color)||0]+'">'+esc(initials(a&&a.name))+'</span>';}
 async function api(method,path,body){let r;
- if(GUEST&&!/^\/api\/(visit|signup|login|tuning|invite\/check|username\/check|company\/check|forgot|reset|me)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
+ if(GUEST&&!/^\/api\/(visit|signup|login|google|config|tuning|invite\/check|username\/check|company\/check|forgot|reset|me)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
  try{r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
@@ -1850,6 +1857,7 @@ function authTabs(){const t=(v,l)=>'<button role="tab" aria-selected="'+(authMod
 function authForm(gs){const su=authMode==='signup',gu=gs&&GUEST&&su;const inv=su&&refInfo?'<p class="invbanner"><span aria-hidden="true">🎁</span><span><b>'+esc(refInfo.name)+'</b> invited you to Hustlempires'+(refInfo.trialDays?'. You get <b>'+refInfo.trialDays+' days free</b> to build your empire.':'.')+'</span></p>':'';
  let h=inv+(gs?'':authTabs());
  if(authMsg)h+='<p class="amsg">'+esc(authMsg)+'</p>';
+ h+=gsiHTML(su);
  h+='<form id="acctform" class="aform" novalidate>'+
   '<label for="acc-user">Username</label><input id="acc-user" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="'+(su?'e.g. wanjiku_k':'')+'" required>'+
   (su?'<p class="cotaken" id="acc-user-chk" hidden></p><p class="hint">3 to 20 characters: letters, numbers, dots and underscores. You log in with this. Every username is unique, and if you leave the company name blank, your company is named after it.</p>':'')+
@@ -2120,7 +2128,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  else if(acctView==='auth')h+=authHook()+(authMode==='about'?'<div class="chips hook-cta"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">Log in</button></div>'+authTabs()+aboutGame():'<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm()+'<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="about">New to Hustlempires? Read what the game is about →</button></p>')+(authMode!=='login'?'<p class="hook-end"><span class="hook-kick"><span aria-hidden="true">🏪</span> Your empire starts here!</span></p>':'');
  else if(acctView==='menu')h+='<div class="me">'+avatar(playerAcc(),true)+'<div><h2>'+esc(playerName())+'</h2><p class="sub">'+((S&&S.gnum>1)?'Generation '+S.gnum+' of the '+esc(familyName())+' family · ':'')+'@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
   '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button><button class="btn" data-a="friends">Friends</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
-  passMenuHTML()+pushMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div><h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email')+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
+  passMenuHTML()+pushMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div>'+(ACC.google&&!ACC.pw?'<h3>Signing in</h3><p class="sub"><span class="gsi-g" aria-hidden="true">G</span> You sign in with <b>Google</b> ('+esc(ACC.email)+'). Your username is <b>@'+esc(ACC.username)+'</b>. Want a password too? <button class="linkbtn" data-a="forgotview">Set one by email</button></p>':(ACC.google?'<p class="sub"><span class="gsi-g" aria-hidden="true">G</span> Google is connected: you can also log in with <b>Continue with Google</b>.</p>':'')+'<h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email'))+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
  else if(acctView==='installios')h+='<h2>Install the app</h2><p class="sub">Put the game on your home screen. It opens full-screen, like any other app.</p><ol class="iossteps"><li>At the bottom of Safari, tap the <b>Share</b> button (the square with an arrow pointing up).</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The game\'s icon appears on your home screen.</li></ol><div class="chips"><button class="btn primary" data-a="acctclose">Got it</button></div>';
  else if(acctView==='addemail')h+='<h2>Add your email</h2><p class="sub">If you ever forget your password, we\'ll send a reset link here. We don\'t use it for anything else.</p>'+emailForm('Save email',true);
  else if(acctView==='forgot')h+='<h2>Forgot your password?</h2>'+(forgotDone?'<p class="amsg">'+esc(forgotDone)+'</p><div class="chips"><button class="btn primary" data-a="backlogin">Back to log in</button></div>':
@@ -2145,7 +2153,8 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
   else h+='<ol class="hof">'+lbData.map((a,i)=>'<li><span class="hpos">'+(i+1)+'</span>'+avatar(a)+'<span class="ameta"><b>'+esc(a.name)+'</b><span>'+esc(a.company)+(lbTab!=='alltime'&&a.region?' · '+esc((countryRow(a.region)||{name:a.region}).name):'')+'</span></span><span class="hnum">'+(lbTab!=='alltime'?Number(a.pts).toLocaleString('en-US')+' pts':a.billion_month!=null?fmt(1e9)+' in '+Math.floor(a.billion_month/12)+'y '+(a.billion_month%12)+'m':'Best '+fmt(a.best))+'</span></li>').join('')+'</ol>';
   h+='<div class="chips"><button class="btn ghost" data-a="acctclose">Back to my game</button></div>';}
  el.innerHTML=h+'</div>';
- const f=$('acctform');if(f){f.addEventListener('submit',e=>{e.preventDefault();submitAuth();});const u=$('acc-user');if(u)u.focus();wireRegionForm();}
+ const f=$('acctform');if(f){f.addEventListener('submit',e=>{e.preventDefault();submitAuth();});const u=$('acc-user');if(u&&!GOOGLE_ID)u.focus();wireRegionForm();}
+ gsiMount();
  wireRegionMenu();
  const ff=$('forgotform');if(ff){ff.addEventListener('submit',e=>{e.preventDefault();submitForgot();});$('fg-who').focus();}
  const rf=$('resetform');if(rf){rf.addEventListener('submit',e=>{e.preventDefault();submitReset();});$('rs-pass').focus();}
@@ -2261,6 +2270,28 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
   if(GUEST&&authMode==='signup'){guestAdopt(d);return;}
   if(ACC===null&&S&&S.month>0&&authMode==='login'&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id){startWith(d.user,S,d.bill,d.ver);}else startWith(d.user,d.save,d.bill,d.ver);}
  catch(e){btn.disabled=false;btn.textContent=authMode==='signup'?(GUEST?'Save my empire':'Create account and start'):'Log in';showErr(e.message);}}
+/* ---------- Sign in with Google: one tap makes (or opens) the account, no password to remember ---------- */
+let GOOGLE_ID='',gsiReady=false,gsiInit=false,gsiBusy=false;
+function gsiHTML(su){if(!GOOGLE_ID)return'';return'<div class="gsi"><div id="gsi-btn" class="gsi-btn" aria-label="Continue with Google"></div><p class="gsi-st" id="gsi-st" hidden></p>'+(su?'<p class="hint gsi-hint">Fastest way in: no password to remember.</p>':'')+'<p class="gsi-or"><span>'+(su?'or create a username':'or use your username')+'</span></p></div>';}
+function gsiLoad(){if(window.google&&google.accounts&&google.accounts.id){gsiReady=true;return;}if(document.getElementById('gsi-js'))return;const s=document.createElement('script');s.id='gsi-js';s.src='https://accounts.google.com/gsi/client';s.async=true;s.defer=true;
+ s.onload=()=>{gsiReady=true;gsiMount();};s.onerror=()=>{const b=document.querySelector('.gsi');if(b)b.hidden=true;};document.head.appendChild(s);}
+function gsiMount(){const el=document.getElementById('gsi-btn');if(!el||!GOOGLE_ID)return;if(!gsiReady){gsiLoad();return;}
+ try{if(!gsiInit){google.accounts.id.initialize({client_id:GOOGLE_ID,callback:googleDone,ux_mode:'popup',auto_select:false,cancel_on_tap_outside:true,context:'signin',itp_support:true,use_fedcm_for_button:true});gsiInit=true;}
+  const w=Math.round(Math.min(400,Math.max(220,el.getBoundingClientRect().width||300)));
+  google.accounts.id.renderButton(el,{type:'standard',theme:'filled_black',size:'large',shape:'pill',logo_alignment:'center',width:w,text:authMode==='login'?'signin_with':'continue_with'});}
+ catch(e){const b=el.closest('.gsi');if(b)b.hidden=true;}}
+async function googleDone(resp){if(gsiBusy||!resp||!resp.credential)return;gsiBusy=true;const st=$('gsi-st'),er=$('acc-err');if(er)er.hidden=true;if(st){st.textContent='Signing you in with Google…';st.hidden=false;}
+ const gu=GUEST,v=id=>{const x=$(id);return x&&x.value?x.value.trim():'';},ck=n=>(document.querySelector('input[name="'+n+'"]:checked')||{}).value;
+ const body={credential:resp.credential,vid:visitorId(),ref:refCode||undefined,camp:campCode||undefined};
+ if(v('acc-name'))body.name=v('acc-name');if(v('acc-company'))body.company=v('acc-company');if(v('acc-town'))body.town=v('acc-town');if(ck('acc-bg'))body.bg=ck('acc-bg');if(ck('acc-col')!=null)body.color=+ck('acc-col');
+ signupGender=ck('acc-g')||(gu&&S&&S.g)||'';signupRegion=v('acc-region')||(gu&&S&&S.region)||detectCountry();signupCur=ck('acc-cur')||(gu&&S&&S.cur)||'USD';
+ try{const d=await api('POST','/api/google',body);gsiBusy=false;
+  if(d.isNew){try{if(window.fbq)fbq('track','CompleteRegistration',{content_name:'Hustlempires account',method:'google'});}catch(x){}{const u=d.user;(async()=>{await ttIdentify(u);ttTrack('CompleteRegistration','Hustlempires account');})();}
+   authMode='signup';if(gu){guestAdopt(d);return;}startWith(d.user,d.save,d.bill,d.ver);return;}
+  const hadGuest=gu&&S&&S.month>0;authMode='login';
+  if(ACC===null&&!gu&&S&&S.month>0&&d.save&&d.save.month<S.month&&S.logN&&S._uid===d.user.id)startWith(d.user,S,d.bill,d.ver);else startWith(d.user,d.save,d.bill,d.ver);
+  if(hadGuest)setTimeout(()=>{if(!current&&$('modal').hidden&&!acctView)showCard('Welcome back, '+esc(d.user.name.split(' ')[0]),'This Google account already has an empire, <b>'+esc(d.user.company)+'</b>, so we opened it for you.','<button class="btn primary" data-a="close">Back to my empire</button>');},400);}
+ catch(e){gsiBusy=false;if(st)st.hidden=true;if($('acc-err'))showErr(e.message);else alert(e.message);}}
 function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('reset'),pr=u.searchParams.get('paid');if(t){resetToken=t;u.searchParams.delete('reset');}
  if(pr){payRef=pr.slice(0,60);payCancelled=u.searchParams.get('cancelled')==='1';payTries=0;['paid','cancelled','OrderTrackingId','OrderMerchantReference','OrderNotificationType'].forEach(k=>u.searchParams.delete(k));}
  const rf=(u.searchParams.get('ref')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);if(rf){refCode=rf;u.searchParams.delete('ref');try{localStorage.setItem('hs-ref',rf);}catch(e){}}
@@ -2269,6 +2300,7 @@ function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('res
  if(!campCode)try{campCode=localStorage.getItem('hs-camp')||'';}catch(e){}
  if(t||pr||rf||cm)history.replaceState(null,'',u.pathname+u.search+u.hash);}catch(e){}
  if(refCode)api('GET','/api/invite/check?code='+encodeURIComponent(refCode)).then(d=>{refInfo=d&&d.ok?d:null;if(acctView==='auth')renderAccts();}).catch(()=>{});
+ api('GET','/api/config').then(c=>{GOOGLE_ID=(c&&typeof c.google==='string')?c.google:'';if(GOOGLE_ID){gsiLoad();if(acctView&&acctView!=='loading')renderAccts();}}).catch(()=>{});
  api('GET','/api/tuning').then(t=>{if(t&&typeof t==='object')TUNE=Object.assign({freq:1,gap:2,w:{},cat:{}},t);}).catch(()=>{});
  if(resetToken){acctView='reset';authMsg='';renderAccts();return;}
  acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save,d.bill,d.ver)).catch(e=>{if(e.status===401){if(firstMode()==='login'&&!guestLoad()){acctView='auth';authMode='login';}else{startGuest();return;}}else{acctView='down';authMsg=e.message;}renderAccts();});}
@@ -2316,7 +2348,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='58018c6f5ff1';let updShown=false;
+const APP_VER='b39e0272eee2';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;

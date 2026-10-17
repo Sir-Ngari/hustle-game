@@ -65,6 +65,9 @@ SMTP_HOST = os.environ.get("HUSTLE_SMTP_HOST", "").strip()
 SMTP_PORT = int(os.environ.get("HUSTLE_SMTP_PORT", "587") or 587)
 SMTP_USER = os.environ.get("HUSTLE_SMTP_USER", "").strip()
 RESET_SECONDS = 3600
+# Sign in with Google: the OAuth "Web application" client ID from Google Cloud Console. Empty = the Google button stays hidden.
+GOOGLE_CLIENT_ID = os.environ.get("HUSTLE_GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_CERTS_URL = os.environ.get("HUSTLE_GOOGLE_CERTS_URL", "https://www.googleapis.com/oauth2/v3/certs").strip()
 
 
 def env_int(name, default):
@@ -592,6 +595,12 @@ if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(visitors)").fetch
 if "steps" not in [r[1] for r in _db.execute("PRAGMA table_info(visitors)").fetchall()]:
     _db.execute("ALTER TABLE visitors ADD COLUMN steps TEXT NOT NULL DEFAULT ''")
 _db.execute("CREATE INDEX IF NOT EXISTS users_camp ON users(camp)")
+# Sign in with Google: which Google account is connected, and whether the player has a password they chose
+if "google_sub" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
+    _db.execute("ALTER TABLE users ADD COLUMN google_sub TEXT NOT NULL DEFAULT ''")
+if "pw_set" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
+    _db.execute("ALTER TABLE users ADD COLUMN pw_set INTEGER NOT NULL DEFAULT 1")
+_db.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_google ON users(google_sub) WHERE google_sub<>''")
 # Ad builder: objective, budget level, gender, interests and what this run created
 _old_runs = False
 for _c, _d in (("objective", "TEXT NOT NULL DEFAULT 'OUTCOME_TRAFFIC'"), ("budget_level", "TEXT NOT NULL DEFAULT 'campaign'"),
@@ -1071,7 +1080,106 @@ def num(value, default=0.0):
 def user_public(u):
     return {"id": u["id"], "username": u["username"], "name": u["name"], "company": u["company"],
             "town": u["town"], "bg": u["bg"], "color": u["color"], "email": u["email"],
-            "renamed": bool(u["company_renamed"]) if "company_renamed" in u.keys() else False}
+            "renamed": bool(u["company_renamed"]) if "company_renamed" in u.keys() else False,
+            "google": bool(u["google_sub"]) if "google_sub" in u.keys() else False,
+            "pw": bool(u["pw_set"]) if "pw_set" in u.keys() else True}
+
+
+_GKEYS = {"keys": {}, "until": 0, "tried": 0}
+_GKEYS_LOCK = threading.Lock()
+
+
+def _b64u_dec(x):
+    return base64.urlsafe_b64decode(x + "=" * (-len(x) % 4))
+
+
+def google_keys(force=False):
+    """Google's public signing keys (cached for as long as Google says, refreshed at most once a minute when a new key appears)."""
+    with _GKEYS_LOCK:
+        t = time.time()
+        if _GKEYS["keys"] and t < _GKEYS["until"] and not force:
+            return _GKEYS["keys"]
+        if force and t - _GKEYS["tried"] < 60:
+            return _GKEYS["keys"]
+        _GKEYS["tried"] = t
+        try:
+            with urllib.request.urlopen(urllib.request.Request(GOOGLE_CERTS_URL, headers={"User-Agent": "hustlempires"}), timeout=8) as r:
+                cc = r.headers.get("Cache-Control") or ""
+                d = json.loads(r.read())
+            keys = {}
+            for k in d.get("keys", []):
+                if k.get("kty") == "RSA" and k.get("kid"):
+                    keys[k["kid"]] = (int.from_bytes(_b64u_dec(k["n"]), "big"), int.from_bytes(_b64u_dec(k["e"]), "big"))
+            if keys:
+                m = re.search(r"max-age=(\d+)", cc)
+                _GKEYS["keys"] = keys
+                _GKEYS["until"] = t + min(int(m.group(1)) if m else 3600, 86400)
+        except Exception as e:
+            print("Google keys fetch failed: %s" % e, flush=True)
+        return _GKEYS["keys"]
+
+
+_SHA256_PREFIX = bytes.fromhex("3031300d060960864801650304020105000420")
+
+
+def google_verify(credential):
+    """Check a Google sign-in token. Returns its claims, or None if it is not a genuine, current token for this game."""
+    if not GOOGLE_CLIENT_ID or not isinstance(credential, str) or len(credential) > 4096 or credential.count(".") != 2:
+        return None
+    try:
+        h64, p64, s64 = credential.split(".")
+        head = json.loads(_b64u_dec(h64))
+        claims = json.loads(_b64u_dec(p64))
+        sig = _b64u_dec(s64)
+    except Exception:
+        return None
+    if head.get("alg") != "RS256" or not isinstance(claims, dict):
+        return None
+    kid = head.get("kid")
+    key = google_keys().get(kid) or google_keys(force=True).get(kid)
+    if not key:
+        return None
+    n, e = key
+    size = (n.bit_length() + 7) // 8
+    if len(sig) != size:
+        return None
+    em = pow(int.from_bytes(sig, "big"), e, n).to_bytes(size, "big")
+    digest = hashlib.sha256((h64 + "." + p64).encode()).digest()
+    want = b"\x00\x01" + b"\xff" * (size - 3 - len(_SHA256_PREFIX) - 32) + b"\x00" + _SHA256_PREFIX + digest
+    if not hmac.compare_digest(em, want):
+        return None
+    t = time.time()
+    if claims.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        return None
+    if claims.get("aud") != GOOGLE_CLIENT_ID:
+        return None
+    try:
+        if float(claims.get("exp", 0)) < t - 60 or float(claims.get("iat", 0)) > t + 300:
+            return None
+    except (TypeError, ValueError):
+        return None
+    if not claims.get("sub") or claims.get("email_verified") not in (True, "true"):
+        return None
+    return claims
+
+
+def username_from(email, name):
+    """A free username made from the Google email (or name): letters, numbers, dots and underscores, 3 to 20 characters."""
+    base = re.sub(r"[^a-z0-9_.]", "", (email or "").split("@")[0].lower()).strip("._")
+    if len(base) < 3:
+        base = re.sub(r"[^a-z0-9]", "", (name or "").lower())
+    if len(base) < 3:
+        base = "player"
+    base = base[:16].strip("._") or "player"
+    if len(base) < 3:
+        base = (base + "player")[:16]
+    if not q("SELECT 1 FROM users WHERE username=?", (base,), one=True):
+        return base
+    for _ in range(60):
+        u = "%s%d" % (base[:16], secrets.randbelow(9000) + 100)
+        if not q("SELECT 1 FROM users WHERE username=?", (u,), one=True):
+            return u
+    return "player%d" % secrets.randbelow(10 ** 9)
 
 
 def clean_email(value):
@@ -3465,13 +3573,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def security_headers(self):
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Content-Security-Policy",
-                         "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net; "
-                         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                         "font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com; media-src 'self' blob:; "
-                         "connect-src 'self' https://www.facebook.com https://connect.facebook.net; "
+                         "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://accounts.google.com/gsi/client https://analytics.tiktok.com; "
+                         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; "
+                         "font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com https://analytics.tiktok.com; media-src 'self' blob:; "
+                         "connect-src 'self' https://www.facebook.com https://connect.facebook.net https://accounts.google.com/gsi/ https://analytics.tiktok.com; "
+                         "frame-src https://accounts.google.com/gsi/; "
                          "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
     def send_json(self, status, payload, cookies=()):
@@ -3706,7 +3815,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/season":
             return self.api_season()
         if path == "/api/config":
-            return self.send_json(200, {"mail": mail_ready()})
+            return self.send_json(200, {"mail": mail_ready(), "google": GOOGLE_CLIENT_ID})
         if path == "/api/tuning":
             return self.send_json(200, tuning())
         if path == "/api/version":
@@ -3749,7 +3858,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        routes = {"/api/visit": self.api_visit, "/api/signup": self.api_signup, "/api/login": self.api_login, "/api/logout": self.api_logout,
+        routes = {"/api/visit": self.api_visit, "/api/signup": self.api_signup, "/api/login": self.api_login, "/api/google": self.api_google, "/api/logout": self.api_logout,
                   "/api/forgot": self.api_forgot, "/api/reset": self.api_reset, "/api/email": self.api_email, "/api/company": self.api_company,
                   "/api/admin/login": self.api_admin_login, "/api/admin/logout": self.api_admin_logout,
                   "/api/billing/checkout": self.api_checkout, "/api/billing/confirm": self.api_confirm,
@@ -3896,18 +4005,41 @@ class Handler(BaseHTTPRequestHandler):
         if not company:
             company = company_default(name, username)
         salt, digest = hash_password(password)
+        self.create_account(d, username, salt, digest, name, company, town, bg, color, email, inviter, camp)
+
+    def signup_extras(self, d):
+        """The optional sign-up choices (company, town, background, colour, invite, campaign) shared by both ways of signing up."""
+        company = clean_text(d.get("company"), 16)
+        if company == "Savanna" and company_taken(company):
+            company = ""
+        town = clean_text(d.get("town"), 20) or "Nairobi"
+        bg = d.get("bg") if d.get("bg") in BACKGROUNDS else "hustler"
+        inviter = inviter_by_code(d.get("ref")) if d.get("ref") else None
+        camp = clean_camp(d.get("camp"))
+        if not camp and VID_RE.match(str(d.get("vid") or "")):
+            r = q("SELECT camp FROM visitors WHERE vid=?", (d.get("vid"),), one=True)
+            camp = r["camp"] if r else ""
+        try:
+            color = max(0, min(5, int(d.get("color", 0))))
+        except (TypeError, ValueError):
+            color = 0
+        return company, town, bg, inviter, camp, color
+
+    def create_account(self, d, username, salt, digest, name, company, town, bg, color, email, inviter, camp, google_sub=""):
         t = now()
         token = secrets.token_urlsafe(32)
 
         def create(db):
-            cur = db.execute("INSERT INTO users(username,pw_salt,pw_hash,name,company,town,bg,color,created,last_seen,logins,email,camp) "
-                             "VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?)", (username, salt, digest, name, company, town, bg, color, t, t, email, camp))
+            cur = db.execute("INSERT INTO users(username,pw_salt,pw_hash,name,company,town,bg,color,created,last_seen,logins,email,camp,google_sub,pw_set) "
+                             "VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?,?,?)", (username, salt, digest, name, company, town, bg, color, t, t, email, camp,
+                                                                      google_sub, 0 if google_sub else 1))
             uid = cur.lastrowid
             db.execute("INSERT INTO stats(user_id, updated) VALUES(?,?)", (uid, t))
             db.execute("INSERT INTO sessions(token,user_id,is_admin,created,expires) VALUES(?,?,0,?,?)",
                        (token, uid, t, t + PLAYER_SESSION_SECONDS))
             db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,1,'account',?)",
-                       (uid, t, "Created an account (%s)" % {"hustler": "street hustler", "grad": "university graduate", "heir": "family business heir"}[bg]))
+                       (uid, t, "Created an account%s (%s)" % (" with Google" if google_sub else "",
+                                                               {"hustler": "street hustler", "grad": "university graduate", "heir": "family business heir"}[bg])))
             db.execute("INSERT OR IGNORE INTO activity_days(user_id, day) VALUES(?,?)", (uid, today()))
             if inviter:
                 db.execute("INSERT OR IGNORE INTO referrals(user_id,inviter_id,created) VALUES(?,?,?)", (uid, inviter["id"], t))
@@ -3930,8 +4062,71 @@ class Handler(BaseHTTPRequestHandler):
             visit_step(d.get("vid"), "signed")
         except Exception as e:
             print("Visit record failed: %s" % e, flush=True)
-        self.send_json(201, {"user": user_public(user), "save": None, "ver": 0, "bill": bill_status(user)},
+        self.send_json(201, {"user": user_public(user), "save": None, "ver": 0, "bill": bill_status(user), "isNew": True},
                        [self.make_cookie("hs", token, PLAYER_SESSION_SECONDS)])
+
+    def api_google(self):
+        """Sign in with Google. A Google account already connected logs straight in; otherwise an account with the same
+        (Google-verified) email gets connected; otherwise a new account is made from the Google name and email."""
+        if rate_limited("google:" + self.client_ip(), limit=20, window=600):
+            return self.error(429, "Too many attempts. Wait ten minutes and try again.")
+        if not GOOGLE_CLIENT_ID:
+            return self.error(404, "Google sign-in is not switched on.")
+        d = self.read_json()
+        if d is None:
+            return
+        claims = google_verify(d.get("credential"))
+        if not claims:
+            return self.error(401, "Google sign-in didn't work. Try again, or use your username and password.")
+        sub = clean_text(str(claims["sub"]), 64)
+        email = clean_email(claims.get("email"))
+        user = q("SELECT * FROM users WHERE google_sub=?", (sub,), one=True)
+        linked = False
+        if not user and email:
+            user = q("SELECT * FROM users WHERE email=? AND google_sub='' ORDER BY last_seen DESC LIMIT 1", (email,), one=True)
+            linked = bool(user)
+        if user:
+            if user["disabled"]:
+                return self.error(403, "This account has been disabled. Contact the game's host.")
+            token = secrets.token_urlsafe(32)
+            t = now()
+            game = self.current_game(user["id"])
+
+            def enter(db):
+                if linked:
+                    db.execute("UPDATE users SET google_sub=? WHERE id=?", (sub, user["id"]))
+                db.execute("INSERT INTO sessions(token,user_id,is_admin,created,expires) VALUES(?,?,0,?,?)",
+                           (token, user["id"], t, t + PLAYER_SESSION_SECONDS))
+                db.execute("UPDATE users SET logins=logins+1 WHERE id=?", (user["id"],))
+                db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'login',?)",
+                           (user["id"], t, game, "Connected Google and logged in" if linked else "Logged in with Google"))
+            try:
+                tx(enter)
+            except sqlite3.IntegrityError:
+                return self.error(409, "That Google account is already connected to another empire.")
+            try:
+                visit_mark(d.get("vid"), "login", user_id=user["id"])
+            except Exception as e:
+                print("Visit record failed: %s" % e, flush=True)
+            self.touch(user["id"])
+            user = q("SELECT * FROM users WHERE id=?", (user["id"],), one=True)
+            save = q("SELECT state, ver FROM saves WHERE user_id=?", (user["id"],), one=True)
+            return self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None,
+                                        "ver": save["ver"] if save else 0, "bill": bill_status(user, True), "isNew": False},
+                                  [self.make_cookie("hs", token, PLAYER_SESSION_SECONDS)])
+        if rate_limited("signup:" + self.client_ip(), limit=8, window=3600):
+            return self.error(429, "Too many new accounts from your network. Try again later.")
+        if not email:
+            return self.error(400, "Your Google account has no email address we can use. Sign up with a username and password instead.")
+        name = clean_text(d.get("name"), 24) or clean_text(claims.get("name") or claims.get("given_name") or "", 24) or email.split("@")[0][:24]
+        company, town, bg, inviter, camp, color = self.signup_extras(d)
+        username = username_from(email, name)
+        if company and company_taken(company):
+            company = ""
+        if not company:
+            company = company_default(name, username)
+        salt, digest = hash_password(secrets.token_urlsafe(32))   # a password nobody knows: they sign in with Google, or set one by email later
+        self.create_account(d, username, salt, digest, name, company, town, bg, color, email, inviter, camp, google_sub=sub)
 
     def api_login(self):
         if rate_limited("login:" + self.client_ip(), limit=10, window=600):
@@ -3989,6 +4184,8 @@ class Handler(BaseHTTPRequestHandler):
         password = d.get("password") if isinstance(d.get("password"), str) else ""
         if not email:
             return self.error(400, "Enter a valid email address.")
+        if "pw_set" in user.keys() and not user["pw_set"]:
+            return self.error(400, "You sign in with Google, so your email is your Google email. To use another email, first set a password with Forgot your password.")
         _, digest = hash_password(password, user["pw_salt"])
         if not hmac.compare_digest(digest, user["pw_hash"]):
             return self.error(401, "That password isn't right.")
@@ -4699,7 +4896,7 @@ class Handler(BaseHTTPRequestHandler):
         game = self.current_game(user["id"])  # read before the transaction takes the lock
 
         def apply(db):
-            db.execute("UPDATE users SET pw_salt=?, pw_hash=?, logins=logins+1 WHERE id=?", (salt, digest, user["id"]))
+            db.execute("UPDATE users SET pw_salt=?, pw_hash=?, pw_set=1, logins=logins+1 WHERE id=?", (salt, digest, user["id"]))
             db.execute("UPDATE resets SET used=1 WHERE user_id=?", (user["id"],))
             db.execute("DELETE FROM sessions WHERE user_id=?", (user["id"],))
             db.execute("INSERT INTO sessions(token,user_id,is_admin,created,expires) VALUES(?,?,0,?,?)",
@@ -4708,6 +4905,7 @@ class Handler(BaseHTTPRequestHandler):
                        (user["id"], t, game))
         tx(apply)
         self.touch(user["id"])
+        user = q("SELECT * FROM users WHERE id=?", (user["id"],), one=True)
         save = q("SELECT state, ver FROM saves WHERE user_id=?", (user["id"],), one=True)
         self.send_json(200, {"user": user_public(user), "save": json.loads(save["state"]) if save else None,
                              "ver": save["ver"] if save else 0, "bill": bill_status(user, True)},
@@ -5847,7 +6045,7 @@ class Handler(BaseHTTPRequestHandler):
             salt, digest = hash_password(password)
 
             def setpw(db):
-                db.execute("UPDATE users SET pw_salt=?, pw_hash=? WHERE id=?", (salt, digest, uid))
+                db.execute("UPDATE users SET pw_salt=?, pw_hash=?, pw_set=1 WHERE id=?", (salt, digest, uid))
                 db.execute("DELETE FROM sessions WHERE user_id=?", (uid,))
                 db.execute("INSERT INTO events(user_id,ts,kind,text) VALUES(?,?,'admin','Password changed by the host')", (uid, t))
             tx(setpw)

@@ -104,6 +104,13 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .paidbox{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:10px 0}
 .paidicon{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-size:30px;font-weight:700}
 @media (max-width:420px){.plans:not(.tips){grid-template-columns:1fr}.plan{flex-direction:row;flex-wrap:wrap;justify-content:space-between;text-align:left;padding:14px}.plan small{width:100%}.plan em{left:auto;right:10px;transform:none}.plans.tips .plan{flex-direction:column;justify-content:center;text-align:center;padding:12px 4px}.plans.tips .plan small{width:auto}}
+.gsi{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:2px 0 4px}
+.gsi-btn{min-height:44px;display:flex;justify-content:center;color-scheme:normal}
+.gsi-st{margin:0;text-align:center;font-size:13.5px;font-weight:700;color:var(--brass)}
+.gsi-hint{margin:-2px 0 0;text-align:center}
+.gsi-or{display:flex;align-items:center;gap:10px;margin:6px 0 0;color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
+.gsi-or::before,.gsi-or::after{content:'';flex:1;height:1px;background:var(--line)}
+.gsi-g{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#fff;color:#4285f4;font:800 12px/1 system-ui,sans-serif;margin-right:4px;vertical-align:-3px;border:1px solid var(--line)}
 .acctbrand{""")
 assert 'localStorage.getItem(SAVE)' not in s and 'ACCS' not in s, 'device-account code left behind'
 head='''<!doctype html>
