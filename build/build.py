@@ -169,6 +169,10 @@ rep(".acctbrand{", """/* public profile */
 .livestrip .lstext{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .livestrip .lsago{flex:none;font-size:12px;color:var(--muted)}
 .livestrip.lspop{animation:lfresh 1.6s ease-out}
+/* the way back stays on screen while the feed or a profile scrolls */
+.stickynav{position:sticky;bottom:calc(-40px - env(safe-area-inset-bottom,0px));z-index:5;margin:12px -4px 0;padding:10px 4px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,transparent,var(--paper) 30%);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.acct .chips.stickynav{display:flex;flex-wrap:nowrap!important;gap:8px}.acct .chips.stickynav .btn{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-inline:8px;justify-content:center;text-align:center}
+@media (max-width:420px){.acct .chips.stickynav .btn{font-size:12.5px;padding-inline:6px}}
 .acctbrand{""")
 assert 'localStorage.getItem(SAVE)' not in s and 'ACCS' not in s, 'device-account code left behind'
 head='''<!doctype html>

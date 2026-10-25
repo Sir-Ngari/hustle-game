@@ -290,7 +290,7 @@ function profileHTML(){const d=wallMine;let h='<h2>My profile</h2>';
  h+='<h3>Who can see it</h3><div class="seg wseg" role="group" aria-label="Who can see my profile"><button data-a="wallpriv" data-v="0" aria-pressed="'+!d.private+'">🌍 Everyone</button><button data-a="wallpriv" data-v="1" aria-pressed="'+!!d.private+'">🔒 Only friends</button></div>'+
   '<p class="hint">'+(d.private?'Only friends you added can see your profile, and your news stays out of the Live feed. The link shows that the profile is private.':'Anyone with your link can see it, and your highlights show in the Live feed. It is not listed on Google.')+'</p>';
  h+='<h3>Highlights</h3><p class="hint">Posted automatically: your first million, billion and trillion, luxury buys, weddings, babies and divorces, your foundation\'s work and the titles your teams win. Tap ✕ to take one down.</p>'+wallPostsHTML(d,true);
- return h+'<div class="chips"><button class="btn" data-a="acctclose">Back to my game</button>'+(ACC&&!GUEST?'<button class="btn ghost" data-a="liveopen">Live feed</button>':'')+'</div>';}
+ return h+'<div class="chips stickynav"><button class="btn" data-a="acctclose">← My game</button>'+(ACC&&!GUEST?'<button class="btn ghost" data-a="liveopen">Live feed</button>':'')+'</div>';}
 function wallViewHTML(){const d=wallView;let h='';
  if(!d)return'<h2>Profile</h2><p class="sub">Loading…</p>';
  if(d.err)return'<h2>Profile</h2><p class="amsg">'+esc(d.err)+'</p><div class="chips"><button class="btn" data-a="wallback">Back</button></div>';
@@ -301,7 +301,7 @@ function wallViewHTML(){const d=wallView;let h='';
  if(acts.length)h+='<div class="chips">'+acts.join('')+'</div>';
  if(d.guest)h+='<p class="hint">A guest player. They have not created an account yet.</p>';
  h+=d.hidden?'<p class="sub wempty">🔒 This profile is private.</p>':'<h3>Highlights</h3>'+wallPostsHTML(d,!!d.me);
- return h+'<div class="chips"><button class="btn" data-a="wallback">Back</button></div>';}
+ return h+'<div class="chips stickynav"><button class="btn" data-a="wallback">← Back</button></div>';}
 async function wallHide(id){const key=wallOwner()==='g'?wallKey():'';try{await api('POST','/api/wall/hide',{id,key:key||undefined});if(wallMine&&wallMine.posts){wallMine.posts=wallMine.posts.filter(p=>p.id!==id);wallMine.count=Math.max(0,(wallMine.count||1)-1);}wallMsg='Taken down. It is off your profile and the feed.';}catch(e){wallMsg=esc(e.message);}renderAccts();}
 async function wallPrivacy(on){const key=wallOwner()==='g'?wallKey():'';try{await api('POST','/api/wall/privacy',{private:on,key:key||undefined});if(wallMine)wallMine.private=on;wallMsg=on?'Your profile is now for friends only.':'Your profile is public again.';}catch(e){wallMsg=esc(e.message);}renderAccts();}
 function wallShareText(d){return'My empire on Hustlempires, the free business game: '+(d.top?d.top+', ':'')+(d.count||0)+' highlight'+(d.count===1?'':'s')+' so far. Can you build a bigger one? 👑';}
@@ -333,7 +333,7 @@ function liveHTML(){const sg=liveSigned();
   (sg?'<div class="seg livetabs" role="group" aria-label="Whose highlights" style="grid-template-columns:1fr 1fr"><button data-a="livescope" data-v="world" aria-pressed="'+(liveScope!=='friends')+'">🌍 Everyone</button><button data-a="livescope" data-v="friends" aria-pressed="'+(liveScope==='friends')+'">👥 Friends</button></div>':'');
  if(!sg)h+='<div class="liveguest"><span>👀 You are watching as a guest. Save your empire to cheer and reply.</span><button class="btn small primary" data-a="accts">Save my empire</button></div>';
  h+='<p class="amsg" id="livemsg"'+(liveMsg?'':' hidden')+'>'+liveMsg+'</p><div id="livelist">'+liveListHTML()+'</div>';
- return h+'<div class="chips"><button class="btn" data-a="acctclose">Back to my game</button><button class="btn ghost" data-a="myprofile">My profile</button>'+(sg?'<button class="btn ghost" data-a="friendsmsg">Friends</button>':'')+'</div>';}
+ return h+'<div class="chips stickynav"><button class="btn" data-a="acctclose">← My game</button><button class="btn ghost" data-a="myprofile">My profile</button>'+(sg?'<button class="btn ghost" data-a="friendsmsg">Friends</button>':'')+'</div>';}
 function liveListHTML(){const d=liveData;
  if(!d)return'<p class="sub">Loading…</p>';if(d.err)return'<p class="amsg">'+esc(d.err)+'</p>';
  if(!d.items.length)return'<div class="liveempty"><p>'+(liveScope==='friends'?'No highlights from your friends yet. Add friends from their profiles, or invite them.':'No highlights yet. They appear here the moment a player anywhere makes their first million, their first billion, sets a record or makes a major purchase.')+'</p>'+(liveScope==='friends'?'<button class="btn small" data-a="livescope" data-v="world">See everyone</button>':'')+'</div>';
