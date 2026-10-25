@@ -2323,7 +2323,7 @@ async function mkSettle(){if(!ACC||!S||S.over)return;if(current||!$('modal').hid
 /* ---------- Players' exchange: buy shares in other players' companies ---------- */
 let xcData=null,xcT=0,xcBusy=false,xcMsg='';
 async function xcLoad(force){if(!ACC||xcBusy)return;if(!force&&xcData&&Date.now()-xcT<60000)return;xcT=Date.now();xcBusy=true;
- try{xcData=await api('GET','/api/xchg');S.xcv=(xcData.holdings||[]).reduce((t,h)=>t+h.value,0);}catch(e){if(!xcData)xcData={companies:[],holdings:[],me:null};}
+ try{xcData=await api('GET','/api/xchg');S.xcv=newGameFlag?0:(xcData.holdings||[]).reduce((t,h)=>t+h.value,0);}catch(e){if(!xcData)xcData={companies:[],holdings:[],me:null};}
  xcBusy=false;if(typeof curTab!=='undefined'&&curTab==='money')render();}
 const xcPx=p=>p>=100?fmt(p):curSym()+(curLocal()?p*R.rate:p).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function xcHTML(){if(!ACC||!S||!S.inds.length)return null;if(!xcData){xcLoad(true);return'<p class="seghint">Loading the exchange…</p>';}xcLoad();
@@ -2583,7 +2583,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='3427af4e55a7';let updShown=false;
+const APP_VER='6924072f07cf';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -6747,7 +6747,7 @@ function applyHeir(h){S.gnum=h.gen;S.who=/\s/.test(h.name.trim())?h.name.trim():
  if(h.ind&&IND[h.ind]){S.inds=[h.ind];const b=BIZ.filter(x=>x.ind===h.ind).sort((a,c)=>a.tier-c.tier)[0];if(b)S.owned[b.id]=1;}
  S.health=clamp(95-Math.max(0,h.age-30)*.7,40,95);S.parent=h.parent;S.sibs=makeSibs(h.sibs||[]);
  S.log=[{m:0,t:'You are '+S.who+', '+h.age+'. '+h.parent+' passed away at '+h.parentAge+' and left you '+fmt(h.cash)+(h.ind?' and the family business':'')+'. Generation '+h.gen+' of the '+familyName()+' family begins.',k:'gold'}];applyPlan(h);}
-function newLife(hi){if(obitBlock())return;stopAuto();closeModal();current=null;const yEnd=calYear(S.month||0),mEnd=calMo(S.month||0);if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,fyPrev=famStartYear(),seenFam=Object.assign({},S.seenFam||{},S.seen||{}),g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur,keep={daily:S.daily,sea:S.sea,wk:S.wk,calSeen:S.calSeen};if(S.month>0)recordLife(lifeRecord());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();newGameFlag=true;if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;Object.assign(S,JSON.parse(JSON.stringify(keep)));if(S.wk)S.wk.base=Math.max(1000,S.cash);useRegion(S.region);S.pcOpen=[PCITIES[0].id];S.y0=new Date().getFullYear();S.m0=new Date().getMonth();if(heir){applyHeir(heir);S.y0=yEnd;S.m0=mEnd;S.seenFam=seenFam;S.fy0=fyPrev;}else{S.fy0=S.y0;}if(pendingVanish){applyVanish(pendingVanish);pendingVanish=null;S.y0=yEnd;S.m0=mEnd;S.fy0=yEnd;}$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
+function newLife(hi){if(obitBlock())return;stopAuto();closeModal();current=null;const yEnd=calYear(S.month||0),mEnd=calMo(S.month||0);if(acctView){acctView=null;renderAccts();}const heir=hi!=null&&S.kids[hi]?heirData(hi):null,fyPrev=famStartYear(),seenFam=Object.assign({},S.seenFam||{},S.seen||{}),g0=S.g,t0=S.tourDone,r0=S.nextRegion||S.region,c0=S.cur,keep={daily:S.daily,sea:S.sea,wk:S.wk,calSeen:S.calSeen};if(S.month>0)recordLife(lifeRecord());if(ACC&&r0&&r0!==(ACC.region||'KE')&&countryRow(r0)){ACC.region=r0;ACC.town=countryRow(r0).towns[0];if(typeof saveAccs==='function')saveAccs();}if(r0)useRegion(r0);S=ACC?freshFor(ACC):fresh();newGameFlag=true;xcData=null;if(!S.g&&g0)S.g=g0;if(t0)S.tourDone=true;if(r0)S.region=r0;if(c0)S.cur=c0;Object.assign(S,JSON.parse(JSON.stringify(keep)));if(S.wk)S.wk.base=Math.max(1000,S.cash);useRegion(S.region);S.pcOpen=[PCITIES[0].id];S.y0=new Date().getFullYear();S.m0=new Date().getMonth();if(heir){applyHeir(heir);S.y0=yEnd;S.m0=mEnd;S.seenFam=seenFam;S.fy0=fyPrev;}else{S.fy0=S.y0;}if(pendingVanish){applyVanish(pendingVanish);pendingVanish=null;S.y0=yEnd;S.m0=mEnd;S.fy0=yEnd;}$('reset').innerHTML='<button class="btn ghost small" data-a="askreset">New game</button>';afterChange();startEvents();}
 
 /* ================= Legacy: families and achievements ================= */
 const ACH=[

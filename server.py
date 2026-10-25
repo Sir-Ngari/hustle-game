@@ -5849,6 +5849,11 @@ class Handler(BaseHTTPRequestHandler):
                 game += 1
                 db.execute("DELETE FROM snapshots WHERE user_id=? AND game<?", (uid, game - 3))
                 db.execute("INSERT INTO events(user_id,ts,game,kind,text) VALUES(?,?,?,'game','Started a new game')", (uid, t, game))
+                # shares bought on the players' exchange belong to the life that bought them: a new life starts without them
+                # (an heir's inheritance already counts them in the estate), and the shares go back on sale
+                for h in db.execute("SELECT company_id, shares FROM xc_hold WHERE investor_id=? AND shares>0", (uid,)).fetchall():
+                    db.execute("UPDATE xc_list SET sold=MAX(0, sold-?) WHERE user_id=?", (h["shares"], h["company_id"]))
+                db.execute("DELETE FROM xc_hold WHERE investor_id=?", (uid,))
                 prev_month = 0
             played = max(0, month - prev_month) if not new_game else month
             best = max(st["best"] if st and not new_game else 0, nw)

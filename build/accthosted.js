@@ -466,7 +466,7 @@ async function mkSettle(){if(!ACC||!S||S.over)return;if(current||!$('modal').hid
 /* ---------- Players' exchange: buy shares in other players' companies ---------- */
 let xcData=null,xcT=0,xcBusy=false,xcMsg='';
 async function xcLoad(force){if(!ACC||xcBusy)return;if(!force&&xcData&&Date.now()-xcT<60000)return;xcT=Date.now();xcBusy=true;
- try{xcData=await api('GET','/api/xchg');S.xcv=(xcData.holdings||[]).reduce((t,h)=>t+h.value,0);}catch(e){if(!xcData)xcData={companies:[],holdings:[],me:null};}
+ try{xcData=await api('GET','/api/xchg');S.xcv=newGameFlag?0:(xcData.holdings||[]).reduce((t,h)=>t+h.value,0);}catch(e){if(!xcData)xcData={companies:[],holdings:[],me:null};}
  xcBusy=false;if(typeof curTab!=='undefined'&&curTab==='money')render();}
 const xcPx=p=>p>=100?fmt(p):curSym()+(curLocal()?p*R.rate:p).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function xcHTML(){if(!ACC||!S||!S.inds.length)return null;if(!xcData){xcLoad(true);return'<p class="seghint">Loading the exchange…</p>';}xcLoad();
