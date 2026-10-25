@@ -359,17 +359,30 @@ async function liveSay(id,code){const it=liveData&&liveData.items.find(x=>x.id==
  livePick=0;livePatch();}
 /* the live strip on the game screen: the newest highlight from anyone, or how many people are playing right now */
 function stripSeen(){try{return+(localStorage.getItem('hs-lseen')||0);}catch(e){return 0;}}
-async function stripTick(){const el=$('livestrip');if(!el)return;if(document.hidden||!S||!S.inds||!S.inds.length||(!ACC&&!GUEST))return;
+/* the floating ticker: the latest highlights from the last 6 hours take turns, a new one jumps to the front */
+let stripList=[],stripIdx=0,stripR=null;
+function stripMin(){try{return localStorage.getItem('hs-lsmin')==='1';}catch(e){return false;}}
+function stripMinToggle(){const m=!stripMin();try{localStorage.setItem('hs-lsmin',m?'1':'0');}catch(e){}stripShow(false);}
+function stripPlace(){const t=document.querySelector('nav.tabs');document.documentElement.style.setProperty('--tabh',((t&&phoneUI()?t.getBoundingClientRect().height:0)||0)+'px');}
+function stripVis(){const el=$('livestrip');if(!el)return;const off=!stripList.length||!!acctView||!S||!S.inds||!S.inds.length||(!ACC&&!GUEST);el.hidden=off;document.documentElement.classList.toggle('lson',!off&&!stripMin());if(!off)stripPlace();}
+function stripShow(anim,pop){const el=$('livestrip');if(!el)return;const it=stripList[stripIdx%Math.max(1,stripList.length)];if(el.parentNode!==document.body)document.body.appendChild(el);el.classList.add('lsfloat');
+ if(!it){stripVis();return;}const mn=stripMin();el.classList.toggle('lsmin',mn);el.dataset.a=mn?'lsmin':'liveopen';el.setAttribute('aria-label',mn?'Show the live news':'Open the live feed');
+ el.innerHTML='<span class="lsbadge"><span class="lsdot"></span>LIVE</span><span class="lstext'+(anim?' lsin':'')+'">'+it.h+'</span><span class="lsago">'+esc(it.ago)+' ›</span><span class="lsx" data-a="lsmin" role="button" aria-label="Tuck the live news away">✕</span>';
+ if(pop){el.classList.remove('lspop');void el.offsetWidth;el.classList.add('lspop');}stripVis();}
+async function stripTick(){const el=$('livestrip');if(!el)return;if(document.hidden||!S||!S.inds||!S.inds.length||(!ACC&&!GUEST)){stripVis();return;}
  let d;try{d=await api('GET',liveURL('world'));}catch(e){return;}
- const now=d.now||Math.floor(Date.now()/1000),recent=(d.items||[]).filter(i=>!i.me&&now-i.ts<6*3600),top=recent[0],seen=stripSeen(),n=(d.playing||{}).world||0;
- let html='',isNew=false;
- if(top){isNew=top.id>seen;const nm=esc(((top.who&&top.who!==top.name?top.who:top.name)||'A player').split(' ').slice(0,top.guest?2:1).join(' '));
-  html='<span class="lsbadge">'+(isNew?'🔴 LIVE':'LIVE')+'</span><span class="lstext"><b>'+nm+'</b> '+esc(top.text)+'</span><span class="lsago">'+esc(top.ago)+' ›</span>';
-  if(isNew)try{localStorage.setItem('hs-lseen',String(top.id));}catch(e){}}
- else if(n>=2)html='<span class="lsbadge">LIVE</span><span class="lstext">🟢 <b>'+n+' players</b> are building empires right now</span><span class="lsago">See ›</span>';
- el.hidden=!html;if(!html)return;el.innerHTML=html;el.classList.toggle('lsnew',isNew);if(isNew){el.classList.remove('lspop');void el.offsetWidth;el.classList.add('lspop');}}
-function stripStart(){if(stripI)return;setTimeout(stripTick,6000);stripI=setInterval(stripTick,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(stripTick,800);});}
+ const now=d.now||Math.floor(Date.now()/1000),recent=(d.items||[]).filter(i=>!i.me&&now-i.ts<6*3600).slice(0,8),seen=stripSeen(),n=(d.playing||{}).world||0;
+ const cur=stripList[stripIdx]&&stripList[stripIdx].id;
+ stripList=recent.map(top=>{const nm=esc(((top.who&&top.who!==top.name?top.who:top.name)||'A player').split(' ').slice(0,top.guest?2:1).join(' '));return{id:top.id,h:'<b>'+nm+'</b> '+esc(top.text),ago:top.ago};});
+ if(!stripList.length&&n>=2)stripList=[{id:0,h:'🟢 <b>'+n+' players</b> are building empires right now',ago:'See'}];
+ const isNew=recent.length&&recent[0].id>seen;
+ if(isNew){try{localStorage.setItem('hs-lseen',String(recent[0].id));}catch(e){}stripIdx=0;stripShow(true,true);return;}
+ const k=stripList.findIndex(x=>x.id===cur);stripIdx=k<0?0:k;stripShow(false);}
+function stripRotate(){if(document.hidden||stripList.length<2||stripMin()||acctView)return;stripIdx=(stripIdx+1)%stripList.length;stripShow(true);}
+function stripStart(){if(stripI)return;setTimeout(stripTick,6000);stripI=setInterval(stripTick,45000);stripR=setInterval(stripRotate,6000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(stripTick,800);});window.addEventListener('resize',stripPlace);}
 stripStart();
+{const _ra=renderAccts;renderAccts=function(){const r=_ra.apply(this,arguments);try{stripVis();}catch(e){}return r;};}   /* hide behind full-screen pages, back when they close */
 /* ---------- Live rivals: you passed someone, or someone passed you ---------- */
 let rivalPrev=null,rivalT=null;
 function toast(html,act){let t=$('hstoast');if(!t){t=document.createElement('button');t.id='hstoast';t.className='hstoast';document.body.appendChild(t);}
