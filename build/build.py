@@ -152,7 +152,8 @@ rep(".acctbrand{", """/* public profile */
 .lcard.fresh{animation:lfresh 1.6s ease-out}
 @keyframes lfresh{0%{transform:translateY(-8px);opacity:0;box-shadow:0 0 0 3px var(--brass)}40%{transform:none;opacity:1}100%{box-shadow:0 0 0 0 transparent}}
 .lcard header{display:flex;align-items:center;gap:10px}
-.lwho{display:flex;flex-direction:column;min-width:0}.lwho small{font-size:12px;color:var(--muted)}
+.lwho{display:flex;flex-direction:column;min-width:0}
+.lwho .wname{align-self:flex-start;text-align:left;padding:0;min-height:0}.lwho small{font-size:12px;color:var(--muted)}
 .lhl{display:flex;align-items:center;gap:12px;margin:10px 0 8px;padding:12px;border-radius:12px;background:linear-gradient(135deg,var(--brass-soft),transparent);border:1px solid var(--line)}
 .lhl p{margin:0;font-weight:700;font-size:15px;line-height:1.35}
 .lico{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:26px;background:rgba(255,197,61,.16)}

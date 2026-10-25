@@ -344,7 +344,8 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .lcard.fresh{animation:lfresh 1.6s ease-out}
 @keyframes lfresh{0%{transform:translateY(-8px);opacity:0;box-shadow:0 0 0 3px var(--brass)}40%{transform:none;opacity:1}100%{box-shadow:0 0 0 0 transparent}}
 .lcard header{display:flex;align-items:center;gap:10px}
-.lwho{display:flex;flex-direction:column;min-width:0}.lwho small{font-size:12px;color:var(--muted)}
+.lwho{display:flex;flex-direction:column;min-width:0}
+.lwho .wname{align-self:flex-start;text-align:left;padding:0;min-height:0}.lwho small{font-size:12px;color:var(--muted)}
 .lhl{display:flex;align-items:center;gap:12px;margin:10px 0 8px;padding:12px;border-radius:12px;background:linear-gradient(135deg,var(--brass-soft),transparent);border:1px solid var(--line)}
 .lhl p{margin:0;font-weight:700;font-size:15px;line-height:1.35}
 .lico{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:26px;background:rgba(255,197,61,.16)}
@@ -2056,11 +2057,12 @@ async function giftClaim(){closeModal();try{const r=await api('POST','/api/frien
 /* ---------- Public profile ("empire wall"): big moments post themselves, and the profile has a link to share ---------- */
 /* The game only sends which milestone happened; the server writes the words. Guests get a profile too (Hustler 1234),
    kept with a secret key in this browser, and it moves to their account when they save their empire. */
-/* only the highlights post: the first million, the first billion, the first trillion, and major purchases */
+/* what posts: the first million, billion and trillion; luxury buys, top cars and homes, teams, planes and a city;
+   weddings, babies and divorces; the foundation and every cause it advances; league titles and championships */
+const WALL_VER=2;   /* raise when new kinds of post are added, so existing lives do not post their old moments */
 const WALL_RANKS=[3,6,8];   /* Millionaire, Billionaire, Trillionaire */
-const WALL_BUYS=['jet','island','superyacht','trophyhotel','masterpiece'];
-const WALL_TEAMS=['football','cricket'];
-const WALL_TOP=['rank','buy'];
+const WALL_BUYS=['shoes','bags','wardrobe','birkin','jewels','watch','horses','villa','art','yacht','vineyard','golfclub','island','superyacht','trophyhotel','masterpiece','car4','car5','car6','jet','h4','h5','h6'];
+const WALL_TOP=['rank','title','cause','fdn','buy','married','baby','divorce'];
 const WALL_RX=['\u{1F44F}','\u{1F525}','\u{1F4B0}','\u{1F62E}'];
 let wallMine=null,wallView=null,wallMsg='',wallBusy=false,wallT=null,wallBack=null,wallToastQ=null;
 const capFirst=t=>String(t||'').charAt(0).toUpperCase()+String(t||'').slice(1);
@@ -2077,16 +2079,22 @@ function wallFacts(){const L=S.lifeId,f=[],ag=age(),w=d=>S.who?Object.assign({wh
   f.push([L+':rank:'+i,'rank',d,true]);});
  const buy=id=>f.push([L+':buy:'+id,'buy',w({i:id,age:ag}),true]);
  WALL_BUYS.forEach(id=>{if(has(id)>0)buy(id);});
- WALL_TEAMS.forEach(id=>{if(S.teams&&S.teams[id])buy('team-'+id);});
+ Object.keys(S.teams||{}).forEach(id=>{const T=S.teams[id];if(!T)return;buy('team-'+id);for(let n=1;n<=Math.min(T.titles||0,99);n++)f.push([L+':title:'+id+':'+n,'title',w({t:id,n}),true]);});
  if(S.race&&S.race.series==='F1')buy('f1');
+ if(S.race&&S.race.titles){const sr=String(S.race.series||'F1').toLowerCase();for(let n=1;n<=Math.min(S.race.titles,99);n++)f.push([L+':title:'+sr+':'+n,'title',w({t:sr,n}),true]);}
  if(S.city&&S.city.done>=1)buy('city');
+ if(S.spouse)f.push([L+':wed:'+(S.spouse.since||0),'married',w({n:String(S.spouse.name||'').split(' ')[0],age:ag}),true]);
+ for(let n=1;n<=Math.min(S.exes||0,20);n++)f.push([L+':div:'+n,'divorce',w(n===(S.exes||0)&&S.lastEx?{n:String(S.lastEx).split(' ')[0]}:{}),true]);
+ (S.kids||[]).forEach(k=>{if(!k.rel&&k.born!=null&&k.born>=0)f.push([L+':kid:'+k.born+':'+k.name,'baby',w({n:k.name}),true]);});
+ if(S.fdn){f.push([L+':fdn','fdn',w({}),true]);const st=S.fdn.stage||{};Object.keys(st).forEach(c=>{for(let l=1;l<=Math.min(st[c]||0,3);l++)f.push([L+':cause:'+c+':'+l,'cause',w({c,l}),true]);});}
  return f;}
 /* after every save: anything new becomes a post. The first look at a life only takes note of what is already there,
    so nobody's old milestones arrive all at once as if they had just happened. */
 function wallTick(){try{if(!S||!wallOwner())return;const gen=S.gnum||1;
  if(!S.wallDone||!S.lifeId||S.wallGen!==gen){if(!S.lifeId||S.wallGen!==gen)S.lifeId=wallId();S.wallGen=gen;S.wallDone={};
-  wallFacts().forEach(x=>{S.wallDone[x[0]]=1;});
+  wallFacts().forEach(x=>{S.wallDone[x[0]]=1;});S.wallVer=WALL_VER;
   return;}
+ if((S.wallVer||1)<WALL_VER){wallFacts().forEach(x=>{S.wallDone[x[0]]=1;});S.wallVer=WALL_VER;return;}   /* new kinds of post: what a life already has is not news */
  const nu=wallFacts().filter(x=>!S.wallDone[x[0]]);nu.forEach(x=>{S.wallDone[x[0]]=1;});
  const rk=nu.filter(x=>x[1]==='rank'),out=nu.filter(x=>x[1]!=='rank');if(rk.length)out.unshift(rk[rk.length-1]);   /* two ranks in one month: only the higher one */
  if(out.length)wallPush(out);else if(!wallT&&!wallBusy&&wallQ().some(x=>x.o===wallOwner()))wallFlushSoon(4000);}catch(e){}}
@@ -2118,7 +2126,7 @@ async function openWall(handle,back){stopAuto();closeModal();{const t=$('hstoast
 function wallGoBack(){const b=wallBack;wallBack=null;if(b==='friends'){acctView='friends';renderAccts();}else if(b==='profile')openProfile();else if(b==='board'){acctView='board';renderAccts();}else{acctView=null;renderAccts();render();}}
 function wallHead(d){return'<div class="me whead">'+avatar({name:d.name,color:d.color},true)+'<div><h2>'+esc(d.name)+'</h2><p class="sub">'+['@'+d.handle,d.company].filter(Boolean).map(esc).join(' · ')+'</p></div></div>'+
  '<div class="wstats"><div><small>Top rank</small><b>'+esc(d.top||'—')+'</b></div><div><small>Highlights</small><b>'+(d.count||0)+'</b></div></div>';}
-function wallPostsHTML(d,own){const P=d.posts||[];if(!P.length)return'<p class="sub wempty">'+(own?'Nothing yet. Your highlights land here by themselves: your first million, your first billion (with your race time), your first trillion, and major purchases.':'No highlights yet.')+'</p>';
+function wallPostsHTML(d,own){const P=d.posts||[];if(!P.length)return'<p class="sub wempty">'+(own?'Nothing yet. Your highlights land here by themselves: your first million, billion and trillion, luxury buys, weddings and babies, your foundation\'s work and the titles your teams win.':'No highlights yet.')+'</p>';
  const canRx=!own&&ACC&&!GUEST&&!d.me;
  return'<ul class="wposts">'+P.map(p=>{const line=p.who&&p.who!==d.name?'<b>'+esc(p.who)+'</b> '+esc(p.text):esc(capFirst(p.text));
   const rx=canRx?WALL_RX.map(e=>{const n=(p.reacts||{})[e]||0;return'<button class="react'+(p.mine===e?' on':'')+'" data-a="wallreact" data-v="'+p.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join(''):
@@ -2128,13 +2136,13 @@ function wallPostsHTML(d,own){const P=d.posts||[];if(!P.length)return'<p class="
 function profileHTML(){const d=wallMine;let h='<h2>My profile</h2>';
  if(!d)return h+'<p class="sub">Loading…</p>';
  if(d.err)return h+'<p class="amsg">'+esc(d.err)+'</p><div class="chips"><button class="btn" data-a="acctclose">Back to my game</button></div>';
- if(d.none)return h+'<p class="sub">Your public profile starts with your first highlight: your first million, or a major purchase like a private jet. It appears here with a link you can share.</p><div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button></div>';
+ if(d.none)return h+'<p class="sub">Your public profile starts with your first highlight: your first million, a luxury buy, a wedding, your foundation or a title for your team. It appears here with a link you can share.</p><div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button></div>';
  h=wallHead(d)+'<div class="wlink"><span class="wurl">'+esc(d.link.replace(/^https?:\/\//,''))+'</span><div class="chips"><button class="btn primary small" data-a="wallshare">📤 Share my profile</button><button class="btn small" data-a="wallcopy">Copy link</button><a class="btn ghost small" href="'+esc(d.link)+'" target="_blank" rel="noopener">Open page</a></div></div>';
  if(wallMsg)h+='<p class="amsg">'+wallMsg+'</p>';
  if(d.guest)h+='<div class="wguest"><p><b>You are playing as a guest</b>, so your profile has a guest name. Save your empire to put your own name on it. Your posts and your link come with you.</p><button class="btn small" data-a="accts">Save my empire</button></div>';
  h+='<h3>Who can see it</h3><div class="seg wseg" role="group" aria-label="Who can see my profile"><button data-a="wallpriv" data-v="0" aria-pressed="'+!d.private+'">🌍 Everyone</button><button data-a="wallpriv" data-v="1" aria-pressed="'+!!d.private+'">🔒 Only friends</button></div>'+
   '<p class="hint">'+(d.private?'Only friends you added can see your profile, and your news stays out of the Live feed. The link shows that the profile is private.':'Anyone with your link can see it, and your highlights show in the Live feed. It is not listed on Google.')+'</p>';
- h+='<h3>Highlights</h3><p class="hint">Only the highlights post, automatically: your first million, billion and trillion, and major purchases. Tap ✕ to take one down.</p>'+wallPostsHTML(d,true);
+ h+='<h3>Highlights</h3><p class="hint">Posted automatically: your first million, billion and trillion, luxury buys, weddings, babies and divorces, your foundation\'s work and the titles your teams win. Tap ✕ to take one down.</p>'+wallPostsHTML(d,true);
  return h+'<div class="chips"><button class="btn" data-a="acctclose">Back to my game</button>'+(ACC&&!GUEST?'<button class="btn ghost" data-a="liveopen">Live feed</button>':'')+'</div>';}
 function wallViewHTML(){const d=wallView;let h='';
  if(!d)return'<h2>Profile</h2><p class="sub">Loading…</p>';
@@ -2159,6 +2167,7 @@ async function wallAddFriend(id){try{const r=await api('POST','/api/friends/add'
 async function wallMessage(id){await openFriends('friends');msgPick(id);}
 /* ---------- Live feed: everyone's highlights as they happen. Guests can watch; an account is needed to cheer or reply ---------- */
 let liveData=null,liveScope='world',liveT=null,liveMsg='',livePick=0,stripI=null;
+const ctryOf=c=>{const r=c&&countryRow(String(c).toUpperCase());return r?r.name:'';};
 const flagOf=c=>{c=String(c||'').toUpperCase();return/^[A-Z]{2}$/.test(c)?String.fromCodePoint(...[...c].map(x=>0x1F1E6+x.charCodeAt(0)-65)):'';};
 const liveSigned=()=>!!(ACC&&!GUEST);
 function liveURL(scope){return'/api/live?scope='+scope+'&region='+encodeURIComponent((S&&S.region)||'')+(liveSigned()?'':'&vid='+encodeURIComponent(visitorId()));}
@@ -2173,7 +2182,7 @@ function livePlaying(d){const p=d&&d.playing;if(!p)return'';const n=p.world;retu
 function livePatch(){const L=$('livelist');if(!L){renderAccts();return;}L.innerHTML=liveListHTML();const P=$('liveplaying');if(P)P.textContent=livePlaying(liveData);const M=$('livemsg');if(M){M.innerHTML=liveMsg;M.hidden=!liveMsg;}}
 function liveHTML(){const sg=liveSigned();
  let h='<div class="livehead"><h2><span class="livedot" aria-hidden="true"></span>Live</h2><span class="liveon" id="liveplaying">'+livePlaying(liveData)+'</span></div>'+
-  '<p class="sub">Real players\' highlights the moment they happen: first millions, first billions, records and major purchases.</p>'+
+  '<p class="sub">Real players\' highlights the moment they happen: millions and billions, luxury buys, weddings, foundations, titles and records.</p>'+
   (sg?'<div class="seg livetabs" role="group" aria-label="Whose highlights" style="grid-template-columns:1fr 1fr"><button data-a="livescope" data-v="world" aria-pressed="'+(liveScope!=='friends')+'">🌍 Everyone</button><button data-a="livescope" data-v="friends" aria-pressed="'+(liveScope==='friends')+'">👥 Friends</button></div>':'');
  if(!sg)h+='<div class="liveguest"><span>👀 You are watching as a guest. Save your empire to cheer and reply.</span><button class="btn small primary" data-a="accts">Save my empire</button></div>';
  h+='<p class="amsg" id="livemsg"'+(liveMsg?'':' hidden')+'>'+liveMsg+'</p><div id="livelist">'+liveListHTML()+'</div>';
@@ -2182,14 +2191,14 @@ function liveListHTML(){const d=liveData;
  if(!d)return'<p class="sub">Loading…</p>';if(d.err)return'<p class="amsg">'+esc(d.err)+'</p>';
  if(!d.items.length)return'<div class="liveempty"><p>'+(liveScope==='friends'?'No highlights from your friends yet. Add friends from their profiles, or invite them.':'No highlights yet. They appear here the moment a player anywhere makes their first million, their first billion, sets a record or makes a major purchase.')+'</p>'+(liveScope==='friends'?'<button class="btn small" data-a="livescope" data-v="world">See everyone</button>':'')+'</div>';
  const sg=liveSigned(),R=d.reacts||WALL_RX;
- return d.items.map(i=>{const who=i.who&&i.who!==i.name?'<b>'+esc(i.who)+'</b> '+esc(i.text):esc(capFirst(i.text)),rp=i.replies||{n:0,last:[]};
+ return d.items.map(i=>{i.name=String(i.name||'A player').trim();const who=i.who&&i.who!==i.name?'<b>'+esc(i.who)+'</b> '+esc(i.text):esc(capFirst(i.text)),rp=i.replies||{n:0,last:[]};
   const rx=i.me?Object.keys(i.reacts||{}).map(e=>'<span class="react on">'+e+' '+i.reacts[e]+'</span>').join(''):
    R.map(e=>{const n=(i.reacts||{})[e]||0;return'<button class="react'+(i.mine===e?' on':'')+'" data-a="livereact" data-v="'+i.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join('');
   let f='<div class="lfoot"><span class="reacts">'+rx+'</span>'+(i.me?(rp.n?'<span class="lrn">💬 '+rp.n+'</span>':''):'<button class="btn ghost small lrbtn" data-a="livereply" data-v="'+i.id+'">💬 '+(i.myReply?'Replied':'Reply')+(rp.n?' · '+rp.n:'')+'</button>')+'</div>';
   if(rp.last.length)f+='<ul class="lreplies">'+rp.last.map(r=>'<li><b>'+esc(r.name)+'</b> '+esc(r.text)+'</li>').join('')+(rp.n>rp.last.length?'<li class="lmore">+'+(rp.n-rp.last.length)+' more</li>':'')+'</ul>';
   if(livePick===i.id&&d.replies)f+='<div class="lpick">'+d.replies.map(([k,t])=>'<button class="btn small'+(i.myReply===k?' primary':'')+'" data-a="livesay" data-v="'+i.id+'" data-c="'+k+'">'+esc(t)+'</button>').join('')+'<button class="btn ghost small" data-a="livereply" data-v="0">Cancel</button></div>';
   return'<article class="lcard k-'+esc(i.kind)+(i.fresh?' fresh':'')+'"><header>'+(i.handle?'<button class="wavbtn" data-a="wallopen" data-v="'+esc(i.handle)+'" aria-label="Open '+esc(i.name)+'\'s profile">'+avatar(i)+'</button>':avatar(i))+
-   '<div class="lwho">'+(i.handle?'<button class="linkbtn wname" data-a="wallopen" data-v="'+esc(i.handle)+'">'+esc(i.name)+'</button>':'<b>'+esc(i.name)+'</b>')+'<small>'+flagOf(i.region)+' '+(i.guest?'Guest player':esc(i.company||''))+' · '+esc(i.ago)+'</small></div></header>'+
+   '<div class="lwho">'+(i.handle?'<button class="linkbtn wname" data-a="wallopen" data-v="'+esc(i.handle)+'">'+esc(i.name)+'</button>':'<b>'+esc(i.name)+'</b>')+'<small>'+(ctryOf(i.region)?esc(ctryOf(i.region))+' · ':'')+(i.guest?'Guest player':esc(i.company||''))+' · '+esc(i.ago)+'</small></div></header>'+
    '<div class="lhl"><span class="lico" aria-hidden="true">'+i.ico+'</span><p>'+who+'</p></div>'+f+'</article>';}).join('');}
 function liveNeedAcct(){if(liveSigned())return false;guestWhy='feature';guestAsk('feature');return true;}
 async function liveReact(id,e){if(liveNeedAcct())return;const it=liveData&&liveData.items.find(x=>x.id===id);if(!it)return;
@@ -2206,7 +2215,7 @@ async function stripTick(){const el=$('livestrip');if(!el)return;if(document.hid
  const now=d.now||Math.floor(Date.now()/1000),recent=(d.items||[]).filter(i=>!i.me&&now-i.ts<6*3600),top=recent[0],seen=stripSeen(),n=(d.playing||{}).world||0;
  let html='',isNew=false;
  if(top){isNew=top.id>seen;const nm=esc(((top.who&&top.who!==top.name?top.who:top.name)||'A player').split(' ').slice(0,top.guest?2:1).join(' '));
-  html='<span class="lsbadge">'+(isNew?'🔴 LIVE':'LIVE')+'</span><span class="lstext">'+flagOf(top.region)+' <b>'+nm+'</b> '+esc(top.text)+'</span><span class="lsago">'+esc(top.ago)+' ›</span>';
+  html='<span class="lsbadge">'+(isNew?'🔴 LIVE':'LIVE')+'</span><span class="lstext"><b>'+nm+'</b> '+esc(top.text)+'</span><span class="lsago">'+esc(top.ago)+' ›</span>';
   if(isNew)try{localStorage.setItem('hs-lseen',String(top.id));}catch(e){}}
  else if(n>=2)html='<span class="lsbadge">LIVE</span><span class="lstext">🟢 <b>'+n+' players</b> are building empires right now</span><span class="lsago">See ›</span>';
  el.hidden=!html;if(!html)return;el.innerHTML=html;el.classList.toggle('lsnew',isNew);if(isNew){el.classList.remove('lspop');void el.offsetWidth;el.classList.add('lspop');}}
@@ -2570,7 +2579,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='8fa1b909fe7b';let updShown=false;
+const APP_VER='3d83bf98d01f';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;

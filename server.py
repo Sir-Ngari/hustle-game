@@ -1872,6 +1872,13 @@ WALL_ACH = {"self_made_40": "Self-made by 40", "deca": "Ten-billion club", "hund
             "comeback": "Back from the brink", "ten_lives": "Nine lives and counting", "gen3": "Three generations",
             "gen5": "Five generations", "old_money": "Old money", "dynasty": "Billionaire dynasty",
             "century": "A century of the name", "clean": "Clean hands", "bc1": "Billionaire class", "bc5": "Titan"}
+WALL_BUY_MORE = {"shoes": ("\U0001F460", "bought a designer shoe collection"), "bags": ("\U0001F45C", "bought a designer handbag collection"),
+                 "wardrobe": ("\U0001F457", "bought a couture wardrobe"), "birkin": ("\U0001F45C", "bought a Herm\u00e8s Birkin collection"),
+                 "jewels": ("\U0001F48E", "bought fine jewellery: diamonds and tanzanite"), "watch": ("\u231a", "bought a Swiss luxury watch"),
+                 "horses": ("\U0001F40E", "bought a racehorse stable"), "art": ("\U0001F3A8", "bought a contemporary African art collection"),
+                 "car4": ("\U0001F698", "bought a Mercedes-Maybach with a chauffeur"), "car5": ("\U0001F698", "bought a Rolls-Royce Cullinan"),
+                 "car6": ("\U0001F681", "bought an armoured convoy and a helicopter"), "h4": ("\U0001F3E1", "bought a mansion"),
+                 "h5": ("\U0001F3F0", "bought a gated estate"), "h6": ("\U0001F3F0", "bought an estate in the South of France")}
 WALL_BUY = {"villa": ("\U0001F3D6️", "bought a beach villa"), "yacht": ("\U0001F6E5️", "bought a 40 m motor yacht"),
             "vineyard": ("\U0001F347", "bought a vineyard"), "golfclub": ("⛳", "built a championship golf course"),
             "jet": ("✈️", "bought a private jet"), "island": ("\U0001F3DD️", "bought a private island"),
@@ -1885,10 +1892,16 @@ WALL_CHAP = ["The street", "Small trader", "Business owner", "Millionaire", "Mog
 WALL_GRADE = {"A": ("\U0001F3C6", "a Legend"), "B": ("\U0001F9B8", "a Hero"), "C": ("\U0001F4BC", "an Achiever"),
               "D": ("\U0001FA79", "a Survivor"), "E": ("\U0001F43A", "a Lone Wolf")}
 # Only the highlights post: the first million, billion and trillion, and major purchases (older kinds still display if stored)
-WALL_KINDS = ("rank", "buy")
-WALL_COUNTRY = ("rank", "buy")
+WALL_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title")
+WALL_COUNTRY = WALL_KINDS
 WALL_RANK_OK = ("Millionaire", "Billionaire", "Trillionaire")
 WALL_MAJOR = ("jet", "island", "superyacht", "trophyhotel", "masterpiece", "team-football", "team-cricket", "f1", "city")
+WALL_BUY.update(WALL_BUY_MORE)
+WALL_BUY_OK = tuple(WALL_BUY)   # every luxury buy, home, car, team and plane the game posts
+WALL_CAUSE = {"water": "clean water", "malaria": "malaria", "education": "girls' education", "climate": "climate and forests",
+              "hunger": "hunger", "jobs": "youth jobs", "wildlife": "wildlife", "health": "health care"}
+WALL_TEAM = {"athletics": "running camp", "rugby": "rugby sevens team", "kpl": "football club", "basketball": "basketball team",
+             "cricket": "T20 cricket team", "football": "European football club", "f1": "Formula 1 team", "f2": "Formula 2 team"}
 WALL_PER_DAY = 80
 WALL_KEY_RE = re.compile(r"^[A-Za-z0-9:_.-]{3,80}$")
 HANDLE_RE = re.compile(r"^[a-z0-9_.-]{3,30}$")
@@ -1934,13 +1947,25 @@ def wall_clean(kind, d):
             return None
         out["n"] = n
     elif kind == "buy":
-        if d.get("i") not in WALL_MAJOR:
+        if d.get("i") not in WALL_BUY_OK:
             return None
         out["i"] = d["i"]
-    elif kind == "baby":
+    elif kind in ("baby", "married", "divorce"):
         n = wall_name(d.get("n"))
         if n:
             out["n"] = n
+    elif kind == "fdn":
+        pass
+    elif kind == "cause":
+        lvl = int(num(d.get("l")))
+        if d.get("c") not in WALL_CAUSE or not 1 <= lvl <= 3:
+            return None
+        out.update(c=d["c"], l=lvl)
+    elif kind == "title":
+        n = int(num(d.get("n")))
+        if d.get("t") not in WALL_TEAM or not 1 <= n <= 999:
+            return None
+        out.update(t=d["t"], n=n)
     elif kind == "heir":
         gen = int(num(d.get("gen")))
         if not 2 <= gen <= 99:
@@ -1953,7 +1978,7 @@ def wall_clean(kind, d):
         out["age"] = a
         if d.get("r") in RANKS:
             out["r"] = d["r"]
-    elif kind != "married":
+    else:
         return None
     who = wall_name(d.get("who"))
     if who:
@@ -2002,7 +2027,23 @@ def wall_text(kind, d):
         ico, txt = WALL_BUY.get(d.get("i"), ("\U0001F6CD️", "made a big buy"))
         return ico, txt + at
     if kind == "married":
-        return "\U0001F48D", "got married" + at
+        return "\U0001F48D", ("married %s" % d["n"] if d.get("n") else "got married") + at
+    if kind == "divorce":
+        return "\U0001F494", "went through a divorce" + (" with %s" % d["n"] if d.get("n") else "")
+    if kind == "fdn":
+        return "\U0001F91D", "opened a foundation to give back"
+    if kind == "cause":
+        c = WALL_CAUSE.get(d.get("c"), "a cause")
+        if d.get("l") == 3:
+            return "\U0001F30D", "solved %s through their foundation. The world is talking." % c
+        return "\U0001F91D", "reached stage %d of 3 in the fight for %s with their foundation" % (d.get("l", 1), c)
+    if kind == "title":
+        team, n = WALL_TEAM.get(d.get("t"), "team"), int(d.get("n", 1))
+        if d.get("t") in ("f1", "f2"):
+            txt = "won the %s constructors' championship" % ("F1" if d.get("t") == "f1" else "F2")
+        else:
+            txt = "won the league title with their %s" % team
+        return "\U0001F3C6", txt + ("" if n == 1 else " (title #%d)" % n)
     if kind == "baby":
         return "\U0001F476", ("welcomed a baby, %s" % d["n"]) if d.get("n") else "welcomed a baby"
     if kind == "heir":
@@ -2124,7 +2165,7 @@ def profiles_setup():
 
 
 # ---- Live feed: the highlights as they happen, for everyone (guests can watch; an account is needed to cheer or reply) ----
-LIVE_KINDS = ("rank", "buy", "record", "top1", "champ")
+LIVE_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "record", "top1", "champ")
 LIVE_DAYS = 30
 LIVE_REPLIES = {"congrats": "Congrats! \U0001F389", "respect": "Respect. \U0001F64C", "goals": "Goals! \U0001F525",
                 "race": "Race you to the next one.", "next": "What's next?", "teach": "Teach me your ways \U0001F604"}
