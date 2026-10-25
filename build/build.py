@@ -180,6 +180,10 @@ rep(".acctbrand{", """/* public profile */
 .livestrip .lstext.lsin{animation:lsin .45s ease-out}
 @keyframes lsin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
 .livestrip.lsmin{left:auto;right:10px;transform:none;width:auto;min-height:0;padding:8px 12px;border-radius:999px}
+.livestrip.lsme{border-color:rgba(255,210,90,.8);background:rgba(38,28,8,.95)}.livestrip.lsme .lsbadge{color:#ffd25a}
+.livestrip.lsup{border-color:rgba(60,220,120,.9);background:rgba(8,40,22,.95)}.livestrip.lsup .lsbadge{color:#5be38d}
+.livestrip.lsdown{border-color:rgba(255,100,100,.9);background:rgba(44,10,14,.95)}.livestrip.lsdown .lsbadge{color:#ff7b7b}
+.livestrip.lsmin.lsme,.livestrip.lsmin.lsup,.livestrip.lsmin.lsdown{border-color:rgba(255,90,90,.65);background:rgba(30,12,20,.94)}
 .livestrip.lsmin .lstext,.livestrip.lsmin .lsago,.livestrip.lsmin .lsx{display:none}
 html.lson .wrap{padding-bottom:76px}
 @media (max-width:760px){html.gm.lson .wrap{padding-bottom:150px}}

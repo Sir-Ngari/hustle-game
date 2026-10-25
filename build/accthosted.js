@@ -395,13 +395,22 @@ async function liveSay(id,code){const it=liveData&&liveData.items.find(x=>x.id==
 function stripSeen(){try{return+(localStorage.getItem('hs-lseen')||0);}catch(e){return 0;}}
 /* the floating ticker: the latest highlights from the last 6 hours take turns, a new one jumps to the front */
 let stripList=[],stripIdx=0,stripR=null;
+/* your own place on the leaderboard takes its turn in the ticker: where you stand, who is next, and every climb or fall as it happens */
+function stripMeItem(){const d=typeof seasonCache!=='undefined'?seasonCache:null;if(!ACC||GUEST||!S||!d||!S.sea||d.season!==S.sea.id)return null;const me=d.me,c=countryRow(S.region)||{name:'your country'};
+ if(!me||!me.rankRegion)return{id:'me',me:1,h:'🏆 <b>Play a month</b> to get on the '+esc(c.name)+' leaderboard this season',ago:'Board'};
+ return{id:'me',me:1,h:'You are <b>#'+me.rankRegion+'</b> of '+me.playersRegion+' in '+esc(c.name)+(me.ahead?' · <b>'+me.ahead.gap.toLocaleString('en-US')+'</b> points behind '+esc(me.ahead.name):' · <b>top of the board</b>')+(me.rank?' · #'+me.rank+' worldwide':''),ago:'Board'};}
+function stripMix(L){const m=stripMeItem();if(!m)return L;const out=[m];L.forEach((x,i)=>{out.push(x);if(i%3===2&&i<L.length-1)out.push(m);});return out;}
+function stripMeRefresh(){const m=stripMeItem();if(!m)return;if(!stripList.some(x=>x.id==='me')){stripList=stripMix(stripList.filter(x=>x.id!=='flash'));}else stripList=stripList.map(x=>x.id==='me'?m:x);const cur=stripList[stripIdx];if(cur&&cur.id==='me')stripShow(false);}
+function stripOn(){const el=$('livestrip');return!!(el&&!el.hidden&&!stripMin());}   /* the ticker carries the news; the pop-up only when the ticker is tucked away */
+function stripFlash(h,up){stripList=[{id:'flash',me:1,flash:up?'up':'down',h,ago:'Board'}].concat(stripList.filter(x=>x.id!=='flash'));stripIdx=0;stripShow(true,true);
+ clearTimeout(stripFlash.t);stripFlash.t=setTimeout(()=>{const was=stripList[stripIdx]&&stripList[stripIdx].id;stripList=stripList.filter(x=>x.id!=='flash');const k=stripList.findIndex(x=>x.id===was);stripIdx=k<0?0:k;},30000);}
 function stripMin(){try{return localStorage.getItem('hs-lsmin')==='1';}catch(e){return false;}}
 function stripMinToggle(){const m=!stripMin();try{localStorage.setItem('hs-lsmin',m?'1':'0');}catch(e){}stripShow(false);}
 function stripPlace(){const t=document.querySelector('nav.tabs');document.documentElement.style.setProperty('--tabh',((t&&phoneUI()?t.getBoundingClientRect().height:0)||0)+'px');}
 function stripVis(){const el=$('livestrip');if(!el)return;const off=!stripList.length||!!acctView||!S||!S.inds||!S.inds.length||(!ACC&&!GUEST);el.hidden=off;document.documentElement.classList.toggle('lson',!off&&!stripMin());if(!off)stripPlace();}
 function stripShow(anim,pop){const el=$('livestrip');if(!el)return;const it=stripList[stripIdx%Math.max(1,stripList.length)];if(el.parentNode!==document.body)document.body.appendChild(el);el.classList.add('lsfloat');
- if(!it){stripVis();return;}const mn=stripMin();el.classList.toggle('lsmin',mn);el.dataset.a=mn?'lsmin':'liveopen';el.setAttribute('aria-label',mn?'Show the live news':'Open the live feed');
- el.innerHTML='<span class="lsbadge"><span class="lsdot"></span>LIVE</span><span class="lstext'+(anim?' lsin':'')+'">'+it.h+'</span><span class="lsago">'+esc(it.ago)+' ›</span><span class="lsx" data-a="lsmin" role="button" aria-label="Tuck the live news away">✕</span>';
+ if(!it){stripVis();return;}const mn=stripMin();el.classList.toggle('lsmin',mn);el.classList.toggle('lsme',!!it.me);el.classList.toggle('lsup',it.flash==='up');el.classList.toggle('lsdown',it.flash==='down');el.dataset.a=mn?'lsmin':it.me?'leaderboard':'liveopen';el.setAttribute('aria-label',mn?'Show the live news':it.me?'Open the leaderboard':'Open the live feed');
+ el.innerHTML='<span class="lsbadge">'+(it.me&&!mn?(it.flash==='up'?'⬆️ YOU':it.flash==='down'?'⬇️ YOU':'🏆 YOU'):'<span class="lsdot"></span>LIVE')+'</span><span class="lstext'+(anim?' lsin':'')+'">'+it.h+'</span><span class="lsago">'+esc(it.ago)+' ›</span><span class="lsx" data-a="lsmin" role="button" aria-label="Tuck the live news away">✕</span>';
  if(pop){el.classList.remove('lspop');void el.offsetWidth;el.classList.add('lspop');}stripVis();}
 async function stripTick(){const el=$('livestrip');if(!el)return;if(document.hidden||!S||!S.inds||!S.inds.length||(!ACC&&!GUEST)){stripVis();return;}
  let d;try{d=await api('GET',liveURL('world'));}catch(e){return;}
@@ -409,8 +418,9 @@ async function stripTick(){const el=$('livestrip');if(!el)return;if(document.hid
  const cur=stripList[stripIdx]&&stripList[stripIdx].id;
  stripList=recent.map(top=>{const nm=esc(((top.who&&top.who!==top.name?top.who:top.name)||'A player').split(' ').slice(0,top.guest?2:1).join(' '));return{id:top.id,h:'<b>'+nm+'</b> '+esc(top.text),ago:top.ago};});
  if(!stripList.length&&n>=2)stripList=[{id:0,h:'🟢 <b>'+n+' players</b> are building empires right now',ago:'See'}];
+ stripList=stripMix(stripList);
  const isNew=recent.length&&recent[0].id>seen;
- if(isNew){try{localStorage.setItem('hs-lseen',String(recent[0].id));}catch(e){}stripIdx=0;stripShow(true,true);return;}
+ if(isNew){try{localStorage.setItem('hs-lseen',String(recent[0].id));}catch(e){}stripIdx=Math.max(0,stripList.findIndex(x=>x.id===recent[0].id));stripShow(true,true);return;}
  const k=stripList.findIndex(x=>x.id===cur);stripIdx=k<0?0:k;stripShow(false);}
 function stripRotate(){if(document.hidden||stripList.length<2||stripMin()||acctView)return;stripIdx=(stripIdx+1)%stripList.length;stripShow(true);}
 function stripStart(){if(stripI)return;setTimeout(stripTick,6000);stripI=setInterval(stripTick,45000);stripR=setInterval(stripRotate,6000);
@@ -422,9 +432,10 @@ let rivalPrev=null,rivalT=null;
 function toast(html,act){let t=$('hstoast');if(!t){t=document.createElement('button');t.id='hstoast';t.className='hstoast';document.body.appendChild(t);}
  t.innerHTML=html;t.dataset.a=act||'';t.hidden=false;t.classList.remove('out');clearTimeout(toast.h);toast.h=setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.hidden=true,400);},6000);}
 async function rivalCheck(){if(!ACC||!S||S.over||acctView||document.hidden)return;let d;try{d=await api('GET','/api/season?scope=country&region='+encodeURIComponent(S.region||''));}catch(e){return;}
- seasonCache=d;const me=d&&d.me;if(!me)return;const now={id:d.season,r:me.rankRegion,ahead:me.ahead&&me.ahead.name};
+ seasonCache=d;try{stripMeRefresh();}catch(e){}const me=d&&d.me;if(!me)return;const now={id:d.season,r:me.rankRegion,ahead:me.ahead&&me.ahead.name};
  if(rivalPrev&&rivalPrev.id===now.id&&!current&&$('modal').hidden){
-  if(now.r<rivalPrev.r)toast('<b>🏆 You passed '+esc(rivalPrev.ahead||'a rival')+'!</b><span>You are now #'+now.r+' in your country this season.'+(me.ahead?' Next up: '+esc(me.ahead.name)+', '+me.ahead.gap.toLocaleString('en-US')+' points ahead.':' Nobody is ahead of you.')+'</span>','leaderboard');
+  if(now.r!==rivalPrev.r)try{stripFlash(now.r<rivalPrev.r?'You climbed to <b>#'+now.r+'</b>'+(rivalPrev.ahead?', passing '+esc(rivalPrev.ahead):'')+(me.ahead?' · next: '+esc(me.ahead.name)+', '+me.ahead.gap.toLocaleString('en-US')+' points ahead':' · nobody is ahead of you'):esc(now.ahead||'A rival')+' passed you · you are <b>#'+now.r+'</b> now'+(me.ahead?', '+me.ahead.gap.toLocaleString('en-US')+' points behind':''),now.r<rivalPrev.r);}catch(e){}
+  if(stripOn()){}else if(now.r<rivalPrev.r)toast('<b>🏆 You passed '+esc(rivalPrev.ahead||'a rival')+'!</b><span>You are now #'+now.r+' in your country this season.'+(me.ahead?' Next up: '+esc(me.ahead.name)+', '+me.ahead.gap.toLocaleString('en-US')+' points ahead.':' Nobody is ahead of you.')+'</span>','leaderboard');
   else if(now.r>rivalPrev.r)toast('<b>⚠️ '+esc(now.ahead||'A rival')+' just passed you</b><span>You dropped to #'+now.r+' in your country. They are '+(me.ahead?me.ahead.gap.toLocaleString('en-US'):'a few')+' points ahead. Take it back.</span>','leaderboard');}
  rivalPrev=now;}
 function rivalStart(){clearInterval(rivalT);rivalPrev=null;setTimeout(rivalCheck,6000);rivalT=setInterval(rivalCheck,90000);}
