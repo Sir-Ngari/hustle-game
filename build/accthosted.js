@@ -30,7 +30,7 @@ async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;
 async function showLives(){if(!ACC)return;loadSeason();stopAuto();closeModal();acctView='lives';livesData=null;renderAccts();window.scrollTo(0,0);try{livesData=(await api('GET','/api/lives')).lives;livesCache=livesData;}catch(e){livesData=[];}if(acctView==='lives')renderAccts();}
 function startWith(user,save,bill,ver){ttIdentify(user);if(GUEST){GUEST=false;guestDrop();}setTimeout(fyFix,1500);{const lb=document.getElementById('lbbtn');if(lb)lb.hidden=false;if(!window.lbPaintT)window.lbPaintT=setInterval(paintLbBtn,4000);}try{localStorage.setItem('hs-player','1');}catch(e){}setTimeout(()=>pushRegister(false).catch(()=>{}),3000);SAVEVER=(typeof ver==='number')?ver:null;setBill(bill);if(refCode&&authMode==='signup'){refCode='';refInfo=null;try{localStorage.removeItem('hs-ref');}catch(e){}}livesCache=null;loadLives();setTimeout(loadSeason,1200);ACC=user;S=save&&save.hist?Object.assign(fresh(),save):freshFor(user);const away0=S.seen||0;migrate();if(S.gnum>1&&S.who&&!/\s/.test(S.who.trim()))S.who=S.who.trim()+' '+familyName();current=null;closeModal();acctView=null;authMsg='';renderAccts();render();
  if(!save)queueSync(true);
- signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}bankLots=null;mkData={local:null,world:null,mine:null};mkMsg='';setTimeout(bankFlush,2000);mkSettleTries=0;setTimeout(mkSettle,6000);xcData=null;setTimeout(()=>{xcSettle();xcLoad(true);},7000);if(!awayWelcome(away0))startEvents();giftTries=0;setTimeout(giftCheck,4000);rivalStart();
+ signupGender='';signupRegion='';signupCur='USD';if(!user.email&&!emailSkip){acctView='addemail';authMsg='';renderAccts();}bankLots=null;mkData={local:null,world:null,mine:null};mkMsg='';setTimeout(bankFlush,2000);mkSettleTries=0;setTimeout(mkSettle,6000);xcData=null;setTimeout(()=>{xcSettle();xcLoad(true);},7000);if(!awayWelcome(away0))startEvents();giftTries=0;setTimeout(giftCheck,4000);setTimeout(()=>{if(typeof bidLoad==='function')bidLoad(true);},5000);rivalStart();
  paintPass();if(payRef)confirmPay();else if(passLocked())openPay();}
 function summary(){const nw=netWorth();return{nw,month:S.month,cash:S.cash,rank:TITLES[titleIdx(nw)][1],won:!!S.won,over:!!S.over,newGame:newGameFlag,prev:newGameFlag?pendingLife:null,
  industries:S.inds.length,units:totalUnits(),properties:(S.props||[]).length,teams:Object.keys(S.teams||{}).length,happiness:Math.round(S.happy),reputation:Math.round(S.rep),
@@ -904,3 +904,81 @@ function inviteHTML(){const d=inviteData;let h='<h2>Invite friends</h2><p class=
  return h+'<p class="hint">Your invite code is <b>'+esc(d.code)+'</b>. Free days from friends who come back are capped at '+d.cap+' friends a month.</p><div class="chips"><button class="btn ghost" data-a="acctclose">Back</button></div>';}
 async function inviteCopy(){const d=inviteData;if(!d)return;try{await navigator.clipboard.writeText(inviteText());inviteMsg='Copied. Paste it into any chat.';}catch(e){const i=$('inv-link');if(i){i.select();try{document.execCommand('copy');inviteMsg='Link copied.';}catch(x){inviteMsg='Press and hold the link to copy it.';}}}renderAccts();}
 async function inviteShare(){const d=inviteData;if(!d||!navigator.share)return;try{await navigator.share({title:'Hustlempires',text:inviteText().replace(d.link,'').trim(),url:d.link});}catch(e){}}
+
+/* ---------- Offers: bid for another player's buildings or business outlets (from the Empire map) ---------- */
+let bidData=null,bidT=0,bidBusy=false,bidDraft=null,bidSeen={},bidMsg='';
+function bidFmtPct(p){return Math.round(p*100)+'%';}
+function bidHeldSet(){if(!S)return;S.bidOut=S.bidOut||{};S.bidHeld=Object.values(S.bidOut).reduce((a,v)=>a+(+v||0),0);}
+function bidWhat(b,me){const n=b.qty;if(b.kind==='biz'){const x=BIZ.find(z=>z.id===b.item);return n+' '+(x?x.name:'outlet')+(n===1?'':' outlets');}
+ const t=ptype(b.item),c=pcity(b.city);return n+' '+(t?t.name.lc():'building')+(n===1?'':'s')+(c?' in '+c.name:'');}
+async function bidLoad(force){if(!ACC||GUEST||bidBusy||!S)return;if(!force&&Date.now()-bidT<60000)return;bidT=Date.now();bidBusy=true;
+ try{bidData=await api('GET','/api/bids');}catch(e){bidBusy=false;return;}bidBusy=false;await bidSettle();bidPrompt();try{if(typeof emLegend==='function'&&curTab==='map')emLegend();}catch(e){}}
+/* the buyer's game applies finished offers once: what was bought arrives, or the held cash comes back */
+async function bidSettle(){if(!bidData||!S)return;S.bidOut=S.bidOut||{};S.bidDone=S.bidDone||{};const done=[];let changed=false;
+ (bidData.out||[]).forEach(b=>{if(b.status==='open'||b.done)return;if(S.bidDone[b.id]){done.push(b.id);return;}const held=S.bidOut[b.id];
+  if(held==null){S.bidDone[b.id]=1;done.push(b.id);return;}
+  let got=false;if(b.status==='accepted'){if(b.kind==='biz'){const x=BIZ.find(z=>z.id===b.item);if(x){S.owned[x.id]=owned(x.id)+b.qty;got=true;}}
+   else{const t=ptype(b.item),c=pcity(b.city);if(t&&c){S.props=S.props||[];const G=(b.give||[]).slice(0,b.qty);while(G.length<b.qty)G.push({});
+    G.forEach(g=>S.props.push({type:t.id,city:c.id,name:propName(t,c),af:+g.af||(S.reIdx||1),left:0,total:+g.total||t.build,occ:g.occ!=null?+g.occ:.9,anchor:0,was:g.name||''}));
+    S.pcOpen=S.pcOpen||[];if(!S.pcOpen.includes(c.id))S.pcOpen.push(c.id);got=true;}}}
+  if(got)log(esc(b.name)+' accepted your offer. You bought '+bidWhat(b)+' for '+fmt(b.price)+'.','gold');
+  else{S.cash+=held;log(b.status==='accepted'?'The deal with '+esc(b.name)+' could not be completed. Your '+fmt(held)+' is back.':b.status==='declined'?esc(b.name)+' turned down your offer for '+bidWhat(b)+'. Your '+fmt(held)+' is back.':b.status==='cancelled'?'You took back your offer for '+bidWhat(b)+'. Your '+fmt(held)+' is back.':'Your offer for '+bidWhat(b)+' expired. Your '+fmt(held)+' is back.',b.status==='accepted'?'bad':'');}
+  delete S.bidOut[b.id];S.bidDone[b.id]=1;done.push(b.id);changed=true;});
+ {const k=Object.keys(S.bidDone);if(k.length>300)k.slice(0,k.length-300).forEach(x=>delete S.bidDone[x]);}
+ if(changed){bidHeldSet();afterChange();try{await doSync();}catch(e){}}
+ if(done.length)api('POST','/api/bids/collect',{ids:done}).catch(()=>{});}
+/* the seller sees each new offer once per session as a card */
+function bidPrompt(){if(!bidData||current||!$('modal').hidden||acctView||(typeof tourOn!=='undefined'&&tourOn))return;const b=(bidData.in||[]).find(x=>!bidSeen[x.id]);if(!b)return;bidSeen[b.id]=1;bidAsk(b);}
+function bidAsk(b){const left=Math.max(1,Math.round((b.expires-(bidData.now||Date.now()/1000))/3600)),pct=b.value>0?b.price/b.value:1;
+ showCard('An offer for your '+(b.kind==='biz'?'business':'buildings'),'<p><b>'+esc(b.name)+'</b>'+(b.company?' of '+esc(b.company):'')+' offers <b>'+fmt(b.price)+'</b> for '+bidWhat(b)+'.</p><p>That is '+bidFmtPct(pct)+' of what they are worth at today\'s prices ('+fmt(b.value)+'). The offer ends in about '+left+' hour'+(left===1?'':'s')+'.</p>'+
+  (b.kind==='biz'?'<p class="sub">Selling outlets lowers your monthly profit.</p>':'<p class="sub">Your cheapest matching buildings go first.</p>'),
+  '<button class="btn primary" data-a="bidyes" data-v="'+b.id+'">Accept · '+fmt(b.price)+'</button><button class="btn" data-a="bidno" data-v="'+b.id+'">Turn it down</button><button class="btn ghost" data-a="close">Decide later</button>');}
+async function bidAnswer(id,yes){const b=bidData&&(bidData.in||[]).find(x=>x.id===id);if(!b)return closeModal();let give=[],pick=[];
+ if(yes){if(b.kind==='biz'){if(owned(b.item)<b.qty){showCard('Not enough to sell','You no longer own '+bidWhat(b)+'.','<button class="btn primary" data-a="close">OK</button>');return;}}
+  else{pick=(S.props||[]).filter(p=>p.type===b.item&&p.city===b.city&&!(p.left>0)).sort((x,y)=>propValue1(x)-propValue1(y)).slice(0,b.qty);
+   if(pick.length<b.qty){showCard('Not enough to sell','You no longer own '+bidWhat(b)+'.','<button class="btn primary" data-a="close">OK</button>');return;}
+   give=pick.map(p=>({af:p.af,occ:p.occ,total:p.total,name:p.name}));}}
+ try{await doSync();await api('POST','/api/bids/answer',{id,accept:yes,give});}catch(e){showCard('Could not answer',esc(e.message||'Try again in a moment.'),'<button class="btn primary" data-a="close">OK</button>');bidLoad(true);return;}
+ if(yes){if(b.kind==='biz')S.owned[b.item]=owned(b.item)-b.qty;else S.props=S.props.filter(p=>!pick.includes(p));S.cash+=b.price;
+  log('You sold '+bidWhat(b)+' to '+esc(b.name)+' for '+fmt(b.price)+'.','gold');afterChange();try{await doSync();}catch(e){}}
+ else log('You turned down '+esc(b.name)+'\'s offer for '+bidWhat(b)+'.','');
+ bidData.in=(bidData.in||[]).filter(x=>x.id!==id);closeModal();setTimeout(bidPrompt,600);}
+async function bidCancel(id){try{await api('POST','/api/bids/cancel',{id});}catch(e){}await bidLoad(true);bidsList();}
+/* the offer card: pick their buildings or outlets, how many, and a price between 50% and 300% of what it is worth */
+function bidOpts(pl,city){const o=[];
+ Object.keys(pl.pt||{}).forEach(cid=>{Object.keys(pl.pt[cid]).forEach(tid=>{const n=pl.pt[cid][tid],t=ptype(tid),c=pcity(cid);if(!t||!n)return;
+  const why=!c?'Not on your property route':'';o.push({kind:'prop',item:tid,city:cid,n,label:t.name+' in '+(c?c.name:cid),unit:c?propPrice(t,c):0,why,here:cid===city});});});
+ Object.keys(pl.b||{}).forEach(id=>{const b=BIZ.find(x=>x.id===id),n=pl.b[id];if(!b||!n)return;
+  const why=!S.inds.includes(b.ind)?'You do not run '+IND[b.ind].name.lc():bizLocked(b)?'Still locked for you':'';o.push({kind:'biz',item:id,city:'',n,label:b.name,unit:unitCost(b,owned(b.id)),why});});
+ return o.sort((a,b)=>(b.here?1:0)-(a.here?1:0)||(a.why?1:0)-(b.why?1:0));}
+function bidOpen(h,city){if(GUEST||!ACC){guestAsk('chip');return;}const pl=(EM.othRaw||[]).find(x=>x.h===h);if(!pl)return;const opts=bidOpts(pl,city||'');
+ bidDraft={pl,opts,i:opts.findIndex(x=>!x.why),qty:1,pct:1};if(bidDraft.i<0)bidDraft.i=0;bidMsg='';bidPaint();}
+function bidPaint(){const d=bidDraft;if(!d)return;const o=d.opts[d.i];
+ const list=d.opts.length?d.opts.map((x,i)=>'<button class="bidopt'+(i===d.i?' on':'')+'" data-a="bidpick" data-v="'+i+'"'+(x.why?' disabled':'')+'><b>'+esc(x.label)+'</b><span>'+(x.kind==='biz'?'Business · ':'Building · ')+x.n+' owned'+(x.why?' · '+esc(x.why):' · worth '+fmt(x.unit)+' each')+'</span></button>').join(''):'<p class="sub">They have nothing you can make an offer for yet.</p>';
+ let body='<p>Make <b>'+esc(d.pl.n)+'</b>'+(d.pl.co?' of '+esc(d.pl.co):'')+' an offer. Your cash is held until they answer, and comes back if they say no or do not answer within 48 hours.</p><div class="bidopts">'+list+'</div>';
+ let btn='<button class="btn ghost" data-a="close">Cancel</button>';
+ if(o&&!o.why){const mx=Math.min(o.n,100);d.qty=Math.max(1,Math.min(d.qty,mx));const val=o.unit*d.qty,tot=val*d.pct;
+  body+='<div class="bidset"><label>How many<input type="range" id="bid-qty" min="1" max="'+mx+'" step="1" value="'+d.qty+'"><b>'+d.qty+'</b></label>'+
+   '<label>Your price<input type="range" id="bid-pct" min="50" max="300" step="5" value="'+Math.round(d.pct*100)+'"><b>'+bidFmtPct(d.pct)+' of value</b></label>'+
+   '<p class="bidtot">Worth '+fmt(val)+' · your offer <b>'+fmt(tot)+'</b></p>'+(S.cash<tot?'<p class="amsg">You need '+fmt(tot)+' in cash.</p>':'')+(bidMsg?'<p class="amsg">'+esc(bidMsg)+'</p>':'')+'</div>';
+  btn='<button class="btn primary" data-a="bidsend"'+(S.cash<tot?' disabled':'')+'>Send offer · '+fmt(tot)+'</button>'+btn;}
+ showCard('Make an offer',body,btn);}
+document.addEventListener('input',e=>{if(!bidDraft||!e.target)return;if(e.target.id==='bid-qty'){bidDraft.qty=+e.target.value;bidRepaintNums();}else if(e.target.id==='bid-pct'){bidDraft.pct=+e.target.value/100;bidRepaintNums();}});
+function bidRepaintNums(){const d=bidDraft,o=d&&d.opts[d.i];if(!o)return;const val=o.unit*d.qty,tot=val*d.pct,q=$('bid-qty'),p=$('bid-pct');
+ if(q&&q.nextElementSibling)q.nextElementSibling.textContent=d.qty;if(p&&p.nextElementSibling)p.nextElementSibling.textContent=bidFmtPct(d.pct)+' of value';
+ const t=document.querySelector('.bidtot');if(t)t.innerHTML='Worth '+fmt(val)+' · your offer <b>'+fmt(tot)+'</b>';const s=document.querySelector('[data-a="bidsend"]');if(s){s.disabled=S.cash<tot;s.textContent='Send offer · '+fmt(tot);}}
+function bidPick(i){if(!bidDraft)return;bidDraft.i=+i;bidDraft.qty=1;bidMsg='';bidPaint();}
+async function bidSend(){const d=bidDraft,o=d&&d.opts[d.i];if(!o||o.why)return;const val=o.unit*d.qty,tot=Math.round(val*d.pct*100)/100;if(S.cash<tot)return;
+ const s=document.querySelector('[data-a="bidsend"]');if(s){s.disabled=true;s.textContent='Sending…';}
+ try{await doSync();const r=await api('POST','/api/bids/make',{seller:d.pl.h,kind:o.kind,item:o.item,city:o.city,qty:d.qty,value:val,price:tot});
+  S.cash-=tot;S.bidOut=S.bidOut||{};S.bidOut[r.bid.id]=tot;bidHeldSet();log('You offered '+fmt(tot)+' to '+esc(d.pl.n)+' for '+bidWhat(r.bid)+'. The money is held until they answer.','');afterChange();try{await doSync();}catch(e){}
+  bidDraft=null;showCard('Offer sent','<p>'+esc(d.pl.n)+' has 48 hours to answer. If they say no, or do not answer, your '+fmt(tot)+' comes straight back.</p>','<button class="btn primary" data-a="close">OK</button><button class="btn ghost" data-a="bids">My offers</button>');bidLoad(true);}
+ catch(e){bidMsg=e.message||'Could not send the offer.';bidPaint();}}
+function bidsList(){if(!bidData){bidLoad(true).then(()=>{if(bidData)bidsList();});return;}const now=bidData.now||Date.now()/1000;
+ const inc=(bidData.in||[]),out=(bidData.out||[]).filter(b=>b.status==='open'||now-b.created<7*86400);
+ const row=(b,acts)=>'<li><span><b>'+(b.mine?'To ':'From ')+esc(b.name)+'</b>'+bidWhat(b)+' · '+fmt(b.price)+'<small>'+(b.status==='open'?'Ends in about '+Math.max(1,Math.round((b.expires-now)/3600))+'h':b.status==='accepted'?'Accepted':b.status==='declined'?'Turned down':b.status==='cancelled'?'Taken back':'Expired')+'</small></span>'+acts+'</li>';
+ const body=(inc.length?'<p><b>Offers for you</b></p><ul class="emolist">'+inc.map(b=>row(b,'<span class="bidacts"><button class="btn small primary" data-a="bidyes" data-v="'+b.id+'">Accept</button><button class="btn small ghost" data-a="bidno" data-v="'+b.id+'">No</button></span>')).join('')+'</ul>':'')+
+  '<p><b>Offers you made</b></p>'+(out.length?'<ul class="emolist">'+out.map(b=>row(b,b.status==='open'?'<button class="btn small ghost" data-a="bidcancel" data-v="'+b.id+'">Take back</button>':'')).join('')+'</ul>':'<p class="sub">None yet. Tap a blue 👥 place on the Map to make an offer.</p>')+
+  (S.bidHeld?'<p class="sub">Held for your open offers: '+fmt(S.bidHeld)+' (still counts in your net worth).</p>':'');
+ showCard('Offers',body,'<button class="btn ghost" data-a="close">Close</button>');}
+setInterval(()=>bidLoad(),120000);

@@ -471,6 +471,25 @@ CREATE TABLE IF NOT EXISTS market(
   settled INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS market_open ON market(status, expires);
+CREATE TABLE IF NOT EXISTS bids(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  buyer_id INTEGER NOT NULL,
+  seller_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  item TEXT NOT NULL,
+  city TEXT NOT NULL DEFAULT '',
+  qty INTEGER NOT NULL,
+  value REAL NOT NULL,
+  price REAL NOT NULL,
+  created INTEGER NOT NULL,
+  expires INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',
+  answered INTEGER NOT NULL DEFAULT 0,
+  give TEXT NOT NULL DEFAULT '[]',
+  buyer_done INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS bids_buyer ON bids(buyer_id, buyer_done);
+CREATE INDEX IF NOT EXISTS bids_seller ON bids(seller_id, status);
 CREATE INDEX IF NOT EXISTS market_seller ON market(seller_id, status);
 CREATE TABLE IF NOT EXISTS xc_list(
   user_id INTEGER PRIMARY KEY,
@@ -2315,6 +2334,49 @@ def presence_count(region):
     return {"world": len(live), "country": sum(1 for v in live if region and v[1] == region)}
 
 
+# ---- Offers between players: bid for another player's buildings or business outlets ----
+BID_HOURS = 48
+BID_OPEN_MAX = 10
+BID_ITEM_RE = re.compile(r"^[a-z0-9]{1,30}$")
+
+
+def bid_owned(state, kind, item, city):
+    """How many of the thing a player's saved game holds right now."""
+    if not isinstance(state, dict):
+        return 0
+    if kind == "biz":
+        o = state.get("owned") if isinstance(state.get("owned"), dict) else {}
+        return int(num(o.get(item)))
+    return sum(1 for p in (state.get("props") or []) if isinstance(p, dict) and p.get("type") == item and p.get("city") == city and not p.get("left"))
+
+
+def bid_state(uid):
+    row = q("SELECT state FROM saves WHERE user_id=?", (uid,), one=True)
+    try:
+        return json.loads(row["state"]) if row else None
+    except ValueError:
+        return None
+
+
+def bids_expire(t):
+    q("UPDATE bids SET status='expired' WHERE status='open' AND expires<=?", (t,))
+
+
+def bid_row(r, uid):
+    """One offer as the game shows it, with the other player's name."""
+    other = r["seller_id"] if r["buyer_id"] == uid else r["buyer_id"]
+    u = q("SELECT name, company FROM users WHERE id=?", (other,), one=True) or {"name": "A player", "company": ""}
+    p = q("SELECT handle FROM profiles WHERE user_id=?", (other,), one=True)
+    try:
+        give = json.loads(r["give"] or "[]")
+    except ValueError:
+        give = []
+    return {"id": r["id"], "kind": r["kind"], "item": r["item"], "city": r["city"], "qty": r["qty"], "value": r["value"],
+            "price": r["price"], "created": r["created"], "expires": r["expires"], "status": r["status"],
+            "mine": r["buyer_id"] == uid, "name": u["name"], "company": u["company"], "handle": p["handle"] if p else "",
+            "give": give if r["buyer_id"] == uid else [], "done": bool(r["buyer_done"])}
+
+
 _MAP_CACHE = {"t": 0, "data": None}
 _MAP_LOCK = threading.Lock()
 
@@ -2340,14 +2402,19 @@ def map_players():
         region = re.sub(r"[^A-Z]", "", str(st.get("region") or "").upper())[:3]
         if not region:
             continue
-        props = {}
+        props, ptypes = {}, {}
         for pr in st.get("props") or []:
             if isinstance(pr, dict) and not pr.get("left"):
                 c = re.sub(r"[^a-z0-9]", "", str(pr.get("city") or "").lower())[:30]
+                ty = re.sub(r"[^a-z0-9]", "", str(pr.get("type") or "").lower())[:30]
                 if c:
                     props[c] = props.get(c, 0) + 1
+                    if ty:
+                        ptypes.setdefault(c, {})[ty] = ptypes.setdefault(c, {}).get(ty, 0) + 1
+        ow = st.get("owned") if isinstance(st.get("owned"), dict) else {}
+        biz = {k: int(num(v)) for k, v in ow.items() if isinstance(k, str) and BID_ITEM_RE.match(k) and int(num(v)) > 0}
         out.append({"id": r["id"], "h": r["handle"], "n": clean_text(r["name"], 40), "co": clean_text(r["company"], 40),
-                    "col": r["color"], "r": region, "t": clean_text(r["rank"], 30), "p": props})
+                    "col": r["color"], "r": region, "t": clean_text(r["rank"], 30), "p": props, "pt": ptypes, "b": biz})
     with _MAP_LOCK:
         _MAP_CACHE.update(t=t, data=out)
     return out
@@ -2856,6 +2923,12 @@ def clean_tuning(d):
             econ[k] = v
     if ed.get("bank") in (0, False, "0"):
         econ["bank"] = 0
+    try:
+        cap = int(min(100000, max(5, int(float(ed.get("cap", 50))))))
+    except (TypeError, ValueError):
+        cap = 50
+    if cap != 50:
+        econ["cap"] = cap
     if econ:
         out["econ"] = econ
     hd = d.get("heir") if isinstance(d.get("heir"), dict) else {}
@@ -4619,6 +4692,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_live()
         if path == "/api/map/players":
             return self.api_map_players()
+        if path == "/api/bids":
+            return self.api_bids()
         if path == "/api/bank/lots":
             return self.api_bank_lots()
         if path == "/api/market":
@@ -4658,7 +4733,7 @@ class Handler(BaseHTTPRequestHandler):
                   "/api/friends/remove": self.api_friend_remove, "/api/friends/gift": self.api_friend_gift,
                   "/api/friends/claim": self.api_gift_claim, "/api/friends/msg": self.api_friend_msg, "/api/feed/react": self.api_feed_react,
                   "/api/wall/guest": self.api_wall_guest, "/api/wall/post": self.api_wall_post, "/api/wall/mine": self.api_wall_mine,
-                  "/api/wall/hide": self.api_wall_hide, "/api/live/reply": self.api_live_reply, "/api/wall/privacy": self.api_wall_privacy, "/api/bank/list": self.api_bank_list, "/api/bank/buy": self.api_bank_buy,
+                  "/api/wall/hide": self.api_wall_hide, "/api/live/reply": self.api_live_reply, "/api/wall/privacy": self.api_wall_privacy, "/api/bank/list": self.api_bank_list, "/api/bank/buy": self.api_bank_buy, "/api/bids/make": self.api_bid_make, "/api/bids/answer": self.api_bid_answer, "/api/bids/cancel": self.api_bid_cancel, "/api/bids/collect": self.api_bid_collect,
                   "/api/market/list": self.api_market_list, "/api/market/buy": self.api_market_buy,
                   "/api/market/cancel": self.api_market_cancel, "/api/market/settle": self.api_market_settle,
                   "/api/xchg/list": self.api_xchg_list, "/api/xchg/buy": self.api_xchg_buy, "/api/xchg/sell": self.api_xchg_sell,
@@ -5613,6 +5688,131 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(200, {"items": items, "reacts": REACTS, "replies": [[k, v] for k, v in LIVE_REPLIES.items()],
                              "reactsSad": REACTS_SAD, "repliesSad": [[k, v] for k, v in LIVE_REPLIES_SAD.items()],
                              "playing": presence_count(region), "signed": bool(user), "scope": scope, "now": t})
+
+    def api_bids(self):
+        """My offers: the ones I made and the ones waiting for my answer."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        t = now()
+        bids_expire(t)
+        uid = user["id"]
+        mine = q("SELECT * FROM bids WHERE buyer_id=? AND (buyer_done=0 OR created>?) ORDER BY id DESC LIMIT 40", (uid, t - 7 * 86400))
+        inc = q("SELECT * FROM bids WHERE seller_id=? AND status='open' ORDER BY id DESC LIMIT 40", (uid,))
+        self.send_json(200, {"out": [bid_row(r, uid) for r in mine], "in": [bid_row(r, uid) for r in inc], "now": t})
+
+    def api_bid_make(self):
+        """Make an offer. The game holds the buyer's cash once this succeeds; the seller has 48 hours to answer."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Create your free account to make offers.")
+        if rate_limited("bid:%d" % user["id"], limit=30, window=3600):
+            return self.error(429, "Too many offers. Try again later.")
+        d = self.read_json()
+        if d is None:
+            return
+        kind = d.get("kind") if d.get("kind") in ("biz", "prop") else None
+        item = str(d.get("item") or "")
+        city = str(d.get("city") or "") if kind == "prop" else ""
+        try:
+            qty = int(d.get("qty"))
+            value = float(d.get("value"))
+            price = float(d.get("price"))
+        except (TypeError, ValueError):
+            return self.error(400, "Choose what to offer for.")
+        if not kind or not BID_ITEM_RE.match(item) or (kind == "prop" and not BID_ITEM_RE.match(city)):
+            return self.error(400, "That cannot be bought here.")
+        if not (1 <= qty <= 500) or not (0 < value < 1e18) or not (value * 0.5 - 1e-6 <= price <= value * 3 + 1e-6):
+            return self.error(400, "Offer between half and three times what it is worth.")
+        seller = profile_by_handle(str(d.get("seller") or ""))
+        if not seller or not seller["user_id"] or seller["user_id"] == user["id"] or seller["private"]:
+            return self.error(404, "That player cannot take offers.")
+        su = q("SELECT disabled FROM users WHERE id=?", (seller["user_id"],), one=True)
+        if not su or su["disabled"]:
+            return self.error(404, "That player cannot take offers.")
+        if bid_owned(bid_state(seller["user_id"]), kind, item, city) < qty:
+            return self.error(409, "They do not own that many any more.")
+        st = bid_state(user["id"]) or {}
+        if num(st.get("cash")) + 1 < price:
+            return self.error(409, "You do not have that much cash.")
+        t = now()
+        if q("SELECT COUNT(*) c FROM bids WHERE buyer_id=? AND status='open' AND expires>?", (user["id"], t), one=True)["c"] >= BID_OPEN_MAX:
+            return self.error(409, "You already have %d offers waiting. Wait for answers or cancel one." % BID_OPEN_MAX)
+        bid = tx(lambda db: db.execute("INSERT INTO bids(buyer_id, seller_id, kind, item, city, qty, value, price, created, expires) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                                       (user["id"], seller["user_id"], kind, item, city, qty, value, price, t, t + BID_HOURS * 3600)).lastrowid)
+        first = (user["name"] or "A player").split(" ")[0]
+        push_later(seller["user_id"], "bid", "%s made you an offer" % first,
+                   "%s wants to buy %s of yours. Open Hustlempires to answer within 48 hours." % (first, "some buildings" if kind == "prop" else "some of your outlets"), t)
+        r = q("SELECT * FROM bids WHERE id=?", (bid,), one=True)
+        self.send_json(200, {"ok": True, "bid": bid_row(r, user["id"])})
+
+    def api_bid_answer(self):
+        """The seller says yes or no. Yes only goes through if the offer is still open and they still own it all."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        bid_id, yes, t = int(num(d.get("id"))), bool(d.get("accept")), now()
+        give = d.get("give") if isinstance(d.get("give"), list) else []
+        clean = []
+        for g in give[:500]:
+            if isinstance(g, dict):
+                clean.append({"af": max(0.05, min(50.0, num(g.get("af"), 1))), "occ": max(0.0, min(1.0, num(g.get("occ"), 0.9))),
+                              "total": int(max(0, min(240, num(g.get("total"))))), "name": clean_text(g.get("name"), 60)})
+        st = bid_state(user["id"])
+        sv = q("SELECT updated FROM saves WHERE user_id=?", (user["id"],), one=True)
+        saved = sv["updated"] if sv else 0
+        bids_expire(t)
+
+        def take(db):
+            r = db.execute("SELECT * FROM bids WHERE id=? AND seller_id=?", (bid_id, user["id"])).fetchone()
+            if not r or r["status"] != "open":
+                return None, "This offer is no longer open."
+            # offers accepted since the seller's last save have not left their saved game yet: count them as gone
+            pend = db.execute("SELECT COALESCE(SUM(qty),0) n FROM bids WHERE seller_id=? AND status='accepted' AND kind=? AND item=? AND city=? AND answered>=?",
+                              (user["id"], r["kind"], r["item"], r["city"], saved)).fetchone()["n"]
+            if yes and bid_owned(st, r["kind"], r["item"], r["city"]) - pend < r["qty"]:
+                return None, "You no longer own enough to accept this."
+            db.execute("UPDATE bids SET status=?, answered=?, give=? WHERE id=?",
+                       ("accepted" if yes else "declined", t, json.dumps(clean[:r["qty"]]) if yes else "[]", bid_id))
+            return r, ""
+        r, err = tx(take)
+        if not r:
+            return self.error(409, err)
+        first = (user["name"] or "A player").split(" ")[0]
+        push_later(r["buyer_id"], "bidans", "%s %s your offer" % (first, "accepted" if yes else "turned down"),
+                   "Open Hustlempires to %s." % ("collect what you bought" if yes else "get your money back"), t)
+        self.send_json(200, {"ok": True, "bid": bid_row(q("SELECT * FROM bids WHERE id=?", (bid_id,), one=True), user["id"])})
+
+    def api_bid_cancel(self):
+        """The buyer takes an open offer back; the game returns the held cash when it collects."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        bid_id = int(num(d.get("id")))
+        n = tx(lambda db: db.execute("UPDATE bids SET status='cancelled', answered=? WHERE id=? AND buyer_id=? AND status='open'",
+                                     (now(), bid_id, user["id"])).rowcount)
+        if not n:
+            return self.error(409, "This offer is no longer open.")
+        self.send_json(200, {"ok": True})
+
+    def api_bid_collect(self):
+        """The buyer's game has applied the result (the buildings or outlets, or the money back)."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Log in first.")
+        d = self.read_json()
+        if d is None:
+            return
+        ids = [int(num(x)) for x in (d.get("ids") or [])[:50]]
+        for i in ids:
+            q("UPDATE bids SET buyer_done=1 WHERE id=? AND buyer_id=? AND status!='open'", (i, user["id"]))
+        self.send_json(200, {"ok": True})
 
     def api_map_players(self):
         """Who else is on the Empire map. Anyone can see it, guests included, like the live feed."""

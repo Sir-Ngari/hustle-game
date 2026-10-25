@@ -627,6 +627,14 @@ html.gm .acct{background:rgba(6,14,30,.82);backdrop-filter:blur(3px);-webkit-bac
 .emolist{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .emolist li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(255,255,255,.08)}
 .emolist li span{display:flex;flex-direction:column;min-width:0}.emolist li small{color:var(--muted);font-size:12px}
+.emolist .bidacts{display:flex;flex-direction:row;gap:6px;flex:none}
+.emoffers{border:1px solid rgba(255,210,90,.6);background:rgba(255,210,90,.1);color:#ffd25a;border-radius:999px;padding:2px 10px;font:inherit;font-weight:700;cursor:pointer}
+.emoffers b{color:#fff;background:#e5484d;border-radius:9px;padding:0 6px;margin-left:4px;font-size:11px}
+.bidopts{display:flex;flex-direction:column;gap:6px;max-height:34vh;overflow:auto;margin:10px 0}
+.bidopt{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:inherit;font:inherit;cursor:pointer}
+.bidopt span{font-size:12px;color:var(--muted)}.bidopt.on{border-color:#ffd25a;background:rgba(255,210,90,.12)}.bidopt[disabled]{opacity:.5;cursor:default}
+.bidset label{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;margin:8px 0;font-size:14px}
+.bidset label input{grid-column:1/-1;width:100%}.bidtot{margin:8px 0 0;font-size:15px}
 @media (prefers-reduced-motion:reduce){.empin.hq .emi{animation:none}.embub{animation-duration:3s}}
 
 /* phones: tabs become a bottom bar with icons */
@@ -1241,7 +1249,7 @@ function bcMax(b){if(bizLocked(b))return 0;let n=0,tot=0;const cap=regCap(b)-own
 function bcCost(b,n){let t=0;for(let i=0;i<n;i++)t+=unitCost(b,owned(b.id)+i);return t;}
 function buyCard(id){const b=BIZ.find(x=>x.id===id);if(!b||S.over||!S.inds.includes(b.ind))return;stopAuto();bcState={id,n:1};paintBuyCard();}
 /* the bank finances a purchase when the player cannot pay it all in cash: a deposit now, the rest over 5 years */
-function finQuote(b,n){const total=bcCost(b,n),need=total>S.cash+1e-6;if(owned(b.id)+n>regCap(b))return{ok:false,need,total,why:'Your licence does not allow any more of these.'};if(bizLocked(b))return{ok:false,need,total,why:'This business is still locked.'};if(!+ECONT().bank||!loanDep()||S.over)return{ok:false,need,total,why:!loanDep()?'Your credit score is too low for a business loan.':''};
+function finQuote(b,n){const total=bcCost(b,n),need=total>S.cash+1e-6;if(owned(b.id)+n>regCap(b))return{ok:false,need,total,why:capLic(b)?'Your licence does not allow any more of these.':'You own the most the market allows ('+regCap(b)+'). Buy more from other players on the Map.'};if(bizLocked(b))return{ok:false,need,total,why:'This business is still locked.'};if(!+ECONT().bank||!loanDep()||S.over)return{ok:false,need,total,why:!loanDep()?'Your credit score is too low for a business loan.':''};
  const minDep=total*loanDep(),loan0=total-minDep,pay0=loan0/LOAN_MONTHS+loan0*loanRate(),nw=netWorth(),net=S.last?S.last.net:0;
  if(S.cash<minDep)return{ok:false,need,total,minDep,why:'The bank wants a deposit of at least '+fmt(minDep)+' ('+Math.round(loanDep()*100)+'%).'};
  if(nw<total*.15)return{ok:false,need,total,minDep,why:'The bank will not lend this much against a net worth of '+fmt(nw)+'.'};
@@ -1266,6 +1274,7 @@ function paintBuyCard(){const st=bcState;if(!st)return;const b=BIZ.find(x=>x.id=
   '<div class="bcgrid"><div><small>You own</small><b>'+n0+'</b></div><div><small>Net income now</small><b class="'+(now.net<0?'neg':now.net>0?'pos':'')+'">'+(now.net<0?'−':'')+fmt(Math.abs(now.net))+'/mo</b></div><div><small>Worth now</small><b>'+fmt(now.worth)+'</b></div>'+
   '<div><small>Each new one earns</small><b class="pos">~'+fmt(Math.max(0,each))+'/mo</b></div><div><small>Next one costs</small><b>'+fmt(unitCost(b,n0))+'</b></div><div><small>Your cash</small><b>'+fmt(S.cash)+'</b></div></div>'+
   (reg?'<p class="bcnote">Income shown after the '+Math.round(ind.reg.tax*100)+'% tax. Your licence allows '+cap+' of these'+(capLeft<=0?': you have reached the limit.':', '+capLeft+' more.')+'</p>':'')+
+  (!capLic(b)&&capLeft<=10?'<p class="bcnote">The market sells up to '+cap+' of one business'+(capLeft<=0?'. You have reached it: buy more from other players on the Map.':'. '+capLeft+' more to go, then you buy from other players.')+'</p>':'')+
   (top>=1?'<div class="bcqty"><span>How many?</span><button class="btn small" data-a="bcq" data-v="-1" aria-label="One fewer"'+(n<=1?' disabled':'')+'>−</button><b id="bcn">'+n+'</b><button class="btn small" data-a="bcq" data-v="1" aria-label="One more"'+(n>=top?' disabled':'')+'>+</button>'+
     (mx>1?'<button class="btn small ghost" data-a="bcq" data-v="'+mx+'"'+(n===mx?' disabled':'')+'>Cash max ('+mx+')</button>':'')+(fx>mx?'<button class="btn small ghost" data-a="bcq" data-v="'+fx+'"'+(n===fx?' disabled':'')+'>With a loan ('+fx+')</button>':'')+'</div>'+
     loanBox+
@@ -1902,7 +1911,8 @@ const isReg=id=>!!(IND[id]&&IND[id].reg);
 /* regulated profits are scaled by the admin's Economy setting; each licence allows only so many outlets of each size */
 const regF=b=>isReg(b.ind)?Math.max(.1,+ECONT().reg||.8):1;
 const REG_CAP=[20,12,6,3,1];
-const regCap=b=>isReg(b.ind)?REG_CAP[Math.min(4,b.tier-1)]:Infinity;
+/* the shop sells up to a limit of each business (admin → Economy); after that, more come only from other players */
+const shopCap=()=>Math.max(5,+ECONT().cap||50),regCap=b=>Math.min(isReg(b.ind)?REG_CAP[Math.min(4,b.tier-1)]:Infinity,shopCap()),capLic=b=>isReg(b.ind)&&REG_CAP[Math.min(4,b.tier-1)]<=shopCap();
 const atCap=b=>owned(b.id)>=regCap(b);
 const slotInds=()=>S.inds.filter(id=>!isReg(id));
 function regLic(id){return IND[id].reg.lic*CPI();}
@@ -1916,13 +1926,13 @@ function regHTML(){const nw=Math.max(0,netWorth()),regs=INDS.filter(i=>i.reg);le
 function enterInd(id,fee){if(isReg(id)||S.inds.includes(id)||slotInds().length>=SLOTS[S.peak])return false;S.cash-=fee;S.inds.push(id);return true;}
 const cyc=b=>1+(S.s-1)*(.6+b.vol*2);
 /* economy difficulty: how much businesses earn for what they cost, how much net worth unlocks the next tier, and whether the bank offers business loans */
-const ECONT=()=>Object.assign({ret:.6,unlock:2.5,bank:1,reg:.8},(typeof TUNE!=='undefined'&&TUNE.econ)||{});
+const ECONT=()=>Object.assign({ret:.6,unlock:2.5,bank:1,reg:.8,cap:50},(typeof TUNE!=='undefined'&&TUNE.econ)||{});
 const RET=()=>+ECONT().ret;
 function bizValue(b){if(!owned(b.id))return 0;return (isReg(b.ind)?1-IND[b.ind].reg.tax:1)*regF(b)*RET()*CPI()*b.profit*owned(b.id)*policyMult(b)*masteryMult(b.ind)*12*baseMult()*b.mult*valMult()*S.s*(S.float?(1-S.float)*1.3:1);}
 function bizAssets(){return BIZ.reduce((a,b)=>a+bizValue(b),0);}
 function assetPrice(a){if(MODELS[a.id]&&!has(a.id))return a.price*genMult(a.id);return a.price*afx(a.id)*(a.stack?Math.pow(1.06,has(a.id)):1);}
 function lifeAssets(){return ASSETS.reduce((t,a)=>t+a.price*afx(a.id)*has(a.id),0);}
-function assets(){return cityValue()+collValue()+pppValue()+bizAssets()+lifeAssets()+portValue()+sportsValue()+propValue()+(typeof subValue==='function'?subValue():0)+(S.xcv||0);}
+function assets(){return(S.bidHeld||0)+cityValue()+collValue()+pppValue()+bizAssets()+lifeAssets()+portValue()+sportsValue()+propValue()+(typeof subValue==='function'?subValue():0)+(S.xcv||0);}
 /* ================= Takeovers: buy control of listed companies ================= */
 const TK_CAP={SIMU:2e9,TAUSI:1.5e9,MAVUNO:3e8,KILIMA:6e8,NURU:4e8,PESA:8e8};
 const TK_IND={SIMU:'media',TAUSI:'tech',MAVUNO:'food',KILIMA:'realestate',NURU:'energy',PESA:'tech'};
@@ -3276,14 +3286,14 @@ function emOWhere(code,id){const row=REGIONS.countries.find(c=>c.code===code),cc
  const o=ORIG_PC.find(c=>c.id===id);if(o&&EM.rr[o.name])return[o.name,EM.rr[o.name]];
  const nm=Object.keys(EM.rr).find(n=>emSlug(n)===id);return nm?[nm,EM.rr[nm]]:null;}
 function emOthBuild(){const C={},add=(code,id,pl,n)=>{const w=emOWhere(code,id);if(!w)return;const key=w[1][0].toFixed(1)+','+w[1][1].toFixed(1);let c=C[key];
-  if(!c){const [x,y]=emP(w[1][0],w[1][1]);c=C[key]={name:w[0],ll:w[1],x,y,pl:{}};}const e=c.pl[pl.h]||(c.pl[pl.h]={p:pl,hq:false,b:0});if(id)e.b+=n;else e.hq=true;};
+  if(!c){const [x,y]=emP(w[1][0],w[1][1]);c=C[key]={name:w[0],ll:w[1],x,y,pl:{}};}const e=c.pl[pl.h]||(c.pl[pl.h]={p:pl,hq:false,b:0});if(id){e.b+=n;(e.ids=e.ids||[]).push(id);}else e.hq=true;};
  (EM.othRaw||[]).forEach(pl=>{add(pl.r,null,pl,0);Object.keys(pl.p||{}).forEach(id=>add(pl.r,id,pl,pl.p[id]));});
  EM.oth=Object.values(C).map(c=>Object.assign(c,{n:Object.keys(c.pl).length})).sort((a,b)=>b.n-a.n);}
 function emOthLoad(){if(EM.othRaw&&Date.now()-EM.othT<300000)return;EM.othT=Date.now();
  api('GET','/api/map/players').then(d=>{EM.othRaw=(d&&d.players)||[];emData();emOthBuild();EM.sig='';}).catch(()=>{});}
 function emOthList(c,head){const L=Object.values(c.pl).sort((a,b)=>(b.hq-a.hq)||(b.b-a.b)).slice(0,8);
  return'<p><b>'+head+'</b></p><ul class="emolist">'+L.map(e=>'<li><span><b>'+esc(e.p.n||'A player')+'</b>'+(e.p.co?' · '+esc(e.p.co):'')+'<small>'+(e.p.t?esc(e.p.t)+' · ':'')+(e.hq?'head office here':'')+(e.hq&&e.b?', ':'')+(e.b?e.b+' building'+(e.b===1?'':'s'):'')+'</small></span>'+
-  (e.p.h?'<button class="btn small ghost" data-a="wallopen" data-v="'+esc(e.p.h)+'">Profile</button>':'')+'</li>').join('')+'</ul>'+(c.n>L.length?'<p class="sub">and '+(c.n-L.length)+' more.</p>':'');}
+  (e.p.h?'<span class="bidacts">'+(typeof bidOpen==='function'&&ACC&&!GUEST?'<button class="btn small" data-a="bidopen" data-v="'+esc(e.p.h)+'" data-c="'+esc((e.ids||[])[0]||'')+'">Offer</button>':'')+'<button class="btn small ghost" data-a="wallopen" data-v="'+esc(e.p.h)+'">Profile</button></span>':'')+'</li>').join('')+'</ul>'+(c.n>L.length?'<p class="sub">and '+(c.n-L.length)+' more.</p>':'');}
 function emOthInfo(c){if(!c)return;showCard(c.name,emOthList(c,c.n+' other player'+(c.n===1?'':'s')+' do'+(c.n===1?'es':'')+' business here'),'<button class="btn ghost" data-a="close">Close</button>');}
 function emOthNear(n){return EM.othOn?EM.oth.find(c=>Math.abs(c.ll[0]-n.ll[0])<.06&&Math.abs(c.ll[1]-n.ll[1])<.06):null;}
 function emSig(){return[EM.oth.length,EM.othOn?1:0,contsOf().join('.'),S.market||0,(S.pcOpen||[]).join(),(S.props||[]).filter(p=>!p.left).map(p=>p.city).join(),hasJet()?1:0,(R&&R.code)||'',totalUnits()].join('|');}
@@ -3355,7 +3365,7 @@ function emPlace(){const wide=EM.k>=1.4,shown=[],pins=[...document.querySelector
  shown.forEach(o=>{if(o[2]<0)return;let m=o[3].querySelector('.emmore');if(o[2]){if(!m){m=document.createElement('span');m.className='emmore';o[3].appendChild(m);}m.textContent='+'+o[2];}else if(m)m.remove();});}
 function emLegend(){const el=$('emap-legend');if(!el)return;const N=EM.nodes,biz=N.filter(n=>n.kinds.biz).length,pc=N.filter(n=>n.props).length,rt=EM.edges.filter(e=>!e.lock).length,nm=(S.market||0)<3?MARKETS[(S.market||0)+1]:null,cl=(S.market||0)>=3?contsLeft().length:0;
  el.innerHTML='<span>🏢 '+esc((R&&R.city)||'')+'</span><span>🏪 '+biz+' branch'+(biz===1?'':'es')+'</span><span>🏙️ '+pc+' cit'+(pc===1?'y':'ies')+' with buildings</span><span>✨ '+rt+' trade line'+(rt===1?'':'s')+'</span>'+(EM.othOn&&EM.othRaw&&EM.othRaw.length?'<span>👥 '+EM.othRaw.length+' other player'+(EM.othRaw.length===1?'':'s')+' on the map</span>':'')+
-  (nm?'<span class="emnext">Next: expand into '+esc(nm.name)+' from the Business tab</span>':cl?'<span class="emnext">Next: tap a 🔒 continent to expand ('+cl+' left)</span>':'');}
+  (typeof bidData!=='undefined'&&ACC&&!GUEST?'<button type="button" class="emoffers" data-a="bids">📨 Offers'+((bidData&&bidData.in&&bidData.in.length)?' <b>'+bidData.in.length+' new</b>':'')+'</button>':'')+(nm?'<span class="emnext">Next: expand into '+esc(nm.name)+' from the Business tab</span>':cl?'<span class="emnext">Next: tap a 🔒 continent to expand ('+cl+' left)</span>':'');}
 function emInfo(n){if(!n)return;const k=n.kinds,ind=S.inds.length,u=totalUnits(),L=S.last||{};let b='',btn='';
  if(k.hq)b+='<p><b>'+esc(BR())+'</b> is run from here: '+u+' outlet'+(u===1?'':'s')+' in '+ind+' industr'+(ind===1?'y':'ies')+'. Business profit last month: <b>'+fmt(L.biz||0)+'</b>.</p>';
  if(k.biz&&!k.hq)b+='<p>Your businesses sell here. Every new market multiplies your profits.</p>';
@@ -4166,7 +4176,7 @@ function render(){try{raceRender();}catch(e){}try{paintMore();}catch(e){}setTime
   mine.forEach((b,ix)=>{if(phoneUI()&&!mbAll&&ix>=3)return;const n=owned(b.id),c=unitCost(b,n);
    mh+='<div class="mb"><div class="tier">'+b.tier+'</div><div class="mbname"><b>'+b.name+' <span class="count">×'+n+'</span></b><span>'+IND[b.ind].name+'</span><span class="plrow">Income '+fmt(pl(b).rev)+' − costs '+fmt(pl(b).cost)+(pl(b).d<.97?' · <i class="neg">sales '+Math.round((pl(b).d-1)*100)+'%</i>':pl(b).d>1.03?' · <i class="pos">sales +'+Math.round((pl(b).d-1)*100)+'%</i>':'')+'</span></div>'+
     '<div class="mbnum"><b class="'+(monthly(b)<0?'neg':'pos')+'">'+(monthly(b)<0?'−':'')+fmt(Math.abs(monthly(b)))+'/mo</b><span>worth '+fmt(bizValue(b))+'</span></div>'+
-    '<div class="acts">'+(atCap(b)?'<button class="btn small" disabled title="Your licence allows '+regCap(b)+' of these">Licence limit · '+regCap(b)+'</button>':'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>+1 · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>')+(n>1?'<button class="btn ghost small" data-a="bizmany" data-v="'+b.id+'">Sell…</button>':'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1</button>')+'</div>'+(bizSellAsk===b.id?'<div class="chips mbsell">'+sellPickHTML(b.name,n,k=>bizSellTotal(b.id,k),'bizmanyn','bizmanyok','biznosell',b.id,bizSellN)+'</div>':'')+'</div>';});}
+    '<div class="acts">'+(atCap(b)?(capLic(b)?'<button class="btn small" disabled title="Your licence allows '+regCap(b)+' of these">Licence limit · '+regCap(b)+'</button>':'<button class="btn small" data-a="tab" data-v="map" title="The market sells up to '+regCap(b)+' of one business. Buy more from other players on the Map.">Limit '+regCap(b)+' · buy from players</button>'):'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>+1 · '+fmt(c)+(S.cash<c&&finOK(b)?' · loan':'')+'</button>')+(n>1?'<button class="btn ghost small" data-a="bizmany" data-v="'+b.id+'">Sell…</button>':'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1</button>')+'</div>'+(bizSellAsk===b.id?'<div class="chips mbsell">'+sellPickHTML(b.name,n,k=>bizSellTotal(b.id,k),'bizmanyn','bizmanyok','biznosell',b.id,bizSellN)+'</div>':'')+'</div>';});}
  if(phoneUI()&&mine.length>3)mh+='<button class="btn ghost mball" data-a="mball">'+(mbAll?'Show only the top 3':'Show all '+mine.length+' businesses')+'</button>';
  $('mybiz').innerHTML=mh;
  let bh='';try{bh+=boostHTML()+bestMoveHTML();}catch(e){}
@@ -4186,7 +4196,7 @@ function render(){try{raceRender();}catch(e){}try{paintMore();}catch(e){}setTime
     bh+='<div class="biz locked"><div class="tier">'+b.tier+'</div><div><div class="name">'+b.name+'</div><div class="tag">Unlocks when your net worth reaches '+fmtW(b.cost*unlockX(b))+', or sooner if the bank agrees to finance it.</div></div><div class="acts">'+(finOK(b)?'<button class="btn small" data-a="buy" data-v="'+b.id+'">Ask the bank · '+fmt(c)+'</button>':'')+'</div></div>';return;}
    bh+='<div class="biz '+(n?'owned':'')+'"><div class="tier">'+b.tier+'</div><div style="min-width:0"><div class="name">'+b.name+(n?'<span class="count">×'+n+'</span>':'')+(pm!==1?' <span class="pill '+(pm<1?'bad':'good')+'">Policy ×'+pm.toFixed(2)+'</span>':'')+'</div><div class="tag">'+b.tag+'</div>'+
     '<div class="meta"><span class="mw">Each earns </span>~'+fmt(RET()*regF(b)*b.profit*bmBase*pm*im*cyc(b)/S.s*boostNow())+'/mo<span class="mw">'+(isReg(iid)?' before excise':'')+'</span><span class="me"> each</span>'+(n?'<span class="mw"> · worth '+fmt(bizValue(b))+'</span>':'')+'</div></div>'+
-    '<div class="acts"><button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>'+(S.cash<c&&finOK(b)?'<span class="dk">Buy · '+fmt(c)+' · loan</span><span class="ph">Loan · '+fmt(c)+'</span>':'Buy · '+fmt(c))+'</button>'+
+    '<div class="acts">'+(atCap(b)&&!capLic(b)?'<button class="btn small" data-a="tab" data-v="map" title="The market sells up to '+regCap(b)+' of one business. Buy more from other players on the Map.">Limit '+regCap(b)+' · buy from players</button>':'<button class="btn small '+(S.cash>=c?'primary':'')+'" data-a="buy" data-v="'+b.id+'" '+((S.cash<c&&!finOK(b))||S.over?'disabled':'')+'>'+(S.cash<c&&finOK(b)?'<span class="dk">Buy · '+fmt(c)+' · loan</span><span class="ph">Loan · '+fmt(c)+'</span>':'Buy · '+fmt(c))+'</button>')+
     (n?'<button class="btn ghost small" data-a="sell" data-v="'+b.id+'">Sell 1 · '+fmt(unitCost(b,n-1)*.7)+'</button>':'')+'</div></div>';});
   bh+='</div>';});
  const others=INDS.filter(i=>!i.reg&&!S.inds.includes(i.id));
