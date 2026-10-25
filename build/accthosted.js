@@ -165,7 +165,7 @@ function feedHTML(){const d=feedData,cn=(countryRow(S.region)||{}).name||'your c
  if(d.err)return h+'<p class="amsg">'+esc(d.err)+'</p>';
  if(!d.items.length)return h+'<p class="sub">'+(feedScope==='friends'?'No news from your friends in the last two weeks. Add friends from the '+esc(cn)+' feed, or invite them.':'Nothing yet. When players in '+esc(cn)+' make their first million or billion, or a major purchase, it shows up here.')+'</p>';
  return h+'<ul class="invlist feedlist">'+d.items.map(it=>'<li>'+(it.handle?'<button class="wavbtn" data-a="wallopen" data-v="'+esc(it.handle)+'" aria-label="Open '+esc(it.name||'')+'\'s profile">'+avatar(it)+'</button>':avatar(it))+'<span class="ameta"><span class="feedtxt">'+feedLine(it)+'</span><span>'+(it.guest?'Guest player':esc(it.company||''))+' · '+esc(it.ago||'')+'</span>'+
-  '<span class="reacts">'+(d.reacts||[]).map(e=>{const n=(it.reacts||{})[e]||0;return it.me?(n?'<span class="react on">'+e+' '+n+'</span>':''):'<button class="react'+(it.mine===e?' on':'')+'" data-a="feedreact" data-v="'+it.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join('')+
+  '<span class="reacts">'+(it.kind==='obit'?WALL_RX_SAD:(d.reacts||[])).map(e=>{const n=(it.reacts||{})[e]||0;return it.me?(n?'<span class="react on">'+e+' '+n+'</span>':''):'<button class="react'+(it.mine===e?' on':'')+'" data-a="feedreact" data-v="'+it.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join('')+
   (!it.me&&!it.friend&&it.uid?'<button class="btn ghost small feedadd" data-a="feedadd" data-v="'+it.uid+'">+ Friend</button>':'')+'</span></span></li>').join('')+'</ul>';}
 let frPick=0;
 function msgPick(id){frPick=id;frTab='friends';friendMsg='';renderAccts();try{window.scrollTo(0,0);const el=$('acct');if(el)el.scrollTop=0;}catch(e){}}
@@ -206,11 +206,11 @@ async function giftClaim(){closeModal();try{const r=await api('POST','/api/frien
    kept with a secret key in this browser, and it moves to their account when they save their empire. */
 /* what posts: the first million, billion and trillion; luxury buys, top cars and homes, teams, planes and a city;
    weddings, babies and divorces; the foundation and every cause it advances; league titles and championships */
-const WALL_VER=2;   /* raise when new kinds of post are added, so existing lives do not post their old moments */
+const WALL_VER=3;   /* raise when new kinds of post are added, so existing lives do not post their old moments */
 const WALL_RANKS=[3,6,8];   /* Millionaire, Billionaire, Trillionaire */
 const WALL_BUYS=['shoes','bags','wardrobe','birkin','jewels','watch','horses','villa','art','yacht','vineyard','golfclub','island','superyacht','trophyhotel','masterpiece','car4','car5','car6','jet','h4','h5','h6'];
 const WALL_TOP=['rank','title','cause','fdn','buy','married','baby','divorce'];
-const WALL_RX=['\u{1F44F}','\u{1F525}','\u{1F4B0}','\u{1F62E}'];
+const WALL_RX=['\u{1F44F}','\u{1F525}','\u{1F4B0}','\u{1F62E}'],WALL_RX_SAD=['\u{1F64F}','\u2764\uFE0F','\u{1F54A}\uFE0F','\u{1F622}'];   /* an obituary gets condolences */
 let wallMine=null,wallView=null,wallMsg='',wallBusy=false,wallT=null,wallBack=null,wallToastQ=null;
 const capFirst=t=>String(t||'').charAt(0).toUpperCase()+String(t||'').slice(1);
 /* never Math.random here: the game's luck runs on it, and a milestone must not change what happens next */
@@ -233,6 +233,7 @@ function wallFacts(){const L=S.lifeId,f=[],ag=age(),w=d=>S.who?Object.assign({wh
  if(S.spouse)f.push([L+':wed:'+(S.spouse.since||0),'married',w({n:String(S.spouse.name||'').split(' ')[0],age:ag}),true]);
  for(let n=1;n<=Math.min(S.exes||0,20);n++)f.push([L+':div:'+n,'divorce',w(n===(S.exes||0)&&S.lastEx?{n:String(S.lastEx).split(' ')[0]}:{}),true]);
  (S.kids||[]).forEach(k=>{if(!k.rel&&k.born!=null&&k.born>=0)f.push([L+':kid:'+k.born+':'+k.name,'baby',w({n:k.name}),true]);});
+ if(S.died){const sp=S.spouse&&!S.widowed?String(S.spouse.name||'').split(' ')[0]:'';f.push([L+':obit','obit',w({age:ag,r:TITLES[Math.max(0,S.title||0)][1],k:(S.kids||[]).filter(k=>!k.rel&&!k.dead).length,n:sp}),true]);}   /* the obituary */
  if(S.fdn){f.push([L+':fdn','fdn',w({}),true]);const st=S.fdn.stage||{};Object.keys(st).forEach(c=>{for(let l=1;l<=Math.min(st[c]||0,3);l++)f.push([L+':cause:'+c+':'+l,'cause',w({c,l}),true]);});}
  return f;}
 /* after every save: anything new becomes a post. The first look at a life only takes note of what is already there,
@@ -240,7 +241,8 @@ function wallFacts(){const L=S.lifeId,f=[],ag=age(),w=d=>S.who?Object.assign({wh
 function wallTick(){try{if(!S||!wallOwner())return;const gen=S.gnum||1;
  if(!S.wallDone||!S.lifeId||S.wallGen!==gen){if(!S.lifeId||S.wallGen!==gen)S.lifeId=wallId();S.wallGen=gen;S.wallDone={};
   wallFacts().forEach(x=>{S.wallDone[x[0]]=1;});S.wallVer=WALL_VER;
-  return;}
+  if(S.wallNew&&ACC&&!GUEST){const k=S.lifeId+':start';S.wallDone[k]=1;wallPush([(S.gnum||1)>1?[k,'heir',{who:S.who||'',gen:S.gnum},true]:[k,'start',S.who?{who:S.who,b:ACC.bg||'hustler'}:{b:ACC.bg||'hustler'},true]]);}   /* a new game is news too */
+  delete S.wallNew;return;}
  if((S.wallVer||1)<WALL_VER){wallFacts().forEach(x=>{S.wallDone[x[0]]=1;});S.wallVer=WALL_VER;return;}   /* new kinds of post: what a life already has is not news */
  const nu=wallFacts().filter(x=>!S.wallDone[x[0]]);nu.forEach(x=>{S.wallDone[x[0]]=1;});
  const rk=nu.filter(x=>x[1]==='rank'),out=nu.filter(x=>x[1]!=='rank');if(rk.length)out.unshift(rk[rk.length-1]);   /* two ranks in one month: only the higher one */
@@ -276,7 +278,7 @@ function wallHead(d){return'<div class="me whead">'+avatar({name:d.name,color:d.
 function wallPostsHTML(d,own){const P=d.posts||[];if(!P.length)return'<p class="sub wempty">'+(own?'Nothing yet. Your highlights land here by themselves: your first million, billion and trillion, luxury buys, weddings and babies, your foundation\'s work and the titles your teams win.':'No highlights yet.')+'</p>';
  const canRx=!own&&ACC&&!GUEST&&!d.me;
  return'<ul class="wposts">'+P.map(p=>{const line=p.who&&p.who!==d.name?'<b>'+esc(p.who)+'</b> '+esc(p.text):esc(capFirst(p.text));
-  const rx=canRx?WALL_RX.map(e=>{const n=(p.reacts||{})[e]||0;return'<button class="react'+(p.mine===e?' on':'')+'" data-a="wallreact" data-v="'+p.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join(''):
+  const rx=canRx?(p.kind==='obit'?WALL_RX_SAD:WALL_RX).map(e=>{const n=(p.reacts||{})[e]||0;return'<button class="react'+(p.mine===e?' on':'')+'" data-a="wallreact" data-v="'+p.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join(''):
    Object.keys(p.reacts||{}).map(e=>'<span class="react on">'+e+' '+p.reacts[e]+'</span>').join('');
   return'<li><span class="wico" aria-hidden="true">'+p.ico+'</span><div class="wbody"><p>'+line+'</p><span class="wmeta">'+esc(p.ago)+'</span>'+(rx?'<span class="reacts">'+rx+'</span>':'')+'</div>'+
    (own?'<button class="wdel" data-a="wallhide" data-v="'+p.id+'" aria-label="Remove this post">✕</button>':'')+'</li>';}).join('')+'</ul>';}
@@ -340,10 +342,10 @@ function liveListHTML(){const d=liveData;
  const sg=liveSigned(),R=d.reacts||WALL_RX;
  return d.items.map(i=>{i.name=String(i.name||'A player').trim();const who=i.who&&i.who!==i.name?'<b>'+esc(i.who)+'</b> '+esc(i.text):esc(capFirst(i.text)),rp=i.replies||{n:0,last:[]};
   const rx=i.me?Object.keys(i.reacts||{}).map(e=>'<span class="react on">'+e+' '+i.reacts[e]+'</span>').join(''):
-   R.map(e=>{const n=(i.reacts||{})[e]||0;return'<button class="react'+(i.mine===e?' on':'')+'" data-a="livereact" data-v="'+i.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join('');
+   (i.kind==='obit'?(d.reactsSad||WALL_RX_SAD):R).map(e=>{const n=(i.reacts||{})[e]||0;return'<button class="react'+(i.mine===e?' on':'')+'" data-a="livereact" data-v="'+i.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join('');
   let f='<div class="lfoot"><span class="reacts">'+rx+'</span>'+(i.me?(rp.n?'<span class="lrn">💬 '+rp.n+'</span>':''):'<button class="btn ghost small lrbtn" data-a="livereply" data-v="'+i.id+'">💬 '+(i.myReply?'Replied':'Reply')+(rp.n?' · '+rp.n:'')+'</button>')+'</div>';
   if(rp.last.length)f+='<ul class="lreplies">'+rp.last.map(r=>'<li><b>'+esc(r.name)+'</b> '+esc(r.text)+'</li>').join('')+(rp.n>rp.last.length?'<li class="lmore">+'+(rp.n-rp.last.length)+' more</li>':'')+'</ul>';
-  if(livePick===i.id&&d.replies)f+='<div class="lpick">'+d.replies.map(([k,t])=>'<button class="btn small'+(i.myReply===k?' primary':'')+'" data-a="livesay" data-v="'+i.id+'" data-c="'+k+'">'+esc(t)+'</button>').join('')+'<button class="btn ghost small" data-a="livereply" data-v="0">Cancel</button></div>';
+  if(livePick===i.id&&d.replies)f+='<div class="lpick">'+((i.kind==='obit'&&d.repliesSad)||d.replies).map(([k,t])=>'<button class="btn small'+(i.myReply===k?' primary':'')+'" data-a="livesay" data-v="'+i.id+'" data-c="'+k+'">'+esc(t)+'</button>').join('')+'<button class="btn ghost small" data-a="livereply" data-v="0">Cancel</button></div>';
   return'<article class="lcard k-'+esc(i.kind)+(i.fresh?' fresh':'')+'"><header>'+(i.handle?'<button class="wavbtn" data-a="wallopen" data-v="'+esc(i.handle)+'" aria-label="Open '+esc(i.name)+'\'s profile">'+avatar(i)+'</button>':avatar(i))+
    '<div class="lwho">'+(i.handle?'<button class="linkbtn wname" data-a="wallopen" data-v="'+esc(i.handle)+'">'+esc(i.name)+'</button>':'<b>'+esc(i.name)+'</b>')+'<small>'+(ctryOf(i.region)?esc(ctryOf(i.region))+' · ':'')+(i.guest?'Guest player':esc(i.company||''))+' · '+esc(i.ago)+'</small></div></header>'+
    '<div class="lhl"><span class="lico" aria-hidden="true">'+i.ico+'</span><p>'+who+'</p></div>'+f+'</article>';}).join('');}

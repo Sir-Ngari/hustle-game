@@ -1855,6 +1855,7 @@ GIFTS_PER_DAY = 5
 RANKS = ["Street Hustler", "Small Trader", "Business Owner", "Millionaire", "Mogul", "Tycoon", "Billionaire",
          "Centibillionaire", "Trillionaire", "Decatrillionaire", "Centitrillionaire"]
 REACTS = ["\U0001F44F", "\U0001F525", "\U0001F4B0", "\U0001F62E"]
+REACTS_SAD = ["\U0001F64F", "\u2764\ufe0f", "\U0001F54A\ufe0f", "\U0001F622"]   # an obituary gets condolences, not cheers
 MSG_CODES = {"hi": "Hello, tycoon!", "nice": "Nice move!", "congrats": "Congrats on the new rank!", "race": "Race you to a billion.",
              "watch": "Watch your back. I'm coming for your spot.", "thanks": "Thanks for the gift!", "gg": "Good game.",
              "fast": "Your empire is growing fast!", "miss": "Where are you? Come back and play.", "help": "Need a tip? Buy property early."}
@@ -1892,7 +1893,8 @@ WALL_CHAP = ["The street", "Small trader", "Business owner", "Millionaire", "Mog
 WALL_GRADE = {"A": ("\U0001F3C6", "a Legend"), "B": ("\U0001F9B8", "a Hero"), "C": ("\U0001F4BC", "an Achiever"),
               "D": ("\U0001FA79", "a Survivor"), "E": ("\U0001F43A", "a Lone Wolf")}
 # Only the highlights post: the first million, billion and trillion, and major purchases (older kinds still display if stored)
-WALL_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title")
+WALL_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir")
+WALL_BG = {"hustler": "a street hustler", "grad": "a university graduate", "heir": "a family business heir"}
 WALL_COUNTRY = WALL_KINDS
 WALL_RANK_OK = ("Millionaire", "Billionaire", "Trillionaire")
 WALL_MAJOR = ("jet", "island", "superyacht", "trophyhotel", "masterpiece", "team-football", "team-cricket", "f1", "city")
@@ -1978,6 +1980,14 @@ def wall_clean(kind, d):
         out["age"] = a
         if d.get("r") in RANKS:
             out["r"] = d["r"]
+        k = int(num(d.get("k")))
+        if 0 < k <= 40:
+            out["k"] = k
+        n = wall_name(d.get("n"))
+        if n:
+            out["n"] = n
+    elif kind == "start":
+        out["b"] = d.get("b") if d.get("b") in WALL_BG else "hustler"
     else:
         return None
     who = wall_name(d.get("who"))
@@ -2049,8 +2059,13 @@ def wall_text(kind, d):
     if kind == "heir":
         return "\U0001F451", "took over the family empire as generation %d" % int(d.get("gen", 2))
     if kind == "obit":
-        r = d.get("r")
-        return "\U0001F54A️", ("lived to %d and went out as %s" % (d.get("age", 0), wall_an(r))) if r else "lived to %d" % d.get("age", 0)
+        r, k, n = d.get("r"), int(d.get("k") or 0), d.get("n")
+        txt = "passed away at %d" % d.get("age", 0) + (" as %s" % wall_an(r) if r else "") + "."
+        kids = ("%d children" % k if k > 1 else "a child") if k else ""
+        fam = " and ".join(x for x in (n, kids) if x)
+        return "\U0001F54A️", txt + (" Survived by %s." % fam if fam else "") + " Rest in peace."
+    if kind == "start":
+        return "\U0001F331", "started a new life from scratch as %s" % WALL_BG.get(d.get("b"), "a street hustler")
     if kind == "record":
         where = "in the world" if d.get("scope") == "world" else "in " + country_name(d.get("scope"))
         return "\U0001F3C5", "set a new record: youngest %s to become %s, at %s" % (where, wall_an(MS_NAME.get(d.get("ms"), "Millionaire")), live_age(d.get("age_m", 0)))
@@ -2165,10 +2180,13 @@ def profiles_setup():
 
 
 # ---- Live feed: the highlights as they happen, for everyone (guests can watch; an account is needed to cheer or reply) ----
-LIVE_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "record", "top1", "champ")
+LIVE_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir", "record", "top1", "champ")
 LIVE_DAYS = 30
 LIVE_REPLIES = {"congrats": "Congrats! \U0001F389", "respect": "Respect. \U0001F64C", "goals": "Goals! \U0001F525",
                 "race": "Race you to the next one.", "next": "What's next?", "teach": "Teach me your ways \U0001F604"}
+LIVE_REPLIES_SAD = {"rip": "Rest in peace \U0001F54A\ufe0f", "legend": "A true legend.", "soon": "Gone too soon.",
+                    "built": "What a life. What an empire."}
+LIVE_REPLIES_ALL = dict(LIVE_REPLIES, **LIVE_REPLIES_SAD)
 LIVE_REPLIES_PER_DAY = 60
 MS_NAME = {"m": "Millionaire", "b": "Billionaire", "t": "Trillionaire", "q": "Quadrillionaire"}
 COUNTRY_NAMES = dict(KE="Kenya", UG="Uganda", TZ="Tanzania", RW="Rwanda", NG="Nigeria", GH="Ghana", ZA="South Africa", US="the United States", GB="the United Kingdom", IN="India", EG="Egypt", ET="Ethiopia",
@@ -2297,7 +2315,7 @@ def live_items(scope, region, viewer_id, t):
             e = reps.setdefault(r["feed_id"], {"n": 0, "last": []})
             e["n"] += 1
             if len(e["last"]) < 3:
-                e["last"].append({"name": (r["name"] or "A player").split(" ")[0], "text": LIVE_REPLIES.get(r["code"], "")})
+                e["last"].append({"name": (r["name"] or "A player").split(" ")[0], "text": LIVE_REPLIES_ALL.get(r["code"], "")})
             if viewer_id and r["user_id"] == viewer_id:
                 myrep[r["feed_id"]] = r["code"]
     out = []
@@ -5293,11 +5311,13 @@ class Handler(BaseHTTPRequestHandler):
         if d is None:
             return
         fid, emo, t = int(num(d.get("id"))), str(d.get("e") or ""), now()
-        if emo not in REACTS:
+        if emo not in REACTS and emo not in REACTS_SAD:
             return self.error(400, "Pick one of the reactions.")
         item = q("SELECT user_id, pid, kind, data, hidden FROM feed WHERE id=?", (fid,), one=True)
         if not item or item["hidden"]:
             return self.error(404, "That post is gone.")
+        if emo not in (REACTS_SAD if item["kind"] == "obit" else REACTS):
+            return self.error(400, "Pick one of the reactions.")
         if item["user_id"] == user["id"]:
             return self.error(409, "You cannot react to your own news.")
         cur = q("SELECT emo FROM feed_react WHERE feed_id=? AND user_id=?", (fid, user["id"]), one=True)
@@ -5466,6 +5486,7 @@ class Handler(BaseHTTPRequestHandler):
         t = now()
         items = live_items(scope, region, user["id"] if user else 0, t)
         self.send_json(200, {"items": items, "reacts": REACTS, "replies": [[k, v] for k, v in LIVE_REPLIES.items()],
+                             "reactsSad": REACTS_SAD, "repliesSad": [[k, v] for k, v in LIVE_REPLIES_SAD.items()],
                              "playing": presence_count(region), "signed": bool(user), "scope": scope, "now": t})
 
     def api_live_reply(self):
@@ -5477,11 +5498,13 @@ class Handler(BaseHTTPRequestHandler):
         if d is None:
             return
         fid, code, t = int(num(d.get("id"))), str(d.get("code") or ""), now()
-        if code not in LIVE_REPLIES:
+        if code not in LIVE_REPLIES_ALL:
             return self.error(400, "Pick one of the replies.")
-        item = q("SELECT user_id, hidden FROM feed WHERE id=?", (fid,), one=True)
+        item = q("SELECT user_id, hidden, kind FROM feed WHERE id=?", (fid,), one=True)
         if not item or item["hidden"]:
             return self.error(404, "That post is gone.")
+        if code not in (LIVE_REPLIES_SAD if item["kind"] == "obit" else LIVE_REPLIES):
+            return self.error(400, "Pick one of the replies.")
         if item["user_id"] == user["id"]:
             return self.error(409, "You cannot reply to your own news.")
         if q("SELECT COUNT(*) c FROM feed_reply WHERE user_id=? AND ts>?", (user["id"], t - 86400), one=True)["c"] >= LIVE_REPLIES_PER_DAY:
@@ -5491,7 +5514,7 @@ class Handler(BaseHTTPRequestHandler):
           (fid, user["id"], code, t))
         if not had and item["user_id"]:
             first = (user["name"] or "A player").split(" ")[0]
-            push_later(item["user_id"], "reply", first + " replied to your news", LIVE_REPLIES[code], t, gap=3 * 3600)
+            push_later(item["user_id"], "reply", first + " replied to your news", LIVE_REPLIES_ALL[code], t, gap=3 * 3600)
         n = q("SELECT COUNT(*) c FROM feed_reply WHERE feed_id=?", (fid,), one=True)["c"]
         self.send_json(200, {"ok": True, "n": n, "mine": code})
 

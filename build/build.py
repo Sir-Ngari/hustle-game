@@ -19,7 +19,7 @@ rep("(b.classList.contains('unew')?'<span class=\"mnew\">New</span>':'')+'</butt
 # the live strip under PLAY: other players' highlights as they happen
 rep('<div id="affbar" hidden></div>','<div id="affbar" hidden></div>\n    <button type="button" id="livestrip" class="livestrip" data-a="liveopen" hidden></button>')
 # new game keeps the account and tells the server
-rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;xcData=null;")
+rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;xcData=null;S.wallNew=1;")
 # start-up: ask the server who is playing
 i=s.index("{const a=ACCS.list.find(x=>x.id===ACCS.active);if(a)loadAccount(a);}"); j=s.index("else startEvents();",i)+len("else startEvents();")
 s=s[:i]+"window.addEventListener('error',()=>{if(typeof hideSplash==='function')setTimeout(()=>{if(acctView==='loading')return;hideSplash();},50);});\ntry{render();showTab(curTab);}catch(e){console.error('start-up render failed',e);}\nbootAuth();\npaintInstall();\nif('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));"+s[j:]
