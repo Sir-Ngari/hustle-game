@@ -808,6 +808,12 @@ html.gm .acct{background:rgba(6,14,30,.82);backdrop-filter:blur(3px);-webkit-bac
 .emcont b{font-size:13px;font-weight:800}.emcont small{font-size:11px;color:#ffd25a;font-weight:700}
 .emcont.far{border-color:rgba(255,255,255,.3);opacity:.7}.emcont.far small{color:var(--muted)}
 .emcont:hover{background:rgba(20,44,70,.9)}
+.empin.oth .emi{width:24px;height:24px;font-size:12px;border-color:rgba(170,200,255,.7);box-shadow:0 0 10px rgba(150,185,255,.35)}
+.empin.oth .eml{font-size:11px;opacity:.9}
+.emzoom button[data-emo].off{opacity:.45;text-decoration:line-through}
+.emolist{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.emolist li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(255,255,255,.08)}
+.emolist li span{display:flex;flex-direction:column;min-width:0}.emolist li small{color:var(--muted);font-size:12px}
 @media (prefers-reduced-motion:reduce){.empin.hq .emi{animation:none}.embub{animation-duration:3s}}
 
 /* phones: tabs become a bottom bar with icons */
@@ -1208,7 +1214,7 @@ html.gm table.fin tr.grand td{border-color:#ffd36b}
         <h2>Empire map</h2>
         <p class="sub" id="emap-sub">Your businesses, cities and routes.</p>
         <div class="emap" id="emap"><canvas id="emap-c" aria-hidden="true"></canvas><canvas id="emap-v" aria-hidden="true"></canvas><div class="emap-pins" id="emap-pins"></div>
-          <div class="emzoom"><button type="button" data-emz="1" aria-label="Zoom in">+</button><button type="button" data-emz="-1" aria-label="Zoom out">−</button><button type="button" data-emz="0" aria-label="Show my whole empire">⤢</button></div>
+          <div class="emzoom"><button type="button" data-emz="1" aria-label="Zoom in">+</button><button type="button" data-emz="-1" aria-label="Zoom out">−</button><button type="button" data-emz="0" aria-label="Show my whole empire">⤢</button><button type="button" data-emo aria-pressed="true" aria-label="Show other players">👥</button></div>
           <div class="emcredit">Map data: Natural Earth · GeoNames</div></div>
         <div class="emap-legend" id="emap-legend"></div>
       </section>
@@ -1933,7 +1939,7 @@ function avatar(a,big){return'<span class="av'+(big?' big':'')+'" style="backgro
 let SESS='';try{SESS=sessionStorage.getItem('hs-s')||'';}catch(e){}   /* login session, sent as a header too: some in-app browsers (TikTok, Facebook) leave the cookie off. Kept for this tab only */
 function setSess(t){SESS=t||'';try{if(SESS)sessionStorage.setItem('hs-s',SESS);else sessionStorage.removeItem('hs-s');}catch(e){}}
 async function api(method,path,body){let r;
- if(GUEST&&!/^\/api\/(visit|signup|login|google|config|tuning|invite\/check|username\/check|company\/check|forgot|reset|me|wall|live)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
+ if(GUEST&&!/^\/api\/(visit|signup|login|google|config|tuning|invite\/check|username\/check|company\/check|forgot|reset|me|wall|live|map)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
  try{const hd=body?{'Content-Type':'application/json'}:{};if(SESS)hd['X-Hustle-Session']=SESS;r=await fetch(path,{method,credentials:'same-origin',headers:hd,body:body?JSON.stringify(body):undefined});}
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
@@ -2693,7 +2699,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='6618c1b503fc';let updShown=false;
+const APP_VER='2262013a9e89';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
@@ -4299,7 +4305,26 @@ function emBuild(){emData();const N=[],by={},add=(name,kind,extra)=>{const ll=em
  const E=[];N.forEach((n,i)=>{if(n===hq)return;const km=emKm(hq.ll,n.ll),lock=n.kinds.next&&Object.keys(n.kinds).length===1;
   E.push({a:hq,b:n,km,lock,biz:!!n.kinds.biz,plane:km>650,i});});
  EM.nodes=N;EM.edges=E;EM.hq=hq;}
-function emSig(){return[contsOf().join('.'),S.market||0,(S.pcOpen||[]).join(),(S.props||[]).filter(p=>!p.left).map(p=>p.city).join(),hasJet()?1:0,(R&&R.code)||'',totalUnits()].join('|');}
+/* other players: their head offices and the cities where they own buildings glow silver-blue, one light per city */
+EM.oth=[];EM.othT=0;EM.othRaw=null;EM.othOn=(()=>{try{return localStorage.getItem('hs-emoth')!=='0';}catch(e){return true;}})();
+const emSlug=n=>String(n||'').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'');
+function emOWhere(code,id){const row=REGIONS.countries.find(c=>c.code===code),cc=EM.cc[code]||[];
+ if(!id)return row&&cc[0]?[row.city,cc[0]]:null;
+ if(row){const i=row.towns.findIndex(t=>emSlug(t)===id);if(i>=0&&cc[i])return[row.towns[i],cc[i]];if(emSlug(row.city)===id&&cc[0])return[row.city,cc[0]];}
+ const o=ORIG_PC.find(c=>c.id===id);if(o&&EM.rr[o.name])return[o.name,EM.rr[o.name]];
+ const nm=Object.keys(EM.rr).find(n=>emSlug(n)===id);return nm?[nm,EM.rr[nm]]:null;}
+function emOthBuild(){const C={},add=(code,id,pl,n)=>{const w=emOWhere(code,id);if(!w)return;const key=w[1][0].toFixed(1)+','+w[1][1].toFixed(1);let c=C[key];
+  if(!c){const [x,y]=emP(w[1][0],w[1][1]);c=C[key]={name:w[0],ll:w[1],x,y,pl:{}};}const e=c.pl[pl.h]||(c.pl[pl.h]={p:pl,hq:false,b:0});if(id)e.b+=n;else e.hq=true;};
+ (EM.othRaw||[]).forEach(pl=>{add(pl.r,null,pl,0);Object.keys(pl.p||{}).forEach(id=>add(pl.r,id,pl,pl.p[id]));});
+ EM.oth=Object.values(C).map(c=>Object.assign(c,{n:Object.keys(c.pl).length})).sort((a,b)=>b.n-a.n);}
+function emOthLoad(){if(EM.othRaw&&Date.now()-EM.othT<300000)return;EM.othT=Date.now();
+ api('GET','/api/map/players').then(d=>{EM.othRaw=(d&&d.players)||[];emData();emOthBuild();EM.sig='';}).catch(()=>{});}
+function emOthList(c,head){const L=Object.values(c.pl).sort((a,b)=>(b.hq-a.hq)||(b.b-a.b)).slice(0,8);
+ return'<p><b>'+head+'</b></p><ul class="emolist">'+L.map(e=>'<li><span><b>'+esc(e.p.n||'A player')+'</b>'+(e.p.co?' · '+esc(e.p.co):'')+'<small>'+(e.p.t?esc(e.p.t)+' · ':'')+(e.hq?'head office here':'')+(e.hq&&e.b?', ':'')+(e.b?e.b+' building'+(e.b===1?'':'s'):'')+'</small></span>'+
+  (e.p.h?'<button class="btn small ghost" data-a="wallopen" data-v="'+esc(e.p.h)+'">Profile</button>':'')+'</li>').join('')+'</ul>'+(c.n>L.length?'<p class="sub">and '+(c.n-L.length)+' more.</p>':'');}
+function emOthInfo(c){if(!c)return;showCard(c.name,emOthList(c,c.n+' other player'+(c.n===1?'':'s')+' do'+(c.n===1?'es':'')+' business here'),'<button class="btn ghost" data-a="close">Close</button>');}
+function emOthNear(n){return EM.othOn?EM.oth.find(c=>Math.abs(c.ll[0]-n.ll[0])<.06&&Math.abs(c.ll[1]-n.ll[1])<.06):null;}
+function emSig(){return[EM.oth.length,EM.othOn?1:0,contsOf().join('.'),S.market||0,(S.pcOpen||[]).join(),(S.props||[]).filter(p=>!p.left).map(p=>p.city).join(),hasJet()?1:0,(R&&R.code)||'',totalUnits()].join('|');}
 /* view: fit every pin, never closer than a country, never wider than the world */
 function emFit(){const N=EM.nodes;if(!N.length)return;let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;N.forEach(n=>{x0=Math.min(x0,n.x);x1=Math.max(x1,n.x);y0=Math.min(y0,n.y);y1=Math.max(y1,n.y);});
  const pad=70,w=Math.max(x1-x0,70),h=Math.max(y1-y0,60);EM.cx=(x0+x1)/2;EM.cy=(y0+y1)/2;EM.k=Math.max(EM.W/1800,Math.min(12,Math.min((EM.W-pad*2)/w,(EM.H-pad*2)/h)));EM.fit=true;}
@@ -4333,6 +4358,7 @@ function emFrame(ts){EM.raf=0;const pane=document.querySelector('.tabpane[data-t
   const col=e.biz?GOLD:TEAL;x.strokeStyle='rgba('+col+',.26)';x.lineWidth=1.5;x.stroke();
   const n=e.km>3000?3:2,per=3.2+e.km/4000;for(let j=0;j<n;j++){const u=1-((t/per+j/n+e.i*.13)%1);
    for(let k=4;k>=0;k--){const p=emAt(q,Math.min(1,u+k*.016));emGlow(x,p[0],p[1],(k?7-k:8)*sc,col,k?.3-k*.05:.95);}}});
+ if(EM.othOn)EM.oth.forEach((c,i)=>{const [sx,sy]=emS(c.x,c.y);if(sx<-60||sy<-60||sx>EM.W+60||sy>EM.H+60)return;emGlow(x,sx,sy,(10+Math.min(26,Math.sqrt(c.n)*6))*sc*(EM.still?1:.85+.15*Math.sin(t*1.7+i*2.3)),'150,185,255',.42);emGlow(x,sx,sy,3.5*sc,'225,235,255',.9);});
  EM.nodes.forEach((n,i)=>{if(n.kinds.next&&Object.keys(n.kinds).length===1)return;const [sx,sy]=emS(n.x,n.y),tw=EM.still?1:.88+.12*Math.sin(t*2.1+i*1.7);
   if(n===EM.hq){emGlow(x,sx,sy,(52+10*Math.sin(t*1.3))*sc,GOLD,.5);emGlow(x,sx,sy,18*sc,'255,240,200',.85);}
   else emGlow(x,sx,sy,(20+Math.min(22,Math.log10(1+(n.inc||0))*2.4))*sc*tw,n.props?TEAL:GOLD,.5);});
@@ -4351,6 +4377,8 @@ function emPins(){const box=$('emap-pins');if(!box)return;box.querySelectorAll('
  EM.nodes.forEach((n,i)=>{const k=n.kinds,b=document.createElement('button');b.type='button';b.className='empin'+(k.hq?' hq':'')+(n.props&&!k.hq?' pc':'')+(k.next&&Object.keys(k).length===1?' lock':'');b.dataset.em=i;
   const ico=k.hq?'🏢':k.next&&Object.keys(k).length===1?'🔒':k.prop?'🏙️':k.biz?'🏪':'📍',sub=k.hq?'Head office':k.next&&Object.keys(k).length===1?'Next city':k.prop&&k.biz?n.props+' building'+(n.props>1?'s':'')+' · branch':k.prop?n.props+' building'+(n.props>1?'s':''):k.biz?'Branch':'Open to you';
   b.innerHTML='<span class="emi">'+ico+'</span><span class="eml">'+esc(n.name)+'<small>'+sub+'</small></span>';b.setAttribute('aria-label',n.name+', '+sub);box.appendChild(b);});
+ if(EM.othOn)EM.oth.forEach((c,i)=>{const b=document.createElement('button');b.type='button';b.className='empin oth';b.dataset.eo=i;
+  b.innerHTML='<span class="emi">👥</span><span class="eml">'+esc(c.name)+'<small>'+c.n+' player'+(c.n===1?'':'s')+'</small></span>';b.setAttribute('aria-label',c.name+', '+c.n+' other players');box.appendChild(b);});
  box.querySelectorAll('.emcont').forEach(p=>p.remove());const ready=(S.market||0)>=3;
  contsLeft().forEach(c=>{const b=document.createElement('button');b.type='button';b.className='emcont'+(ready?'':' far');b.dataset.ec=c.id;const [x,y]=emP(c.at[0],c.at[1]);b.dataset.x=x;b.dataset.y=y;
   b.innerHTML='<b>🔒 '+esc(c.name)+'</b><small>'+(ready?fmt(contCost(c))+' · ×'+c.m:'Later')+'</small>';b.setAttribute('aria-label',c.name+', locked');box.appendChild(b);});
@@ -4359,15 +4387,18 @@ const emRank=n=>n.kinds.hq?0:n.props?1:n.kinds.biz?2:n.kinds.open?3:4;
 function emPlace(){const wide=EM.k>=1.4,shown=[],pins=[...document.querySelectorAll('#emap-pins .empin')].map(b=>({b,n:EM.nodes[+b.dataset.em]})).filter(o=>o.n);
  pins.sort((a,b)=>emRank(a.n)-emRank(b.n));pins.forEach(({b,n})=>{const [sx,sy]=emS(n.x,n.y);b.style.left=sx+'px';b.style.top=sy+'px';
   const near=shown.find(o=>Math.abs(o[0]-sx)<(wide?40:30)&&Math.abs(o[1]-sy)<(wide?44:30));b.classList.toggle('emhide',!!near);if(near){near[2]++;return;}shown.push([sx,sy,0,b]);b.classList.toggle('nolbl',!wide&&!n.kinds.hq);});
+ document.querySelectorAll('#emap-pins .empin.oth').forEach(b=>{const c=EM.oth[+b.dataset.eo];if(!c)return;const [sx,sy]=emS(c.x,c.y);b.style.left=sx+'px';b.style.top=sy+'px';
+  const near=shown.find(o=>Math.abs(o[0]-sx)<(wide?40:30)&&Math.abs(o[1]-sy)<(wide?44:30));b.classList.toggle('emhide',!!near);if(!near)shown.push([sx,sy,-1e9,b]);b.classList.toggle('nolbl',!wide);});
  document.querySelectorAll('#emap-pins .emcont').forEach(b=>{const [sx,sy]=emS(+b.dataset.x,+b.dataset.y);b.style.left=sx+'px';b.style.top=sy+'px';b.hidden=sx<-60||sy<-30||sx>EM.W+60||sy>EM.H+30;});
- shown.forEach(o=>{let m=o[3].querySelector('.emmore');if(o[2]){if(!m){m=document.createElement('span');m.className='emmore';o[3].appendChild(m);}m.textContent='+'+o[2];}else if(m)m.remove();});}
+ shown.forEach(o=>{if(o[2]<0)return;let m=o[3].querySelector('.emmore');if(o[2]){if(!m){m=document.createElement('span');m.className='emmore';o[3].appendChild(m);}m.textContent='+'+o[2];}else if(m)m.remove();});}
 function emLegend(){const el=$('emap-legend');if(!el)return;const N=EM.nodes,biz=N.filter(n=>n.kinds.biz).length,pc=N.filter(n=>n.props).length,rt=EM.edges.filter(e=>!e.lock).length,nm=(S.market||0)<3?MARKETS[(S.market||0)+1]:null,cl=(S.market||0)>=3?contsLeft().length:0;
- el.innerHTML='<span>🏢 '+esc((R&&R.city)||'')+'</span><span>🏪 '+biz+' branch'+(biz===1?'':'es')+'</span><span>🏙️ '+pc+' cit'+(pc===1?'y':'ies')+' with buildings</span><span>✨ '+rt+' trade line'+(rt===1?'':'s')+'</span>'+
+ el.innerHTML='<span>🏢 '+esc((R&&R.city)||'')+'</span><span>🏪 '+biz+' branch'+(biz===1?'':'es')+'</span><span>🏙️ '+pc+' cit'+(pc===1?'y':'ies')+' with buildings</span><span>✨ '+rt+' trade line'+(rt===1?'':'s')+'</span>'+(EM.othOn&&EM.othRaw&&EM.othRaw.length?'<span>👥 '+EM.othRaw.length+' other player'+(EM.othRaw.length===1?'':'s')+' on the map</span>':'')+
   (nm?'<span class="emnext">Next: expand into '+esc(nm.name)+' from the Business tab</span>':cl?'<span class="emnext">Next: tap a 🔒 continent to expand ('+cl+' left)</span>':'');}
 function emInfo(n){if(!n)return;const k=n.kinds,ind=S.inds.length,u=totalUnits(),L=S.last||{};let b='',btn='';
  if(k.hq)b+='<p><b>'+esc(BR())+'</b> is run from here: '+u+' outlet'+(u===1?'':'s')+' in '+ind+' industr'+(ind===1?'y':'ies')+'. Business profit last month: <b>'+fmt(L.biz||0)+'</b>.</p>';
  if(k.biz&&!k.hq)b+='<p>Your businesses sell here. Every new market multiplies your profits.</p>';
  if(n.props){const P=(S.props||[]).filter(p=>p.city===n.pc&&!p.left);b+='<p>'+P.length+' building'+(P.length===1?'':'s')+': '+P.slice(0,6).map(p=>esc(p.name||'')).join(', ')+(P.length>6?' and more':'')+'. Income: <b>'+fmt(n.inc)+'</b> a month.</p>';}
+ {const oc=emOthNear(n);if(oc)b+=emOthList(oc,'Also here: '+oc.n+' other player'+(oc.n===1?'':'s'));}
  if(k.next&&Object.keys(k).length===1){const i=PCITIES.findIndex(c=>c.id===n.pc),prev=PCITIES[i-1];b+='<p>The next city on your route. '+(prev?'Own a finished building in <b>'+esc(prev.name)+'</b> to open it.':'')+'</p>';}
  else if(k.open&&!n.props)b+='<p>This city is open to you. Buy your first building here from the Property tab.</p>';
  if(n.pc){propCity=n.pc;btn+='<button class="btn primary" data-a="tab" data-v="property">Property in '+esc(n.name)+'</button>';}
@@ -4376,7 +4407,8 @@ function emInfo(n){if(!n)return;const k=n.kinds,ind=S.inds.length,u=totalUnits()
 function emZoom(f,sx,sy){const k2=Math.max(EM.W/1800,Math.min(14,EM.k*f));if(sx==null){sx=EM.W/2;sy=EM.H/2;}const ux=(sx-EM.W/2)/EM.k+EM.cx,uy=(sy-EM.H/2)/EM.k+EM.cy;EM.k=k2;EM.cx=ux-(sx-EM.W/2)/k2;EM.cy=uy-(sy-EM.H/2)/k2;EM.fit=false;emClamp();emPlace();}
 function emClamp(){EM.cx=Math.max(-900,Math.min(900,EM.cx));EM.cy=Math.max(-720,Math.min(720,EM.cy));}
 function emWire(){const box=$('emap');if(!box||box.dataset.w)return;box.dataset.w=1;
- box.addEventListener('click',e=>{const p=e.target.closest('.empin');if(p&&!EM.moved){emInfo(EM.nodes[+p.dataset.em]);return;}const ct=e.target.closest('.emcont');if(ct&&!EM.moved){contCard(ct.dataset.ec);return;}const z=e.target.closest('[data-emz]');if(z){const v=+z.dataset.emz;if(v)emZoom(v>0?1.6:1/1.6);else{emFit();emPlace();}}});
+ box.addEventListener('click',e=>{const eo=e.target.closest('[data-emo]');if(eo){EM.othOn=!EM.othOn;try{localStorage.setItem('hs-emoth',EM.othOn?'1':'0');}catch(x){}eo.classList.toggle('off',!EM.othOn);eo.setAttribute('aria-pressed',EM.othOn?'true':'false');EM.sig='';return;}
+ const po=e.target.closest('.empin.oth');if(po&&!EM.moved){emOthInfo(EM.oth[+po.dataset.eo]);return;}const p=e.target.closest('.empin');if(p&&!EM.moved){emInfo(EM.nodes[+p.dataset.em]);return;}const ct=e.target.closest('.emcont');if(ct&&!EM.moved){contCard(ct.dataset.ec);return;}const z=e.target.closest('[data-emz]');if(z){const v=+z.dataset.emz;if(v)emZoom(v>0?1.6:1/1.6);else{emFit();emPlace();}}});
  box.addEventListener('wheel',e=>{e.preventDefault();const r=box.getBoundingClientRect();emZoom(e.deltaY<0?1.2:1/1.2,e.clientX-r.left,e.clientY-r.top);},{passive:false});
  box.addEventListener('pointerdown',e=>{if(e.target.closest('.emzoom'))return;EM.ptr[e.pointerId]=[e.clientX,e.clientY];EM.moved=false;EM.drag={x:e.clientX,y:e.clientY,cx:EM.cx,cy:EM.cy};});
  box.addEventListener('pointermove',e=>{if(!EM.ptr[e.pointerId])return;const prev=EM.ptr[e.pointerId];EM.ptr[e.pointerId]=[e.clientX,e.clientY];const ids=Object.keys(EM.ptr);
@@ -4387,8 +4419,8 @@ function emWire(){const box=$('emap');if(!box||box.dataset.w)return;box.dataset.
  const up=e=>{delete EM.ptr[e.pointerId];if(!Object.keys(EM.ptr).length)EM.drag=null;else{const id=Object.keys(EM.ptr)[0];EM.drag={x:EM.ptr[id][0],y:EM.ptr[id][1],cx:EM.cx,cy:EM.cy};}};
  ['pointerup','pointercancel','pointerleave'].forEach(n=>box.addEventListener(n,up));
  window.addEventListener('resize',()=>{if(curTab==='map'){EM.W=0;emShow();}});}
-function emShow(go){if(!S||!$('emap'))return;if(go&&phoneUI())setTimeout(()=>{const pn=document.querySelector('.mappanel'),bar=document.querySelector('.bar');if(!pn||curTab!=='map')return;const top=pn.getBoundingClientRect().top+window.scrollY-(bar?bar.offsetHeight:0)-6;if(Math.abs(window.scrollY-top)>40)window.scrollTo({top,behavior:'smooth'});},60);emData();EM.still=matchMedia('(prefers-reduced-motion:reduce)').matches;emWire();EM.sig='';EM.fit=EM.fit!==false;EM.month=S.month;
- const sub=$('emap-sub');if(sub)sub.textContent='Every place you do business lights up. Money flows home along the gold lines, and lands here every month. Tap a place to see it.';
+function emShow(go){if(!S||!$('emap'))return;if(go&&phoneUI())setTimeout(()=>{const pn=document.querySelector('.mappanel'),bar=document.querySelector('.bar');if(!pn||curTab!=='map')return;const top=pn.getBoundingClientRect().top+window.scrollY-(bar?bar.offsetHeight:0)-6;if(Math.abs(window.scrollY-top)>40)window.scrollTo({top,behavior:'smooth'});},60);emData();emOthLoad();EM.still=matchMedia('(prefers-reduced-motion:reduce)').matches;emWire();EM.sig='';EM.fit=EM.fit!==false;EM.month=S.month;
+ const sub=$('emap-sub');if(sub)sub.textContent='Every place you do business lights up in gold. Money flows home along the gold lines and lands here every month. Other players glow blue. Tap a place to see it.';
  if(!EM.raf)EM.raf=requestAnimationFrame(emFrame);}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&curTab==='map')emShow();});
 

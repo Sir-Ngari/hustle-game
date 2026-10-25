@@ -2315,6 +2315,44 @@ def presence_count(region):
     return {"world": len(live), "country": sum(1 for v in live if region and v[1] == region)}
 
 
+_MAP_CACHE = {"t": 0, "data": None}
+_MAP_LOCK = threading.Lock()
+
+
+def map_players():
+    """Other players for the Empire map: public profiles active in the last 30 days, with their home country, title and
+    the cities where they own buildings. Built from the saves at most every 5 minutes. No money amounts."""
+    t = now()
+    with _MAP_LOCK:
+        if _MAP_CACHE["data"] is not None and t - _MAP_CACHE["t"] < 300:
+            return _MAP_CACHE["data"]
+    rows = q("SELECT u.id, u.name, u.company, u.color, p.handle, s.rank, sv.state FROM users u "
+             "JOIN profiles p ON p.user_id=u.id JOIN stats s ON s.user_id=u.id JOIN saves sv ON sv.user_id=u.id "
+             "WHERE u.disabled=0 AND p.private=0 AND u.last_seen>? ORDER BY u.last_seen DESC LIMIT 300", (t - 30 * 86400,))
+    out = []
+    for r in rows:
+        try:
+            st = json.loads(r["state"])
+        except ValueError:
+            continue
+        if not isinstance(st, dict):
+            continue
+        region = re.sub(r"[^A-Z]", "", str(st.get("region") or "").upper())[:3]
+        if not region:
+            continue
+        props = {}
+        for pr in st.get("props") or []:
+            if isinstance(pr, dict) and not pr.get("left"):
+                c = re.sub(r"[^a-z0-9]", "", str(pr.get("city") or "").lower())[:30]
+                if c:
+                    props[c] = props.get(c, 0) + 1
+        out.append({"id": r["id"], "h": r["handle"], "n": clean_text(r["name"], 40), "co": clean_text(r["company"], 40),
+                    "col": r["color"], "r": region, "t": clean_text(r["rank"], 30), "p": props})
+    with _MAP_LOCK:
+        _MAP_CACHE.update(t=t, data=out)
+    return out
+
+
 def live_post(db, uid, region, kind, data, k, t):
     """A highlight the server spots itself (records, #1 in the country, season winners). Inside the save transaction."""
     p = db.execute("SELECT id FROM profiles WHERE user_id=?", (uid,)).fetchone()
@@ -4579,6 +4617,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_wall()
         if path == "/api/live":
             return self.api_live()
+        if path == "/api/map/players":
+            return self.api_map_players()
         if path == "/api/bank/lots":
             return self.api_bank_lots()
         if path == "/api/market":
@@ -5573,6 +5613,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(200, {"items": items, "reacts": REACTS, "replies": [[k, v] for k, v in LIVE_REPLIES.items()],
                              "reactsSad": REACTS_SAD, "repliesSad": [[k, v] for k, v in LIVE_REPLIES_SAD.items()],
                              "playing": presence_count(region), "signed": bool(user), "scope": scope, "now": t})
+
+    def api_map_players(self):
+        """Who else is on the Empire map. Anyone can see it, guests included, like the live feed."""
+        if rate_limited("mapp:" + self.client_ip(), limit=120, window=600):
+            return self.error(429, "Too many requests.")
+        user = self.session_user()
+        me = user["id"] if user else 0
+        self.send_json(200, {"players": [dict((k, v) for k, v in p.items() if k != "id") for p in map_players() if p["id"] != me]})
 
     def api_live_reply(self):
         """A quick reply under a highlight: one of the ready-made lines, one per player per post. The owner's phone gets a nudge."""
