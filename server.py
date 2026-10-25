@@ -4172,6 +4172,11 @@ class Handler(BaseHTTPRequestHandler):
                          "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
     def send_json(self, status, payload, cookies=()):
+        # a new login session also goes back in the reply: some in-app browsers (TikTok, Facebook) keep the cookie
+        # but leave it off the game's next requests, so the game sends it back as a header instead
+        for c in cookies:
+            if c.startswith("hs=") and not c.startswith("hs=;") and isinstance(payload, dict):
+                payload = dict(payload, sess=c[3:].split(";")[0])
         body = json.dumps(payload, separators=(",", ":")).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -4226,8 +4231,14 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return data
 
+    def session_token(self):
+        h = (self.headers.get("X-Hustle-Session") or "").strip()
+        if h and len(h) <= 64 and re.fullmatch(r"[A-Za-z0-9_-]+", h):
+            return h
+        return self.cookie("hs")
+
     def session_user(self):
-        token = self.cookie("hs")
+        token = self.session_token()
         if not token:
             return None
         row = q("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id "
@@ -4768,7 +4779,7 @@ class Handler(BaseHTTPRequestHandler):
                        [self.make_cookie("hs", token, PLAYER_SESSION_SECONDS)])
 
     def api_logout(self):
-        token = self.cookie("hs")
+        token = self.session_token()
         if token:
             q("DELETE FROM sessions WHERE token=?", (token,))
         self.send_json(200, {"ok": True}, [self.make_cookie("hs", "", 0)])

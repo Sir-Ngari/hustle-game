@@ -1864,11 +1864,15 @@ function freshFor(a){const b=BGS.find(x=>x.id===a.bg)||BGS[0],s=fresh();s.g=a.ge
  s.log=[{m:0,n:1,t:'Welcome, '+a.name+'. You are 24, from '+a.town+', with '+fmt(b.cash)+(b.debt?' and a '+fmt(b.debt)+' student loan':'')+'. Time to build '+a.company+' into an empire.',k:'gold'}];s.logN=1;s.logSent=0;S=S0;return s;}
 const GENDER_FS='<fieldset><legend>You are</legend><div class="gopts"><label class="gopt"><input type="radio" name="acc-g" id="acc-g-m" value="m"><span>A man</span></label><label class="gopt"><input type="radio" name="acc-g" id="acc-g-f" value="f"><span>A woman</span></label></div><p class="hint">Used for your story, like who you marry.</p></fieldset>';
 function avatar(a,big){return'<span class="av'+(big?' big':'')+'" style="background:'+AVCOL[(a&&a.color)||0]+'">'+esc(initials(a&&a.name))+'</span>';}
+let SESS='';try{SESS=sessionStorage.getItem('hs-s')||'';}catch(e){}   /* login session, sent as a header too: some in-app browsers (TikTok, Facebook) leave the cookie off. Kept for this tab only */
+function setSess(t){SESS=t||'';try{if(SESS)sessionStorage.setItem('hs-s',SESS);else sessionStorage.removeItem('hs-s');}catch(e){}}
 async function api(method,path,body){let r;
  if(GUEST&&!/^\/api\/(visit|signup|login|google|config|tuning|invite\/check|username\/check|company\/check|forgot|reset|me|wall|live)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
- try{r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
+ try{const hd=body?{'Content-Type':'application/json'}:{};if(SESS)hd['X-Hustle-Session']=SESS;r=await fetch(path,{method,credentials:'same-origin',headers:hd,body:body?JSON.stringify(body):undefined});}
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
+ if(d&&typeof d.sess==='string')setSess(d.sess);
+ if(r.status===401&&SESS&&/^\/api\/(me|save)\b/.test(path))setSess('');
  if(!r.ok)throw{status:r.status,message:d.error||'Something went wrong on the server. Try again in a moment.',data:d};return d;}
 function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
@@ -2522,7 +2526,7 @@ function bootAuth(){try{const u=new URL(location.href),t=u.searchParams.get('res
  api('GET','/api/tuning').then(t=>{if(t&&typeof t==='object')TUNE=Object.assign({freq:1,gap:2,w:{},cat:{}},t);}).catch(()=>{});
  if(resetToken){acctView='reset';authMsg='';renderAccts();return;}
  acctView='loading';renderAccts();api('GET','/api/me').then(d=>startWith(d.user,d.save,d.bill,d.ver)).catch(e=>{if(e.status===401){if(firstMode()==='login'&&!guestLoad()){acctView='auth';authMode='login';}else{startGuest();return;}}else{acctView='down';authMsg=e.message;}renderAccts();});}
-async function logout(){stopAuto();BILL=null;paintPass();if(ACC)try{await doSync();}catch(e){}await pushForget();try{await api('POST','/api/logout',{});}catch(e){}ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
+async function logout(){stopAuto();BILL=null;paintPass();if(ACC)try{await doSync();}catch(e){}await pushForget();try{await api('POST','/api/logout',{});}catch(e){}setSess('');ACC=null;S=fresh();current=null;closeModal();acctView='auth';authMode='login';authMsg='';render();renderAccts();}
 /* ---- hall of fame: founder milestones, richest founders, then every heir generation ---- */
 const HOF_MS=[['m','Youngest to $1 million','💵'],['b','Youngest to $1 billion','💰'],['t','Youngest to $1 trillion','🏦'],['q','Youngest to $1 quadrillion','👑']];
 const ordN=n=>n+(['th','st','nd','rd'][(n%100>10&&n%100<14)?0:n%10]||'th');
@@ -2566,7 +2570,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='05ef83de6bbb';let updShown=false;
+const APP_VER='8fa1b909fe7b';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;
