@@ -2165,7 +2165,23 @@ function wallFacts(){const L=S.lifeId,f=[],ag=age(),w=d=>S.who?Object.assign({wh
  return f;}
 /* after every save: anything new becomes a post. The first look at a life only takes note of what is already there,
    so nobody's old milestones arrive all at once as if they had just happened. */
-function wallTick(){try{if(!S||!wallOwner())return;const gen=S.gnum||1;
+/* ---- the law on the Live feed: arrest, the case, prison or hiding, and the day they are back ----
+   The game's own law functions are wrapped once, after the whole game has loaded, so each step posts as it happens. */
+let lawHooked=false,lawCtx='';
+function lawPost(e,d){try{if(!S||!wallOwner())return;if(!S.lifeId||!S.wallDone)wallTick();if(!S.lifeId)return;
+ const k=(S.lifeId+':law:'+e+':'+(S.month||0)).slice(0,80);if(S.wallDone[k])return;S.wallDone[k]=1;
+ wallPush([[k,'law',Object.assign(S.who?{who:S.who}:{},{e,g:S.g==='f'?'f':S.g==='m'?'m':''},d||{}),true]]);}catch(x){}}
+function lawWhy(w){w=String(w||'');return/negligence/.test(w)?'neg':/corruption and fraud/.test(w)?'fraud':/tax/.test(w)?'tax':/crime from/.test(w)?'past':/ran from/.test(w)?'ran':'';}
+function lawHook(){if(lawHooked)return;try{if(typeof startJail!=='function'||typeof LAW_EVENTS==='undefined')return;}catch(x){return;}lawHooked=true;
+ const sj=startJail;startJail=function(n,why){const r=sj.apply(this,arguments);const w=lawWhy(why);lawPost(lawCtx==='guilty'?'guilty':w==='tax'?'plea':'jail',{n:Math.round(n)||0,w});lawCtx='';return r;};
+ const tr=trial;trial=function(){lawCtx='guilty';const r=tr.apply(this,arguments);if(r&&r[1]==='good')lawPost('innocent',{});lawCtx='';return r;};
+ const sh=startHide;startHide=function(){const r=sh.apply(this,arguments);lawPost('fled',{});return r;};
+ const hb=hideBack;hideBack=function(k){const was=hiding();if(k==='plead'&&was)lawPost('surrender',{});const r=hb.apply(this,arguments);
+  if(was&&!hiding()){if(k==='influence')lawPost('dropped',{});else if(k==='deal')lawPost('deal',{});}return r;};
+ const lt=lawTick;lawTick=function(){const L=S&&S.law,was=!!(L&&L.jail),tot=was?L.jail.total:0;const r=lt.apply(this,arguments);if(was&&!(S.law&&S.law.jail))lawPost('free',{n:tot});return r;};
+ if(typeof vanish==='function'){const va=vanish;vanish=function(){lawPost('vanished',{});try{wallFlush();}catch(x){}return va.apply(this,arguments);};}
+ LAW_EVENTS.forEach(ev=>{if(ev.id!=='law_arrest'&&ev.id!=='law_raid')return;const b=ev.build;ev.build=function(){const r=b.apply(this,arguments);lawPost(ev.id==='law_arrest'?'arrest':'raid',{});return r;};});}
+function wallTick(){try{lawHook();if(!S||!wallOwner())return;const gen=S.gnum||1;
  if(!S.wallDone||!S.lifeId||S.wallGen!==gen){if(!S.lifeId||S.wallGen!==gen)S.lifeId=wallId();S.wallGen=gen;S.wallDone={};
   wallFacts().forEach(x=>{S.wallDone[x[0]]=1;});S.wallVer=WALL_VER;
   if(S.wallNew&&ACC&&!GUEST){const k=S.lifeId+':start';S.wallDone[k]=1;wallPush([(S.gnum||1)>1?[k,'heir',{who:S.who||'',gen:S.gnum},true]:[k,'start',S.who?{who:S.who,b:ACC.bg||'hustler'}:{b:ACC.bg||'hustler'},true]]);}   /* a new game is news too */
@@ -2677,7 +2693,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='c3f158b16bdf';let updShown=false;
+const APP_VER='ac058e3c2d8b';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;

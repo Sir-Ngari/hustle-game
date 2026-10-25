@@ -1893,7 +1893,11 @@ WALL_CHAP = ["The street", "Small trader", "Business owner", "Millionaire", "Mog
 WALL_GRADE = {"A": ("\U0001F3C6", "a Legend"), "B": ("\U0001F9B8", "a Hero"), "C": ("\U0001F4BC", "an Achiever"),
               "D": ("\U0001FA79", "a Survivor"), "E": ("\U0001F43A", "a Lone Wolf")}
 # Only the highlights post: the first million, billion and trillion, and major purchases (older kinds still display if stored)
-WALL_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir", "prop", "units")
+WALL_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir", "prop", "units", "law")
+# the law: each step of a case, from the arrest to the day they are free again
+WALL_LAW = ("raid", "arrest", "plea", "guilty", "jail", "innocent", "fled", "dropped", "deal", "surrender", "free", "vanished")
+WALL_LAW_WHY = {"tax": "tax and corruption offences", "fraud": "corruption and fraud", "neg": "criminal negligence",
+                "past": "an old crime from their past", "ran": "the charges they ran from"}
 # property: the type of building (plural for when several are bought at once), and rental units by count
 WALL_PROP = {"serviced": ("serviced apartment block", "serviced apartment blocks"), "logistics": ("logistics park", "logistics parks"),
              "apartments": ("residential tower", "residential towers"), "resort": ("luxury beach resort", "luxury beach resorts"),
@@ -2004,6 +2008,17 @@ def wall_clean(kind, d):
                    tc=max(1, min(99, int(num(d.get("tc"), 1)))))
         if d.get("dev"):
             out["dev"] = 1
+    elif kind == "law":
+        if d.get("e") not in WALL_LAW:
+            return None
+        out["e"] = d["e"]
+        n = int(num(d.get("n")))
+        if 0 < n <= 600:
+            out["n"] = n
+        if d.get("w") in WALL_LAW_WHY:
+            out["w"] = d["w"]
+        if d.get("g") in ("f", "m"):
+            out["g"] = d["g"]
     elif kind == "units":
         n = int(num(d.get("n")))
         if d.get("i") not in WALL_UNITS or not 1 <= n <= 100000:
@@ -2107,6 +2122,25 @@ def wall_text(kind, d):
         elif tq > 1:
             txt += ". Now owns %d properties in %d cities" % (tq, tc) if tc > 1 else ". Now owns %d properties" % tq
         return ("\U0001F3D7\ufe0f" if d.get("dev") else "\U0001F3E2"), txt
+    if kind == "law":
+        e, n = d.get("e"), int(d.get("n", 0) or 0)
+        mo = ("%d months" % n) if n and n < 24 or (n and n % 12) else ("%d years" % (n // 12)) if n else ""
+        g = d.get("g")
+        they = "she" if g == "f" else "he" if g == "m" else "they"
+        why = WALL_LAW_WHY.get(d.get("w"), "").replace("they ran", they + " ran")
+        return {"raid": ("\U0001F6A8", "had their offices raided at dawn by anti-corruption officers. The news vans got there first"),
+                "arrest": ("\U0001F6A8", "was arrested at home and charged with corruption, fraud and tax crimes. Bail has been set"),
+                "plea": ("\u2696\ufe0f", "took a plea deal and was sentenced to %s in prison" % (mo or "time")),
+                "guilty": ("\u2696\ufe0f", "was found guilty at trial and sentenced to %s in prison" % (mo or "time") + (" for %s" % why if why else "")),
+                "jail": ("\u26d3\ufe0f", "was sentenced to %s in prison" % (mo or "time") + (" for %s" % why if why else "")),
+                "innocent": ("\U0001F389", "was found not guilty and walked out of court to a crowd of cameras"),
+                "fled": ("\u2708\ufe0f", "skipped bail and fled the country. The business runs at half speed while %s hide%s" % (they, "" if they == "they" else "s")),
+                "dropped": ("\U0001F91D", "came home from hiding after the charges were quietly dropped"),
+                "deal": ("\U0001F91D", "came home from hiding after their lawyers cut a deal"),
+                "surrender": ("\U0001F64C", "flew home and turned %s in" % ("herself" if g == "f" else "himself" if g == "m" else "themselves")),
+                "free": ("\U0001F54A\ufe0f", "walked out of prison a free %s" % ("woman" if g == "f" else "man" if g == "m" else "person") + (" after %s" % mo if mo else "") + ". Back in business"),
+                "vanished": ("\U0001F575\ufe0f", "vanished without a trace. New passport, new name, nobody knows where"),
+                }.get(e, ("\u2696\ufe0f", "is facing the courts"))
     if kind == "units":
         one, many = WALL_UNITS.get(d.get("i"), ("rental unit", "rental units"))
         n = int(d.get("n", 1))
@@ -2228,7 +2262,7 @@ def profiles_setup():
 
 
 # ---- Live feed: the highlights as they happen, for everyone (guests can watch; an account is needed to cheer or reply) ----
-LIVE_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir", "prop", "units", "record", "top1", "champ")
+LIVE_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir", "prop", "units", "law", "record", "top1", "champ")
 LIVE_DAYS = 30
 LIVE_REPLIES = {"congrats": "Congrats! \U0001F389", "respect": "Respect. \U0001F64C", "goals": "Goals! \U0001F525",
                 "race": "Race you to the next one.", "next": "What's next?", "teach": "Teach me your ways \U0001F604"}
