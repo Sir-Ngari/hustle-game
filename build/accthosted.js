@@ -16,7 +16,7 @@ let SESS='';try{SESS=sessionStorage.getItem('hs-s')||'';}catch(e){}   /* login s
 function setSess(t){SESS=t||'';try{if(SESS)sessionStorage.setItem('hs-s',SESS);else sessionStorage.removeItem('hs-s');}catch(e){}}
 async function api(method,path,body){let r;
  if(GUEST&&!/^\/api\/(visit|signup|login|google|config|tuning|invite\/check|username\/check|company\/check|forgot|reset|me|wall|live|map)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
- try{const hd=body?{'Content-Type':'application/json'}:{};if(SESS)hd['X-Hustle-Session']=SESS;r=await fetch(path,{method,credentials:'same-origin',headers:hd,body:body?JSON.stringify(body):undefined});}
+ try{const hd=body?{'Content-Type':'application/json'}:{};if(SESS)hd['X-Hustle-Session']=SESS;const url=SESS?path+(path.indexOf('?')<0?'?':'&')+'_hs='+encodeURIComponent(SESS):path;r=await fetch(url,{method,credentials:'same-origin',headers:hd,body:body?JSON.stringify(body):undefined});}
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
  if(d&&typeof d.sess==='string')setSess(d.sess);

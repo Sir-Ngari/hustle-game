@@ -1949,7 +1949,7 @@ let SESS='';try{SESS=sessionStorage.getItem('hs-s')||'';}catch(e){}   /* login s
 function setSess(t){SESS=t||'';try{if(SESS)sessionStorage.setItem('hs-s',SESS);else sessionStorage.removeItem('hs-s');}catch(e){}}
 async function api(method,path,body){let r;
  if(GUEST&&!/^\/api\/(visit|signup|login|google|config|tuning|invite\/check|username\/check|company\/check|forgot|reset|me|wall|live|map)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
- try{const hd=body?{'Content-Type':'application/json'}:{};if(SESS)hd['X-Hustle-Session']=SESS;r=await fetch(path,{method,credentials:'same-origin',headers:hd,body:body?JSON.stringify(body):undefined});}
+ try{const hd=body?{'Content-Type':'application/json'}:{};if(SESS)hd['X-Hustle-Session']=SESS;const url=SESS?path+(path.indexOf('?')<0?'?':'&')+'_hs='+encodeURIComponent(SESS):path;r=await fetch(url,{method,credentials:'same-origin',headers:hd,body:body?JSON.stringify(body):undefined});}
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
  if(d&&typeof d.sess==='string')setSess(d.sess);
@@ -2708,7 +2708,7 @@ function trophiesHTML(){const d=seasonCache;if(!d||!d.history||!d.history.length
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ACC&&syncState!=='saved')doSync();});
 
 /* ================= New version available: prompt to update ================= */
-const APP_VER='040eb33c94c0';let updShown=false;
+const APP_VER='6cca102e0f38';let updShown=false;
 /* back on a screen after a while with an old version: update straight away, so an old screen never plays on stale code */
 function checkVersion(back){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.v&&d.v!==APP_VER){if(back&&!current&&!autoOn())appUpdate();else showUpdate();}}).catch(()=>{});}
 const autoOn=()=>typeof timer!=='undefined'&&!!timer;let hiddenAt=0;

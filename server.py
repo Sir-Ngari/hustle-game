@@ -4402,7 +4402,7 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---------- plumbing ----------
     def log_message(self, fmt, *args):
-        print("%s %s" % (self.client_ip(), fmt % args), flush=True)
+        print("%s %s" % (self.client_ip(), re.sub(r"_hs=[^&\s\"]+", "_hs=-", fmt % args)), flush=True)   # never write a login key to the log
 
     def client_ip(self):
         if TRUST_PROXY:
@@ -4485,6 +4485,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def session_token(self):
         h = (self.headers.get("X-Hustle-Session") or "").strip()
+        if not h:   # some in-app browsers (TikTok) drop both the cookie and custom headers: the game also puts the key in the address
+            h = ((parse_qs(urlparse(self.path).query).get("_hs") or [""])[0]).strip()
         if h and len(h) <= 64 and re.fullmatch(r"[A-Za-z0-9_-]+", h):
             return h
         return self.cookie("hs")
