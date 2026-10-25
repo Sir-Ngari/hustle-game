@@ -21,7 +21,9 @@ async function api(method,path,body){let r;
  let d={};try{d=await r.json();}catch(e){}
  if(d&&typeof d.sess==='string')setSess(d.sess);
  if(r.status===401&&SESS&&/^\/api\/(me|save)\b/.test(path))setSess('');
- if(!r.ok)throw{status:r.status,message:d.error||'Something went wrong on the server. Try again in a moment.',data:d};return d;}
+ if(!r.ok)throw{status:r.status,message:d.error||'Something went wrong on the server. Try again in a moment.',data:d};postWorth(d);return d;}
+/* posts that carry an amount (a property's worth) show it in this player's own currency */
+function postWorth(d){try{['items','posts','posted'].forEach(k=>{(d&&Array.isArray(d[k])?d[k]:[]).forEach(x=>{if(x&&x.tpl)x.text=x.tpl.split('{worth}').join(fmt(+x.worth||0));});});}catch(e){}}
 function pastLives(){return livesCache;}
 function recordLife(l){pendingLife=l||null;if(l&&livesCache){l.n=livesCache.reduce((m,x)=>Math.max(m,x.n||0),0)+1;livesCache=[l].concat(livesCache);}}
 async function loadLives(){try{livesCache=(await api('GET','/api/lives')).lives;}catch(e){livesCache=null;}}
@@ -206,7 +208,7 @@ async function giftClaim(){closeModal();try{const r=await api('POST','/api/frien
    kept with a secret key in this browser, and it moves to their account when they save their empire. */
 /* what posts: the first million, billion and trillion; luxury buys, top cars and homes, teams, planes and a city;
    weddings, babies and divorces; the foundation and every cause it advances; league titles and championships */
-const WALL_VER=3;   /* raise when new kinds of post are added, so existing lives do not post their old moments */
+const WALL_VER=4;   /* raise when new kinds of post are added, so existing lives do not post their old moments */
 const WALL_RANKS=[3,6,8];   /* Millionaire, Billionaire, Trillionaire */
 const WALL_BUYS=['shoes','bags','wardrobe','birkin','jewels','watch','horses','villa','art','yacht','vineyard','golfclub','island','superyacht','trophyhotel','masterpiece','car4','car5','car6','jet','h4','h5','h6'];
 const WALL_TOP=['rank','title','cause','fdn','buy','married','baby','divorce'];
@@ -234,6 +236,13 @@ function wallFacts(){const L=S.lifeId,f=[],ag=age(),w=d=>S.who?Object.assign({wh
  for(let n=1;n<=Math.min(S.exes||0,20);n++)f.push([L+':div:'+n,'divorce',w(n===(S.exes||0)&&S.lastEx?{n:String(S.lastEx).split(' ')[0]}:{}),true]);
  (S.kids||[]).forEach(k=>{if(!k.rel&&k.born!=null&&k.born>=0)f.push([L+':kid:'+k.born+':'+k.name,'baby',w({n:k.name}),true]);});
  if(S.died){const sp=S.spouse&&!S.widowed?String(S.spouse.name||'').split(' ')[0]:'';f.push([L+':obit','obit',w({age:ag,r:TITLES[Math.max(0,S.title||0)][1],k:(S.kids||[]).filter(k=>!k.rel&&!k.dead).length,n:sp}),true]);}   /* the obituary */
+ /* property: every building in every town, with what it is worth and how many the player now owns there */
+ const P=S.props||[],cities=new Set(P.map(p=>p.city));
+ P.forEach(p=>{let t,c;try{t=ptype(p.type);c=pcity(p.city);}catch(e){return;}if(!t||!c)return;const dev=p.left>0,v=t.base*c.m*p.af/(dev?.7:1);
+  f.push([(L+':prop:'+p.city+':'+p.type+':'+String(p.name||'').replace(/[^A-Za-z0-9]+/g,'-')).slice(0,80),'prop',w({t:p.type,c:c.name,v:Math.round(v),dev:dev?1:0,n:1,q:P.filter(x=>x.city===p.city).length,tq:P.length,tc:cities.size}),true]);});
+ /* rental units, apartment blocks and malls are bought by the dozen: post at 1, 5, 10, 25, 50, 100 and so on */
+ ['a1','a2','a3'].forEach(id=>{const n=has(id);if(!n)return;const a=ASSETS.find(x=>x.id===id);if(!a)return;const v=Math.round(n*a.price*(typeof afx==='function'?afx(id):1));
+  [1,5,10,25,50,100,250,500,1000,2500,5000,10000].forEach(m=>{if(n>=m)f.push([L+':units:'+id+':'+m,'units',w({i:id,n,v}),true]);});});
  if(S.fdn){f.push([L+':fdn','fdn',w({}),true]);const st=S.fdn.stage||{};Object.keys(st).forEach(c=>{for(let l=1;l<=Math.min(st[c]||0,3);l++)f.push([L+':cause:'+c+':'+l,'cause',w({c,l}),true]);});}
  return f;}
 /* after every save: anything new becomes a post. The first look at a life only takes note of what is already there,
@@ -245,9 +254,18 @@ function wallTick(){try{if(!S||!wallOwner())return;const gen=S.gnum||1;
   delete S.wallNew;return;}
  if((S.wallVer||1)<WALL_VER){wallFacts().forEach(x=>{S.wallDone[x[0]]=1;});S.wallVer=WALL_VER;return;}   /* new kinds of post: what a life already has is not news */
  const nu=wallFacts().filter(x=>!S.wallDone[x[0]]);nu.forEach(x=>{S.wallDone[x[0]]=1;});
- const rk=nu.filter(x=>x[1]==='rank'),out=nu.filter(x=>x[1]!=='rank');if(rk.length)out.unshift(rk[rk.length-1]);   /* two ranks in one month: only the higher one */
+ const rk=nu.filter(x=>x[1]==='rank'),out=nu.filter(x=>x[1]!=='rank'&&x[1]!=='prop'&&x[1]!=='units');if(rk.length)out.unshift(rk[rk.length-1]);   /* two ranks in one month: only the higher one */
+ const pg={};nu.filter(x=>x[1]==='prop').forEach(x=>{const d=x[2],g=d.c+'|'+d.t+'|'+(d.dev||0);if(pg[g]){pg[g][2].n++;pg[g][2].v+=d.v;}else pg[g]=[x[0],'prop',Object.assign({},d)];});   /* several of the same building in one town at once: one post */
+ Object.values(pg).forEach(x=>{const P=S.props||[];x[2].q=P.filter(p=>(pcity(p.city)||{}).name===x[2].c).length;x[2].tq=P.length;x[2].tc=new Set(P.map(p=>p.city)).size;out.push([x[0],x[1],x[2],true]);});
+ const un={};nu.filter(x=>x[1]==='units').forEach(x=>{un[x[2].i]=x;});Object.values(un).forEach(x=>out.push(x));   /* only the highest new count of each kind of unit */
  if(out.length)wallPush(out);else if(!wallT&&!wallBusy&&wallQ().some(x=>x.o===wallOwner()))wallFlushSoon(4000);}catch(e){}}
-function wallPush(list){const o=wallOwner(),t=Date.now(),Q=wallQ();list.forEach(x=>Q.push({o,k:x[0],kind:x[1],d:x[2],big:!!x[3],t}));wallQSet(Q);wallFlushSoon(1800);}
+function wallPush(list){const o=wallOwner(),t=Date.now(),Q=wallQ();
+ list.forEach(x=>{const d=x[2];
+  if(x[1]==='prop'){const m=Q.find(y=>y.o===o&&y.kind==='prop'&&y.d.c===d.c&&y.d.t===d.t&&(y.d.dev||0)===(d.dev||0));   /* bought another one while the first is still waiting to post: one post for both */
+   if(m){m.d.n+=d.n;m.d.v+=d.v;m.d.q=d.q;m.d.tq=d.tq;m.d.tc=d.tc;m.t=t;return;}}
+  if(x[1]==='units'){const m=Q.find(y=>y.o===o&&y.kind==='units'&&y.d.i===d.i);if(m){m.d=d;m.k=x[0];m.t=t;return;}}
+  Q.push({o,k:x[0],kind:x[1],d,big:!!x[3],t});});
+ wallQSet(Q);wallFlushSoon(1800);}
 function wallFlushSoon(ms){clearTimeout(wallT);wallT=setTimeout(wallFlush,ms||2000);}
 async function wallFlush(){wallT=null;if(wallBusy)return;const o=wallOwner();if(!o)return;const mine=wallQ().filter(x=>x.o===o);if(!mine.length)return;wallBusy=true;
  try{let key='';if(o==='g'){key=wallKey();if(!key){const r=await api('POST','/api/wall/guest',{region:(S&&S.region)||''});key=r.key;try{localStorage.setItem('hs-gp',key);}catch(e){}}}
@@ -331,7 +349,7 @@ function livePlaying(d){const p=d&&d.playing;if(!p)return'';const n=p.world;retu
 function livePatch(){const L=$('livelist');if(!L){renderAccts();return;}L.innerHTML=liveListHTML();const P=$('liveplaying');if(P)P.textContent=livePlaying(liveData);const M=$('livemsg');if(M){M.innerHTML=liveMsg;M.hidden=!liveMsg;}}
 function liveHTML(){const sg=liveSigned();
  let h='<div class="livehead"><h2><span class="livedot" aria-hidden="true"></span>Live</h2><span class="liveon" id="liveplaying">'+livePlaying(liveData)+'</span></div>'+
-  '<p class="sub">Real players\' highlights the moment they happen: millions and billions, luxury buys, weddings, foundations, titles and records.</p>'+
+  '<p class="sub">Real players\' highlights the moment they happen: millions and billions, properties around the world, luxury buys, weddings, foundations, titles and records.</p>'+
   (sg?'<div class="seg livetabs" role="group" aria-label="Whose highlights" style="grid-template-columns:1fr 1fr"><button data-a="livescope" data-v="world" aria-pressed="'+(liveScope!=='friends')+'">🌍 Everyone</button><button data-a="livescope" data-v="friends" aria-pressed="'+(liveScope==='friends')+'">👥 Friends</button></div>':'');
  if(!sg)h+='<div class="liveguest"><span>👀 You are watching as a guest. Save your empire to cheer and reply.</span><button class="btn small primary" data-a="accts">Save my empire</button></div>';
  h+='<p class="amsg" id="livemsg"'+(liveMsg?'':' hidden')+'>'+liveMsg+'</p><div id="livelist">'+liveListHTML()+'</div>';

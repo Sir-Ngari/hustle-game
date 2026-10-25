@@ -1893,7 +1893,14 @@ WALL_CHAP = ["The street", "Small trader", "Business owner", "Millionaire", "Mog
 WALL_GRADE = {"A": ("\U0001F3C6", "a Legend"), "B": ("\U0001F9B8", "a Hero"), "C": ("\U0001F4BC", "an Achiever"),
               "D": ("\U0001FA79", "a Survivor"), "E": ("\U0001F43A", "a Lone Wolf")}
 # Only the highlights post: the first million, billion and trillion, and major purchases (older kinds still display if stored)
-WALL_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir")
+WALL_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir", "prop", "units")
+# property: the type of building (plural for when several are bought at once), and rental units by count
+WALL_PROP = {"serviced": ("serviced apartment block", "serviced apartment blocks"), "logistics": ("logistics park", "logistics parks"),
+             "apartments": ("residential tower", "residential towers"), "resort": ("luxury beach resort", "luxury beach resorts"),
+             "mall": ("shopping mall", "shopping malls"), "hotel": ("five-star hotel", "five-star hotels"),
+             "office": ("Grade A office tower", "Grade A office towers"), "supertall": ("supertall landmark", "supertall landmarks")}
+WALL_UNITS = {"a1": ("rental apartment unit", "rental apartment units"), "a2": ("apartment block", "apartment blocks"),
+              "a3": ("shopping mall", "shopping malls")}
 WALL_BG = {"hustler": "a street hustler", "grad": "a university graduate", "heir": "a family business heir"}
 WALL_COUNTRY = WALL_KINDS
 WALL_RANK_OK = ("Millionaire", "Billionaire", "Trillionaire")
@@ -1988,6 +1995,20 @@ def wall_clean(kind, d):
             out["n"] = n
     elif kind == "start":
         out["b"] = d.get("b") if d.get("b") in WALL_BG else "hustler"
+    elif kind == "prop":
+        c = wall_name(d.get("c"))
+        if d.get("t") not in WALL_PROP or not c:
+            return None
+        out.update(t=d["t"], c=c, n=max(1, min(50, int(num(d.get("n"), 1)))), v=max(0.0, min(1e18, num(d.get("v")))),
+                   q=max(1, min(999, int(num(d.get("q"), 1)))), tq=max(1, min(9999, int(num(d.get("tq"), 1)))),
+                   tc=max(1, min(99, int(num(d.get("tc"), 1)))))
+        if d.get("dev"):
+            out["dev"] = 1
+    elif kind == "units":
+        n = int(num(d.get("n")))
+        if d.get("i") not in WALL_UNITS or not 1 <= n <= 100000:
+            return None
+        out.update(i=d["i"], n=n, v=max(0.0, min(1e18, num(d.get("v")))))
     else:
         return None
     who = wall_name(d.get("who"))
@@ -2011,6 +2032,15 @@ def wall_time(m):
 
 def wall_an(word):
     return ("an " if word[:1] in "AEIOU" else "a ") + word
+
+
+def usd(v):
+    v = float(v or 0)
+    for div, suf in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if v >= div:
+            x = v / div
+            return "$%s%s" % (("%.1f" % x).rstrip("0").rstrip(".") if x < 100 else "%d" % round(x), suf)
+    return "$%d" % round(v)
 
 
 def wall_text(kind, d):
@@ -2066,6 +2096,21 @@ def wall_text(kind, d):
         return "\U0001F54A️", txt + (" Survived by %s." % fam if fam else "") + " Rest in peace."
     if kind == "start":
         return "\U0001F331", "started a new life from scratch as %s" % WALL_BG.get(d.get("b"), "a street hustler")
+    if kind == "prop":
+        one, many = WALL_PROP.get(d.get("t"), ("property", "properties"))
+        n, c = int(d.get("n", 1)), d.get("c", "")
+        what = wall_an(one) if n == 1 else "%d %s" % (n, many)
+        txt = ("started building %s in %s, worth {worth} when finished" if d.get("dev") else "bought %s in %s, worth {worth}") % (what, c)
+        q, tq, tc = int(d.get("q", 1)), int(d.get("tq", 1)), int(d.get("tc", 1))
+        if tq > 1 and q > 1:
+            txt += ". Now owns %d properties in %s" % (q, c) + (" and %d in %d cities" % (tq, tc) if tc > 1 else "")
+        elif tq > 1:
+            txt += ". Now owns %d properties in %d cities" % (tq, tc) if tc > 1 else ". Now owns %d properties" % tq
+        return ("\U0001F3D7\ufe0f" if d.get("dev") else "\U0001F3E2"), txt
+    if kind == "units":
+        one, many = WALL_UNITS.get(d.get("i"), ("rental unit", "rental units"))
+        n = int(d.get("n", 1))
+        return "\U0001F3D8\ufe0f", "now owns %s, worth {worth}" % (wall_an(one) if n == 1 else "%d %s" % (n, many))
     if kind == "record":
         where = "in the world" if d.get("scope") == "world" else "in " + country_name(d.get("scope"))
         return "\U0001F3C5", "set a new record: youngest %s to become %s, at %s" % (where, wall_an(MS_NAME.get(d.get("ms"), "Millionaire")), live_age(d.get("age_m", 0)))
@@ -2087,8 +2132,11 @@ def wall_item(r, t):
     if r["kind"] == "rank" and "r" not in data:
         data["r"] = ""
     ico, text = wall_text(r["kind"], data)
-    return {"id": r["id"], "kind": r["kind"], "ico": ico, "text": text, "who": data.get("who", ""), "ago": ago(r["ts"], t), "ts": r["ts"],
-            "rank": data.get("r", ""), "gen": data.get("gen", 0)}
+    out = {"id": r["id"], "kind": r["kind"], "ico": ico, "text": text, "who": data.get("who", ""), "ago": ago(r["ts"], t), "ts": r["ts"],
+           "rank": data.get("r", ""), "gen": data.get("gen", 0)}
+    if "{worth}" in text:   # the game shows the amount in the viewer's own currency; everywhere else gets dollars
+        out.update(tpl=text, worth=data.get("v", 0), text=text.replace("{worth}", usd(data.get("v", 0))))
+    return out
 
 
 def profile_get(sql_where, args):
@@ -2180,7 +2228,7 @@ def profiles_setup():
 
 
 # ---- Live feed: the highlights as they happen, for everyone (guests can watch; an account is needed to cheer or reply) ----
-LIVE_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir", "record", "top1", "champ")
+LIVE_KINDS = ("rank", "buy", "married", "baby", "divorce", "fdn", "cause", "title", "obit", "start", "heir", "prop", "units", "record", "top1", "champ")
 LIVE_DAYS = 30
 LIVE_REPLIES = {"congrats": "Congrats! \U0001F389", "respect": "Respect. \U0001F64C", "goals": "Goals! \U0001F525",
                 "race": "Race you to the next one.", "next": "What's next?", "teach": "Teach me your ways \U0001F604"}
@@ -5391,7 +5439,10 @@ class Handler(BaseHTTPRequestHandler):
             if fid:
                 room -= 1
                 ico, line = wall_text(kind, data)
-                posted.append({"id": fid, "k": k, "kind": kind, "ico": ico, "text": line, "who": data.get("who", "")})
+                it = {"id": fid, "k": k, "kind": kind, "ico": ico, "text": line, "who": data.get("who", "")}
+                if "{worth}" in line:
+                    it.update(tpl=line, worth=data.get("v", 0), text=line.replace("{worth}", usd(data.get("v", 0))))
+                posted.append(it)
         q("UPDATE profiles SET region=?, updated=? WHERE id=?", (region, t, p["id"]))
         self.send_json(200, {"ok": True, "handle": p["handle"], "link": wall_link(p["handle"]), "posted": posted})
 
