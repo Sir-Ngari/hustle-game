@@ -1,6 +1,6 @@
 /* Hustlempires service worker: keeps the game's screens on the phone so the app opens instantly
    and shows a friendly message when offline. Game data (/api/) always goes to the server. */
-const CACHE = 'hustle-v6';
+const CACHE = 'hustle-v7';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/icons/favicon-48.png'];
 
 self.addEventListener('install', e => {
@@ -15,11 +15,11 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin') || url.pathname.endsWith('.json')) return;
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin') || url.pathname.startsWith('/@') || url.pathname.endsWith('.json')) return;
   if (req.mode === 'navigate') {
     // always try the network first, so players get new versions straight away
     e.respondWith(fetch(req).then(res => {
-      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put('/', copy)); }
+      if (res.ok && url.pathname === '/') { const copy = res.clone(); caches.open(CACHE).then(c => c.put('/', copy)); }   // only the game page is kept for offline use
       return res;
     }).catch(() => caches.match('/')));
     return;

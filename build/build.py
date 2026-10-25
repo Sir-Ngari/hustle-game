@@ -8,14 +8,16 @@ def rep(a,b,cnt=1):
 # swap the device-account block for the server-account block
 i=s.index("/* ================= Accounts ================= */"); j=s.index("function save(){if(!ACC)return;",i)
 k=s.index("saveAccs();}",j)+len("saveAccs();}")
-s=s[:i]+open('accthosted.js').read()+"\nfunction save(){if(GUEST){S.seen=Date.now();guestStore();guestCheck();return;}if(!ACC)return;S._uid=ACC.id;S.seen=Date.now();queueSync();pushMaybeAsk();}"+s[k:]
+s=s[:i]+open('accthosted.js').read()+"\nfunction save(){wallTick();if(GUEST){S.seen=Date.now();guestStore();guestCheck();return;}if(!ACC)return;S._uid=ACC.id;S.seen=Date.now();queueSync();pushMaybeAsk();}"+s[k:]
 # number every news entry so the server can store each one once
 rep("function log(t,k){if(!t)return;S.log.unshift({m:S.month,t,k:k||''});","function log(t,k){if(!t)return;S.logN=(S.logN||0)+1;S.log.unshift({m:S.month,t,k:k||'',n:S.logN});")
 # click handlers for the account screens
 i=s.index("accts:()=>showAccts('pick'),"); j=s.index("acctdelyes:()=>deleteAccount(v),",i)+len("acctdelyes:()=>deleteAccount(v),")
-s=s[:i]+"accts:()=>{if(GUEST){guestAsk('chip');return;}if(!ACC)return;stopAuto();acctView='menu';renderAccts();},guestlater:()=>{acctView=null;authMode='signup';renderAccts();render();if(!current&&(!S.g||!S.inds.length))startEvents();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,awaygo:()=>awayCollect(),bankbuy:()=>bankBuy(+v),xclist:()=>xcList(v),xcbuy:()=>xcBuyCard(+v),xcgo:()=>xcBuy(v),xcsell:()=>xcSell(+v,+t.dataset.f),mktab:()=>{mkTab=v;mkMsg='';bankMsg='';render();},mklist:()=>mkList(v),mkpost:()=>mkPost(v),mkbuy:()=>mkBuy(+v),mkcancel:()=>mkCancel(+v),friends:()=>openFriends(),friendgift:()=>friendAct('gift',+v),frtab:()=>frTabGo(v),feedscope:()=>feedScopeGo(v),feedreact:()=>feedReact(+v,t.dataset.e),feedadd:()=>feedAddFriend(+v),msgpick:()=>msgPick(+v),msgsend:()=>msgSend(+v,t.dataset.c),msgcancel:()=>{frPick=0;renderAccts();},friendsmsg:()=>openFriends('friends'),friendsfeed:()=>{closeMore();openFriends('feed');},friendrm:()=>friendAct('rm',+v),friendaddid:()=>friendAct('add',+v),giftclaim:()=>giftClaim(),pushyes:()=>pushYes(),pushno:()=>closeModal(),closecard:()=>closeModal(),pushon:()=>{pushRegister(true).catch(()=>{}).then(()=>renderAccts());},pushoff:()=>pushOff(),authmode:()=>{authMode=v;authMsg='';renderAccts();const A=$('acct');if(A)A.scrollTop=0;},authjump:()=>{authMode=v;authMsg='';renderAccts();const u=$('acc-user');if(u){u.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>u.focus({preventScroll:true}),400);}},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView=GUEST?'guestsave':'auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),lbsub:()=>lbSubGo(v),retryboot:bootAuth,appupdate:appUpdate,"+s[j:]
+s=s[:i]+"accts:()=>{if(GUEST){guestAsk('chip');return;}if(!ACC)return;stopAuto();acctView='menu';renderAccts();},guestlater:()=>{acctView=null;authMode='signup';renderAccts();render();if(!current&&(!S.g||!S.inds.length))startEvents();},acctclose:()=>{acctView=passLocked()?'payleft':null;renderAccts();},passopen:()=>openPay(),buyplan:()=>buyPlan(v),tipopen:()=>openTip(),tipamt:()=>tipPick(v),tipgo:()=>sendTip(),paylater:payLater,paygift:payGift,invite:openInvite,invcopy:inviteCopy,invshare:inviteShare,awaygo:()=>awayCollect(),bankbuy:()=>bankBuy(+v),xclist:()=>xcList(v),xcbuy:()=>xcBuyCard(+v),xcgo:()=>xcBuy(v),xcsell:()=>xcSell(+v,+t.dataset.f),mktab:()=>{mkTab=v;mkMsg='';bankMsg='';render();},mklist:()=>mkList(v),mkpost:()=>mkPost(v),mkbuy:()=>mkBuy(+v),mkcancel:()=>mkCancel(+v),friends:()=>openFriends(),friendgift:()=>friendAct('gift',+v),frtab:()=>frTabGo(v),feedscope:()=>feedScopeGo(v),feedreact:()=>feedReact(+v,t.dataset.e),feedadd:()=>feedAddFriend(+v),msgpick:()=>msgPick(+v),msgsend:()=>msgSend(+v,t.dataset.c),msgcancel:()=>{frPick=0;renderAccts();},friendsmsg:()=>openFriends('friends'),friendsfeed:()=>{closeMore();openFriends('friends');},liveopen:()=>openLive(),livescope:()=>{liveScope=v;liveData=null;livePick=0;renderAccts();liveLoad(true);},livereact:()=>liveReact(+v,t.dataset.e),livereply:()=>liveReplyPick(+v),livesay:()=>liveSay(+v,t.dataset.c),myprofile:()=>openProfile(),wallopen:()=>openWall(v),wallback:()=>wallGoBack(),wallhide:()=>wallHide(+v),wallpriv:()=>wallPrivacy(v==='1'),wallshare:()=>wallShare(),wallcopy:()=>wallCopy(),wallreact:()=>wallReact(+v,t.dataset.e),walladd:()=>wallAddFriend(+v),wallmsg:()=>wallMessage(+v),friendrm:()=>friendAct('rm',+v),friendaddid:()=>friendAct('add',+v),giftclaim:()=>giftClaim(),pushyes:()=>pushYes(),pushno:()=>closeModal(),closecard:()=>closeModal(),pushon:()=>{pushRegister(true).catch(()=>{}).then(()=>renderAccts());},pushoff:()=>pushOff(),authmode:()=>{authMode=v;authMsg='';renderAccts();const A=$('acct');if(A)A.scrollTop=0;},authjump:()=>{authMode=v;authMsg='';renderAccts();const u=$('acc-user');if(u){u.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>u.focus({preventScroll:true}),400);}},forgotview:()=>{acctView='forgot';forgotDone='';authMsg='';renderAccts();},backlogin:()=>{acctView=GUEST?'guestsave':'auth';authMode='login';forgotDone='';authMsg='';renderAccts();},skipemail:()=>{emailSkip=true;acctView=null;renderAccts();},logout,installapp:installApp,leaderboard:()=>openBoard(),boardtab:()=>openBoard(v),lbsub:()=>lbSubGo(v),retryboot:bootAuth,appupdate:appUpdate,"+s[j:]
 # More sheet: a way into Friends and the business feed for signed-in players
-rep("(b.classList.contains('unew')?'<span class=\"mnew\">New</span>':'')+'</button>').join('');}","(b.classList.contains('unew')?'<span class=\"mnew\">New</span>':'')+'</button>').join('')+(ACC&&!GUEST?'<button data-a=\"friendsfeed\"><span class=\"mfeed\" aria-hidden=\"true\">👥</span> Friends &amp; feed'+(friendsData&&friendsData.unseen?'<span class=\"mnew\">'+friendsData.unseen+'</span>':'')+'</button>':'');}")
+rep("(b.classList.contains('unew')?'<span class=\"mnew\">New</span>':'')+'</button>').join('');}","(b.classList.contains('unew')?'<span class=\"mnew\">New</span>':'')+'</button>').join('')+((ACC||GUEST)?'<button data-a=\"liveopen\"><span class=\"mfeed\" aria-hidden=\"true\">📡</span> Live feed</button>':'')+((ACC||GUEST)?'<button data-a=\"myprofile\"><span class=\"mfeed\" aria-hidden=\"true\">🪪</span> My profile</button>':'')+(ACC&&!GUEST?'<button data-a=\"friendsfeed\"><span class=\"mfeed\" aria-hidden=\"true\">👥</span> Friends'+(friendsData&&friendsData.unseen?'<span class=\"mnew\">'+friendsData.unseen+'</span>':'')+'</button>':'');}")
+# the live strip under PLAY: other players' highlights as they happen
+rep('<div id="affbar" hidden></div>','<div id="affbar" hidden></div>\n    <button type="button" id="livestrip" class="livestrip" data-a="liveopen" hidden></button>')
 # new game keeps the account and tells the server
 rep("S=ACC?freshFor(ACC):fresh();","S=ACC?freshFor(ACC):fresh();newGameFlag=true;")
 # start-up: ask the server who is playing
@@ -111,6 +113,61 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .gsi-or{display:flex;align-items:center;gap:10px;margin:6px 0 0;color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
 .gsi-or::before,.gsi-or::after{content:'';flex:1;height:1px;background:var(--line)}
 .gsi-g{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#fff;color:#4285f4;font:800 12px/1 system-ui,sans-serif;margin-right:4px;vertical-align:-3px;border:1px solid var(--line)}
+.acctbrand{""")
+rep(".acctbrand{", """/* public profile */
+.whead{margin:2px 0 10px}.whead h2{margin:0}
+.wstats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
+.wstats div{border:1px solid var(--line);border-radius:12px;padding:8px 10px;text-align:center}
+.wstats small{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.wstats b{display:block;font-size:16px;margin-top:2px}
+.wlink{border:1px dashed var(--brass);border-radius:12px;padding:10px 12px;margin:0 0 12px;background:var(--brass-soft)}
+.wlink .chips{margin:8px 0 0}
+.wurl{display:block;font-weight:700;font-size:14px;word-break:break-all}
+.wguest{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 12px}
+.wguest p{margin:0 0 8px;font-size:13.5px}
+.wseg{grid-template-columns:1fr 1fr;margin:6px 0 4px}
+.wposts{list-style:none;margin:8px 0 14px;padding:0;display:flex;flex-direction:column;gap:8px}
+.wposts li{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.wico{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:19px;background:var(--brass-soft)}
+.wbody{flex:1;min-width:0}.wbody p{margin:0;font-weight:600;font-size:14.5px;line-height:1.35}
+.wmeta{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.wdel{flex:none;min-width:36px;min-height:36px;border:0;background:none;color:var(--muted);font-size:16px;cursor:pointer;border-radius:8px}
+.wdel:hover{color:var(--red)}
+.wempty{padding:8px 0}
+.wname{padding:0;font-size:inherit;color:inherit;text-decoration:none;font-weight:700}
+.wname:hover{text-decoration:underline}
+.wavbtn{padding:0;border:0;background:none;border-radius:50%;cursor:pointer;flex:none}
+.hstoast .tshare{font-size:12px;font-weight:700;color:#ffd36b;opacity:1}
+/* live feed */
+.livehead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.livehead h2{display:flex;align-items:center;gap:8px;margin:0}
+.livedot{width:11px;height:11px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 0 0 rgba(255,77,77,.7);animation:lpulse 1.6s infinite}
+@keyframes lpulse{70%{box-shadow:0 0 0 9px rgba(255,77,77,0)}100%{box-shadow:0 0 0 0 rgba(255,77,77,0)}}
+.liveon{font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.livetabs{margin:8px 0 10px}
+.liveguest{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px dashed var(--brass);background:var(--brass-soft);border-radius:12px;padding:9px 12px;margin:0 0 10px;font-size:13.5px}
+.liveempty{border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center}.liveempty p{margin:0 0 10px;color:var(--muted)}
+#livelist{display:flex;flex-direction:column;gap:12px;margin:0 0 14px}
+.lcard{border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:rgba(255,255,255,.03)}
+.lcard.fresh{animation:lfresh 1.6s ease-out}
+@keyframes lfresh{0%{transform:translateY(-8px);opacity:0;box-shadow:0 0 0 3px var(--brass)}40%{transform:none;opacity:1}100%{box-shadow:0 0 0 0 transparent}}
+.lcard header{display:flex;align-items:center;gap:10px}
+.lwho{display:flex;flex-direction:column;min-width:0}.lwho small{font-size:12px;color:var(--muted)}
+.lhl{display:flex;align-items:center;gap:12px;margin:10px 0 8px;padding:12px;border-radius:12px;background:linear-gradient(135deg,var(--brass-soft),transparent);border:1px solid var(--line)}
+.lhl p{margin:0;font-weight:700;font-size:15px;line-height:1.35}
+.lico{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:26px;background:rgba(255,197,61,.16)}
+.lcard.k-record .lhl,.lcard.k-champ .lhl,.lcard.k-top1 .lhl{border-color:var(--brass)}
+.lfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.lfoot .reacts{margin:0}
+.lrn{font-size:13px;color:var(--muted)}
+.lreplies{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:3px;font-size:13.5px}
+.lreplies .lmore{color:var(--muted);font-size:12.5px}
+.lpick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.livestrip{display:flex;align-items:center;gap:8px;width:100%;margin:8px 0 0;padding:8px 12px;border:1px solid rgba(255,77,77,.45);border-radius:12px;background:rgba(255,77,77,.08);color:inherit;font-size:13.5px;text-align:left;cursor:pointer}
+.livestrip .lsbadge{flex:none;font-size:11px;font-weight:800;letter-spacing:.06em;color:#ff6b6b}
+.livestrip .lstext{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.livestrip .lsago{flex:none;font-size:12px;color:var(--muted)}
+.livestrip.lspop{animation:lfresh 1.6s ease-out}
 .acctbrand{""")
 assert 'localStorage.getItem(SAVE)' not in s and 'ACCS' not in s, 'device-account code left behind'
 head='''<!doctype html>

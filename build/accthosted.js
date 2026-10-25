@@ -13,7 +13,7 @@ function freshFor(a){const b=BGS.find(x=>x.id===a.bg)||BGS[0],s=fresh();s.g=a.ge
 const GENDER_FS='<fieldset><legend>You are</legend><div class="gopts"><label class="gopt"><input type="radio" name="acc-g" id="acc-g-m" value="m"><span>A man</span></label><label class="gopt"><input type="radio" name="acc-g" id="acc-g-f" value="f"><span>A woman</span></label></div><p class="hint">Used for your story, like who you marry.</p></fieldset>';
 function avatar(a,big){return'<span class="av'+(big?' big':'')+'" style="background:'+AVCOL[(a&&a.color)||0]+'">'+esc(initials(a&&a.name))+'</span>';}
 async function api(method,path,body){let r;
- if(GUEST&&!/^\/api\/(visit|signup|login|google|config|tuning|invite\/check|username\/check|company\/check|forgot|reset|me)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
+ if(GUEST&&!/^\/api\/(visit|signup|login|google|config|tuning|invite\/check|username\/check|company\/check|forgot|reset|me|wall|live)\b/.test(path))throw{status:401,guest:true,message:'Create your free account to use this.'};
  try{r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
  catch(e){throw{status:0,message:navigator.onLine===false?'You\'re offline. Connect to the internet to keep playing. Your empire is saved safely on the server.':'Could not reach the game server. Check your connection and try again.'};}
  let d={};try{d=await r.json();}catch(e){}
@@ -143,25 +143,26 @@ function awayWelcome(seen){if(!S||S.over||!S.inds.length||S.month<1||!seen)retur
  return true;}
 function awayCollect(){closeModal();if(awayAmt>0){S.cash+=awayAmt;log('While you were away, your businesses earned '+fmt(awayAmt)+'.','good');try{coinBurst(14);}catch(e){}awayAmt=0;render();save();}startEvents();}
 /* ---------- Friends: see how they are doing, send a daily gift ---------- */
-let friendsData=null,friendMsg='',frTab='feed',feedScope='country',feedData=null;
-async function openFriends(tab){stopAuto();closeModal();{const t=$('hstoast');if(t)t.hidden=true;}acctView='friends';friendMsg='';if(tab)frTab=tab;renderAccts();
+let friendsData=null,friendMsg='',frTab='friends',feedScope='country',feedData=null;
+async function openFriends(tab){if(tab==='feed'){openLive('country');return;}stopAuto();closeModal();{const t=$('hstoast');if(t)t.hidden=true;}acctView='friends';friendMsg='';if(tab)frTab=tab;renderAccts();
  try{friendsData=await api('GET','/api/friends?open=1');}catch(e){friendMsg=esc(e.message);}if(frTab==='feed')await feedLoad();if(acctView==='friends')renderAccts();}
 async function feedLoad(){try{feedData=await api('GET','/api/feed?scope='+feedScope+'&region='+encodeURIComponent(S.region||''));}catch(e){feedData={items:[],reacts:[],err:e.message};}}
-async function frTabGo(t){frTab=t;friendMsg='';if(t==='feed'&&!feedData)await feedLoad();renderAccts();if(t==='feed'){await feedLoad();if(acctView==='friends'&&frTab==='feed')renderAccts();}}
+async function frTabGo(t){if(t==='feed'){openLive('country');return;}frTab=t;friendMsg='';if(t==='feed'&&!feedData)await feedLoad();renderAccts();if(t==='feed'){await feedLoad();if(acctView==='friends'&&frTab==='feed')renderAccts();}}
 async function feedScopeGo(v){feedScope=v;feedData=null;renderAccts();await feedLoad();renderAccts();}
 async function feedReact(id,e){const it=feedData&&feedData.items.find(x=>x.id===id);if(!it)return;try{const r=await api('POST','/api/feed/react',{id,e});it.reacts=r.reacts||{};it.mine=r.mine||'';}catch(er){friendMsg=esc(er.message);}renderAccts();}
 async function feedAddFriend(id){try{const r=await api('POST','/api/friends/add',{id});friendMsg=esc(r.name)+' is now your friend.';const it=feedData&&feedData.items.filter(x=>x.uid===id);(it||[]).forEach(x=>x.friend=true);friendsData=await api('GET','/api/friends');}catch(e){friendMsg=esc(e.message);}renderAccts();}
-function feedLine(it){const nm='<b>'+esc((it.name||'A player').split(' ')[0])+'</b>';
+function feedLine(it){const who=it.who&&it.who!==it.name?it.who:it.name,nm0=esc(it.guest?(who||'A player'):(who||'A player').split(' ')[0]),nm=it.handle?'<button class="linkbtn wname" data-a="wallopen" data-v="'+esc(it.handle)+'">'+nm0+'</button>':'<b>'+nm0+'</b>';
+ if(it.text)return nm+' '+esc(it.text)+(/[A-Za-z0-9]$/.test(it.text)?'.':'');
  if(it.kind==='heir')return nm+' took over the family empire as generation '+it.gen+'.';
  const r=it.rank||'',an=/^[AEIOU]/.test(r)?'an ':'a ';return nm+' became '+an+'<b>'+esc(r)+'</b>.';}
 function feedHTML(){const d=feedData,cn=(countryRow(S.region)||{}).name||'your country';
  let h='<div class="chips mktabs"><button class="btn small'+(feedScope==='country'?' primary':'')+'" data-a="feedscope" data-v="country">'+esc(cn)+'</button><button class="btn small'+(feedScope==='friends'?' primary':'')+'" data-a="feedscope" data-v="friends">Friends</button></div>';
  if(!d)return h+'<p class="sub">Loading…</p>';
  if(d.err)return h+'<p class="amsg">'+esc(d.err)+'</p>';
- if(!d.items.length)return h+'<p class="sub">'+(feedScope==='friends'?'No news from your friends in the last two weeks. Add friends from the '+esc(cn)+' feed, or invite them.':'Nothing yet. When players in '+esc(cn)+' reach a new rank, it shows up here.')+'</p>';
- return h+'<ul class="invlist feedlist">'+d.items.map(it=>'<li>'+avatar(it)+'<span class="ameta"><span class="feedtxt">'+feedLine(it)+'</span><span>'+esc(it.company||'')+' · '+esc(it.ago||'')+'</span>'+
+ if(!d.items.length)return h+'<p class="sub">'+(feedScope==='friends'?'No news from your friends in the last two weeks. Add friends from the '+esc(cn)+' feed, or invite them.':'Nothing yet. When players in '+esc(cn)+' make their first million or billion, or a major purchase, it shows up here.')+'</p>';
+ return h+'<ul class="invlist feedlist">'+d.items.map(it=>'<li>'+(it.handle?'<button class="wavbtn" data-a="wallopen" data-v="'+esc(it.handle)+'" aria-label="Open '+esc(it.name||'')+'\'s profile">'+avatar(it)+'</button>':avatar(it))+'<span class="ameta"><span class="feedtxt">'+feedLine(it)+'</span><span>'+(it.guest?'Guest player':esc(it.company||''))+' · '+esc(it.ago||'')+'</span>'+
   '<span class="reacts">'+(d.reacts||[]).map(e=>{const n=(it.reacts||{})[e]||0;return it.me?(n?'<span class="react on">'+e+' '+n+'</span>':''):'<button class="react'+(it.mine===e?' on':'')+'" data-a="feedreact" data-v="'+it.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join('')+
-  (!it.me&&!it.friend?'<button class="btn ghost small feedadd" data-a="feedadd" data-v="'+it.uid+'">+ Friend</button>':'')+'</span></span></li>').join('')+'</ul>';}
+  (!it.me&&!it.friend&&it.uid?'<button class="btn ghost small feedadd" data-a="feedadd" data-v="'+it.uid+'">+ Friend</button>':'')+'</span></span></li>').join('')+'</ul>';}
 let frPick=0;
 function msgPick(id){frPick=id;frTab='friends';friendMsg='';renderAccts();try{window.scrollTo(0,0);const el=$('acct');if(el)el.scrollTop=0;}catch(e){}}
 function msgPickHTML(){const d=friendsData,f=d&&d.friends.find(x=>x.id===frPick);if(!f||!d.codes)return'';
@@ -179,7 +180,7 @@ function friendsHTML(){const d=friendsData,un=d&&d.msgs?d.msgs.filter(m=>!m.seen
  h+='<h3>Your friends'+(d.friends.length?' ('+d.friends.length+')':'')+'</h3>';
  if(!d.friends.length)h+='<p class="sub">No friends yet. Add someone by their username above, or invite friends: anyone who joins with your link becomes your friend.</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div>';
  else{h+='<p class="sub">'+(d.giftsLeft?d.giftsLeft+' gift'+(d.giftsLeft>1?'s':'')+' left to send today.':'All gifts sent for today. More tomorrow.')+'</p><ul class="invlist frlist">'+d.friends.map(f=>{const diff=f.nw-(d.me.nw||0);
-  return'<li>'+avatar(f)+'<span class="ameta"><b>'+esc(f.name)+(f.online?' <i class="frdot" title="Playing now"></i>':'')+'</b><span>'+esc(f.company)+' · '+esc(f.seen)+'</span><span>'+fmt(f.nw)+' · '+esc(f.rank||'')+(f.nw>0?' · <em class="'+(diff>0?'frup':'frdn')+'">'+(diff>0?fmt(diff)+' ahead of you':fmt(-diff)+' behind you')+'</em>':'')+'</span></span>'+
+  return'<li>'+avatar(f)+'<span class="ameta"><b><button class="linkbtn wname" data-a="wallopen" data-v="'+esc(f.username)+'">'+esc(f.name)+'</button>'+(f.online?' <i class="frdot" title="Playing now"></i>':'')+'</b><span>'+esc(f.company)+' · '+esc(f.seen)+'</span><span>'+fmt(f.nw)+' · '+esc(f.rank||'')+(f.nw>0?' · <em class="'+(diff>0?'frup':'frdn')+'">'+(diff>0?fmt(diff)+' ahead of you':fmt(-diff)+' behind you')+'</em>':'')+'</span></span>'+
    '<span class="frbtns"><button class="btn small" data-a="msgpick" data-v="'+f.id+'" aria-label="Message '+esc(f.name)+'">💬</button><button class="btn small'+(f.canGift?' primary':'')+'" data-a="friendgift" data-v="'+f.id+'"'+(f.canGift?'':' disabled')+'>'+(f.canGift?'🎁 Gift':'Sent')+'</button><button class="btn ghost small" data-a="friendrm" data-v="'+f.id+'" aria-label="Remove '+esc(f.name)+'">✕</button></span></li>';}).join('')+'</ul>';}
  return h+'<div class="chips"><button class="btn" data-a="acctclose">Back to my game</button><button class="btn ghost" data-a="leaderboard">Leaderboard</button></div>';}
 async function friendAct(kind,v){try{if(kind==='add'){const u=v||($('fr-user')||{}).value||'';if(!u.trim()){friendMsg='Type their username first.';renderAccts();return;}const r=await api('POST','/api/friends/add',typeof v==='number'?{id:v}:{username:u});friendMsg=esc(r.name)+' is now your friend.';}
@@ -196,6 +197,165 @@ async function giftCheck(){if(!ACC||!S||S.over)return;if(current||!$('modal').hi
   '<button class="choice" data-a="giftclaim"><b>Collect '+fmt(amt)+'</b><span>Then send one back from Friends.</span></button>');}
 async function giftClaim(){closeModal();try{const r=await api('POST','/api/friends/claim',{});if(r.n){const each=Math.max(100,Math.round(flows(false).net)),amt=each*r.n;S.cash+=amt;log('Gifts from '+r.from.join(', ')+': '+fmt(amt)+'.','good');try{coinBurst(14);}catch(e){}render();save();
   showCard('Say thanks','Send a gift back. It only takes a tap, and it lands on their phone.','<button class="choice" data-a="friends"><b>Open Friends</b><span>Send gifts back.</span></button><button class="choice" data-a="closecard"><b>Later</b><span>Back to my empire.</span></button>');}}catch(e){}}
+/* ---------- Public profile ("empire wall"): big moments post themselves, and the profile has a link to share ---------- */
+/* The game only sends which milestone happened; the server writes the words. Guests get a profile too (Hustler 1234),
+   kept with a secret key in this browser, and it moves to their account when they save their empire. */
+/* only the highlights post: the first million, the first billion, the first trillion, and major purchases */
+const WALL_RANKS=[3,6,8];   /* Millionaire, Billionaire, Trillionaire */
+const WALL_BUYS=['jet','island','superyacht','trophyhotel','masterpiece'];
+const WALL_TEAMS=['football','cricket'];
+const WALL_TOP=['rank','buy'];
+const WALL_RX=['\u{1F44F}','\u{1F525}','\u{1F4B0}','\u{1F62E}'];
+let wallMine=null,wallView=null,wallMsg='',wallBusy=false,wallT=null,wallBack=null,wallToastQ=null;
+const capFirst=t=>String(t||'').charAt(0).toUpperCase()+String(t||'').slice(1);
+/* never Math.random here: the game's luck runs on it, and a milestone must not change what happens next */
+function wallId(){let r='';try{r=crypto.getRandomValues(new Uint32Array(1))[0].toString(36);}catch(e){r=String(performance.now()|0);}return Date.now().toString(36)+r.slice(0,5);}
+function wallKey(){try{return localStorage.getItem('hs-gp')||'';}catch(e){return'';}}
+function wallOwner(){return ACC&&!GUEST?'u'+ACC.id:GUEST?'g':'';}
+function wallQ(){try{const a=JSON.parse(localStorage.getItem('hs-wallq')||'[]');return Array.isArray(a)?a:[];}catch(e){return[];}}
+function wallQSet(a){try{localStorage.setItem('hs-wallq',JSON.stringify(a.slice(-60)));}catch(e){}}
+/* everything this life has achieved that could be a post: [key, kind, details, big] */
+function wallFacts(){const L=S.lifeId,f=[],ag=age(),w=d=>S.who?Object.assign({who:S.who},d):d;
+ WALL_RANKS.forEach(i=>{if((S.title||0)<i)return;const d=w({r:TITLES[i][1],age:ag}),R=i===6?S.race1:i===8?S.race2:null;
+  if(R&&!R.inherited&&R.m!=null&&GRADE_NAME[R.grade])Object.assign(d,{m:R.m,g:R.grade});   /* the billion and the trillion carry the race time and title */
+  f.push([L+':rank:'+i,'rank',d,true]);});
+ const buy=id=>f.push([L+':buy:'+id,'buy',w({i:id,age:ag}),true]);
+ WALL_BUYS.forEach(id=>{if(has(id)>0)buy(id);});
+ WALL_TEAMS.forEach(id=>{if(S.teams&&S.teams[id])buy('team-'+id);});
+ if(S.race&&S.race.series==='F1')buy('f1');
+ if(S.city&&S.city.done>=1)buy('city');
+ return f;}
+/* after every save: anything new becomes a post. The first look at a life only takes note of what is already there,
+   so nobody's old milestones arrive all at once as if they had just happened. */
+function wallTick(){try{if(!S||!wallOwner())return;const gen=S.gnum||1;
+ if(!S.wallDone||!S.lifeId||S.wallGen!==gen){if(!S.lifeId||S.wallGen!==gen)S.lifeId=wallId();S.wallGen=gen;S.wallDone={};
+  wallFacts().forEach(x=>{S.wallDone[x[0]]=1;});
+  return;}
+ const nu=wallFacts().filter(x=>!S.wallDone[x[0]]);nu.forEach(x=>{S.wallDone[x[0]]=1;});
+ const rk=nu.filter(x=>x[1]==='rank'),out=nu.filter(x=>x[1]!=='rank');if(rk.length)out.unshift(rk[rk.length-1]);   /* two ranks in one month: only the higher one */
+ if(out.length)wallPush(out);else if(!wallT&&!wallBusy&&wallQ().some(x=>x.o===wallOwner()))wallFlushSoon(4000);}catch(e){}}
+function wallPush(list){const o=wallOwner(),t=Date.now(),Q=wallQ();list.forEach(x=>Q.push({o,k:x[0],kind:x[1],d:x[2],big:!!x[3],t}));wallQSet(Q);wallFlushSoon(1800);}
+function wallFlushSoon(ms){clearTimeout(wallT);wallT=setTimeout(wallFlush,ms||2000);}
+async function wallFlush(){wallT=null;if(wallBusy)return;const o=wallOwner();if(!o)return;const mine=wallQ().filter(x=>x.o===o);if(!mine.length)return;wallBusy=true;
+ try{let key='';if(o==='g'){key=wallKey();if(!key){const r=await api('POST','/api/wall/guest',{region:(S&&S.region)||''});key=r.key;try{localStorage.setItem('hs-gp',key);}catch(e){}}}
+  const send=mine.slice(0,20),r=await api('POST','/api/wall/post',{key:key||undefined,region:(S&&S.region)||'',items:send.map(x=>({k:x.k,kind:x.kind,d:x.d}))});
+  wallQSet(wallQ().filter(x=>!(x.o===o&&send.some(s=>s.k===x.k))));wallMine=null;
+  const hot=(r.posted||[]).filter(p=>{const s=send.find(x=>x.k===p.k);return s&&s.big&&Date.now()-s.t<15*60000;});
+  let first=false;try{first=!localStorage.getItem('hs-wallseen')&&(r.posted||[]).length>0;if(first)localStorage.setItem('hs-wallseen','1');}catch(e){}
+  const top=L=>L.slice().sort((x,y)=>WALL_TOP.indexOf(x.kind)-WALL_TOP.indexOf(y.kind))[0];   /* the note shows the biggest of them */
+  if(hot.length)wallToast(top(hot),hot.length,0,first);else if(first)wallToast(top(r.posted),r.posted.length,0,true);
+  if(wallQ().some(x=>x.o===o))wallFlushSoon(1500);}
+ catch(e){if(e&&e.status===401&&o==='g'){try{localStorage.removeItem('hs-gp');}catch(x){}}}   /* an unknown guest key: start a new profile next time */
+ finally{wallBusy=false;}}
+/* a big moment: a small note that it is on the profile, ready to share */
+function wallToast(p,n,tries,first){tries=tries||0;if((document.querySelector('.rankup')||(typeof current!=='undefined'&&current&&current.cat==='Finish line'))&&tries<12){setTimeout(()=>wallToast(p,n,tries+1,first),1500);return;}
+ toast('<b>\u{1F4E3} '+(first?'Your public profile is live':'Posted to your profile')+'</b><span>'+p.ico+' '+esc(capFirst(p.text))+(n>1?' (+'+(n-1)+' more)':'')+'</span><span class="tshare">Tap to see it and share it</span>','myprofile');}
+/* a new account made from a guest game keeps the guest's profile: the server moves it, and anything still waiting to be posted follows */
+function wallAdopt(uid){wallQSet(wallQ().map(x=>x.o==='g'?Object.assign(x,{o:'u'+uid}):x));try{localStorage.removeItem('hs-gp');}catch(e){}}
+/* ---- screens ---- */
+async function openProfile(){stopAuto();closeModal();try{closeMore();}catch(e){}{const t=$('hstoast');if(t)t.hidden=true;}acctView='profile';wallMsg='';wallMine=null;renderAccts();try{window.scrollTo(0,0);const A=$('acct');if(A)A.scrollTop=0;}catch(e){}
+ try{await wallFlush();}catch(e){}const o=wallOwner(),key=o==='g'?wallKey():'';
+ try{wallMine=o==='g'&&!key?{none:true}:await api('POST','/api/wall/mine',{key:key||undefined});}catch(e){wallMine={err:e.message};}
+ if(acctView==='profile')renderAccts();}
+async function openWall(handle,back){stopAuto();closeModal();{const t=$('hstoast');if(t)t.hidden=true;}wallBack=back!=null?back:(acctView&&acctView!=='wall'?acctView:wallBack);acctView='wall';wallMsg='';wallView=null;renderAccts();try{const A=$('acct');if(A)A.scrollTop=0;}catch(e){}
+ try{wallView=await api('GET','/api/wall?h='+encodeURIComponent(handle));}catch(e){wallView={err:e.message};}if(acctView==='wall')renderAccts();}
+function wallGoBack(){const b=wallBack;wallBack=null;if(b==='friends'){acctView='friends';renderAccts();}else if(b==='profile')openProfile();else if(b==='board'){acctView='board';renderAccts();}else{acctView=null;renderAccts();render();}}
+function wallHead(d){return'<div class="me whead">'+avatar({name:d.name,color:d.color},true)+'<div><h2>'+esc(d.name)+'</h2><p class="sub">'+['@'+d.handle,d.company].filter(Boolean).map(esc).join(' · ')+'</p></div></div>'+
+ '<div class="wstats"><div><small>Top rank</small><b>'+esc(d.top||'—')+'</b></div><div><small>Highlights</small><b>'+(d.count||0)+'</b></div></div>';}
+function wallPostsHTML(d,own){const P=d.posts||[];if(!P.length)return'<p class="sub wempty">'+(own?'Nothing yet. Your highlights land here by themselves: your first million, your first billion (with your race time), your first trillion, and major purchases.':'No highlights yet.')+'</p>';
+ const canRx=!own&&ACC&&!GUEST&&!d.me;
+ return'<ul class="wposts">'+P.map(p=>{const line=p.who&&p.who!==d.name?'<b>'+esc(p.who)+'</b> '+esc(p.text):esc(capFirst(p.text));
+  const rx=canRx?WALL_RX.map(e=>{const n=(p.reacts||{})[e]||0;return'<button class="react'+(p.mine===e?' on':'')+'" data-a="wallreact" data-v="'+p.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join(''):
+   Object.keys(p.reacts||{}).map(e=>'<span class="react on">'+e+' '+p.reacts[e]+'</span>').join('');
+  return'<li><span class="wico" aria-hidden="true">'+p.ico+'</span><div class="wbody"><p>'+line+'</p><span class="wmeta">'+esc(p.ago)+'</span>'+(rx?'<span class="reacts">'+rx+'</span>':'')+'</div>'+
+   (own?'<button class="wdel" data-a="wallhide" data-v="'+p.id+'" aria-label="Remove this post">✕</button>':'')+'</li>';}).join('')+'</ul>';}
+function profileHTML(){const d=wallMine;let h='<h2>My profile</h2>';
+ if(!d)return h+'<p class="sub">Loading…</p>';
+ if(d.err)return h+'<p class="amsg">'+esc(d.err)+'</p><div class="chips"><button class="btn" data-a="acctclose">Back to my game</button></div>';
+ if(d.none)return h+'<p class="sub">Your public profile starts with your first highlight: your first million, or a major purchase like a private jet. It appears here with a link you can share.</p><div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button></div>';
+ h=wallHead(d)+'<div class="wlink"><span class="wurl">'+esc(d.link.replace(/^https?:\/\//,''))+'</span><div class="chips"><button class="btn primary small" data-a="wallshare">📤 Share my profile</button><button class="btn small" data-a="wallcopy">Copy link</button><a class="btn ghost small" href="'+esc(d.link)+'" target="_blank" rel="noopener">Open page</a></div></div>';
+ if(wallMsg)h+='<p class="amsg">'+wallMsg+'</p>';
+ if(d.guest)h+='<div class="wguest"><p><b>You are playing as a guest</b>, so your profile has a guest name. Save your empire to put your own name on it. Your posts and your link come with you.</p><button class="btn small" data-a="accts">Save my empire</button></div>';
+ h+='<h3>Who can see it</h3><div class="seg wseg" role="group" aria-label="Who can see my profile"><button data-a="wallpriv" data-v="0" aria-pressed="'+!d.private+'">🌍 Everyone</button><button data-a="wallpriv" data-v="1" aria-pressed="'+!!d.private+'">🔒 Only friends</button></div>'+
+  '<p class="hint">'+(d.private?'Only friends you added can see your profile, and your news stays out of the Live feed. The link shows that the profile is private.':'Anyone with your link can see it, and your highlights show in the Live feed. It is not listed on Google.')+'</p>';
+ h+='<h3>Highlights</h3><p class="hint">Only the highlights post, automatically: your first million, billion and trillion, and major purchases. Tap ✕ to take one down.</p>'+wallPostsHTML(d,true);
+ return h+'<div class="chips"><button class="btn" data-a="acctclose">Back to my game</button>'+(ACC&&!GUEST?'<button class="btn ghost" data-a="liveopen">Live feed</button>':'')+'</div>';}
+function wallViewHTML(){const d=wallView;let h='';
+ if(!d)return'<h2>Profile</h2><p class="sub">Loading…</p>';
+ if(d.err)return'<h2>Profile</h2><p class="amsg">'+esc(d.err)+'</p><div class="chips"><button class="btn" data-a="wallback">Back</button></div>';
+ h=wallHead(d);if(wallMsg)h+='<p class="amsg">'+wallMsg+'</p>';
+ const acts=[];if(ACC&&!GUEST&&!d.me&&d.uid&&!d.friend)acts.push('<button class="btn primary small" data-a="walladd" data-v="'+d.uid+'">+ Add friend</button>');
+ if(ACC&&!GUEST&&d.friend)acts.push('<button class="btn small" data-a="wallmsg" data-v="'+d.uid+'">💬 Message</button>');
+ if(!d.hidden)acts.push('<a class="btn ghost small" href="'+esc(d.link)+'" target="_blank" rel="noopener">Open page</a>');
+ if(acts.length)h+='<div class="chips">'+acts.join('')+'</div>';
+ if(d.guest)h+='<p class="hint">A guest player. They have not created an account yet.</p>';
+ h+=d.hidden?'<p class="sub wempty">🔒 This profile is private.</p>':'<h3>Highlights</h3>'+wallPostsHTML(d,!!d.me);
+ return h+'<div class="chips"><button class="btn" data-a="wallback">Back</button></div>';}
+async function wallHide(id){const key=wallOwner()==='g'?wallKey():'';try{await api('POST','/api/wall/hide',{id,key:key||undefined});if(wallMine&&wallMine.posts){wallMine.posts=wallMine.posts.filter(p=>p.id!==id);wallMine.count=Math.max(0,(wallMine.count||1)-1);}wallMsg='Taken down. It is off your profile and the feed.';}catch(e){wallMsg=esc(e.message);}renderAccts();}
+async function wallPrivacy(on){const key=wallOwner()==='g'?wallKey():'';try{await api('POST','/api/wall/privacy',{private:on,key:key||undefined});if(wallMine)wallMine.private=on;wallMsg=on?'Your profile is now for friends only.':'Your profile is public again.';}catch(e){wallMsg=esc(e.message);}renderAccts();}
+function wallShareText(d){return'My empire on Hustlempires, the free business game: '+(d.top?d.top+', ':'')+(d.count||0)+' highlight'+(d.count===1?'':'s')+' so far. Can you build a bigger one? 👑';}
+async function wallShare(){const d=wallMine;if(!d||!d.link)return;const text=wallShareText(d);
+ try{if(navigator.share){await navigator.share({title:'Hustlempires',text,url:d.link});return;}}catch(e){if(e&&e.name==='AbortError')return;}
+ const u='https://wa.me/?text='+encodeURIComponent(text+' '+d.link);try{window.open(u,'_blank','noopener');}catch(e){location.href=u;}}
+async function wallCopy(){const d=wallMine;if(!d||!d.link)return;try{await navigator.clipboard.writeText(d.link);wallMsg='Link copied. Paste it in WhatsApp, TikTok or Instagram.';}catch(e){wallMsg='Copy this link: '+esc(d.link);}renderAccts();}
+async function wallReact(id,e){const d=wallView,p=d&&(d.posts||[]).find(x=>x.id===id);if(!p)return;try{const r=await api('POST','/api/feed/react',{id,e});p.reacts=r.reacts||{};p.mine=r.mine||'';}catch(er){wallMsg=esc(er.message);}renderAccts();}
+async function wallAddFriend(id){try{const r=await api('POST','/api/friends/add',{id});wallMsg=esc(r.name)+' is now your friend.';if(wallView)wallView.friend=true;}catch(e){wallMsg=esc(e.message);}renderAccts();}
+async function wallMessage(id){await openFriends('friends');msgPick(id);}
+/* ---------- Live feed: everyone's highlights as they happen. Guests can watch; an account is needed to cheer or reply ---------- */
+let liveData=null,liveScope='world',liveT=null,liveMsg='',livePick=0,stripI=null;
+const flagOf=c=>{c=String(c||'').toUpperCase();return/^[A-Z]{2}$/.test(c)?String.fromCodePoint(...[...c].map(x=>0x1F1E6+x.charCodeAt(0)-65)):'';};
+const liveSigned=()=>!!(ACC&&!GUEST);
+function liveURL(scope){return'/api/live?scope='+scope+'&region='+encodeURIComponent((S&&S.region)||'')+(liveSigned()?'':'&vid='+encodeURIComponent(visitorId()));}
+async function openLive(scope){stopAuto();closeModal();try{closeMore();}catch(e){}{const t=$('hstoast');if(t)t.hidden=true;}
+ if(scope)liveScope=scope;if(liveScope!=='friends'||!liveSigned())liveScope=scope==='friends'&&liveSigned()?'friends':'world';acctView='live';liveMsg='';livePick=0;liveData=null;renderAccts();try{const A=$('acct');if(A)A.scrollTop=0;window.scrollTo(0,0);}catch(e){}
+ clearInterval(liveT);liveT=setInterval(()=>{if(acctView!=='live'){clearInterval(liveT);liveT=null;return;}if(!document.hidden&&!livePick)liveLoad(false);},20000);
+ await liveLoad(true);}
+async function liveLoad(first){const sc=liveScope;let d;try{d=await api('GET',liveURL(sc));}catch(e){if(!liveData)liveData={err:e.message,items:[]};if(acctView==='live')first?renderAccts():livePatch();return;}
+ if(sc!==liveScope)return;const old=liveData&&liveData.scope===d.scope&&liveData.items?new Set(liveData.items.map(i=>i.id)):null;
+ d.items.forEach(i=>{i.fresh=!!(old&&!old.has(i.id));});liveData=d;if(acctView!=='live')return;first?renderAccts():livePatch();}
+function livePlaying(d){const p=d&&d.playing;if(!p)return'';const n=p.world;return n>=1?'🟢 '+n+' playing now':'';}
+function livePatch(){const L=$('livelist');if(!L){renderAccts();return;}L.innerHTML=liveListHTML();const P=$('liveplaying');if(P)P.textContent=livePlaying(liveData);const M=$('livemsg');if(M){M.innerHTML=liveMsg;M.hidden=!liveMsg;}}
+function liveHTML(){const sg=liveSigned();
+ let h='<div class="livehead"><h2><span class="livedot" aria-hidden="true"></span>Live</h2><span class="liveon" id="liveplaying">'+livePlaying(liveData)+'</span></div>'+
+  '<p class="sub">Real players\' highlights the moment they happen: first millions, first billions, records and major purchases.</p>'+
+  (sg?'<div class="seg livetabs" role="group" aria-label="Whose highlights" style="grid-template-columns:1fr 1fr"><button data-a="livescope" data-v="world" aria-pressed="'+(liveScope!=='friends')+'">🌍 Everyone</button><button data-a="livescope" data-v="friends" aria-pressed="'+(liveScope==='friends')+'">👥 Friends</button></div>':'');
+ if(!sg)h+='<div class="liveguest"><span>👀 You are watching as a guest. Save your empire to cheer and reply.</span><button class="btn small primary" data-a="accts">Save my empire</button></div>';
+ h+='<p class="amsg" id="livemsg"'+(liveMsg?'':' hidden')+'>'+liveMsg+'</p><div id="livelist">'+liveListHTML()+'</div>';
+ return h+'<div class="chips"><button class="btn" data-a="acctclose">Back to my game</button><button class="btn ghost" data-a="myprofile">My profile</button>'+(sg?'<button class="btn ghost" data-a="friendsmsg">Friends</button>':'')+'</div>';}
+function liveListHTML(){const d=liveData;
+ if(!d)return'<p class="sub">Loading…</p>';if(d.err)return'<p class="amsg">'+esc(d.err)+'</p>';
+ if(!d.items.length)return'<div class="liveempty"><p>'+(liveScope==='friends'?'No highlights from your friends yet. Add friends from their profiles, or invite them.':'No highlights yet. They appear here the moment a player anywhere makes their first million, their first billion, sets a record or makes a major purchase.')+'</p>'+(liveScope==='friends'?'<button class="btn small" data-a="livescope" data-v="world">See everyone</button>':'')+'</div>';
+ const sg=liveSigned(),R=d.reacts||WALL_RX;
+ return d.items.map(i=>{const who=i.who&&i.who!==i.name?'<b>'+esc(i.who)+'</b> '+esc(i.text):esc(capFirst(i.text)),rp=i.replies||{n:0,last:[]};
+  const rx=i.me?Object.keys(i.reacts||{}).map(e=>'<span class="react on">'+e+' '+i.reacts[e]+'</span>').join(''):
+   R.map(e=>{const n=(i.reacts||{})[e]||0;return'<button class="react'+(i.mine===e?' on':'')+'" data-a="livereact" data-v="'+i.id+'" data-e="'+e+'" aria-label="React '+e+'">'+e+(n?' '+n:'')+'</button>';}).join('');
+  let f='<div class="lfoot"><span class="reacts">'+rx+'</span>'+(i.me?(rp.n?'<span class="lrn">💬 '+rp.n+'</span>':''):'<button class="btn ghost small lrbtn" data-a="livereply" data-v="'+i.id+'">💬 '+(i.myReply?'Replied':'Reply')+(rp.n?' · '+rp.n:'')+'</button>')+'</div>';
+  if(rp.last.length)f+='<ul class="lreplies">'+rp.last.map(r=>'<li><b>'+esc(r.name)+'</b> '+esc(r.text)+'</li>').join('')+(rp.n>rp.last.length?'<li class="lmore">+'+(rp.n-rp.last.length)+' more</li>':'')+'</ul>';
+  if(livePick===i.id&&d.replies)f+='<div class="lpick">'+d.replies.map(([k,t])=>'<button class="btn small'+(i.myReply===k?' primary':'')+'" data-a="livesay" data-v="'+i.id+'" data-c="'+k+'">'+esc(t)+'</button>').join('')+'<button class="btn ghost small" data-a="livereply" data-v="0">Cancel</button></div>';
+  return'<article class="lcard k-'+esc(i.kind)+(i.fresh?' fresh':'')+'"><header>'+(i.handle?'<button class="wavbtn" data-a="wallopen" data-v="'+esc(i.handle)+'" aria-label="Open '+esc(i.name)+'\'s profile">'+avatar(i)+'</button>':avatar(i))+
+   '<div class="lwho">'+(i.handle?'<button class="linkbtn wname" data-a="wallopen" data-v="'+esc(i.handle)+'">'+esc(i.name)+'</button>':'<b>'+esc(i.name)+'</b>')+'<small>'+flagOf(i.region)+' '+(i.guest?'Guest player':esc(i.company||''))+' · '+esc(i.ago)+'</small></div></header>'+
+   '<div class="lhl"><span class="lico" aria-hidden="true">'+i.ico+'</span><p>'+who+'</p></div>'+f+'</article>';}).join('');}
+function liveNeedAcct(){if(liveSigned())return false;guestWhy='feature';guestAsk('feature');return true;}
+async function liveReact(id,e){if(liveNeedAcct())return;const it=liveData&&liveData.items.find(x=>x.id===id);if(!it)return;
+ try{const r=await api('POST','/api/feed/react',{id,e});it.reacts=r.reacts||{};it.mine=r.mine||'';liveMsg='';}catch(er){liveMsg=esc(er.message);}livePatch();}
+function liveReplyPick(id){if(id&&liveNeedAcct())return;livePick=id;livePatch();}
+async function liveSay(id,code){const it=liveData&&liveData.items.find(x=>x.id===id);if(!it)return;
+ try{const r=await api('POST','/api/live/reply',{id,code});const me=(playerName()||(ACC&&ACC.name)||'You').split(' ')[0],txt=((liveData.replies||[]).find(x=>x[0]===code)||[])[1]||'';
+  const rp=it.replies=it.replies||{n:0,last:[]};rp.last=[{name:me,text:txt}].concat(rp.last.filter(x=>!(x.name===me&&it.myReply))).slice(0,3);rp.n=r.n;it.myReply=code;liveMsg='';}catch(er){liveMsg=esc(er.message);}
+ livePick=0;livePatch();}
+/* the live strip on the game screen: the newest highlight from anyone, or how many people are playing right now */
+function stripSeen(){try{return+(localStorage.getItem('hs-lseen')||0);}catch(e){return 0;}}
+async function stripTick(){const el=$('livestrip');if(!el)return;if(document.hidden||!S||!S.inds||!S.inds.length||(!ACC&&!GUEST))return;
+ let d;try{d=await api('GET',liveURL('world'));}catch(e){return;}
+ const now=d.now||Math.floor(Date.now()/1000),recent=(d.items||[]).filter(i=>!i.me&&now-i.ts<6*3600),top=recent[0],seen=stripSeen(),n=(d.playing||{}).world||0;
+ let html='',isNew=false;
+ if(top){isNew=top.id>seen;const nm=esc(((top.who&&top.who!==top.name?top.who:top.name)||'A player').split(' ').slice(0,top.guest?2:1).join(' '));
+  html='<span class="lsbadge">'+(isNew?'🔴 LIVE':'LIVE')+'</span><span class="lstext">'+flagOf(top.region)+' <b>'+nm+'</b> '+esc(top.text)+'</span><span class="lsago">'+esc(top.ago)+' ›</span>';
+  if(isNew)try{localStorage.setItem('hs-lseen',String(top.id));}catch(e){}}
+ else if(n>=2)html='<span class="lsbadge">LIVE</span><span class="lstext">🟢 <b>'+n+' players</b> are building empires right now</span><span class="lsago">See ›</span>';
+ el.hidden=!html;if(!html)return;el.innerHTML=html;el.classList.toggle('lsnew',isNew);if(isNew){el.classList.remove('lspop');void el.offsetWidth;el.classList.add('lspop');}}
+function stripStart(){if(stripI)return;setTimeout(stripTick,6000);stripI=setInterval(stripTick,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(stripTick,800);});}
+stripStart();
 /* ---------- Live rivals: you passed someone, or someone passed you ---------- */
 let rivalPrev=null,rivalT=null;
 function toast(html,act){let t=$('hstoast');if(!t){t=document.createElement('button');t.id='hstoast';t.className='hstoast';document.body.appendChild(t);}
@@ -330,7 +490,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  else if(acctView==='down')h+='<h2>Can\'t connect</h2><p class="sub">'+esc(authMsg)+'</p><div class="chips"><button class="btn primary" data-a="retryboot">Try again</button></div>';
  else if(acctView==='auth')h+=authHook()+(authMode==='about'?'<div class="chips hook-cta"><button class="btn primary" data-a="authjump" data-v="signup">Start my empire, free</button><button class="btn ghost" data-a="authjump" data-v="login">Log in</button></div>'+authTabs()+aboutGame():'<h2>'+(authMode==='signup'?'Create your account':'Welcome back')+'</h2><p class="sub">'+(authMode==='signup'?'Your account keeps your empire safe, so you can pick it up on any device.':'Log in to carry on building your empire.')+'</p>'+authForm()+'<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="about">New to Hustlempires? Read what the game is about →</button></p>')+(authMode!=='login'?'<p class="hook-end"><span class="hook-kick"><span aria-hidden="true">🏪</span> Your empire starts here!</span></p>':'');
  else if(acctView==='menu')h+='<div class="me">'+avatar(playerAcc(),true)+'<div><h2>'+esc(playerName())+'</h2><p class="sub">'+((S&&S.gnum>1)?'Generation '+S.gnum+' of the '+esc(familyName())+' family · ':'')+'@'+esc(ACC.username)+' · '+esc(ACC.company)+' · '+esc(ACC.town)+'</p></div></div>'+
-  '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="lives">Past lives</button><button class="btn" data-a="friends">Friends</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
+  '<div class="chips"><button class="btn primary" data-a="acctclose">Back to my game</button><button class="btn" data-a="leaderboard">Leaderboard</button>'+'<button class="btn" data-a="myprofile">My profile</button><button class="btn" data-a="lives">Past lives</button><button class="btn" data-a="friends">Friends</button>'+(canInstall()?'<button class="btn" data-a="installapp">Install app</button>':'')+'<button class="btn ghost" data-a="logout">Log out</button></div>'+
   passMenuHTML()+pushMenuHTML()+'<h3>Invite friends</h3><p class="sub">'+inviteRuleLine()+'</p><div class="chips"><button class="btn" data-a="invite">Invite friends</button></div>'+(ACC.google&&!ACC.pw?'<h3>Signing in</h3><p class="sub"><span class="gsi-g" aria-hidden="true">G</span> You sign in with <b>Google</b> ('+esc(ACC.email)+'). Your username is <b>@'+esc(ACC.username)+'</b>. Want a password too? <button class="linkbtn" data-a="forgotview">Set one by email</button></p>':(ACC.google?'<p class="sub"><span class="gsi-g" aria-hidden="true">G</span> Google is connected: you can also log in with <b>Continue with Google</b>.</p>':'')+'<h3>Email for password resets</h3><p class="sub">'+(ACC.email?'Resets go to <b>'+esc(ACC.email)+'</b>.':'<b>No email yet.</b> Add one so you can reset your password if you forget it.')+'</p>'+emailForm(ACC.email?'Change email':'Save email'))+companyHTML()+'<div class="regionbox">'+regionMenuHTML()+'</div>';
  else if(acctView==='installios')h+='<h2>Install the app</h2><p class="sub">Put the game on your home screen. It opens full-screen, like any other app.</p><ol class="iossteps"><li>At the bottom of Safari, tap the <b>Share</b> button (the square with an arrow pointing up).</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The game\'s icon appears on your home screen.</li></ol><div class="chips"><button class="btn primary" data-a="acctclose">Got it</button></div>';
  else if(acctView==='addemail')h+='<h2>Add your email</h2><p class="sub">If you ever forget your password, we\'ll send a reset link here. We don\'t use it for anything else.</p>'+emailForm('Save email',true);
@@ -345,6 +505,9 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
  else if(acctView==='pay'||acctView==='gift'||acctView==='payleft'||acctView==='paid')h+=payViewHTML();
  else if(acctView==='invite')h+=inviteHTML();
  else if(acctView==='friends')h+=friendsHTML();
+ else if(acctView==='profile')h+=profileHTML();
+ else if(acctView==='live')h+=liveHTML();
+ else if(acctView==='wall')h+=wallViewHTML();
  else if(acctView==='lives'){h+='<h2>Your legacy</h2><p class="sub">Your family, your achievements and every empire you have built.</p>'+(livesData===null?'<p class="sub">Loading…</p>':legacyHTML()+trophiesHTML()+livesHTML(livesData,livesData.length))+'<div class="chips">'+(S&&S.over&&S.died&&S.kids.length?'<button class="btn primary" data-a="heirpick">Choose your heir</button>':'')+(S&&S.over?'<button class="btn primary" data-a="reset">Start a new life</button><button class="btn ghost" data-a="acctclose">Back to my game</button>':'<button class="btn primary" data-a="acctclose">Back to my game</button>')+'</div>';}
  else if(acctView==='board'){const cn=(countryRow(S.region||'')||{name:'your country'}).name;
   h+='<h2>Leaderboard</h2><div class="authtabs" role="tablist" style="grid-template-columns:1fr 1fr 1fr"><button role="tab" aria-selected="'+(lbTab==='season-country')+'" data-a="boardtab" data-v="season-country">'+esc(cn)+'</button><button role="tab" aria-selected="'+(lbTab==='season-world')+'" data-a="boardtab" data-v="season-world">World</button><button role="tab" aria-selected="'+(lbTab==='alltime')+'" data-a="boardtab" data-v="alltime">Hall of fame</button></div>'+
@@ -353,7 +516,7 @@ function renderAccts(){if(acctView!=='loading')hideSplash();const el=$('acct');i
   if(subOn&&lbSub!=='season'){h=h.replace(/<p class="sub">[^<]*<\/p>$/,()=>'')+lbSubHTML()+lbLocalHTML(place);}
   else if(subOn)h=h.replace(/(<p class="sub">[^<]*<\/p>)$/,m=>lbSubHTML()+m);
   if(subOn&&lbSub!=='season'){}else if(!lbData)h+='<p class="sub">Loading…</p>';else if(lbTab==='alltime')h+=hofHTML(lbData);else if(!lbData.length)h+='<p class="sub">No one is on the board yet.</p>';
-  else h+='<ol class="hof">'+lbData.map((a,i)=>'<li><span class="hpos">'+(i+1)+'</span>'+avatar(a)+'<span class="ameta"><b>'+esc(a.name)+'</b><span>'+esc(a.company)+(lbTab!=='alltime'&&a.region?' · '+esc((countryRow(a.region)||{name:a.region}).name):'')+'</span></span><span class="hnum">'+(lbTab!=='alltime'?Number(a.pts).toLocaleString('en-US')+' pts':a.billion_month!=null?fmt(1e9)+' in '+Math.floor(a.billion_month/12)+'y '+(a.billion_month%12)+'m':'Best '+fmt(a.best))+'</span></li>').join('')+'</ol>';
+  else h+='<ol class="hof">'+lbData.map((a,i)=>'<li><span class="hpos">'+(i+1)+'</span>'+avatar(a)+'<span class="ameta"><b>'+(a.username?'<button class="linkbtn wname" data-a="wallopen" data-v="'+esc(a.username)+'">'+esc(a.name)+'</button>':esc(a.name))+'</b><span>'+esc(a.company)+(lbTab!=='alltime'&&a.region?' · '+esc((countryRow(a.region)||{name:a.region}).name):'')+'</span></span><span class="hnum">'+(lbTab!=='alltime'?Number(a.pts).toLocaleString('en-US')+' pts':a.billion_month!=null?fmt(1e9)+' in '+Math.floor(a.billion_month/12)+'y '+(a.billion_month%12)+'m':'Best '+fmt(a.best))+'</span></li>').join('')+'</ol>';
   h+='<div class="chips"><button class="btn ghost" data-a="acctclose">Back to my game</button></div>';}
  el.innerHTML=h+'</div>';
  const f=$('acctform');if(f){f.addEventListener('submit',e=>{e.preventDefault();submitAuth();});const u=$('acc-user');if(u&&!GOOGLE_ID)u.focus();wireRegionForm();}
@@ -432,12 +595,12 @@ function guestSaveHTML(){const nw=netWorth(),lock=guestWhy==='lock',achN=(S.ach|
   chip:['Playing as a guest','Your empire is only on this screen. Save it to keep it.'],feature:['Free account needed','That needs a free account, so you can play with real people.'],login:['Playing as a guest','Your empire is only on this screen. Save it to keep it.']}[guestWhy]||['Save your empire','Your empire is only on this screen. Save it to keep it.'];
  return'<div class="gsave-hero"><p class="gs-kick">'+head[0]+'</p><h2>Save your empire</h2><p>'+head[1]+'</p>'+
   '<ul class="gs-stats"><li><span>Net worth</span><b>'+fmt(nw)+'</b></li><li><span>Rank</span><b>'+esc(TITLES[titleIdx(nw)][1])+'</b></li><li><span>Businesses</span><b>'+(S.inds||[]).length+'</b></li><li><span>Age</span><b>'+age()+'</b></li>'+(achN?'<li><span>Achievements</span><b>'+achN+'</b></li>':'')+'</ul></div>'+
-  (lock?'':'<div class="chips gs-top"><button class="btn primary" data-a="guestlater">Keep playing</button><span class="gs-note">Save any time from the <b>Guest</b> badge at the top.</span></div>')+'<ul class="gs-perks"><li><b>Keep everything</b>: your money, businesses and achievements.</li><li><b>Play on any phone or computer</b>, and never start over.</li><li><b>Climb the leaderboard</b> against real players in your country.</li></ul>'+
+  (lock?'':'<div class="chips gs-top"><button class="btn primary" data-a="guestlater">Keep playing</button><span class="gs-note">Save any time from the <b>Guest</b> badge at the top.</span></div>')+'<ul class="gs-perks"><li><b>Keep everything</b>: your money, businesses and achievements.</li><li><b>Play on any phone or computer</b>, and never start over.</li><li><b>Climb the leaderboard</b> against real players in your country.</li><li><b>Put your name on your profile</b>: your milestones and your link come with you.</li></ul>'+
   '<p class="about-link" style="margin:4px 0 12px"><button class="linkbtn" data-a="authmode" data-v="about">What is Hustlempires? Read about the game →</button></p>'+
   authForm(true)+(lock?'':'<button class="btn ghost gs-later" data-a="guestlater">Not now, keep playing</button>')+
   '<p class="about-link"><button class="linkbtn" data-a="authmode" data-v="login">Already have an account? Log in</button></p>';}
 /* the guest game becomes the new account's first saved game */
-function guestAdopt(d){const g=S,co=d.user.company||'';GUEST=false;guestDrop();g._uid=d.user.id;if(!g.g&&signupGender)g.g=signupGender;
+function guestAdopt(d){const g=S,co=d.user.company||'';GUEST=false;guestDrop();wallAdopt(d.user.id);g._uid=d.user.id;if(!g.g&&signupGender)g.g=signupGender;
  if(co&&co!=='Savanna')(g.props||[]).forEach(p=>{if(p.name)p.name=p.name.split('Savanna').join(co);});
  delete g.gAsk;S=g;log('You created your account. Your empire is saved, and it now follows you to any device.','gold');
  startWith(d.user,S,d.bill,d.ver);queueSync(true);if(!current&&$('modal').hidden&&!acctView){const m=typeof bestMove==='function'?bestMove():null;   /* saving is not the end: point straight at the next move */
@@ -465,7 +628,7 @@ async function submitAuth(){const btn=$('acc-submit'),username=$('acc-user').val
   const email=$('acc-email').value.trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))return showErr('Enter a valid email address. It\'s how you reset your password.');
   signupGender=(document.querySelector('input[name="acc-g"]:checked')||{}).value||(GUEST&&S.g)||'';if(!signupGender){const g=document.querySelector('.gopts');if(g){g.classList.add('need');g.scrollIntoView({block:'center',behavior:'smooth'});}return showErr('One more thing: choose whether you are a man or a woman (just above).');}
   signupRegion=($('acc-region')||{}).value||(GUEST&&S.region)||detectCountry();signupCur=(document.querySelector('input[name="acc-cur"]:checked')||{}).value||(GUEST&&S.cur)||'USD';
-  body=Object.assign(body,{ref:refCode||undefined,camp:campCode||undefined,email,name,company:$('acc-company').value.trim(),town:$('acc-town').value,bg:(document.querySelector('input[name="acc-bg"]:checked')||{}).value||'hustler',color:+((document.querySelector('input[name="acc-col"]:checked')||{}).value||0)});}
+  body=Object.assign(body,{ref:refCode||undefined,camp:campCode||undefined,gkey:GUEST?wallKey()||undefined:undefined,email,name,company:$('acc-company').value.trim(),town:$('acc-town').value,bg:(document.querySelector('input[name="acc-bg"]:checked')||{}).value||'hustler',color:+((document.querySelector('input[name="acc-col"]:checked')||{}).value||0)});}
  btn.disabled=true;btn.textContent=authMode==='signup'?'Creating your account…':'Logging in…';
  try{const d=await api('POST',authMode==='signup'?'/api/signup':'/api/login',body);
   if(authMode==='signup')try{if(window.fbq)fbq('track','CompleteRegistration',{content_name:'Hustlempires account'});}catch(x){}
@@ -485,7 +648,7 @@ function gsiMount(){const el=document.getElementById('gsi-btn');if(!el||!GOOGLE_
  catch(e){const b=el.closest('.gsi');if(b)b.hidden=true;}}
 async function googleDone(resp){if(gsiBusy||!resp||!resp.credential)return;gsiBusy=true;const st=$('gsi-st'),er=$('acc-err');if(er)er.hidden=true;if(st){st.textContent='Signing you in with Google…';st.hidden=false;}
  const gu=GUEST,v=id=>{const x=$(id);return x&&x.value?x.value.trim():'';},ck=n=>(document.querySelector('input[name="'+n+'"]:checked')||{}).value;
- const body={credential:resp.credential,vid:visitorId(),ref:refCode||undefined,camp:campCode||undefined};
+ const body={credential:resp.credential,vid:visitorId(),ref:refCode||undefined,camp:campCode||undefined,gkey:gu?wallKey()||undefined:undefined};
  if(v('acc-name'))body.name=v('acc-name');if(v('acc-company'))body.company=v('acc-company');if(v('acc-town'))body.town=v('acc-town');if(ck('acc-bg'))body.bg=ck('acc-bg');if(ck('acc-col')!=null)body.color=+ck('acc-col');
  signupGender=ck('acc-g')||(gu&&S&&S.g)||'';signupRegion=v('acc-region')||(gu&&S&&S.region)||detectCountry();signupCur=ck('acc-cur')||(gu&&S&&S.cur)||'USD';
  try{const d=await api('POST','/api/google',body);gsiBusy=false;

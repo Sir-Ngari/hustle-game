@@ -528,6 +528,32 @@ CREATE TABLE IF NOT EXISTS feed(
 );
 CREATE INDEX IF NOT EXISTS feed_region ON feed(region, id);
 CREATE INDEX IF NOT EXISTS feed_user ON feed(user_id, id);
+CREATE TABLE IF NOT EXISTS profiles(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL DEFAULT 0,
+  gkey TEXT NOT NULL DEFAULT '',
+  handle TEXT UNIQUE NOT NULL,
+  ghandle TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',
+  company TEXT NOT NULL DEFAULT '',
+  color INTEGER NOT NULL DEFAULT 0,
+  region TEXT NOT NULL DEFAULT '',
+  private INTEGER NOT NULL DEFAULT 0,
+  created INTEGER NOT NULL,
+  updated INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS profiles_user ON profiles(user_id);
+CREATE INDEX IF NOT EXISTS profiles_gkey ON profiles(gkey);
+CREATE INDEX IF NOT EXISTS profiles_ghandle ON profiles(ghandle);
+CREATE TABLE IF NOT EXISTS feed_reply(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  feed_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  code TEXT NOT NULL,
+  ts INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS feed_reply_one ON feed_reply(feed_id, user_id);
+CREATE INDEX IF NOT EXISTS feed_reply_user ON feed_reply(user_id, ts);
 CREATE TABLE IF NOT EXISTS feed_react(
   feed_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
@@ -595,6 +621,12 @@ if "camp" not in [r[1] for r in _db.execute("PRAGMA table_info(visitors)").fetch
 if "steps" not in [r[1] for r in _db.execute("PRAGMA table_info(visitors)").fetchall()]:
     _db.execute("ALTER TABLE visitors ADD COLUMN steps TEXT NOT NULL DEFAULT ''")
 _db.execute("CREATE INDEX IF NOT EXISTS users_camp ON users(camp)")
+# public profiles: each feed line belongs to a profile (guests too), can be taken down, and is stored once per milestone
+for _c, _d in (("pid", "INTEGER NOT NULL DEFAULT 0"), ("hidden", "INTEGER NOT NULL DEFAULT 0"), ("k", "TEXT NOT NULL DEFAULT ''")):
+    if _c not in [r[1] for r in _db.execute("PRAGMA table_info(feed)").fetchall()]:
+        _db.execute("ALTER TABLE feed ADD COLUMN %s %s" % (_c, _d))
+_db.execute("CREATE INDEX IF NOT EXISTS feed_pid ON feed(pid, id)")
+_db.execute("CREATE UNIQUE INDEX IF NOT EXISTS feed_pk ON feed(pid, k) WHERE k<>''")
 # Sign in with Google: which Google account is connected, and whether the player has a password they chose
 if "google_sub" not in [r[1] for r in _db.execute("PRAGMA table_info(users)").fetchall()]:
     _db.execute("ALTER TABLE users ADD COLUMN google_sub TEXT NOT NULL DEFAULT ''")
@@ -1830,30 +1862,586 @@ MSGS_PER_DAY = 20
 FEED_DAYS = 14
 
 
-def feed_add(db, uid, region, kind, data, t):
-    db.execute("INSERT INTO feed(user_id,region,kind,data,ts) VALUES(?,?,?,?,?)",
-               (uid, (region or "")[:3], kind, json.dumps(data, separators=(",", ":"), sort_keys=True), t))
+# ---- Public profiles ("empire walls") ----
+# Every player has a profile, guests included. Their big moments post to it automatically, it has a public link
+# (hustlempires.com/@handle) and its posts feed the business feed. Posts are built from fixed templates on the
+# server: the game only sends which milestone happened, never free text, so there is nothing to moderate except names.
+WALL_ACH = {"self_made_40": "Self-made by 40", "deca": "Ten-billion club", "hundred": "Hundred-billion club",
+            "centenarian": "Centenarian", "full_house": "Full house", "baron": "Property baron", "sports": "Sports mogul",
+            "giver": "Philanthropist", "conglomerate": "Conglomerate", "world": "Citizen of the world",
+            "comeback": "Back from the brink", "ten_lives": "Nine lives and counting", "gen3": "Three generations",
+            "gen5": "Five generations", "old_money": "Old money", "dynasty": "Billionaire dynasty",
+            "century": "A century of the name", "clean": "Clean hands", "bc1": "Billionaire class", "bc5": "Titan"}
+WALL_BUY = {"villa": ("\U0001F3D6️", "bought a beach villa"), "yacht": ("\U0001F6E5️", "bought a 40 m motor yacht"),
+            "vineyard": ("\U0001F347", "bought a vineyard"), "golfclub": ("⛳", "built a championship golf course"),
+            "jet": ("✈️", "bought a private jet"), "island": ("\U0001F3DD️", "bought a private island"),
+            "superyacht": ("\U0001F6F3️", "bought a 90 m superyacht"), "trophyhotel": ("\U0001F3E8", "bought a trophy hotel in Paris"),
+            "masterpiece": ("\U0001F5BC️", "bought an old master painting"),
+            "team-athletics": ("\U0001F3C3", "bought a running camp"), "team-rugby": ("\U0001F3C9", "bought a rugby sevens franchise"),
+            "team-kpl": ("⚽", "bought a premier league football club"), "team-basketball": ("\U0001F3C0", "bought a basketball franchise"),
+            "team-cricket": ("\U0001F3CF", "bought a T20 cricket franchise"), "team-football": ("⚽", "bought a European football club"),
+            "f1": ("\U0001F3CE️", "bought a Formula 1 team"), "city": ("\U0001F3D9️", "started building a city of their own")}
+WALL_CHAP = ["The street", "Small trader", "Business owner", "Millionaire", "Mogul", "Tycoon"]
+WALL_GRADE = {"A": ("\U0001F3C6", "a Legend"), "B": ("\U0001F9B8", "a Hero"), "C": ("\U0001F4BC", "an Achiever"),
+              "D": ("\U0001FA79", "a Survivor"), "E": ("\U0001F43A", "a Lone Wolf")}
+# Only the highlights post: the first million, billion and trillion, and major purchases (older kinds still display if stored)
+WALL_KINDS = ("rank", "buy")
+WALL_COUNTRY = ("rank", "buy")
+WALL_RANK_OK = ("Millionaire", "Billionaire", "Trillionaire")
+WALL_MAJOR = ("jet", "island", "superyacht", "trophyhotel", "masterpiece", "team-football", "team-cricket", "f1", "city")
+WALL_PER_DAY = 80
+WALL_KEY_RE = re.compile(r"^[A-Za-z0-9:_.-]{3,80}$")
+HANDLE_RE = re.compile(r"^[a-z0-9_.-]{3,30}$")
+NAME_OK_RE = re.compile(r"^[^\W\d_](?:[^\W\d_]|[ .'’-]){0,39}$")
+PROF_SQL = ("SELECT p.id, p.user_id, p.handle, p.ghandle, p.private, p.region, p.created, p.updated, "
+            "CASE WHEN p.user_id>0 THEN COALESCE(u.name,'') ELSE p.name END name, "
+            "CASE WHEN p.user_id>0 THEN COALESCE(u.company,'') ELSE p.company END company, "
+            "CASE WHEN p.user_id>0 THEN COALESCE(u.color,0) ELSE p.color END color, "
+            "COALESCE(u.disabled,0) disabled, COALESCE(u.username,'') username "
+            "FROM profiles p LEFT JOIN users u ON u.id=p.user_id AND p.user_id>0 ")
 
 
-def feed_from_save(db, uid, st, summary, game, new_game, t):
-    """Write a feed line when a saved game shows a real step up: a new rank, or an heir taking over."""
-    region = re.sub(r"[^A-Z]", "", str(summary.get("region") or "").upper())[:3]
-    if new_game:
-        gen = int(num(summary.get("gen"), 1))
-        if gen > 1:
-            feed_add(db, uid, region, "heir", {"gen": min(gen, 99), "g": game}, t)
+def wall_name(v):
+    """A person's name in a post (an heir, a baby): letters, spaces and a few marks only."""
+    v = re.sub(r"\s+", " ", clean_text(v, 40))
+    return v if NAME_OK_RE.match(v) else ""
+
+
+def wall_clean(kind, d):
+    """Keep only the known fields of one milestone. None means it is not a milestone we post."""
+    if not isinstance(d, dict):
+        d = {}
+    out = {}
+    if kind == "rank":
+        if d.get("r") not in WALL_RANK_OK:
+            return None
+        out["r"] = d["r"]
+        m, g = int(num(d.get("m"), -1)), d.get("g")
+        if d["r"] != "Millionaire" and 0 <= m <= 3000 and g in WALL_GRADE:   # the billion and the trillion carry the race time and title
+            out.update(m=m, g=g)
+    elif kind == "race":
+        leg, m, g = int(num(d.get("leg"))), int(num(d.get("m"), -1)), d.get("g")
+        if leg not in (1, 2) or not 0 <= m <= 3000 or g not in WALL_GRADE:
+            return None
+        out.update(leg=leg, m=m, g=g, s=max(0, min(10 ** 6, int(num(d.get("s"))))))
+    elif kind == "ach":
+        if d.get("a") not in WALL_ACH:
+            return None
+        out["a"] = d["a"]
+    elif kind == "chap":
+        n = int(num(d.get("n")))
+        if not 1 <= n <= len(WALL_CHAP):
+            return None
+        out["n"] = n
+    elif kind == "buy":
+        if d.get("i") not in WALL_MAJOR:
+            return None
+        out["i"] = d["i"]
+    elif kind == "baby":
+        n = wall_name(d.get("n"))
+        if n:
+            out["n"] = n
+    elif kind == "heir":
+        gen = int(num(d.get("gen")))
+        if not 2 <= gen <= 99:
+            return None
+        out["gen"] = gen
+    elif kind == "obit":
+        a = int(num(d.get("age")))
+        if not 16 <= a <= 150:
+            return None
+        out["age"] = a
+        if d.get("r") in RANKS:
+            out["r"] = d["r"]
+    elif kind != "married":
+        return None
+    who = wall_name(d.get("who"))
+    if who:
+        out["who"] = who
+    a = int(num(d.get("age")))
+    if kind != "obit" and 16 <= a <= 150:
+        out["age"] = a
+    return out
+
+
+def wall_time(m):
+    y, mo = divmod(int(m), 12)
+    parts = []
+    if y:
+        parts.append("%d year%s" % (y, "" if y == 1 else "s"))
+    if mo or not y:
+        parts.append("%d month%s" % (mo, "" if mo == 1 else "s"))
+    return " ".join(parts)
+
+
+def wall_an(word):
+    return ("an " if word[:1] in "AEIOU" else "a ") + word
+
+
+def wall_text(kind, d):
+    """The icon and the sentence for one post, without the player's name: 'became a Millionaire at 34'."""
+    at = (" at %d" % d["age"]) if d.get("age") else ""
+    if kind == "rank":
+        r = d.get("r", "")
+        txt = "became " + wall_an(r) + at
+        if d.get("g") in WALL_GRADE and d.get("m") is not None:
+            txt += ", %s in %s, finishing as %s %s" % ("from scratch" if r == "Billionaire" else "a billion to a trillion", wall_time(d["m"]),
+                                                        WALL_GRADE[d["g"]][1], WALL_GRADE[d["g"]][0])
+        return ("\U0001F48E" if r in RANKS and RANKS.index(r) >= 6 else "\U0001F4B0" if r == "Millionaire" else "\U0001F4C8"), txt
+    if kind == "race":
+        ico, grade = WALL_GRADE.get(d.get("g"), ("", "a player"))
+        if d.get("leg") == 2:
+            return "\U0001F3C6", "went from a billion to a trillion in %s, finishing as %s %s" % (wall_time(d.get("m", 0)), grade, ico)
+        return "\U0001F3C1", "built a billion-dollar empire in %s, finishing as %s %s" % (wall_time(d.get("m", 0)), grade, ico)
+    if kind == "ach":
+        return "\U0001F3C5", "unlocked the achievement “%s”" % WALL_ACH.get(d.get("a"), "")
+    if kind == "chap":
+        n = int(d.get("n", 1))
+        return "\U0001F4D6", "finished chapter %d: %s" % (n, WALL_CHAP[n - 1] if 1 <= n <= len(WALL_CHAP) else "")
+    if kind == "buy":
+        ico, txt = WALL_BUY.get(d.get("i"), ("\U0001F6CD️", "made a big buy"))
+        return ico, txt + at
+    if kind == "married":
+        return "\U0001F48D", "got married" + at
+    if kind == "baby":
+        return "\U0001F476", ("welcomed a baby, %s" % d["n"]) if d.get("n") else "welcomed a baby"
+    if kind == "heir":
+        return "\U0001F451", "took over the family empire as generation %d" % int(d.get("gen", 2))
+    if kind == "obit":
+        r = d.get("r")
+        return "\U0001F54A️", ("lived to %d and went out as %s" % (d.get("age", 0), wall_an(r))) if r else "lived to %d" % d.get("age", 0)
+    if kind == "record":
+        where = "in the world" if d.get("scope") == "world" else "in " + country_name(d.get("scope"))
+        return "\U0001F3C5", "set a new record: youngest %s to become %s, at %s" % (where, wall_an(MS_NAME.get(d.get("ms"), "Millionaire")), live_age(d.get("age_m", 0)))
+    if kind == "top1":
+        return "\U0001F451", ("took #1 in %s in the %s season" % (country_name(d.get("region")), season_name(d.get("season")))) if d.get("region") \
+            else "took #1 on the leaderboard in the %s season" % season_name(d.get("season"))
+    if kind == "champ":
+        return "\U0001F3C6", ("won the %s season in %s" % (season_name(d.get("season")), country_name(d.get("region")))) if d.get("region") \
+            else "won the %s season on the leaderboard" % season_name(d.get("season"))
+    return "\u2b50", "reached a milestone"
+
+
+def wall_item(r, t):
+    """One post as the game and the public page show it."""
+    try:
+        data = json.loads(r["data"] or "{}")
+    except ValueError:
+        data = {}
+    if r["kind"] == "rank" and "r" not in data:
+        data["r"] = ""
+    ico, text = wall_text(r["kind"], data)
+    return {"id": r["id"], "kind": r["kind"], "ico": ico, "text": text, "who": data.get("who", ""), "ago": ago(r["ts"], t), "ts": r["ts"],
+            "rank": data.get("r", ""), "gen": data.get("gen", 0)}
+
+
+def profile_get(sql_where, args):
+    return q(PROF_SQL + sql_where, args, one=True)
+
+
+def profile_by_user(uid):
+    """A signed-in player's profile, made the first time it is needed. The handle is their username."""
+    p = profile_get("WHERE p.user_id=?", (uid,))
+    if p:
+        return p
+    u = q("SELECT username, created FROM users WHERE id=?", (uid,), one=True)
+    if not u:
+        return None
+    t = now()
+    for handle in (u["username"], "%s-%d" % (u["username"], uid)):
+        try:
+            q("INSERT INTO profiles(user_id, handle, created, updated) VALUES(?,?,?,?)", (uid, handle, u["created"] or t, t))
+            break
+        except sqlite3.IntegrityError:
+            if profile_get("WHERE p.user_id=?", (uid,)):
+                break
+    return profile_get("WHERE p.user_id=?", (uid,))
+
+
+def gkey_hash(key):
+    return hashlib.sha256(key.encode()).hexdigest() if isinstance(key, str) and 20 <= len(key) <= 80 else ""
+
+
+def profile_by_key(key):
+    h = gkey_hash(key)
+    return profile_get("WHERE p.gkey=? AND p.user_id=0", (h,)) if h else None
+
+
+def profile_by_handle(handle):
+    handle = (handle or "").strip().lower().lstrip("@")
+    if not HANDLE_RE.match(handle):
+        return None
+    return profile_get("WHERE p.handle=? OR (p.ghandle=? AND p.ghandle<>'')", (handle, handle))
+
+
+def guest_profile_new(region):
+    """A guest's profile: a random name like Hustler 4821 until they create an account."""
+    key, t = secrets.token_urlsafe(24), now()
+    for digits in [4] * 8 + [6] * 8:
+        n = "".join(secrets.choice("0123456789") for _ in range(digits))
+        if n[0] == "0":
+            n = "1" + n[1:]
+        try:
+            q("INSERT INTO profiles(user_id, gkey, handle, name, company, color, region, created, updated) VALUES(0,?,?,?,?,?,?,?,?)",
+              (gkey_hash(key), "hustler-" + n, "Hustler " + n, "", secrets.randbelow(6), region, t, t))
+            return key, profile_by_key(key)
+        except sqlite3.IntegrityError:
+            continue
+    return None, None
+
+
+def profile_claim(db, uid, username, gkey, t):
+    """A new account takes over the guest profile it played on (posts, link and all), or gets a fresh one."""
+    h = gkey_hash(gkey)
+    row = db.execute("SELECT id, handle FROM profiles WHERE gkey=? AND user_id=0", (h,)).fetchone() if h else None
+    if row:
+        db.execute("UPDATE profiles SET user_id=?, gkey='', ghandle=?, handle=?, name='', updated=? WHERE id=?", (uid, row["handle"], username, t, row["id"]))
+        db.execute("UPDATE feed SET user_id=? WHERE pid=?", (uid, row["id"]))
+    else:
+        db.execute("INSERT OR IGNORE INTO profiles(user_id, handle, created, updated) VALUES(?,?,?,?)", (uid, username, t, t))
+
+
+def profiles_setup():
+    """Give every existing player a profile, and link their earlier feed lines to it."""
+    t = now()
+    for u in q("SELECT id, username, created FROM users WHERE id NOT IN (SELECT user_id FROM profiles WHERE user_id>0)"):
+        try:
+            q("INSERT INTO profiles(user_id, handle, created, updated) VALUES(?,?,?,?)", (u["id"], u["username"], u["created"] or t, t))
+        except sqlite3.IntegrityError:
+            q("INSERT OR IGNORE INTO profiles(user_id, handle, created, updated) VALUES(?,?,?,?)", (u["id"], "%s-%d" % (u["username"], u["id"]), u["created"] or t, t))
+    q("UPDATE feed SET pid=(SELECT p.id FROM profiles p WHERE p.user_id=feed.user_id) WHERE pid=0 AND user_id>0")
+    if meta_get("wall_highlights") != "1":
+        for r in q("SELECT id, kind, data FROM feed WHERE hidden=0"):
+            try:
+                dd = json.loads(r["data"] or "{}") or {}
+            except ValueError:
+                dd = {}
+            if r["kind"] not in WALL_KINDS or (r["kind"] == "rank" and dd.get("r") not in WALL_RANK_OK) or (r["kind"] == "buy" and dd.get("i") not in WALL_MAJOR):
+                q("UPDATE feed SET hidden=1 WHERE id=?", (r["id"],))
+        meta_set("wall_highlights", "1")
+    if not meta_get("live_champ"):
+        meta_set("live_champ", season_prev(season_now()))
+
+
+# ---- Live feed: the highlights as they happen, for everyone (guests can watch; an account is needed to cheer or reply) ----
+LIVE_KINDS = ("rank", "buy", "record", "top1", "champ")
+LIVE_DAYS = 30
+LIVE_REPLIES = {"congrats": "Congrats! \U0001F389", "respect": "Respect. \U0001F64C", "goals": "Goals! \U0001F525",
+                "race": "Race you to the next one.", "next": "What's next?", "teach": "Teach me your ways \U0001F604"}
+LIVE_REPLIES_PER_DAY = 60
+MS_NAME = {"m": "Millionaire", "b": "Billionaire", "t": "Trillionaire", "q": "Quadrillionaire"}
+COUNTRY_NAMES = dict(KE="Kenya", UG="Uganda", TZ="Tanzania", RW="Rwanda", NG="Nigeria", GH="Ghana", ZA="South Africa", US="the United States", GB="the United Kingdom", IN="India", EG="Egypt", ET="Ethiopia",
+                     CM="Cameroon", CI="Côte d'Ivoire", SN="Senegal", ZM="Zambia", ZW="Zimbabwe", MW="Malawi", BW="Botswana",
+                     NA="Namibia", MZ="Mozambique", CD="the DR Congo", SS="South Sudan", SO="Somalia", BI="Burundi", AE="the UAE",
+                     CA="Canada", AU="Australia", DE="Germany", FR="France")
+_PRESENCE = {}
+_PRES_LOCK = threading.Lock()
+_LIVE_CACHE = {}
+
+
+def country_name(code):
+    return COUNTRY_NAMES.get((code or "").upper(), "their country")
+
+
+def season_name(sid):
+    try:
+        return calendar.month_name[int(str(sid).split("-")[1])]
+    except (ValueError, IndexError):
+        return str(sid)
+
+
+def season_prev(sid):
+    y, m = (int(x) for x in sid.split("-"))
+    return "%04d-%02d" % ((y, m - 1) if m > 1 else (y - 1, 12))
+
+
+def presence_mark(key, region):
+    """Someone has the game open: the live strip asks every minute, and saves count too."""
+    if not key:
         return
-    new_rank = clean_text(summary.get("rank"), 30)
-    old_rank = st["rank"] if st is not None else ""
-    if new_rank not in RANKS or RANKS.index(new_rank) < 1:
+    with _PRES_LOCK:
+        _PRESENCE[key] = (time.time(), (region or "")[:3])
+        if len(_PRESENCE) > 20000:
+            cut = time.time() - 600
+            for k in [k for k, v in _PRESENCE.items() if v[0] < cut]:
+                _PRESENCE.pop(k, None)
+
+
+def presence_count(region):
+    cut = time.time() - 180
+    with _PRES_LOCK:
+        live = [v for v in _PRESENCE.values() if v[0] >= cut]
+    return {"world": len(live), "country": sum(1 for v in live if region and v[1] == region)}
+
+
+def live_post(db, uid, region, kind, data, k, t):
+    """A highlight the server spots itself (records, #1 in the country, season winners). Inside the save transaction."""
+    p = db.execute("SELECT id FROM profiles WHERE user_id=?", (uid,)).fetchone()
+    if not p:
         return
-    if old_rank in RANKS and RANKS.index(new_rank) <= RANKS.index(old_rank):
+    db.execute("INSERT OR IGNORE INTO feed(user_id,pid,region,kind,data,ts,k) VALUES(?,?,?,?,?,?,?)",
+               (uid, p["id"], (region or "")[:3], kind, json.dumps(data, separators=(",", ":"), sort_keys=True), t, k))
+
+
+def live_records(db, uid, game, gen, region, ms, t):
+    """Before a save updates the record boards: is this player the youngest ever, in their country or the world?"""
+    if not ms or (gen or 1) > 1:
         return
-    data = {"r": new_rank, "g": game}
-    key = json.dumps(data, separators=(",", ":"), sort_keys=True)
-    if db.execute("SELECT 1 FROM feed WHERE user_id=? AND kind='rank' AND data=?", (uid, key)).fetchone():
+    region = (region or "").upper()[:3]
+    for k, val in ms.items():
+        col = "ms_" + k
+        own = db.execute("SELECT %s v FROM lifeboard WHERE user_id=? AND game=?" % col, (uid, game)).fetchone()
+        if own and own["v"] is not None and own["v"] <= val:
+            continue   # not new for this life
+        w = db.execute("SELECT MIN(%s) v FROM lifeboard WHERE gen=1 AND %s IS NOT NULL AND NOT (user_id=? AND game=?)" % (col, col), (uid, game)).fetchone()["v"]
+        scope = "world" if (w is None or val < w) else None   # one feed for every country: world records only
+        if scope:
+            live_post(db, uid, region, "record", {"ms": k, "age_m": int(val), "scope": scope}, "rec:%s:%s:%d" % (k, scope, int(val)), t)
+
+
+def live_top1(db, uid, sid, region, before, t):
+    """After a save adds season points: did this player just take #1 in their country? Once per season."""
+    rows = db.execute("SELECT user_id FROM season_scores WHERE season=? AND pts>0 ORDER BY pts DESC, updated LIMIT 3", (sid,)).fetchall()
+    if len(rows) >= 3 and rows[0]["user_id"] == uid and before != uid:
+        live_post(db, uid, region, "top1", {"season": sid}, "top1:" + sid, t)
+
+
+def live_champs():
+    """Once a month: last season's winner in each country (with at least 3 players) gets a highlight."""
+    prev = season_prev(season_now())
+    if meta_get("live_champ") == prev:
         return
-    feed_add(db, uid, region, "rank", data, t)
+    meta_set("live_champ", prev)
+    t = now()
+
+    def post(db):
+        top = db.execute("SELECT user_id, region FROM season_scores WHERE season=? AND pts>0 ORDER BY pts DESC, updated LIMIT 3", (prev,)).fetchall()
+        if len(top) >= 3:
+            live_post(db, top[0]["user_id"], top[0]["region"], "champ", {"season": prev}, "champ:" + prev, t)
+    tx(post)
+
+
+def live_age(m):
+    y, mo = divmod(int(m), 12)
+    return "%d years %d month%s" % (y, mo, "" if mo == 1 else "s") if mo else "%d years" % y
+
+
+def live_items(scope, region, viewer_id, t):
+    """The highlights for one view of the feed, newest first, with reactions and quick replies."""
+    base = ("SELECT f.id, f.pid, f.kind, f.data, f.ts, f.region fregion, p.user_id, p.handle, "
+            "CASE WHEN p.user_id>0 THEN COALESCE(u.name,'') ELSE p.name END name, "
+            "CASE WHEN p.user_id>0 THEN COALESCE(u.company,'') ELSE p.company END company, "
+            "CASE WHEN p.user_id>0 THEN COALESCE(u.color,0) ELSE p.color END color "
+            "FROM feed f JOIN profiles p ON p.id=f.pid LEFT JOIN users u ON u.id=p.user_id AND p.user_id>0 "
+            "WHERE f.hidden=0 AND f.ts>? AND (p.user_id=0 OR u.disabled=0) AND f.kind IN (%s) AND " % ",".join("?" * len(LIVE_KINDS)))
+    args = [t - LIVE_DAYS * 86400] + list(LIVE_KINDS)
+    fr = set()
+    if viewer_id:
+        fr = {r["friend_id"] for r in q("SELECT friend_id FROM friends WHERE user_id=?", (viewer_id,))}
+    if scope == "friends":
+        ids = list(fr | {viewer_id})
+        rows = q(base + "p.user_id IN (%s) AND (p.private=0 OR p.user_id=? OR EXISTS (SELECT 1 FROM friends x WHERE x.user_id=p.user_id AND x.friend_id=?)) "
+                 "ORDER BY f.id DESC LIMIT 50" % ",".join("?" * len(ids)), args + ids + [viewer_id, viewer_id])
+    elif scope == "world":
+        rows = q(base + "p.private=0 ORDER BY f.id DESC LIMIT 50", args)
+    else:
+        rows = q(base + "f.region=? AND p.private=0 ORDER BY f.id DESC LIMIT 50", args + [region])
+    ids = [r["id"] for r in rows]
+    counts, mine = wall_reacts(ids, viewer_id)
+    reps, myrep = {}, {}
+    if ids:
+        marks = ",".join("?" * len(ids))
+        for r in q("SELECT r.feed_id, r.code, r.user_id, u.name FROM feed_reply r JOIN users u ON u.id=r.user_id "
+                   "WHERE r.feed_id IN (%s) AND u.disabled=0 ORDER BY r.id DESC" % marks, ids):
+            e = reps.setdefault(r["feed_id"], {"n": 0, "last": []})
+            e["n"] += 1
+            if len(e["last"]) < 3:
+                e["last"].append({"name": (r["name"] or "A player").split(" ")[0], "text": LIVE_REPLIES.get(r["code"], "")})
+            if viewer_id and r["user_id"] == viewer_id:
+                myrep[r["feed_id"]] = r["code"]
+    out = []
+    for r in rows:
+        it = wall_item(r, t)
+        it.update(uid=r["user_id"], name=r["name"] or "A player", company=r["company"], color=r["color"], handle=r["handle"],
+                  guest=not r["user_id"], region=r["fregion"] or "", reacts=counts.get(r["id"], {}), mine=mine.get(r["id"], ""),
+                  replies=reps.get(r["id"], {"n": 0, "last": []}), myReply=myrep.get(r["id"], ""),
+                  me=bool(viewer_id and r["user_id"] == viewer_id), friend=r["user_id"] in fr)
+        out.append(it)
+    return out
+
+
+def wall_link(handle):
+    return "https://%s/@%s" % (SITE_DOMAIN or "hustlempires.com", handle)
+
+
+def wall_visible(p, viewer_id):
+    """Who can see a profile: everyone, or (when it is private) its owner and the friends the owner added."""
+    if not p["private"]:
+        return True
+    if viewer_id and p["user_id"] and viewer_id == p["user_id"]:
+        return True
+    return bool(viewer_id and p["user_id"] and q("SELECT 1 FROM friends WHERE user_id=? AND friend_id=?", (p["user_id"], viewer_id), one=True))
+
+
+def wall_reacts(ids, viewer_id):
+    counts, mine = {}, {}
+    if ids:
+        marks = ",".join("?" * len(ids))
+        for r in q("SELECT feed_id, emo, COUNT(*) n FROM feed_react WHERE feed_id IN (%s) GROUP BY feed_id, emo" % marks, ids):
+            counts.setdefault(r["feed_id"], {})[r["emo"]] = r["n"]
+        if viewer_id:
+            for r in q("SELECT feed_id, emo FROM feed_react WHERE user_id=? AND feed_id IN (%s)" % marks, [viewer_id] + ids):
+                mine[r["feed_id"]] = r["emo"]
+    return counts, mine
+
+
+def wall_top_rank(pid):
+    best = -1
+    for r in q("SELECT data FROM feed WHERE pid=? AND kind IN ('rank','obit') AND hidden=0", (pid,)):
+        try:
+            rk = (json.loads(r["data"] or "{}") or {}).get("r")
+        except ValueError:
+            rk = None
+        if rk in RANKS:
+            best = max(best, RANKS.index(rk))
+    return RANKS[best] if best >= 0 else ""
+
+
+def wall_json(p, viewer_id, own=False, limit=60):
+    """A profile and its posts, for the game screens."""
+    t = now()
+    out = {"handle": p["handle"], "name": p["name"] or "A player", "company": p["company"] or "", "color": p["color"] or 0,
+           "guest": not p["user_id"], "uid": p["user_id"], "private": bool(p["private"]), "region": p["region"] or "",
+           "link": wall_link(p["handle"]), "since": p["created"], "me": own, "top": wall_top_rank(p["id"])}
+    if not own and not wall_visible(p, viewer_id):
+        out.update(hidden=True, posts=[], count=0)
+        return out
+    rows = q("SELECT id, kind, data, ts FROM feed WHERE pid=? AND hidden=0 ORDER BY id DESC LIMIT ?", (p["id"], limit))
+    items = [wall_item(r, t) for r in rows]
+    counts, mine = wall_reacts([i["id"] for i in items], viewer_id)
+    for i in items:
+        i["reacts"], i["mine"] = counts.get(i["id"], {}), mine.get(i["id"], "")
+    out["posts"] = items
+    out["count"] = q("SELECT COUNT(*) c FROM feed WHERE pid=? AND hidden=0", (p["id"],), one=True)["c"]
+    if viewer_id and p["user_id"] and not own:
+        out["friend"] = bool(q("SELECT 1 FROM friends WHERE user_id=? AND friend_id=?", (viewer_id, p["user_id"]), one=True))
+    return out
+
+
+WALL_PAGE_CSS = """
+:root{--bg:#0b1a36;--bg2:#12305e;--card:rgba(255,255,255,.06);--line:rgba(255,255,255,.12);--ink:#fff;--muted:#a9bcdd;--gold:#ffc53d;--gold2:#ff9a2b;--green:#3fd06b}
+*{box-sizing:border-box}html{background:var(--bg)}
+body{margin:0;min-height:100vh;color:var(--ink);font:15px/1.5 Nunito,system-ui,-apple-system,"Segoe UI",sans-serif;
+ background:radial-gradient(circle at 50% -10%,rgba(255,197,61,.22),transparent 55%),linear-gradient(180deg,var(--bg),var(--bg2) 60%,#0a1630)}
+a{color:inherit}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none;font:700 18px/1 Oswald,Impact,sans-serif;letter-spacing:.08em;color:var(--gold)}
+.brand svg{width:28px;height:28px;border-radius:7px}
+.pill{font-size:12px;font-weight:800;padding:5px 10px;border-radius:99px;background:rgba(255,197,61,.14);color:#ffd88a;border:1px solid rgba(255,197,61,.35);white-space:nowrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
+.me{display:flex;gap:14px;align-items:center}
+.av{flex:none;width:68px;height:68px;border-radius:50%;display:grid;place-items:center;font:700 26px/1 Oswald,Impact,sans-serif;color:#fff;border:3px solid rgba(255,255,255,.85);box-shadow:0 0 0 3px rgba(255,197,61,.45)}
+h1{margin:0;font:700 26px/1.1 Oswald,Impact,sans-serif;letter-spacing:.01em;word-break:break-word}
+.sub{margin:3px 0 0;color:var(--muted);font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.stats div{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:9px 8px;text-align:center}
+.stats small{display:block;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.stats b{display:block;font:700 17px/1.2 Oswald,Impact,sans-serif;margin-top:2px;word-break:break-word}
+h2{margin:24px 0 10px;font:700 15px/1 Oswald,Impact,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+ul.posts{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.posts li{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.ico{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:21px;background:rgba(255,197,61,.12);border:1px solid rgba(255,197,61,.25)}
+.posts p{margin:0;font-weight:700}
+.posts .meta{display:block;color:var(--muted);font-size:12.5px;font-weight:600;margin-top:2px}
+.rx{display:inline-flex;gap:6px;margin-left:6px}
+.empty{color:var(--muted);text-align:center;padding:22px 10px}
+.cta{margin-top:24px;text-align:center;background:linear-gradient(180deg,rgba(255,197,61,.16),rgba(255,197,61,.05));border-color:rgba(255,197,61,.4)}
+.cta h3{margin:0 0 4px;font:700 24px/1.15 Oswald,Impact,sans-serif}
+.cta p{margin:0 0 14px;color:#dfe8fb}
+.btn{display:inline-block;text-decoration:none;font:700 20px/1 Oswald,Impact,sans-serif;letter-spacing:.06em;color:#0b1a36;padding:15px 34px;border-radius:99px;
+ background:linear-gradient(180deg,#ffe08a,var(--gold) 45%,var(--gold2));box-shadow:0 6px 0 #b8640f,0 10px 24px rgba(0,0,0,.35)}
+.btn:active{transform:translateY(3px);box-shadow:0 3px 0 #b8640f}
+.fine{display:block;margin-top:14px;color:var(--muted);font-size:12.5px}
+.foot{margin-top:26px;text-align:center;color:var(--muted);font-size:12.5px}
+.foot a{color:var(--muted)}
+@media (max-width:380px){h1{font-size:22px}.av{width:58px;height:58px;font-size:22px}.stats b{font-size:15px}}
+"""
+WALL_AVCOL = ["#2f9e5b", "#c98a1b", "#8a4fbf", "#d4483b", "#2c4a7a", "#6b7a8f"]
+WALL_LOGO = '<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="wbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#264476"/><stop offset="1" stop-color="#0b1a2c"/></linearGradient><linearGradient id="wgold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#ff8a2b"/></linearGradient><clipPath id="wr"><rect width="512" height="512" rx="112"/></clipPath></defs><g clip-path="url(#wr)"><rect width="512" height="512" fill="url(#wbg)"/><g fill="url(#wgold)"><path d="M120 420V150l40-40 40 40v270z"/><path d="M312 420V110l40-44 40 44v310z"/><rect x="190" y="250" width="132" height="54" rx="6"/><rect x="96" y="420" width="320" height="22" rx="8"/></g><g fill="#0b1a2c" opacity=".55"><rect x="144" y="170" width="12" height="18"/><rect x="164" y="170" width="12" height="18"/><rect x="144" y="206" width="12" height="18"/><rect x="164" y="330" width="12" height="18"/><rect x="144" y="366" width="12" height="18"/><rect x="336" y="140" width="12" height="18"/><rect x="356" y="176" width="12" height="18"/><rect x="336" y="212" width="12" height="18"/><rect x="356" y="330" width="12" height="18"/><rect x="336" y="366" width="12" height="18"/></g><path d="M232 196l12-30 12 14 12-14 12 30z" fill="#ffd36b"/></g></svg>'
+
+
+def hesc(s):
+    return (str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;"))
+
+
+def wall_page(p, t):
+    """The public profile page. Built on the server so a shared link opens fast and previews well in WhatsApp."""
+    name = p["name"] or "A player"
+    initials = "".join(w[:1].upper() for w in name.split()[:2]) or "?"
+    color = WALL_AVCOL[(p["color"] or 0) % len(WALL_AVCOL)]
+    top = wall_top_rank(p["id"])
+    play = "/?c=profile"
+    if p["user_id"]:
+        try:
+            play = "/?ref=%s&c=profile" % ref_code_for(p["user_id"])
+        except Exception:
+            pass
+    since = time.strftime("%b %Y", time.gmtime(p["created"] or t))
+    if p["private"]:
+        posts_html = '<p class="empty">\U0001F512 This profile is private.</p>'
+        count = 0
+        desc = "A player on Hustlempires, the free business game."
+    else:
+        rows = q("SELECT id, kind, data, ts FROM feed WHERE pid=? AND hidden=0 ORDER BY id DESC LIMIT 60", (p["id"],))
+        items = [wall_item(r, t) for r in rows]
+        counts, _ = wall_reacts([i["id"] for i in items], 0)
+        count = q("SELECT COUNT(*) c FROM feed WHERE pid=? AND hidden=0", (p["id"],), one=True)["c"]
+        lis = []
+        for i in items:
+            who = i["who"] if i["who"] and i["who"] != name else ""
+            line = (hesc(who) + " " + hesc(i["text"])) if who else hesc(i["text"][:1].upper() + i["text"][1:])
+            rx = "".join("<span>%s %d</span>" % (e, n) for e, n in sorted((counts.get(i["id"]) or {}).items(), key=lambda x: -x[1]))
+            lis.append('<li><span class="ico" aria-hidden="true">%s</span><div><p>%s</p><span class="meta">%s%s</span></div></li>' %
+                       (i["ico"], line, hesc(i["ago"]), ('<span class="rx">' + rx + "</span>") if rx else ""))
+        posts_html = ('<ul class="posts">' + "".join(lis) + "</ul>") if lis else \
+            '<p class="empty">No highlights yet. The first million, the first billion and major purchases show up here as they happen.</p>'
+        desc = "%s%d highlight%s in the free business game. Can you build a bigger empire?" % (
+            ("Top rank: %s · " % top) if top else "", count, "" if count == 1 else "s")
+    title = "%s on Hustlempires" % name
+    url = wall_link(p["handle"])
+    img = "https://%s/img/og-profile.jpg" % (SITE_DOMAIN or "hustlempires.com")
+    sub = " · ".join(x for x in ["@" + p["handle"], p["company"]] if x)
+    return ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>%s</title>"
+            "<meta name=\"description\" content=\"%s\"><meta name=\"robots\" content=\"noindex\"><meta name=\"theme-color\" content=\"#0b1a36\">"
+            "<meta property=\"og:type\" content=\"profile\"><meta property=\"og:site_name\" content=\"Hustlempires\">"
+            "<meta property=\"og:title\" content=\"%s\"><meta property=\"og:description\" content=\"%s\">"
+            "<meta property=\"og:url\" content=\"%s\"><meta property=\"og:image\" content=\"%s\">"
+            "<meta property=\"og:image:width\" content=\"1200\"><meta property=\"og:image:height\" content=\"630\">"
+            "<meta name=\"twitter:card\" content=\"summary_large_image\"><link rel=\"icon\" type=\"image/png\" href=\"/icons/favicon-48.png\">"
+            "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link href=\"https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Nunito:wght@600;700;800&display=swap\" rel=\"stylesheet\">"
+            "<style>%s</style></head><body><div class=\"wrap\">"
+            "<div class=\"top\"><a class=\"brand\" href=\"%s\">%sHUSTLEMPIRES</a><span class=\"pill\">\U0001F3AE Free business game</span></div>"
+            "<section class=\"card\"><div class=\"me\"><span class=\"av\" style=\"background:%s\">%s</span><div><h1>%s</h1><p class=\"sub\">%s</p></div></div>"
+            "<div class=\"stats\"><div><small>Top rank</small><b>%s</b></div><div><small>Highlights</small><b>%d</b></div><div><small>Playing since</small><b>%s</b></div></div></section>"
+            "<h2>Highlights</h2>%s"
+            "<section class=\"card cta\"><h3>Can you build a bigger empire?</h3><p>Start with one street kiosk and see how far you can go.</p>"
+            "<a class=\"btn\" href=\"%s\">▶ PLAY FREE</a><span class=\"fine\">A free business game · In-game money only · No sign-up needed to start</span></section>"
+            "<p class=\"foot\">Highlights post here automatically from the game. <a href=\"/privacy\">Privacy</a></p>"
+            "</div></body></html>") % (
+        hesc(title), hesc(desc), hesc(title), hesc(desc), hesc(url), hesc(img), WALL_PAGE_CSS, hesc(play), WALL_LOGO, color, hesc(initials), hesc(name), hesc(sub),
+        hesc(top or "—"), count, hesc(since), posts_html, hesc(play))
+
+
+def wall_missing_page():
+    return ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+            "<title>Profile not found · Hustlempires</title><meta name=\"robots\" content=\"noindex\">"
+            "<link href=\"https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Nunito:wght@600;700;800&display=swap\" rel=\"stylesheet\">"
+            "<style>%s</style></head><body><div class=\"wrap\"><div class=\"top\"><a class=\"brand\" href=\"/\">%sHUSTLEMPIRES</a>"
+            "<span class=\"pill\">\U0001F3AE Free business game</span></div><section class=\"card cta\"><h3>This profile isn’t here</h3>"
+            "<p>The link may be mistyped, or the player removed it. Build your own empire instead.</p><a class=\"btn\" href=\"/?c=profile\">▶ PLAY FREE</a>"
+            "<span class=\"fine\">A free business game · In-game money only</span></section></div></body></html>") % (WALL_PAGE_CSS, WALL_LOGO)
 
 
 def ago(ts, t):
@@ -3780,6 +4368,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.serve_file("data-deletion.html")
         if path == "/healthz":
             return self.send_json(200, {"ok": True})
+        m = re.match(r"^/@([A-Za-z0-9_.-]{3,30})/?$", path)
+        if m:
+            return self.serve_wall_page(m.group(1))
         if path.startswith("/media/"):
             return self.serve_media(path[7:])
         m = re.match(r"^/go/([A-Za-z0-9-]{1,30})/?$", path)
@@ -3832,6 +4423,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_friends()
         if path == "/api/feed":
             return self.api_feed()
+        if path == "/api/wall":
+            return self.api_wall()
+        if path == "/api/live":
+            return self.api_live()
         if path == "/api/bank/lots":
             return self.api_bank_lots()
         if path == "/api/market":
@@ -3852,6 +4447,9 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path.startswith("/media/"):
             return self.serve_media(path[7:])
+        m = re.match(r"^/@([A-Za-z0-9_.-]{3,30})/?$", path)
+        if m:   # WhatsApp and Facebook check a link with HEAD before they preview it
+            return self.serve_wall_page(m.group(1))
         self.send_response(405)
         self.send_header("Content-Length", "0")
         self.end_headers()
@@ -3866,13 +4464,17 @@ class Handler(BaseHTTPRequestHandler):
                   "/api/push/subscribe": self.api_push_sub, "/api/push/unsubscribe": self.api_push_unsub, "/api/push/open": self.api_push_open,
                   "/api/admin/push": self.api_admin_push, "/api/friends/add": self.api_friend_add,
                   "/api/friends/remove": self.api_friend_remove, "/api/friends/gift": self.api_friend_gift,
-                  "/api/friends/claim": self.api_gift_claim, "/api/friends/msg": self.api_friend_msg, "/api/feed/react": self.api_feed_react, "/api/bank/list": self.api_bank_list, "/api/bank/buy": self.api_bank_buy,
+                  "/api/friends/claim": self.api_gift_claim, "/api/friends/msg": self.api_friend_msg, "/api/feed/react": self.api_feed_react,
+                  "/api/wall/guest": self.api_wall_guest, "/api/wall/post": self.api_wall_post, "/api/wall/mine": self.api_wall_mine,
+                  "/api/wall/hide": self.api_wall_hide, "/api/live/reply": self.api_live_reply, "/api/wall/privacy": self.api_wall_privacy, "/api/bank/list": self.api_bank_list, "/api/bank/buy": self.api_bank_buy,
                   "/api/market/list": self.api_market_list, "/api/market/buy": self.api_market_buy,
                   "/api/market/cancel": self.api_market_cancel, "/api/market/settle": self.api_market_settle,
                   "/api/xchg/list": self.api_xchg_list, "/api/xchg/buy": self.api_xchg_buy, "/api/xchg/sell": self.api_xchg_sell,
                   "/api/xchg/settle": self.api_xchg_settle}
         if path in routes:
             return routes[path]()
+        if path in ("/api/admin/wall/hide", "/api/admin/wall/private"):
+            return self.api_admin_wall_set(path)
         if path == "/api/admin/campaign":
             return self.api_admin_campaign()
         if path == "/api/admin/media/chunk":
@@ -4041,6 +4643,7 @@ class Handler(BaseHTTPRequestHandler):
                        (uid, t, "Created an account%s (%s)" % (" with Google" if google_sub else "",
                                                                {"hustler": "street hustler", "grad": "university graduate", "heir": "family business heir"}[bg])))
             db.execute("INSERT OR IGNORE INTO activity_days(user_id, day) VALUES(?,?)", (uid, today()))
+            profile_claim(db, uid, username, d.get("gkey"), t)
             if inviter:
                 db.execute("INSERT OR IGNORE INTO referrals(user_id,inviter_id,created) VALUES(?,?,?)", (uid, inviter["id"], t))
                 db.execute("INSERT OR IGNORE INTO friends(user_id,friend_id,created) VALUES(?,?,?)", (uid, inviter["id"], t))
@@ -4604,30 +5207,27 @@ class Handler(BaseHTTPRequestHandler):
         region = re.sub(r"[^A-Z]", "", ((qs.get("region") or [""])[0]).upper())[:3]
         fr = {r["friend_id"] for r in q("SELECT friend_id FROM friends WHERE user_id=?", (uid,))}
         since = t - FEED_DAYS * 86400
-        base = ("SELECT f.id, f.user_id, f.kind, f.data, f.ts, u.name, u.company, u.color, u.username FROM feed f JOIN users u ON u.id=f.user_id "
-                "WHERE u.disabled=0 AND f.ts>? AND ")
+        base = ("SELECT f.id, f.pid, f.kind, f.data, f.ts, p.user_id, p.handle, "
+                "CASE WHEN p.user_id>0 THEN COALESCE(u.name,'') ELSE p.name END name, "
+                "CASE WHEN p.user_id>0 THEN COALESCE(u.company,'') ELSE p.company END company, "
+                "CASE WHEN p.user_id>0 THEN COALESCE(u.color,0) ELSE p.color END color, COALESCE(u.username,'') username "
+                "FROM feed f JOIN profiles p ON p.id=f.pid LEFT JOIN users u ON u.id=p.user_id AND p.user_id>0 "
+                "WHERE f.hidden=0 AND f.ts>? AND (p.user_id=0 OR u.disabled=0) AND ")
         if scope == "friends":
             ids = list(fr | {uid})
-            rows = q(base + "f.user_id IN (%s) ORDER BY f.id DESC LIMIT 40" % ",".join("?" * len(ids)), [since] + ids)
+            rows = q(base + "p.user_id IN (%s) AND (p.private=0 OR p.user_id=? OR EXISTS (SELECT 1 FROM friends x WHERE x.user_id=p.user_id AND x.friend_id=?)) "
+                     "ORDER BY f.id DESC LIMIT 40" % ",".join("?" * len(ids)), [since] + ids + [uid, uid])
         else:
-            rows = q(base + "f.region=? ORDER BY f.id DESC LIMIT 40", (since, region))
-        ids = [r["id"] for r in rows]
-        counts, mine = {}, {}
-        if ids:
-            marks = ",".join("?" * len(ids))
-            for r in q("SELECT feed_id, emo, COUNT(*) n FROM feed_react WHERE feed_id IN (%s) GROUP BY feed_id, emo" % marks, ids):
-                counts.setdefault(r["feed_id"], {})[r["emo"]] = r["n"]
-            for r in q("SELECT feed_id, emo FROM feed_react WHERE user_id=? AND feed_id IN (%s)" % marks, [uid] + ids):
-                mine[r["feed_id"]] = r["emo"]
+            rows = q(base + "f.region=? AND p.private=0 AND f.kind IN (%s) ORDER BY f.id DESC LIMIT 40" % ",".join("?" * len(WALL_COUNTRY)),
+                     [since, region] + list(WALL_COUNTRY))
+        counts, mine = wall_reacts([r["id"] for r in rows], uid)
         items = []
         for r in rows:
-            try:
-                data = json.loads(r["data"] or "{}")
-            except ValueError:
-                data = {}
-            items.append({"id": r["id"], "uid": r["user_id"], "name": r["name"], "company": r["company"], "color": r["color"], "username": r["username"],
-                          "kind": r["kind"], "rank": data.get("r", ""), "gen": data.get("gen", 0), "ago": ago(r["ts"], t),
-                          "reacts": counts.get(r["id"], {}), "mine": mine.get(r["id"], ""), "me": r["user_id"] == uid, "friend": r["user_id"] in fr})
+            it = wall_item(r, t)
+            it.update(uid=r["user_id"], name=r["name"] or "A player", company=r["company"], color=r["color"], username=r["username"],
+                      handle=r["handle"], guest=not r["user_id"], reacts=counts.get(r["id"], {}), mine=mine.get(r["id"], ""),
+                      me=r["user_id"] == uid, friend=r["user_id"] in fr)
+            items.append(it)
         self.send_json(200, {"items": items, "reacts": REACTS, "scope": "friends" if scope == "friends" else "country"})
 
     def api_feed_react(self):
@@ -4643,8 +5243,8 @@ class Handler(BaseHTTPRequestHandler):
         fid, emo, t = int(num(d.get("id"))), str(d.get("e") or ""), now()
         if emo not in REACTS:
             return self.error(400, "Pick one of the reactions.")
-        item = q("SELECT user_id, kind, data FROM feed WHERE id=?", (fid,), one=True)
-        if not item:
+        item = q("SELECT user_id, pid, kind, data, hidden FROM feed WHERE id=?", (fid,), one=True)
+        if not item or item["hidden"]:
             return self.error(404, "That post is gone.")
         if item["user_id"] == user["id"]:
             return self.error(409, "You cannot react to your own news.")
@@ -4654,12 +5254,228 @@ class Handler(BaseHTTPRequestHandler):
         else:
             q("INSERT INTO feed_react(feed_id,user_id,emo,ts) VALUES(?,?,?,?) ON CONFLICT(feed_id,user_id) DO UPDATE SET emo=excluded.emo, ts=excluded.ts",
               (fid, user["id"], emo, t))
-            if not cur:
+            if not cur and item["user_id"]:
                 first = (user["name"] or "A player").split(" ")[0]
                 push_later(item["user_id"], "react", first + " reacted " + emo + " to your news", "See who is cheering you on in the business feed.", t, gap=6 * 3600)
         n = {r["emo"]: r["n"] for r in q("SELECT emo, COUNT(*) n FROM feed_react WHERE feed_id=? GROUP BY emo", (fid,))}
         mine = q("SELECT emo FROM feed_react WHERE feed_id=? AND user_id=?", (fid, user["id"]), one=True)
         self.send_json(200, {"reacts": n, "mine": mine["emo"] if mine else ""})
+
+    # ---------- Public profiles ("empire walls") ----------
+    def wall_owner(self, d):
+        """Whose profile a request is about: the signed-in player's, or a guest's (proved by the secret key their browser holds)."""
+        user = self.session_user()
+        if user:
+            return profile_by_user(user["id"]), user
+        key = d.get("key") if isinstance(d, dict) else None
+        return (profile_by_key(key) if key else None), None
+
+    def api_wall_guest(self):
+        """A guest's first milestone: make them a profile and give their browser its secret key."""
+        if rate_limited("wallguest:" + self.client_ip(), limit=12, window=3600):
+            return self.error(429, "Too many new profiles from your network. Try again later.")
+        d = self.read_json()
+        if d is None:
+            return
+        region = re.sub(r"[^A-Z]", "", str(d.get("region") or "").upper())[:3]
+        key, p = guest_profile_new(region)
+        if not p:
+            return self.error(503, "Could not make a profile right now. Try again later.")
+        self.send_json(201, {"key": key, "handle": p["handle"], "name": p["name"], "link": wall_link(p["handle"])})
+
+    def api_wall_post(self):
+        """Post milestones to the player's profile. Each one is stored once (by its key), from fixed templates only."""
+        d = self.read_json()
+        if d is None:
+            return
+        p, user = self.wall_owner(d)
+        if not p:
+            return self.error(401, "No profile yet.")
+        if p["disabled"]:
+            return self.error(403, "This account is switched off.")
+        if rate_limited("wallpost:%d" % p["id"], limit=120, window=3600):
+            return self.error(429, "Slow down a little.")
+        items = d.get("items") if isinstance(d.get("items"), list) else []
+        region = re.sub(r"[^A-Z]", "", str(d.get("region") or "").upper())[:3] or (p["region"] or "")
+        t = now()
+        room = WALL_PER_DAY - q("SELECT COUNT(*) c FROM feed WHERE pid=? AND ts>?", (p["id"], t - 86400), one=True)["c"]
+        posted = []
+        for it in items[:25]:
+            if room <= 0:
+                break
+            if not isinstance(it, dict):
+                continue
+            k, kind = str(it.get("k") or ""), str(it.get("kind") or "")
+            if not WALL_KEY_RE.match(k) or kind not in WALL_KINDS:
+                continue
+            data = wall_clean(kind, it.get("d"))
+            if data is None:
+                continue
+            text = json.dumps(data, separators=(",", ":"), sort_keys=True)
+            with _lock:
+                cur = _db.execute("INSERT OR IGNORE INTO feed(user_id,pid,region,kind,data,ts,k) VALUES(?,?,?,?,?,?,?)",
+                                  (p["user_id"], p["id"], region, kind, text, t, k))
+                fid = cur.lastrowid if cur.rowcount else 0
+            if fid:
+                room -= 1
+                ico, line = wall_text(kind, data)
+                posted.append({"id": fid, "k": k, "kind": kind, "ico": ico, "text": line, "who": data.get("who", "")})
+        q("UPDATE profiles SET region=?, updated=? WHERE id=?", (region, t, p["id"]))
+        self.send_json(200, {"ok": True, "handle": p["handle"], "link": wall_link(p["handle"]), "posted": posted})
+
+    def api_wall_mine(self):
+        """My own profile, with every post and the privacy switch."""
+        d = self.read_json()
+        if d is None:
+            return
+        p, user = self.wall_owner(d)
+        if not p:
+            return self.send_json(200, {"none": True})
+        self.send_json(200, wall_json(p, user["id"] if user else 0, own=True))
+
+    def api_wall(self):
+        """Someone's profile, opened from the feed or the friends list."""
+        if rate_limited("wallget:" + self.client_ip(), limit=240, window=600):
+            return self.error(429, "Too many requests.")
+        p = profile_by_handle((parse_qs(urlparse(self.path).query).get("h") or [""])[0])
+        if not p or p["disabled"]:
+            return self.error(404, "That profile is gone.")
+        user = self.session_user()
+        own = bool(user and p["user_id"] == user["id"])
+        self.send_json(200, wall_json(p, user["id"] if user else 0, own=own))
+
+    def api_wall_hide(self):
+        """Take one of my posts off my profile and the feed."""
+        d = self.read_json()
+        if d is None:
+            return
+        p, user = self.wall_owner(d)
+        if not p:
+            return self.error(401, "No profile yet.")
+        q("UPDATE feed SET hidden=1 WHERE id=? AND pid=?", (int(num(d.get("id"))), p["id"]))
+        self.send_json(200, {"ok": True})
+
+    def api_wall_privacy(self):
+        """Public (anyone with the link, and the business feed) or private (only friends I added)."""
+        d = self.read_json()
+        if d is None:
+            return
+        p, user = self.wall_owner(d)
+        if not p:
+            return self.error(401, "No profile yet.")
+        q("UPDATE profiles SET private=?, updated=? WHERE id=?", (1 if d.get("private") else 0, now(), p["id"]))
+        self.send_json(200, {"ok": True, "private": bool(d.get("private"))})
+
+    def serve_wall_page(self, handle):
+        """hustlempires.com/@handle: the public profile page."""
+        if rate_limited("wallpage:" + self.client_ip(), limit=300, window=600):
+            return self.error(429, "Too many requests.")
+        p = profile_by_handle(handle)
+        if p and handle.lower() != p["handle"]:
+            self.send_response(301)
+            self.send_header("Location", "/@" + p["handle"])
+            self.send_header("Content-Length", "0")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+        found = bool(p and not p["disabled"])
+        body = (wall_page(p, now()) if found else wall_missing_page()).encode()
+        gz = len(body) > 1024 and "gzip" in (self.headers.get("Accept-Encoding") or "").lower()
+        if gz:
+            body = gzip.compress(body, 6)
+        self.send_response(200 if found else 404)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Vary", "Accept-Encoding")
+        if gz:
+            self.send_header("Content-Encoding", "gzip")
+        self.security_headers()
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def api_live(self):
+        """The live feed. Anyone can watch it, guests included. Polled every minute by the strip in the game, so it also counts who is playing now."""
+        if rate_limited("live:" + self.client_ip(), limit=600, window=600):
+            return self.error(429, "Too many requests.")
+        qs = parse_qs(urlparse(self.path).query)
+        scope = "friends" if (qs.get("scope") or [""])[0] == "friends" else "world"   # one feed for every country
+        region = re.sub(r"[^A-Z]", "", ((qs.get("region") or [""])[0]).upper())[:3]
+        user = self.session_user()
+        if scope == "friends" and not user:
+            return self.error(401, "Create your free account to see your friends.")
+        vid = (qs.get("vid") or [""])[0]
+        presence_mark(("u%d" % user["id"]) if user else ("v" + vid if VID_RE.match(vid or "") else ""), region)
+        try:
+            live_champs()
+        except Exception as e:
+            print("Season winners failed: %s" % e, flush=True)
+        t = now()
+        items = live_items(scope, region, user["id"] if user else 0, t)
+        self.send_json(200, {"items": items, "reacts": REACTS, "replies": [[k, v] for k, v in LIVE_REPLIES.items()],
+                             "playing": presence_count(region), "signed": bool(user), "scope": scope, "now": t})
+
+    def api_live_reply(self):
+        """A quick reply under a highlight: one of the ready-made lines, one per player per post. The owner's phone gets a nudge."""
+        user = self.session_user()
+        if not user:
+            return self.error(401, "Create your free account to reply.")
+        d = self.read_json()
+        if d is None:
+            return
+        fid, code, t = int(num(d.get("id"))), str(d.get("code") or ""), now()
+        if code not in LIVE_REPLIES:
+            return self.error(400, "Pick one of the replies.")
+        item = q("SELECT user_id, hidden FROM feed WHERE id=?", (fid,), one=True)
+        if not item or item["hidden"]:
+            return self.error(404, "That post is gone.")
+        if item["user_id"] == user["id"]:
+            return self.error(409, "You cannot reply to your own news.")
+        if q("SELECT COUNT(*) c FROM feed_reply WHERE user_id=? AND ts>?", (user["id"], t - 86400), one=True)["c"] >= LIVE_REPLIES_PER_DAY:
+            return self.error(409, "That is all your replies for today. More tomorrow.")
+        had = q("SELECT 1 FROM feed_reply WHERE feed_id=? AND user_id=?", (fid, user["id"]), one=True)
+        q("INSERT INTO feed_reply(feed_id,user_id,code,ts) VALUES(?,?,?,?) ON CONFLICT(feed_id,user_id) DO UPDATE SET code=excluded.code, ts=excluded.ts",
+          (fid, user["id"], code, t))
+        if not had and item["user_id"]:
+            first = (user["name"] or "A player").split(" ")[0]
+            push_later(item["user_id"], "reply", first + " replied to your news", LIVE_REPLIES[code], t, gap=3 * 3600)
+        n = q("SELECT COUNT(*) c FROM feed_reply WHERE feed_id=?", (fid,), one=True)["c"]
+        self.send_json(200, {"ok": True, "n": n, "mine": code})
+
+    def api_admin_wall(self):
+        """Admin: the newest posts on public profiles, to hide anything unsuitable."""
+        t = now()
+        rows = q("SELECT f.id, f.pid, f.kind, f.data, f.ts, f.hidden, f.region, p.handle, p.private, p.user_id, "
+                 "CASE WHEN p.user_id>0 THEN COALESCE(u.name,'') ELSE p.name END name, "
+                 "CASE WHEN p.user_id>0 THEN COALESCE(u.company,'') ELSE p.company END company "
+                 "FROM feed f JOIN profiles p ON p.id=f.pid LEFT JOIN users u ON u.id=p.user_id AND p.user_id>0 "
+                 "ORDER BY f.id DESC LIMIT 150")
+        posts = []
+        for r in rows:
+            it = wall_item(r, t)
+            it.update(pid=r["pid"], handle=r["handle"], name=r["name"], company=r["company"], guest=not r["user_id"],
+                      private=bool(r["private"]), hidden=bool(r["hidden"]), region=r["region"], link=wall_link(r["handle"]))
+            posts.append(it)
+        k = q("SELECT COUNT(*) n, SUM(user_id=0) g, SUM(private) pv FROM profiles", one=True)
+        week = q("SELECT COUNT(*) n, COUNT(DISTINCT pid) p FROM feed WHERE pid>0 AND ts>?", (t - 7 * 86400,), one=True)
+        kinds = {r["kind"]: r["n"] for r in q("SELECT kind, COUNT(*) n FROM feed WHERE pid>0 AND ts>? GROUP BY kind", (t - 7 * 86400,))}
+        visits = q("SELECT COUNT(*) n FROM visitors WHERE camp='profile' AND first>?", (t - 7 * 86400,), one=True)["n"]
+        signed = q("SELECT COUNT(*) n FROM users WHERE camp='profile' AND created>?", (t - 7 * 86400,), one=True)["n"]
+        self.send_json(200, {"profiles": k["n"] or 0, "guests": k["g"] or 0, "private": k["pv"] or 0, "posts7": week["n"] or 0,
+                             "posters7": week["p"] or 0, "kinds7": kinds, "visits7": visits, "signed7": signed, "posts": posts})
+
+    def api_admin_wall_set(self, path):
+        if not self.is_admin():
+            return self.error(401, "Log in as admin.")
+        d = self.read_json()
+        if d is None:
+            return
+        if path == "/api/admin/wall/hide":
+            q("UPDATE feed SET hidden=? WHERE id=?", (1 if d.get("hidden", True) else 0, int(num(d.get("id")))))
+        else:
+            q("UPDATE profiles SET private=?, updated=? WHERE id=?", (1 if d.get("private", True) else 0, now(), int(num(d.get("pid")))))
+        self.send_json(200, {"ok": True})
 
     def api_friend_add(self):
         user = self.session_user()
@@ -4972,10 +5788,6 @@ class Handler(BaseHTTPRequestHandler):
             st = db.execute("SELECT * FROM stats WHERE user_id=?", (uid,)).fetchone()
             game = st["games"] if st else 1
             prev_month = st["month"] if st else 0
-            try:
-                feed_from_save(db, uid, st, summary, (game + 1) if new_game else game, new_game, t)
-            except Exception as e:
-                print("Feed line failed: %s" % e, flush=True)
             if new_game:
                 if st is not None and st["month"] > 0 or isinstance(summary.get("prev"), dict):
                     life = clean_life(summary.get("prev")) or life_from_records(db, uid, game, st)
@@ -5002,6 +5814,11 @@ class Handler(BaseHTTPRequestHandler):
                        (uid, nw, best, num(summary.get("cash")), month, clean_text(summary.get("rank"), 30), billion,
                         1 if summary.get("over") else 0, game, played, json.dumps(detail), t, played))
             if month > 0:
+                try:
+                    live_records(db, uid, game, num(summary.get("gen"), 1), summary.get("region") if isinstance(summary.get("region"), str) else "",
+                                 clean_ms(summary.get("ms")), t)
+                except Exception as e:
+                    print("Record check failed: %s" % e, flush=True)
                 lifeboard_put(db, uid, game, num(summary.get("gen"), 1), summary.get("who") if isinstance(summary.get("who"), str) else "",
                               summary.get("region") if isinstance(summary.get("region"), str) else "", best, clean_ms(summary.get("ms")), t,
                               num(summary.get("co")) if summary.get("co") is not None else None)
@@ -5028,9 +5845,15 @@ class Handler(BaseHTTPRequestHandler):
             if isinstance(sea, dict) and season_ok(sea.get("id")):
                 pts = int(max(0, min(1e7, num(sea.get("pts")))))
                 region = clean_text(summary.get("region"), 3).upper()
+                lead = db.execute("SELECT user_id FROM season_scores WHERE season=? AND pts>0 ORDER BY pts DESC, updated LIMIT 1",
+                                  (sea["id"],)).fetchone()
                 db.execute("INSERT INTO season_scores(user_id,season,pts,region,updated) VALUES(?,?,?,?,?) "
                            "ON CONFLICT(user_id,season) DO UPDATE SET pts=MAX(season_scores.pts,excluded.pts), "
                            "region=excluded.region, updated=excluded.updated", (uid, sea["id"], pts, region, t))
+                try:
+                    live_top1(db, uid, sea["id"], region, lead["user_id"] if lead else None, t)
+                except Exception as e:
+                    print("Top spot check failed: %s" % e, flush=True)
             return {"game": game, "ver": cur_ver + 1}
 
         res = tx(write)
@@ -5038,6 +5861,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(409, {"error": "This game was saved from another device.", "newer": True, "ver": res["conflict"]})
         self.touch(uid)
         referral_progress(uid)
+        presence_mark("u%d" % uid, clean_text(summary.get("region"), 3).upper())
         self.send_json(200, {"ok": True, "game": res["game"], "ver": res["ver"]})
 
     # ---------- invite a friend ----------
@@ -5230,7 +6054,7 @@ class Handler(BaseHTTPRequestHandler):
         region = (qs.get("region", [""])[0] or (mine["region"] if mine else "")).upper()[:3]
         scope = qs.get("scope", ["world"])[0]
         where, args = ("s.season=? AND s.region=?", (sid, region)) if scope == "country" and region else ("s.season=?", (sid,))
-        top = q("SELECT u.name,u.company,u.color,s.pts,s.region FROM season_scores s JOIN users u ON u.id=s.user_id "
+        top = q("SELECT u.name,u.company,u.color,u.username,s.pts,s.region FROM season_scores s JOIN users u ON u.id=s.user_id "
                 "WHERE u.disabled=0 AND s.pts>0 AND " + where + " ORDER BY s.pts DESC, s.updated LIMIT 25", args)
 
         def ranks(season, pts, reg):
@@ -5856,6 +6680,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.admin_overview()
         if path == "/api/admin/posts":
             return self.send_json(200, posts_report(now()))
+        if path == "/api/admin/wall":
+            return self.api_admin_wall()
         if path == "/api/admin/adruns":
             return self.send_json(200, ads_runs_report(now()))
         if path == "/api/admin/pixel":
@@ -6109,6 +6935,11 @@ def main():
         backfill_friends()
     except Exception as e:
         print("Friends backfill skipped: %s" % e, flush=True)
+    try:
+        profiles_setup()
+        print("Public profiles: %d" % q("SELECT COUNT(*) c FROM profiles", one=True)["c"], flush=True)
+    except Exception as e:
+        print("Profiles set-up skipped: %s" % e, flush=True)
     print("Notifications: %s" % ("ready" if push_ready() else "off (install python3-cryptography to switch them on)"), flush=True)
     try:
         backfill_lives()
